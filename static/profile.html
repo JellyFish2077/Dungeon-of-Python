@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Профиль</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { display: block; }
+    .prof { max-width: 900px; margin: 0 auto; }
+    .hero { display: flex; gap: 18px; align-items: center; }
+    .ava { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 34px; font-weight: 800; color: #fff; }
+    .palette { display: flex; gap: 8px; margin-top: 10px; }
+    .swatch { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+    .swatch.active { border-color: #fff; box-shadow: 0 0 0 2px #2563eb; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 16px; }
+    .stat-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+    .stat-box b { display: block; font-size: 24px; color: var(--primary); }
+    .stat-box span { font-size: 13px; color: var(--muted); }
+    textarea#about { width: 100%; min-height: 80px; border: 1px solid var(--border); border-radius: 10px; padding: 10px; font-family: inherit; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="prof">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <div>
+        <h1>Профиль</h1>
+        <p>Аккаунт, статистика и достижения</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-btn" href="/">Главная</a>
+      <a class="nav-btn" href="/quiz">Тест</a>
+      <a class="nav-btn" href="/game">Подземелье</a>
+      <a class="nav-btn" href="/study">Самоподготовка</a>
+      <a class="nav-btn active" id="nav-profile" href="/profile">Профиль</a>
+      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+    </nav>
+
+    <section class="card" id="login-card" style="display:none">
+      <h2>Нужен вход</h2>
+      <p class="lead">Войдите с главной страницы, чтобы открыть профиль.</p>
+      <a class="btn" href="/">На главную</a>
+    </section>
+
+    <section class="card hidden" id="profile-card">
+      <div class="hero">
+        <div class="ava" id="ava">?</div>
+        <div style="flex:1">
+          <h2 style="margin:0 0 4px" id="p-name">—</h2>
+          <span class="badge" id="p-role">ученик</span>
+          <p class="lead" id="p-created" style="margin:8px 0 0"></p>
+        </div>
+      </div>
+
+      <label class="field" style="margin-top:16px">О себе</label>
+      <textarea id="about" maxlength="300" placeholder="Пара слов о себе"></textarea>
+
+      <label class="field" style="margin-top:12px">Цвет аватара</label>
+      <div class="palette" id="palette"></div>
+
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn" id="save-btn">Сохранить</button>
+        <button class="btn ghost" id="reload-btn">Обновить</button>
+      </div>
+      <p class="lead" id="msg" style="margin:10px 0 0"></p>
+
+      <h3 style="margin-top:20px">Статистика</h3>
+      <div class="stat-grid" id="stats"></div>
+
+      <h3 style="margin-top:20px">Достижения</h3>
+      <div id="badges"></div>
+
+      <h3 style="margin-top:20px">Кошелёк</h3>
+      <p class="lead" id="wallet"></p>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/profile.js"></script>
+  <script src="/static/auth.js"></script>
+  <script>
+    const PALETTE = ["#2563eb", "#16a34a", "#db2777", "#f59e0b", "#7c3aed", "#0891b2", "#dc2626"];
+    let me = null;
+    let avatar = PALETTE[0];
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg; t.classList.add("show");
+      clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+    function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+    function box(v,l){return "<div class='stat-box'><b>"+v+"</b><span>"+l+"</span></div>";}
+
+    function renderPalette() {
+      const el = document.getElementById("palette");
+      el.innerHTML = PALETTE.map((c) => "<div class='swatch" + (c === avatar ? " active" : "") +
+        "' style='background:" + c + "' data-c='" + c + "'></div>").join("");
+      el.querySelectorAll(".swatch").forEach((s) => s.addEventListener("click", () => {
+        avatar = s.dataset.c; renderPalette(); paintAvatar();
+      }));
+    }
+    function paintAvatar() {
+      const el = document.getElementById("ava");
+      el.style.background = avatar;
+      el.textContent = (me && me.name ? me.name[0] : "?").toUpperCase();
+    }
+
+    function renderStats() {
+      const local = getProfile(me.name) || {};
+      const runs = (local.quizRuns || []);
+      const best = runs.reduce((m, r) => Math.max(m, r.percent || 0), 0);
+      const floors = local.dungeonBest ? local.dungeonBest.floors : 0;
+      const win = !!(local.dungeonBest && local.dungeonBest.victory);
+      document.getElementById("stats").innerHTML =
+        box(runs.length, "Прохождений теста") +
+        box(best + "%", "Лучший результат") +
+        box(floors || "—", "Этаж в подземелье") +
+        box(win ? "★" : "—", "Победа над драконом");
+      document.getElementById("wallet").textContent = "Кошелёк: " + walletText(local.wallet || {gold:0});
+      document.getElementById("badges").innerHTML = badgesHtml(local);
+    }
+
+    function load() {
+      const u = currentUser();
+      if (!u || !u.token) {
+        document.getElementById("login-card").style.display = "";
+        document.getElementById("profile-card").classList.add("hidden");
+        return;
+      }
+      document.getElementById("login-card").style.display = "none";
+      document.getElementById("profile-card").classList.remove("hidden");
+      fetch("/api/me?token=" + encodeURIComponent(u.token))
+        .then((r) => r.json())
+        .then((res) => {
+          if (!res.ok) { document.getElementById("login-card").style.display = ""; return; }
+          me = res.user;
+          avatar = me.avatar || PALETTE[0];
+          document.getElementById("p-name").textContent = me.name;
+          document.getElementById("p-role").textContent = me.role === "teacher" ? "преподаватель" : "ученик";
+          document.getElementById("p-created").textContent = me.created ? "С нами с " + me.created.slice(0, 10) : "";
+          document.getElementById("about").value = me.about || "";
+          renderPalette(); paintAvatar(); renderStats();
+        })
+        .catch(() => { document.getElementById("msg").textContent = "Сервер недоступен"; });
+    }
+
+    document.getElementById("save-btn").addEventListener("click", () => {
+      const u = currentUser();
+      if (!u || !u.token) return;
+      const about = document.getElementById("about").value;
+      fetch("/api/profile/update", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: u.token, about: about, avatar: avatar })
+      }).then((r) => r.json()).then((res) => {
+        document.getElementById("msg").textContent = res.ok ? "Сохранено." : (res.error || "Ошибка");
+        if (res.ok) { me = res.user; paintAvatar(); toast("Профиль сохранён"); }
+      }).catch(() => { document.getElementById("msg").textContent = "Сервер недоступен"; });
+    });
+    document.getElementById("reload-btn").addEventListener("click", load);
+
+    load();
+  </script>
+</body>
+</html>

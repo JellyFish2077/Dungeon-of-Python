@@ -1,61 +1,8 @@
-// Локальная авторизация: ученики и преподаватели.
-// Данные хранятся только в браузере (localStorage).
-const AUTH_KEY = "pyquiz_accounts_v1";
+// Аккаунты на сервере: вход по имени и PIN, токен сессии.
+// Профиль хранится и на сервере (users.json), и локально для статистики игры.
 const SESSION_KEY = "pyquiz_session_v1";
 
-function _hashPass(pass) {
-  let h = 5381;
-  const s = "pyquiz::" + String(pass);
-  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
-  return h.toString(16);
-}
-
-function loadAccounts() {
-  try {
-    const raw = localStorage.getItem(AUTH_KEY);
-    const d = raw ? JSON.parse(raw) : null;
-    return d && typeof d === "object" ? d : {};
-  } catch (e) {
-    return {};
-  }
-}
-
-function saveAccounts(all) {
-  try { localStorage.setItem(AUTH_KEY, JSON.stringify(all)); } catch (e) {}
-}
-
-function registerAccount(name, pass, role) {
-  name = String(name || "").trim();
-  role = role === "teacher" ? "teacher" : "student";
-  if (!name) return { ok: false, error: "Введите имя" };
-  if (String(pass).length < 3) return { ok: false, error: "Пароль минимум 3 символа" };
-  const key = name.toLowerCase();
-  const all = loadAccounts();
-  if (all[key]) return { ok: false, error: "Такое имя уже занято" };
-  all[key] = { name, pass: _hashPass(pass), role, created: new Date().toISOString() };
-  saveAccounts(all);
-  if (typeof getProfile === "function") getProfile(name); // создаёт профиль
-  return { ok: true, user: { name, role } };
-}
-
-function loginAccount(name, pass, role) {
-  name = String(name || "").trim();
-  const key = name.toLowerCase();
-  const all = loadAccounts();
-  const acc = all[key];
-  if (!acc) return { ok: false, error: "Аккаунт не найден" };
-  if (acc.pass !== _hashPass(pass)) return { ok: false, error: "Неверный пароль" };
-  if (role && acc.role !== role) return { ok: false, error: "Другая роль у аккаунта" };
-  setSession(acc.name, acc.role);
-  return { ok: true, user: { name: acc.name, role: acc.role } };
-}
-
-function setSession(name, role) {
-  try { localStorage.setItem(SESSION_KEY, JSON.stringify({ name, role })); } catch (e) {}
-  if (typeof setLastName === "function") setLastName(name);
-}
-
-function currentUser() {
+function getSession() {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     return raw ? JSON.parse(raw) : null;
@@ -64,16 +11,70 @@ function currentUser() {
   }
 }
 
+function setSession(user, token) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      name: user.name, role: user.role || "student", token: token
+    }));
+  } catch (e) {}
+  if (typeof setLastName === "function") setLastName(user.name);
+}
+
+function currentUser() {
+  return getSession();
+}
+
 function logout() {
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+}
+
+function isTeacher() {
+  const u = currentUser();
+  return !!u && u.role === "teacher";
+}
+
+function authPost(url, body) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  }).then((r) => r.json());
+}
+
+function registerAccount(name, pass) {
+  name = String(name || "").trim();
+  if (!name) return Promise.resolve({ ok: false, error: "Введите имя" });
+  if (String(pass).length < 3) return Promise.resolve({ ok: false, error: "PIN минимум 3 символа" });
+  const prof = typeof getProfile === "function" ? getProfile(name) : {};
+  return authPost("/api/register", { name: name, pin: pass, profile: prof })
+    .then((res) => {
+      if (!res.ok) return res;
+      setSession(res.user, res.token);
+      if (typeof applyServerProfile === "function") applyServerProfile(res.user.name, res.profile || {});
+      return { ok: true, user: res.user };
+    })
+    .catch(() => ({ ok: false, error: "Сервер недоступен" }));
+}
+
+function loginAccount(name, pass) {
+  name = String(name || "").trim();
+  return authPost("/api/login", { name: name, pin: pass })
+    .then((res) => {
+      if (!res.ok) return res;
+      setSession(res.user, res.token);
+      if (typeof applyServerProfile === "function") applyServerProfile(res.user.name, res.profile || {});
+      return { ok: true, user: res.user };
+    })
+    .catch(() => ({ ok: false, error: "Сервер недоступен" }));
 }
 
 // Показывает пункт «Панель учителя» в навигации только преподавателю.
 function initNavAuth() {
   const nav = document.getElementById("nav-teacher");
   if (!nav) return;
-  const u = currentUser();
-  nav.style.display = u && u.role === "teacher" ? "" : "none";
+  nav.style.display = isTeacher() ? "" : "none";
+  const plink = document.getElementById("nav-profile");
+  if (plink) plink.style.display = currentUser() ? "" : "none";
 }
 
 if (typeof document !== "undefined") {
@@ -82,11 +83,4 @@ if (typeof document !== "undefined") {
   } else {
     initNavAuth();
   }
-}
-
-function accountsByRole(role) {
-  const all = loadAccounts();
-  return Object.keys(all)
-    .map((k) => all[k])
-    .filter((a) => !role || a.role === role);
 }

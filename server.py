@@ -23,7 +23,7 @@ import tempfile
 import threading
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
@@ -58,6 +58,32 @@ def save_users(users):
         with open(tmp, "w", encoding="utf-8") as f:
             json.dump(users, f, ensure_ascii=False, indent=2)
         os.replace(tmp, USERS_FILE)
+
+
+AVATAR_COLORS = ["#2563eb", "#16a34a", "#db2777", "#f59e0b", "#7c3aed", "#0891b2", "#dc2626"]
+TOKENS = {}
+
+
+def new_token(key):
+    import secrets
+    tok = secrets.token_hex(16)
+    TOKENS[tok] = key
+    return tok
+
+
+def token_key(token):
+    return TOKENS.get(str(token or ""))
+
+
+def public_user(acc, key):
+    return {
+        "name": acc.get("name", key),
+        "role": acc.get("role", "student"),
+        "about": acc.get("about", ""),
+        "avatar": acc.get("avatar", AVATAR_COLORS[0]),
+        "created": acc.get("created", ""),
+    }
+
 
 ALLOW_CODE = True
 TEACHER_PIN = os.environ.get("PYQUIZ_TEACHER_PIN", "").strip()
@@ -253,6 +279,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_file(os.path.join(STATIC_DIR, "game.html"))
         elif path in ("/study", "/study.html"):
             self._serve_file(os.path.join(STATIC_DIR, "study.html"))
+        elif path in ("/profile", "/profile.html"):
+            self._serve_file(os.path.join(STATIC_DIR, "profile.html"))
         elif path == "/results":
             self._serve_file(os.path.join(STATIC_DIR, "results.html"))
         elif path.startswith("/static/"):
@@ -260,6 +288,10 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_file(os.path.join(STATIC_DIR, rel))
         elif path == "/api/results":
             self._send_json(200, load_results())
+        elif path == "/api/me":
+            self._api_me(parsed.query)
+        elif path == "/api/user":
+            self._api_user(parsed.query)
         elif path == "/api/export.csv":
             self._export_csv()
         else:
@@ -273,8 +305,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/check":
             self._handle_check()
             return
-        if path in ("/api/register", "/api/login", "/api/profile/save"):
+        if path in ("/api/register", "/api/login"):
             self._handle_account(path)
+            return
+        if path in ("/api/profile/update", "/api/profile/save"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (ValueError, json.JSONDecodeError):
+                data = {}
+            self._handle_profile(path, data)
             return
         if path != "/api/submit":
             self._send(404, b"404 Not Found")
@@ -315,15 +355,26 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(409, {"ok": False, "error": "Имя уже занято"})
                 return
             salt, h = _hash_pin(pin)
+            import secrets
             users[key] = {
                 "name": name,
                 "salt": salt,
                 "hash": h,
+                "role": "student",
+                "about": "",
+                "avatar": AVATAR_COLORS[secrets.randbelow(len(AVATAR_COLORS))],
                 "profile": data.get("profile", {}),
+                "created": datetime.now().isoformat(timespec="seconds"),
                 "updated": datetime.now().isoformat(timespec="seconds"),
             }
             save_users(users)
-            self._send_json(200, {"ok": True, "profile": users[key]["profile"]})
+            tok = new_token(key)
+            self._send_json(200, {
+                "ok": True,
+                "token": tok,
+                "user": public_user(users[key], key),
+                "profile": users[key]["profile"],
+            })
             return
 
         if key not in users:
@@ -335,11 +386,78 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/login":
-            self._send_json(200, {"ok": True, "profile": users[key].get("profile", {})})
+            tok = new_token(key)
+            self._send_json(200, {
+                "ok": True,
+                "token": tok,
+                "user": public_user(users[key], key),
+                "profile": users[key].get("profile", {}),
+            })
             return
 
         users[key]["profile"] = data.get("profile", {})
         users[key]["updated"] = datetime.now().isoformat(timespec="seconds")
+        save_users(users)
+        self._send_json(200, {"ok": True})
+
+    def _query(self, query):
+        out = {}
+        for pair in query.split("&"):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
+                out[unquote(k)] = unquote(v)
+        return out
+
+    def _api_me(self, query):
+        q = self._query(query)
+        key = token_key(q.get("token"))
+        if not key:
+            self._send_json(401, {"ok": False, "error": "Нужен вход"})
+            return
+        users = load_users()
+        acc = users.get(key)
+        if not acc:
+            self._send_json(404, {"ok": False, "error": "Аккаунт не найден"})
+            return
+        self._send_json(200, {"ok": True, "user": public_user(acc, key), "profile": acc.get("profile", {})})
+
+    def _api_user(self, query):
+        q = self._query(query)
+        key = str(q.get("name", "")).strip().lower()
+        users = load_users()
+        acc = users.get(key)
+        if not acc:
+            self._send_json(404, {"ok": False, "error": "Не найдено"})
+            return
+        self._send_json(200, {"ok": True, "user": public_user(acc, key)})
+
+    def _handle_profile(self, path, data):
+        data = data or {}
+        users = load_users()
+        key = token_key(data.get("token"))
+        if not key:
+            # запасной вариант: имя + PIN
+            name = str(data.get("name", "")).strip().lower()
+            pin = str(data.get("pin", "")).strip()
+            if name in users and pin:
+                _, h = _hash_pin(pin, users[name]["salt"])
+                if h == users[name]["hash"]:
+                    key = name
+        if not key or key not in users:
+            self._send_json(401, {"ok": False, "error": "Нужен вход"})
+            return
+        acc = users[key]
+        if path == "/api/profile/update":
+            if "about" in data:
+                acc["about"] = str(data.get("about", ""))[:300]
+            if "avatar" in data and data.get("avatar"):
+                acc["avatar"] = str(data.get("avatar"))[:20]
+            acc["updated"] = datetime.now().isoformat(timespec="seconds")
+            save_users(users)
+            self._send_json(200, {"ok": True, "user": public_user(acc, key)})
+            return
+        acc["profile"] = data.get("profile", acc.get("profile", {}))
+        acc["updated"] = datetime.now().isoformat(timespec="seconds")
         save_users(users)
         self._send_json(200, {"ok": True})
 

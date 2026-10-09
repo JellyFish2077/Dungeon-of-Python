@@ -159,10 +159,16 @@ function serverSave(name, pin, profile) {
 
 // Сохранить текущий профиль на сервер, если вход выполнен. Без ожидания.
 function syncProfile(name) {
-  const pin = getPin();
-  if (!pin || !name) return;
+  if (!name) return;
   const prof = getProfile(name);
-  if (prof) serverSave(name, pin, prof).catch(() => {});
+  if (!prof) return;
+  const session = (typeof currentUser === "function") ? currentUser() : null;
+  if (session && session.token) {
+    accountFetch("/api/profile/save", { token: session.token, profile: prof }).catch(() => {});
+  } else {
+    const pin = getPin();
+    if (pin) serverSave(name, pin, prof).catch(() => {});
+  }
 }
 
 function applyServerProfile(name, profile) {
