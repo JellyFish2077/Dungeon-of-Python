@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Подземелье Python — главное меню</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { display: block; }
+    .home { max-width: 1180px; margin: 0 auto; }
+    .cols { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 16px; align-items: start; }
+    .card + .card { margin-top: 16px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+    .stat-box { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .stat-box b { display: block; font-size: 26px; color: var(--primary); }
+    .stat-box span { font-size: 13px; color: var(--muted); }
+    table.lb { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.lb th, table.lb td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    table.lb th { color: var(--muted); font-weight: 600; }
+    .menu-link { display: block; padding: 11px 14px; border-radius: 10px; text-decoration: none; color: var(--text); border: 1px solid var(--border); margin-bottom: 8px; font-weight: 600; transition: all .12s; }
+    .menu-link:hover { border-color: var(--primary); background: #eff6ff; }
+    .menu-link.active { border-color: var(--primary); background: #eff6ff; }
+    .news-item { border-left: 3px solid var(--primary); padding: 4px 0 4px 12px; margin-bottom: 12px; }
+    .news-item .date { font-size: 12px; color: var(--muted); }
+    .news-item b { display: block; margin: 2px 0 4px; }
+    .role { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 999px; padding: 2px 10px; }
+    .role.student { background: #dcfce7; color: #166534; }
+    .role.teacher { background: #fef9c3; color: #854d0e; }
+    @media (max-width: 860px) { .cols { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="home">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <div>
+        <h1>Подземелье Python</h1>
+        <p>Тест, самоподготовка и игра — учись и сражайся знаниями</p>
+      </div>
+    </div>
+
+    <div class="cols">
+      <main>
+        <section class="card">
+          <h2>Новости проекта</h2>
+          <div id="news"></div>
+        </section>
+
+        <section class="card">
+          <h2>Статистика проекта</h2>
+          <div class="stat-grid" id="stats"></div>
+        </section>
+
+        <section class="card">
+          <h2>Таблица лидеров</h2>
+          <div class="table-wrap" style="overflow-x:auto">
+            <table class="lb">
+              <thead><tr><th>#</th><th>Имя</th><th>Лучший тест</th><th>Этаж</th><th>Победа</th><th>Достижения</th></tr></thead>
+              <tbody id="board"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+
+      <aside>
+        <section class="card">
+          <h2>Меню</h2>
+          <a class="menu-link active" href="/">Главная</a>
+          <a class="menu-link" href="/quiz">Тест и тренажёр</a>
+          <a class="menu-link" href="/game">Подземелье</a>
+          <a class="menu-link" href="/study">Самоподготовка</a>
+          <a class="menu-link" id="teacher-link" href="/results" style="display:none">Панель учителя</a>
+        </section>
+
+        <section class="card">
+          <h2>Вход</h2>
+          <div id="auth-box"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/profile.js"></script>
+  <script src="/static/auth.js"></script>
+  <script>
+    const NEWS = [
+      { date: "2026-02-01", text: "Добавлены достижения и повтор ошибок в самоподготовке." },
+      { date: "2026-01-20", text: "В подземелье появились торговец на этаже и призраки ошибок." },
+      { date: "2026-01-10", text: "Проверка «запусти код»: написанный код выполняется на сервере." },
+      { date: "2026-01-02", text: "Раздел самоподготовки: уроки по темам и быстрая практика." }
+    ];
+
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function toast(msg) {
+      const t = document.getElementById("toast");
+      t.textContent = msg;
+      t.classList.add("show");
+      clearTimeout(t._t);
+      t._t = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    function renderNews() {
+      document.getElementById("news").innerHTML = NEWS.map((n) =>
+        "<div class='news-item'><span class='date'>" + esc(n.date) + "</span><b>" +
+        esc(n.text) + "</b></div>").join("");
+    }
+
+    function aggregate() {
+      const all = loadProfiles();
+      const names = Object.keys(all);
+      let runs = 0, sumPct = 0, pctN = 0, victories = 0, badges = 0;
+      const board = [];
+      names.forEach((k) => {
+        const p = all[k];
+        const quiz = (p.quizRuns || []).reduce((m, r) => Math.max(m, r.percent || 0), 0);
+        (p.quizRuns || []).forEach((r) => { runs++; sumPct += r.percent || 0; pctN++; });
+        const floors = p.dungeonBest ? p.dungeonBest.floors : 0;
+        const win = !!(p.dungeonBest && p.dungeonBest.victory);
+        if (win) victories++;
+        const bc = Object.keys(p.badges || {}).length;
+        badges += bc;
+        board.push({ name: p.name || k, quiz, floors, win, badges: bc });
+      });
+      board.sort((a, b) => (b.win - a.win) || (b.floors - a.floors) || (b.quiz - a.quiz));
+      return {
+        students: names.length,
+        accounts: typeof accountsByRole === "function" ? accountsByRole("student").length : 0,
+        runs,
+        avg: pctN ? Math.round(sumPct / pctN) : 0,
+        victories,
+        badges,
+        board
+      };
+    }
+
+    function renderStats() {
+      const a = aggregate();
+      document.getElementById("stats").innerHTML =
+        box(a.students, "Профилей") +
+        box(a.accounts, "Учеников с аккаунтом") +
+        box(a.runs, "Пройдено тестов") +
+        box(a.avg + "%", "Средний балл") +
+        box(a.victories, "Побед в подземелье") +
+        box(a.badges, "Достижений получено");
+    }
+    function box(v, l) { return "<div class='stat-box'><b>" + v + "</b><span>" + l + "</span></div>"; }
+
+    function renderBoard() {
+      const a = aggregate();
+      const rows = a.board.slice(0, 10).map((r, i) =>
+        "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b></td><td>" +
+        (r.quiz ? r.quiz + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
+        (r.win ? "★" : "—") + "</td><td>" + (r.badges || "—") + "</td></tr>").join("");
+      document.getElementById("board").innerHTML =
+        rows || "<tr><td colspan='6' style='color:#64748b'>Пока нет данных.</td></tr>";
+    }
+
+    function renderAuth() {
+      const box = document.getElementById("auth-box");
+      const u = currentUser();
+      if (u) {
+        box.innerHTML =
+          "<p class='lead' style='margin:0 0 10px'><b>" + esc(u.name) + "</b> " +
+          "<span class='role " + u.role + "'>" + (u.role === "teacher" ? "преподаватель" : "ученик") + "</span></p>" +
+          "<button class='btn ghost' id='logout'>Выйти</button>";
+        document.getElementById("logout").addEventListener("click", () => {
+          logout(); renderAuth(); renderStats(); renderBoard();
+        });
+        document.getElementById("teacher-link").style.display = u.role === "teacher" ? "" : "none";
+        return;
+      }
+      document.getElementById("teacher-link").style.display = "none";
+      box.innerHTML =
+        "<label class='field' for='au-name'>Имя</label>" +
+        "<input type='text' id='au-name' autocomplete='off' />" +
+        "<label class='field' for='au-pass' style='margin-top:10px'>Пароль</label>" +
+        "<input type='password' id='au-pass' autocomplete='off' />" +
+        "<label class='field' for='au-role' style='margin-top:10px'>Роль</label>" +
+        "<select id='au-role'><option value='student'>Ученик</option><option value='teacher'>Преподаватель</option></select>" +
+        "<div style='display:flex;gap:8px;margin-top:14px'>" +
+        "<button class='btn' id='au-login'>Войти</button>" +
+        "<button class='btn ghost' id='au-reg'>Регистрация</button></div>" +
+        "<p class='lead' id='au-msg' style='margin:10px 0 0'></p>";
+      const m = (t) => { document.getElementById("au-msg").textContent = t; };
+      const val = (id) => document.getElementById(id).value;
+      document.getElementById("au-login").addEventListener("click", () => {
+        const r = loginAccount(val("au-name"), val("au-pass"));
+        if (!r.ok) { m(r.error); return; }
+        toast("Вход: " + r.user.name); renderAuth(); renderStats();
+      });
+      document.getElementById("au-reg").addEventListener("click", () => {
+        const r = registerAccount(val("au-name"), val("au-pass"), val("au-role"));
+        if (!r.ok) { m(r.error); return; }
+        loginAccount(val("au-name"), val("au-pass"));
+        toast("Аккаунт создан"); renderAuth(); renderStats(); renderBoard();
+      });
+    }
+
+    renderNews();
+    renderStats();
+    renderBoard();
+    renderAuth();
+  </script>
+</body>
+</html>

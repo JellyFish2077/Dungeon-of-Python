@@ -245,7 +245,9 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(403, "403. Нужен пароль: /results?pin=...".encode("utf-8"))
                 return
 
-        if path in ("/", "/index.html"):
+        if path in ("/", "/home", "/home.html"):
+            self._serve_file(os.path.join(STATIC_DIR, "home.html"))
+        elif path in ("/quiz", "/quiz.html", "/index.html"):
             self._serve_file(os.path.join(STATIC_DIR, "index.html"))
         elif path in ("/game", "/game.html"):
             self._serve_file(os.path.join(STATIC_DIR, "game.html"))
