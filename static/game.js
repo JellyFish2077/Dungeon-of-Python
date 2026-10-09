@@ -783,10 +783,28 @@
         "<button class='btn' data-buy='" + i + "'>Купить</button></div>";
     });
     html += "</div>";
+
+    html += "<div class='inv-section'><h3>Продать (выкуп −50%)</h3>";
+    if (G.inventory.length === 0) {
+      html += "<div class='inv-empty'>Сумка пуста.</div>";
+    } else {
+      G.inventory.forEach((item, i) => {
+        const val = itemSellValue(item);
+        html += "<div class='inv-item' style='border-left-color:" + RARITY[item.rarity].color + "'>" +
+          "<div class='info'><b>" + item.name + "</b>" +
+          "<span>" + itemBonusText(item) + "</span></div>" +
+          "<button class='btn ghost' data-sell='" + i + "'>Продать +" + val + "</button></div>";
+      });
+    }
+    html += "</div>";
+
     box.innerHTML = html;
     el("shop-close").addEventListener("click", closeShop);
     box.querySelectorAll("button[data-buy]").forEach((btn) => {
       btn.addEventListener("click", () => buyItem(Number(btn.dataset.buy)));
+    });
+    box.querySelectorAll("button[data-sell]").forEach((btn) => {
+      btn.addEventListener("click", () => sellItem(Number(btn.dataset.sell)));
     });
   }
 
@@ -804,6 +822,34 @@
     G.player.gold -= price;
     addItem(item);
     updateHud();
+    renderShop();
+    if (G.battle) renderBattle();
+  }
+
+  const POTION_PRICE = { small_potion: 20, big_potion: 45, elixir: 120 };
+  const RARITY_VALUE = { common: 25, uncommon: 50, rare: 90, epic: 150 };
+  const SELL_RATE = 0.5; // игрок продаёт дешевле, чем покупает
+
+  function itemBaseValue(item) {
+    if (!item) return 0;
+    if (item.slot === "potion") return POTION_PRICE[item.id] || 20;
+    return RARITY_VALUE[item.rarity] || 20;
+  }
+
+  function itemSellValue(item) {
+    return Math.max(1, Math.floor(itemBaseValue(item) * SELL_RATE));
+  }
+
+  function sellItem(i) {
+    const item = G.inventory[i];
+    if (!item) return;
+    const price = itemSellValue(item);
+    G.inventory.splice(i, 1);
+    G.player.gold += price;
+    toast("Продано: " + item.name + " (+" + price + ")");
+    log("Ты продал «" + item.name + "» за " + price + " золота.");
+    updateHud();
+    renderInventory();
     renderShop();
     if (G.battle) renderBattle();
   }
