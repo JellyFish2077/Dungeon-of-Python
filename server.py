@@ -12,15 +12,21 @@
 """
 
 import argparse
+import base64
 import csv
+import hashlib
+import hmac
 import io
 import json
 import os
+import secrets
 import socket
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import threading
+import time
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, unquote
@@ -61,18 +67,106 @@ def save_users(users):
 
 
 AVATAR_COLORS = ["#2563eb", "#16a34a", "#db2777", "#f59e0b", "#7c3aed", "#0891b2", "#dc2626"]
-TOKENS = {}
+
+SECRET_FILE = os.path.join(BASE_DIR, ".secret")
+TOKEN_TTL = 60 * 60 * 24 * 30  # 30 дней
+
+
+def _load_secret():
+    env = os.environ.get("PYQUIZ_SECRET", "").strip()
+    if env:
+        return env.encode("utf-8")
+    if os.path.exists(SECRET_FILE):
+        with open(SECRET_FILE, "rb") as f:
+            return f.read().strip()
+    val = secrets.token_hex(32).encode("utf-8")
+    try:
+        with open(SECRET_FILE, "wb") as f:
+            f.write(val)
+        os.chmod(SECRET_FILE, 0o600)
+    except OSError:
+        pass
+    return val
+
+
+SECRET = _load_secret()
 
 
 def new_token(key):
-    import secrets
-    tok = secrets.token_hex(16)
-    TOKENS[tok] = key
-    return tok
+    exp = int(time.time()) + TOKEN_TTL
+    payload = "%s|%d" % (key, exp)
+    sig = hmac.new(SECRET, payload.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+    raw = (payload + "|" + sig).encode("utf-8")
+    return base64.urlsafe_b64encode(raw).decode("ascii")
 
 
 def token_key(token):
-    return TOKENS.get(str(token or ""))
+    try:
+        raw = base64.urlsafe_b64decode(str(token or "").encode("ascii")).decode("utf-8")
+        key, exp_s, sig = raw.rsplit("|", 2)
+        payload = "%s|%s" % (key, exp_s)
+        good = hmac.new(SECRET, payload.encode("utf-8"), hashlib.sha256).hexdigest()[:32]
+        if not hmac.compare_digest(sig, good):
+            return None
+        if int(exp_s) < int(time.time()):
+            return None
+        return key
+    except (ValueError, TypeError):
+        return None
+
+
+# --- SQLite для социальных данных (друзья, сообщения, приглашения) ---
+DB_FILE = os.path.join(BASE_DIR, "social.db")
+
+
+def db():
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS friends (
+                a TEXT NOT NULL, b TEXT NOT NULL,
+                created TEXT NOT NULL, PRIMARY KEY (a, b)
+            );
+            CREATE TABLE IF NOT EXISTS requests (
+                frm TEXT NOT NULL, to_ TEXT NOT NULL,
+                created TEXT NOT NULL, PRIMARY KEY (frm, to_)
+            );
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                frm TEXT NOT NULL, to_ TEXT NOT NULL,
+                body TEXT NOT NULL, created TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS invites (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                frm TEXT NOT NULL, to_ TEXT NOT NULL,
+                kind TEXT NOT NULL, payload TEXT, created TEXT NOT NULL
+            );
+            """
+        )
+
+
+# --- ограничение попыток входа ---
+_RATE = {}
+_RATE_LOCK = threading.Lock()
+
+
+def rate_ok(ip, limit=20, window=60):
+    now = time.time()
+    with _RATE_LOCK:
+        arr = _RATE.get(ip, [])
+        arr = [t for t in arr if now - t < window]
+        if len(arr) >= limit:
+            _RATE[ip] = arr
+            return False
+        arr.append(now)
+        _RATE[ip] = arr
+        return True
 
 
 def public_user(acc, key):
@@ -227,11 +321,20 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         print("[%s] %s" % (self.log_date_time_string(), fmt % args))
 
+    def _client_ip(self):
+        fwd = self.headers.get("X-Forwarded-For", "")
+        if fwd:
+            return fwd.split(",")[0].strip()
+        return self.client_address[0] if self.client_address else "?"
+
     def _send(self, status, body=b"", content_type="text/plain; charset=utf-8"):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
@@ -341,6 +444,9 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(length).decode("utf-8"))
         except (ValueError, json.JSONDecodeError):
             self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+            return
+        if not rate_ok(self._client_ip(), limit=30, window=60):
+            self._send_json(429, {"ok": False, "error": "Слишком много попыток, подождите"})
             return
         name = str(data.get("name", "")).strip()
         pin = str(data.get("pin", "")).strip()
@@ -569,6 +675,7 @@ def main():
     )
     args = parser.parse_args()
     ALLOW_CODE = not args.no_code
+    init_db()
 
     host = "127.0.0.1" if args.local else (args.host or "0.0.0.0")
     try:
