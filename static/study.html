@@ -252,7 +252,8 @@
           b.addEventListener("click", check);
           opts.appendChild(b);
         } else {
-          r.options.forEach((o, i) => {
+          cur.view = shuffleChoices(r.options, r.answer);
+          cur.view.options.forEach((o, i) => {
             const b = document.createElement("button");
             b.className = "option"; b.type = "button";
             b.innerHTML = '<span class="key">' + LET[i] + "</span><span></span>";
@@ -269,10 +270,11 @@
 
       function answer(i) {
         total++;
-        const ok = i === cur.ref.answer;
+        const right = cur.view ? cur.view.answer : cur.ref.answer;
+        const ok = i === right;
         if (ok) { good++; dropFromErrors(cur); }
-        lockOptions(i, cur.ref.answer);
-        showFb(ok, ok ? "" : "Правильный ответ: " + LET[cur.ref.answer] + ". ", cur.ref.explanation);
+        lockOptions(i, right);
+        showFb(ok, ok ? "" : "Правильный ответ: " + LET[right] + ". ", cur.ref.explanation);
       }
 
       function check() {

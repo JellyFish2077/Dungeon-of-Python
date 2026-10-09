@@ -293,7 +293,26 @@
     for (const q of extra) QUESTIONS.push(q);
   }
 
+  // Перемешивает варианты ответа. Возвращает новый порядок:
+  // options — перемешанные варианты, answer — новый индекс правильного,
+  // order — соответствие новым индексам исходных.
+  function shuffleChoices(options, answer) {
+    const order = options.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = order[i];
+      order[i] = order[j];
+      order[j] = t;
+    }
+    return {
+      options: order.map((i) => options[i]),
+      answer: order.indexOf(answer),
+      order: order
+    };
+  }
+
   if (typeof window !== "undefined") {
-    window.QuestionVariants = { generate: generate, templates: TEMPLATES.length };
+    window.shuffleChoices = shuffleChoices;
+    window.QuestionVariants = { generate: generate, templates: TEMPLATES.length, shuffleChoices: shuffleChoices };
   }
 })();

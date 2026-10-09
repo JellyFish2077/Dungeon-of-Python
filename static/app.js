@@ -201,7 +201,8 @@
       box.appendChild(res);
       ta.focus();
     } else {
-      ref.options.forEach((opt, i) => {
+      if (!item.view) item.view = shuffleChoices(ref.options, ref.answer);
+      item.view.options.forEach((opt, i) => {
         const btn = document.createElement("button");
         btn.className = "option";
         btn.type = "button";
@@ -245,20 +246,22 @@
     if (state.locked) return;
     const item = state.order[state.index];
     const ref = item.ref;
-    const correct = chosen === ref.answer;
-    recordAnswer(item, chosen, correct);
+    const view = item.view || { answer: ref.answer, order: ref.options.map((_, i) => i) };
+    const originalChosen = view.order[chosen];
+    const correct = originalChosen === ref.answer;
+    recordAnswer(item, originalChosen, correct);
 
     const buttons = Array.from(el("options").children);
     buttons.forEach((b, i) => {
       b.disabled = true;
-      if (i === ref.answer) b.classList.add("correct");
+      if (i === view.answer) b.classList.add("correct");
       if (i === chosen && !correct) b.classList.add("wrong");
     });
 
     showAnswerFeedback(
       item,
       correct,
-      "Правильный ответ: " + LETTERS[ref.answer],
+      "Правильный ответ: " + LETTERS[view.answer],
       ref.explanation
     );
   }

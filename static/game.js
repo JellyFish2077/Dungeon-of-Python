@@ -1230,6 +1230,7 @@
       if (item) {
         if (payload.kind === "mc") b.challenge = { type: "mc", question: item };
         else b.challenge = { type: payload.kind, task: item };
+        attachChoices(b.challenge);
         b.phase = "question";
         b.feedback = "";
         b.explanation = "";
@@ -1260,10 +1261,17 @@
     } else {
       b.challenge = { type: "mc", question: pickQuestion() };
     }
+    attachChoices(b.challenge);
     b.phase = "question";
     b.feedback = "";
     b.explanation = "";
     b.results = null;
+  }
+
+  function attachChoices(c) {
+    if (!c || (c.type !== "mc" && c.type !== "fill" && c.type !== "error")) return;
+    const item = c.question || c.task;
+    if (item) c.view = shuffleChoices(item.options, item.answer);
   }
 
   function normalizeExact(s) {
@@ -1505,9 +1513,9 @@
         b.challenge.type === "fill" ||
         b.challenge.type === "error")
     ) {
-      const item = b.challenge.question || b.challenge.task;
+      const view = b.challenge.view || (b.challenge.question || b.challenge.task);
       const opts = el("battle-options");
-      item.options.forEach((opt, i) => {
+      view.options.forEach((opt, i) => {
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "option";
@@ -1624,9 +1632,10 @@
     G.player.hp -= 10;
     G.stats.hintsUsed = (G.stats.hintsUsed || 0) + 1;
     c.hintUsed = true;
+    const answerIdx = c.view ? c.view.answer : item.answer;
     const opts = el("battle-options");
     if (opts) {
-      const wrong = Array.from(opts.children).filter((btn, i) => i !== item.answer);
+      const wrong = Array.from(opts.children).filter((btn, i) => i !== answerIdx);
       if (wrong.length) wrong[rand(0, wrong.length - 1)].remove();
     }
     const hb = el("hint-btn");
@@ -1679,7 +1688,7 @@
     const item = c.question || c.task;
     const topic = item.topic || "syntax";
     const level = item.level || 2;
-    const correct = chosen === item.answer;
+    const correct = chosen === (c.view ? c.view.answer : item.answer);
     G.stats.topicStats[topic] = G.stats.topicStats[topic] || { correct: 0, total: 0 };
     G.stats.topicStats[topic].total += 1;
     if (correct) {
@@ -1692,7 +1701,7 @@
       pushMissed(c.type, item.id);
       applyAttack(
         0,
-        "Неверно. Правильный ответ: " + LETTERS[item.answer] + ".",
+        "Неверно. Правильный ответ: " + LETTERS[c.view ? c.view.answer : item.answer] + ".",
         true,
         item.explanation
       );
