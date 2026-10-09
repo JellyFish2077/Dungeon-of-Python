@@ -192,8 +192,6 @@
         "<input type='text' id='au-name' autocomplete='off' />" +
         "<label class='field' for='au-pass' style='margin-top:10px'>Пароль</label>" +
         "<input type='password' id='au-pass' autocomplete='off' />" +
-        "<label class='field' for='au-role' style='margin-top:10px'>Роль</label>" +
-        "<select id='au-role'><option value='student'>Ученик</option><option value='teacher'>Преподаватель</option></select>" +
         "<div style='display:flex;gap:8px;margin-top:14px'>" +
         "<button class='btn' id='au-login'>Войти</button>" +
         "<button class='btn ghost' id='au-reg'>Регистрация</button></div>" +
@@ -207,7 +205,7 @@
         if (typeof initNavAuth === "function") initNavAuth();
       });
       document.getElementById("au-reg").addEventListener("click", () => {
-        const r = registerAccount(val("au-name"), val("au-pass"), val("au-role"));
+        const r = registerAccount(val("au-name"), val("au-pass"), "student");
         if (!r.ok) { m(r.error); return; }
         loginAccount(val("au-name"), val("au-pass"));
         toast("Аккаунт создан"); renderAuth(); renderStats(); renderBoard();
