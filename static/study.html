@@ -23,7 +23,7 @@
       <a class="nav-btn" href="/quiz">Тест</a>
       <a class="nav-btn" href="/game">Подземелье</a>
       <a class="nav-btn active" href="/study">Самоподготовка</a>
-      <a class="nav-btn" href="/results">Панель учителя</a>
+      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
     </nav>
 
     <section class="card">
@@ -98,6 +98,7 @@
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>
   <script src="/static/profile.js"></script>
+  <script src="/static/auth.js"></script>
   <script>
     const LESSONS = [
       { topic: "syntax", title: "Синтаксис и основы", points: [

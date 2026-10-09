@@ -42,7 +42,7 @@
       <a class="nav-btn" href="/quiz">Тест</a>
       <a class="nav-btn" href="/game">Подземелье</a>
       <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn active" href="/results">Панель учителя</a>
+      <a class="nav-btn active" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
     </nav>
 
     <div class="card">
@@ -89,6 +89,7 @@
   <div class="toast" id="toast"></div>
 
   <script src="/static/questions.js"></script>
+  <script src="/static/auth.js"></script>
   <script>
     const LEVEL_COLORS = { novice: "#dc2626", basic: "#f59e0b", confident: "#2563eb", advanced: "#16a34a" };
     const PIN = new URLSearchParams(location.search).get("pin") || "";

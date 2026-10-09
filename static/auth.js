@@ -68,6 +68,22 @@ function logout() {
   try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
 }
 
+// Показывает пункт «Панель учителя» в навигации только преподавателю.
+function initNavAuth() {
+  const nav = document.getElementById("nav-teacher");
+  if (!nav) return;
+  const u = currentUser();
+  nav.style.display = u && u.role === "teacher" ? "" : "none";
+}
+
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initNavAuth);
+  } else {
+    initNavAuth();
+  }
+}
+
 function accountsByRole(role) {
   const all = loadAccounts();
   return Object.keys(all)

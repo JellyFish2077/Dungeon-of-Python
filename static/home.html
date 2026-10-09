@@ -46,7 +46,7 @@
       <a class="nav-btn" href="/quiz">Тест</a>
       <a class="nav-btn" href="/game">Подземелье</a>
       <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" href="/results">Панель учителя</a>
+      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
     </nav>
 
     <div class="cols">
@@ -181,6 +181,7 @@
           "<button class='btn ghost' id='logout'>Выйти</button>";
         document.getElementById("logout").addEventListener("click", () => {
           logout(); renderAuth(); renderStats(); renderBoard();
+          if (typeof initNavAuth === "function") initNavAuth();
         });
         document.getElementById("teacher-link").style.display = u.role === "teacher" ? "" : "none";
         return;
@@ -203,12 +204,14 @@
         const r = loginAccount(val("au-name"), val("au-pass"));
         if (!r.ok) { m(r.error); return; }
         toast("Вход: " + r.user.name); renderAuth(); renderStats();
+        if (typeof initNavAuth === "function") initNavAuth();
       });
       document.getElementById("au-reg").addEventListener("click", () => {
         const r = registerAccount(val("au-name"), val("au-pass"), val("au-role"));
         if (!r.ok) { m(r.error); return; }
         loginAccount(val("au-name"), val("au-pass"));
         toast("Аккаунт создан"); renderAuth(); renderStats(); renderBoard();
+        if (typeof initNavAuth === "function") initNavAuth();
       });
     }
 
