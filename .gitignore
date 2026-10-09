@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+*.pyo
+results.json
+results.json.tmp
+users.json
+users.json.tmp
+*.log
+.DS_Store
+.env
+node_modules/

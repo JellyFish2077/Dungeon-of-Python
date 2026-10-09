@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Результаты студентов</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <style>
+    body { display: block; }
+    .wrap { max-width: 1000px; margin: 0 auto; }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 20px; }
+    .stat { background: #f8fafc; border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+    .stat b { display: block; font-size: 26px; color: var(--primary); }
+    .stat span { font-size: 13px; color: var(--muted); }
+    .table-wrap { overflow-x: auto; }
+    table.data { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.data th, table.data td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.data th { background: #f1f5f9; position: sticky; top: 0; }
+    .lvl { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
+    .empty { text-align: center; color: var(--muted); padding: 40px 0; }
+    .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+    .heat { display: grid; gap: 6px; }
+    .heat-row { display: grid; grid-template-columns: 210px 1fr 60px; gap: 8px; align-items: center; font-size: 13px; }
+    .heat-bar { height: 18px; border-radius: 6px; background: #e2e8f0; overflow: hidden; }
+    .heat-bar > i { display: block; height: 100%; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <div>
+        <h1>Результаты студентов</h1>
+        <p>Панель преподавателя</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="head">
+        <h2 style="margin:0">Сводка</h2>
+        <div style="display:flex;gap:10px">
+          <a class="btn" href="/api/export.csv">Скачать CSV</a>
+          <button class="btn ghost" id="refresh">Обновить</button>
+        </div>
+      </div>
+
+      <div class="stats" id="stats"></div>
+      <div class="table-wrap">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>#</th><th>Имя</th><th>Режим</th><th>Дата</th><th>Результат</th>
+              <th>Уровень</th><th>Верно</th><th>Время</th><th>Слабые темы</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="empty hidden" id="empty">Пока никто не прошёл тест.</div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2 style="margin-top:0">Тепловая карта тем</h2>
+      <p class="lead">Доля правильных ответов по каждой теме (все прохождения).</p>
+      <div id="heat" class="heat"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h2 style="margin-top:0">Рейтинг</h2>
+      <div class="table-wrap">
+        <table class="data">
+          <thead><tr><th>#</th><th>Имя</th><th>Лучший тест</th><th>Этаж</th><th>Победа</th></tr></thead>
+          <tbody id="board"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/questions.js"></script>
+  <script>
+    const LEVEL_COLORS = { novice: "#dc2626", basic: "#f59e0b", confident: "#2563eb", advanced: "#16a34a" };
+    const PIN = new URLSearchParams(location.search).get("pin") || "";
+    const QS = PIN ? "?pin=" + encodeURIComponent(PIN) : "";
+
+    function fmtTime(s) {
+      s = s || 0;
+      return Math.floor(s / 60) + "м " + (s % 60) + "с";
+    }
+
+    function weakTopics(r) {
+      const ts = r.topicStats || {};
+      return Object.keys(ts)
+        .filter((k) => ts[k].total && ts[k].correct / ts[k].total < 0.6)
+        .map((k) => TOPICS[k] || k)
+        .join(", ") || "—";
+    }
+
+    function render(data) {
+      const stats = document.getElementById("stats");
+      const rows = document.getElementById("rows");
+      const empty = document.getElementById("empty");
+
+      rows.innerHTML = "";
+      if (!data.length) {
+        stats.innerHTML = "";
+        empty.classList.remove("hidden");
+        return;
+      }
+      empty.classList.add("hidden");
+
+      const avg = Math.round(data.reduce((s, r) => s + (r.percent || 0), 0) / data.length);
+      const dist = { novice: 0, basic: 0, confident: 0, advanced: 0 };
+      data.forEach((r) => { const k = (r.level || {}).key; if (k) dist[k]++; });
+
+      stats.innerHTML =
+        card(data.length, "Прошли тест") +
+        card(avg + "%", "Средний балл") +
+        card(dist.novice, "Новичков") +
+        card(dist.basic, "Базовый") +
+        card(dist.confident, "Уверенных") +
+        card(dist.advanced, "Продвинутых");
+
+      renderHeat(data);
+      renderBoard(data);
+
+      data.slice().reverse().forEach((r, i) => {
+        const lvl = r.level || {};
+        const color = LEVEL_COLORS[lvl.key] || "#64748b";
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + (i + 1) + "</td>" +
+          "<td><b>" + esc(r.name) + "</b></td>" +
+          "<td>" + (r.mode === "dungeon" ? "Подземелье" : "Тест") + "</td>" +
+          "<td>" + new Date(r.date).toLocaleString("ru-RU") + "</td>" +
+          "<td><b>" + (r.percent || 0) + "%</b></td>" +
+          "<td><span class='lvl' style='background:" + color + "'>" + esc(lvl.title || "") + "</span></td>" +
+          "<td>" + (r.correctCount || 0) + "/" + (r.total || 0) + "</td>" +
+          "<td>" + fmtTime(r.seconds) + "</td>" +
+          "<td>" + esc(weakTopics(r)) + "</td>";
+        rows.appendChild(tr);
+      });
+    }
+
+    function renderHeat(data) {
+      const agg = {};
+      data.forEach((r) => {
+        const ts = r.topicStats || {};
+        Object.keys(ts).forEach((k) => {
+          if (!agg[k]) agg[k] = { correct: 0, total: 0 };
+          agg[k].correct += ts[k].correct || 0;
+          agg[k].total += ts[k].total || 0;
+        });
+      });
+      const box = document.getElementById("heat");
+      const rows = Object.keys(agg).sort((a, b) =>
+        (agg[a].correct / agg[a].total) - (agg[b].correct / agg[b].total));
+      box.innerHTML = rows.map((k) => {
+        const t = agg[k];
+        const pct = Math.round((t.correct / t.total) * 100);
+        const color = pct >= 70 ? "#16a34a" : pct >= 40 ? "#f59e0b" : "#dc2626";
+        return "<div class='heat-row'><span>" + esc(TOPICS[k] || k) +
+          "</span><span class='heat-bar'><i style='width:" + pct + "%;background:" + color +
+          "'></i></span><b>" + pct + "%</b></div>";
+      }).join("") || "<div class='empty'>Нет данных.</div>";
+    }
+
+    function renderBoard(data) {
+      const byName = {};
+      data.forEach((r) => {
+        const n = (r.name || "").trim();
+        if (!n) return;
+        const cur = byName[n] || { name: n, quiz: 0, floors: 0, victory: false };
+        if (r.mode !== "dungeon") cur.quiz = Math.max(cur.quiz, r.percent || 0);
+        if (r.dungeon) {
+          cur.floors = Math.max(cur.floors, r.dungeon.floorsCleared || 0);
+          cur.victory = cur.victory || !!r.dungeon.victory;
+        }
+        byName[n] = cur;
+      });
+      const list = Object.keys(byName).map((k) => byName[k])
+        .sort((a, b) => (b.victory - a.victory) || (b.floors - a.floors) || (b.quiz - a.quiz));
+      const board = document.getElementById("board");
+      board.innerHTML = list.map((r, i) =>
+        "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b></td><td>" +
+        (r.quiz ? r.quiz + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
+        (r.victory ? "★" : "—") + "</td></tr>").join("") ||
+        "<tr><td colspan='5' class='empty'>Нет данных.</td></tr>";
+    }
+
+    function card(value, label) {
+      return "<div class='stat'><b>" + value + "</b><span>" + label + "</span></div>";
+    }
+
+    function esc(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    function load() {
+      fetch("/api/results" + QS)
+        .then((r) => {
+          if (r.status === 403) {
+            document.getElementById("stats").innerHTML =
+              "<div class='empty'>Нужен пароль: откройте /results?pin=ВАШ_ПАРОЛЬ</div>";
+            return null;
+          }
+          return r.json();
+        })
+        .then((d) => { if (d) render(d); })
+        .catch(() => {});
+    }
+
+    document.querySelector(".head .btn").href = "/api/export.csv" + QS;
+    document.getElementById("refresh").addEventListener("click", load);
+    load();
+    setInterval(load, 15000);
+  </script>
+</body>
+</html>

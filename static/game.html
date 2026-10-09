@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Подземелье Python</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/game.css" />
+</head>
+<body class="game-page">
+  <div class="brand">
+    <div class="logo">Py</div>
+    <div>
+      <h1>Подземелье Python</h1>
+      <p>Сражайся с монстрами правильными ответами и кодом</p>
+    </div>
+  </div>
+
+  <div class="stage" id="stage">
+  <aside class="battle-col" id="battle-col">
+    <div class="hidden" id="battle-overlay">
+      <div class="battle" id="battle-box"></div>
+    </div>
+  </aside>
+  <div class="game-wrap">
+    <section id="screen-start" class="panel center-card">
+      <h2>Спустись в подземелье</h2>
+      <p class="lead">
+        Ты — путник, который исследует подземелье. На каждом этаже тебя ждут монстры.
+        Чтобы победить, отвечай на вопросы и пиши код на Python. Правильный ответ — удар по врагу,
+        ошибка — удар по тебе. Найди лестницу и одолей дракона!
+      </p>
+
+      <label class="field" for="name" style="text-align:left">Как тебя зовут, герой? (та же учётная запись, что в тесте)</label>
+      <input type="text" id="name" placeholder="Имя и фамилия" autocomplete="off" />
+      <p class="lead hidden" id="wallet-line" style="text-align:left;margin:12px 0 0"></p>
+      <label class="field" style="text-align:left;margin-top:6px">
+        <input type="checkbox" id="claim-box" checked style="width:auto;margin-right:8px" />Забрать награды из кошелька в этот поход
+      </label>
+
+      <label class="field" style="text-align:left;margin-top:20px">Уровень сложности</label>
+      <div class="modes" id="difficulty">
+        <div class="mode active" data-diff="easy">
+          <b>Лёгкий</b>
+          <span>Вопросы, «повтори код» и «вставь пропущенное». Без def</span>
+        </div>
+        <div class="mode" data-diff="normal">
+          <b>Обычный</b>
+          <span>Плюс «найди ошибку» и иногда написание функции (def)</span>
+        </div>
+        <div class="mode" data-diff="hard">
+          <b>Сложный</b>
+          <span>Много заданий на код и функций, сильные монстры</span>
+        </div>
+      </div>
+
+      <div class="start-grid" style="margin-top:22px">
+        <button class="btn" id="begin-btn">Начать спуск</button>
+        <button class="btn ghost" id="resume-btn" style="display:none">Продолжить</button>
+        <a class="btn ghost link-btn" href="/">Вернуться к тесту</a>
+        <a class="btn ghost link-btn" href="/study">Самоподготовка</a>
+      </div>
+
+      <ul class="facts" style="text-align:left;margin-top:22px">
+        <li>• 10 этажей подземелья и битва с драконом</li>
+        <li>• Задания: вопросы, «повтори код», «вставь пропущенное», «найди ошибку», «напиши функцию»</li>
+        <li>• Собирай оружие, броню и зелья, экипируй лучшие предметы</li>
+        <li>• За верные удары дают золото — трать в лавке или у торговца на этаже</li>
+        <li>• Ошибки возвращаются «призраками» — их стоит добить</li>
+        <li>• В бою есть подсказка за 10 HP</li>
+        <li>• Монстры ходят вместе с тобой и преследуют героя</li>
+        <li>• Можно спуститься на этаж ниже, не убивая всех монстров</li>
+        <li>• Лестница вверх вернёт на прошлый этаж — прогресс сохраняется</li>
+        <li>• Управление: стрелки или WASD, колесо мыши — зум камеры</li>
+      </ul>
+    </section>
+
+    <section id="screen-game" class="panel hidden">
+      <div class="map-scroll" id="map-scroll">
+        <div class="map" id="map" role="grid" aria-label="Карта подземелья">
+          <div class="tiles" id="tiles"></div>
+          <div class="entities" id="entities"></div>
+        </div>
+        <div class="game-msg" id="game-msg"></div>
+        <div class="cam-hint">колесо мыши — зум · M — карта</div>
+        <canvas class="minimap" id="minimap" width="184" height="132" title="Мини-карта (M)"></canvas>
+        <button class="log-toggle" id="log-toggle" type="button" title="Показать/скрыть журнал">≡</button>
+        <div class="log collapsed" id="log"></div>
+      </div>
+    </section>
+  </div>
+
+    <aside class="side-panel hidden">
+      <div class="side-card">
+        <div class="hud">
+          <div class="hud-block">
+            <div class="hud-label">Здоровье героя</div>
+            <div class="hp-bar"><i id="player-hp" style="width:100%"></i></div>
+            <div class="hud-num" id="player-hp-text">100 / 100</div>
+          </div>
+          <div class="hud-block">
+            <div class="hud-label">Уровень <span id="player-level">1</span> · опыт</div>
+            <div class="xp-bar"><i id="player-xp" style="width:0"></i></div>
+            <div class="hud-num" id="player-xp-text">0 / 50 очков</div>
+          </div>
+          <div class="hud-block">
+            <div class="floor-name" id="floor-name">Этаж 1</div>
+            <div class="hud-num" id="enemies-left">Монстров: 0</div>
+            <div class="hud-num">Золото: <span id="gold-text">0</span></div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="exit-btn" id="shop-btn" type="button">Лавка</button>
+            <button class="exit-btn" id="leave-btn" type="button">Выйти</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card">
+        <div class="equip-bar">
+          <div class="equip-slot">
+            <span class="equip-label">Оружие</span>
+            <span class="equip-value" id="equip-weapon">пусто</span>
+          </div>
+          <div class="equip-slot">
+            <span class="equip-label">Броня</span>
+            <span class="equip-value" id="equip-armor">пусто</span>
+          </div>
+          <div class="equip-slot">
+            <span class="equip-label">Амулет</span>
+            <span class="equip-value" id="equip-accessory">пусто</span>
+          </div>
+          <div class="equip-slot">
+            <span class="equip-label">Атака / Защита</span>
+            <span class="equip-value" id="equip-stats">+0 / 0</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="side-card" id="inventory-card">
+        <div class="inventory" id="inventory-box"></div>
+      </div>
+
+    </aside>
+  </div>
+
+  <div class="overlay hidden" id="shop-overlay">
+    <div class="battle inventory" id="shop-box"></div>
+  </div>
+
+  <div class="overlay hidden" id="end-overlay">
+    <div class="battle center-card" id="end-box"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/questions.js"></script>
+  <script src="/static/variants.js"></script>
+  <script src="/static/code-tasks.js"></script>
+  <script src="/static/items.js"></script>
+  <script src="/static/icons.js"></script>
+  <script src="/static/tiles.js"></script>
+  <script src="/static/profile.js"></script>
+  <script src="/static/game.js"></script>
+</body>
+</html>

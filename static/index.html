@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Python: проверь свой уровень</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <div>
+        <h1>Python: проверь свой уровень</h1>
+        <p>Интерактивный тест для определения стартового уровня</p>
+      </div>
+    </div>
+
+    <section id="screen-start" class="card">
+      <h2>Добро пожаловать!</h2>
+      <p class="lead">
+        Ответь на вопросы о Python. Не переживай из-за ошибок: цель теста — понять,
+        что ты уже знаешь, а чему стоит научиться. На каждый вопрос один правильный ответ.
+      </p>
+
+      <label class="field" for="name">Как тебя зовут? (это твоя учётная запись)</label>
+      <input type="text" id="name" placeholder="Имя и фамилия" autocomplete="off" />
+      <p class="lead hidden" id="profile-line" style="margin:12px 0 0"></p>
+
+      <div class="modes" id="modes">
+        <div class="mode active" data-mode="practice">
+          <b>Тренажёр</b>
+          <span>Показывает правильный ответ и объяснение сразу</span>
+        </div>
+        <div class="mode" data-mode="test">
+          <b>Тест</b>
+          <span>Ответы и разбор — только в конце</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="start-btn">Начать</button>
+        <a class="btn ghost" href="/game" style="text-decoration:none;display:inline-block">Режим подземелья</a>
+        <a class="btn ghost" href="/study" style="text-decoration:none;display:inline-block">Самоподготовка</a>
+      </div>
+
+      <ul class="facts">
+        <li>• 85 вопросов + задания: вставь пропущенное, найди ошибку, повтори код</li>
+        <li>• 9 тем: от синтаксиса до функций и исключений</li>
+        <li>• Примерно 10–15 минут</li>
+        <li>• В конце — персональный уровень, рекомендации и награда в подземелье</li>
+      </ul>
+    </section>
+
+    <section id="screen-quiz" class="card hidden">
+      <div class="topbar">
+        <span id="progress-text">Вопрос 1 из 28</span>
+        <span class="topbar-right">
+          <span class="badge" id="topic-badge">Тема</span>
+          <button class="exit-btn" id="exit-btn" type="button">Выйти</button>
+        </span>
+      </div>
+      <div class="progress"><i id="progress-bar"></i></div>
+
+      <div class="difficulty" id="difficulty">★☆☆☆</div>
+      <div class="question" id="question-text"></div>
+      <pre class="code hidden" id="question-code"></pre>
+      <div class="options" id="options"></div>
+      <div class="feedback hidden" id="feedback"></div>
+
+      <div class="footer">
+        <button class="btn hidden" id="next-btn">Далее</button>
+      </div>
+    </section>
+
+    <section id="screen-result" class="card hidden">
+      <div class="result-head">
+        <span class="level-badge" id="level-badge">Уровень</span>
+        <h2 id="level-title"></h2>
+        <div class="score-circle" id="score-circle"></div>
+        <p class="lead" id="level-desc" style="margin: 0 auto;"></p>
+        <p class="lead hidden" id="reward-line" style="margin:10px auto 0"></p>
+      </div>
+
+      <table class="breakdown" id="breakdown"></table>
+
+      <div class="review hidden" id="review">
+        <h3>Разбор ошибок</h3>
+        <div id="review-list"></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="download-btn">Скачать результат</button>
+        <button class="btn ghost" id="restart-btn">Пройти заново</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay hidden" id="exit-modal">
+    <div class="modal">
+      <h3>Выйти из теста?</h3>
+      <p>Текущий прогресс не сохранится, ответы будут сброшены.</p>
+      <div class="modal-actions">
+        <button class="btn ghost" id="exit-cancel" type="button">Остаться</button>
+        <button class="btn danger" id="exit-confirm" type="button">Выйти</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/questions.js"></script>
+  <script src="/static/variants.js"></script>
+  <script src="/static/code-tasks.js"></script>
+  <script src="/static/profile.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

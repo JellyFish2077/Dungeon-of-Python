@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Самоподготовка по Python</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <div>
+        <h1>Самоподготовка по Python</h1>
+        <p>Учи темы сам, проверяй себя, забирай награды в подземелье</p>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2>Как заниматься</h2>
+      <p class="lead">
+        1. Прочитай тему ниже. 2. Потренируйся в блоке «Быстрая практика».
+        3. Пройди тест или тренажёр на главной — за результат дают золото и зелья.
+        4. Забери награды в подземелье под тем же именем.
+      </p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <a class="btn ghost" href="/" style="text-decoration:none;display:inline-block">К тесту</a>
+        <a class="btn ghost" href="/game" style="text-decoration:none;display:inline-block">В подземелье</a>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px" id="rev-card">
+      <h2>Тренировка по ошибкам</h2>
+      <p class="lead" id="rev-info"></p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn" id="rev-start">Повторить мои ошибки</button>
+        <button class="btn ghost" id="rev-all">Случайные задания</button>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Быстрая практика</h2>
+      <p class="lead">Случайное задание из банка. Отвечай — и иди дальше.</p>
+      <div class="difficulty" id="pr-stars">★☆☆☆</div>
+      <div class="question" id="pr-q"></div>
+      <pre class="code hidden" id="pr-code"></pre>
+      <div class="options" id="pr-options"></div>
+      <div class="feedback hidden" id="pr-fb"></div>
+      <div class="footer">
+        <button class="btn" id="pr-next">Дальше</button>
+      </div>
+      <p class="lead" id="pr-score" style="margin:12px 0 0"></p>
+    </section>
+
+    <section class="card" style="margin-top:16px">
+      <h2>Напиши и запусти код</h2>
+      <p class="lead">Задание проверяется реальным запуском Python на сервере.</p>
+      <div class="question" id="rc-title"></div>
+      <p class="lead" id="rc-task"></p>
+      <textarea id="rc-code" spellcheck="false" style="width:100%;min-height:140px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;padding:12px;font-family:monospace;font-size:14px"></textarea>
+      <div class="footer" style="justify-content:flex-start;gap:10px">
+        <button class="btn" id="rc-check">Проверить и запустить</button>
+        <button class="btn ghost" id="rc-next">Другое задание</button>
+      </div>
+      <div id="rc-results" style="margin-top:10px;font-family:monospace;font-size:13px"></div>
+    </section>
+
+    <section class="card" style="margin-top:16px" id="acc-card">
+      <h2>Аккаунт</h2>
+      <p class="lead">Войди по имени и PIN: прогресс сохранится на сервере и будет виден учителю.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+        <div><label class="field" for="acc-name">Имя</label><input type="text" id="acc-name" autocomplete="off" /></div>
+        <div><label class="field" for="acc-pin">PIN</label><input type="password" id="acc-pin" autocomplete="off" /></div>
+        <button class="btn" id="acc-login" type="button">Войти</button>
+        <button class="btn ghost" id="acc-reg" type="button">Регистрация</button>
+        <button class="btn ghost" id="acc-save" type="button">Сохранить на сервер</button>
+      </div>
+      <p class="lead" id="acc-status" style="margin:12px 0 0"></p>
+    </section>
+
+    <div id="lessons" style="margin-top:16px;display:grid;gap:16px"></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="/static/questions.js"></script>
+  <script src="/static/variants.js"></script>
+  <script src="/static/code-tasks.js"></script>
+  <script src="/static/profile.js"></script>
+  <script>
+    const LESSONS = [
+      { topic: "syntax", title: "Синтаксис и основы", points: [
+        "print() выводит текст, input() читает ввод с клавиатуры (всегда строку).",
+        "Комментарий начинается с # и не выполняется.",
+        "Переменная создаётся присваиванием: hp = 100. Один знак = — присвоить, два == — сравнить."
+      ], code: 'print("Привет, герой!")\nhp = 100  # здоровье\nname = input()' },
+      { topic: "types", title: "Типы данных", points: [
+        "int — целые (100), float — дробные (3.14), str — строки (\"меч\"), bool — True/False.",
+        "Кавычки делают значение строкой, даже если внутри цифры: \"100\" — это str.",
+        "Перевод типов: int(\"5\") → 5, str(10) → \"10\". Пустая строка, 0 и пустой список — ложь."
+      ], code: 'print(type(5))\nprint(int("5") + 2)\nprint(bool([]))' },
+      { topic: "operators", title: "Операторы и выражения", points: [
+        "Арифметика: + - * / (всегда float), // (целая часть), % (остаток), ** (степень).",
+        "Умножение раньше сложения: 2 + 3 * 2 = 8.",
+        "Сравнение: == != > < >= <=. Логика: and, or, not. Можно цепочкой: 2 < 5 < 10.",
+        "Короткая запись: x += 3 означает x = x + 3."
+      ], code: "print(10 // 3)\nprint(10 % 3)\nprint(2 ** 3)\nx = 5\nx += 3" },
+      { topic: "strings", title: "Строки", points: [
+        "Нумерация с нуля: \"меч\"[0] — это «м», [-1] — последний символ.",
+        "Методы: .upper(), .lower(), .split(), .join(), len().",
+        "Умножение повторяет строку: \"ха\" * 3. Срез [::-1] разворачивает.",
+        "f-строки подставляют переменные: f\"Привет, {name}!\"."
+      ], code: 'print("дракон".upper())\nprint("меч,щит".split(","))\nprint("меч"[::-1])' },
+      { topic: "control", title: "Условия и циклы", points: [
+        "if проверяет условие, elif — следующее, else — «иначе». В конце строки двоеточие, тело — с отступом.",
+        "for перебирает: range(3) даёт 0, 1, 2. Можно идти по строке и списку.",
+        "while повторяется, пока условие истинно. break прерывает цикл, continue пропускает шаг."
+      ], code: 'hp = 0\nif hp > 0:\n    print("жив")\nelse:\n    print("поражение")\nfor i in range(3):\n    print(i)' },
+      { topic: "collections", title: "Списки, словари, множества", points: [
+        "Список: [\"меч\", \"щит\"], индекс с нуля, [-1] — последний. Методы: append(), remove(), sort().",
+        "Срез [0:2] берёт элементы без последнего. a[:] — копия списка.",
+        "Словарь хранит пары: hero = {\"hp\": 100}. .get(\"mp\", 0) безопасно вернёт 0.",
+        "in проверяет наличие: элемента в списке или ключа в словаре.",
+        "Кортеж (1, 2) изменить нельзя. Множество {1, 2, 2} хранит только уникальные."
+      ], code: 'loot = ["меч", "щит"]\nloot.append("зелье")\nhero = {"hp": 100}\nprint(hero.get("mp", 0))' },
+      { topic: "functions", title: "Функции", points: [
+        "def объявляет функцию, return возвращает результат. Без return функция вернёт None.",
+        "Аргументы можно задавать по умолчанию: def heal(hp, amount=10).",
+        "*args собирает все позиционные аргументы.",
+        "Переменная внутри функции — локальная и не меняет внешнюю.",
+        "lambda — короткая функция в одну строку."
+      ], code: "def heal(hp, amount=10):\n    return hp + amount\n\nprint(heal(100))" },
+      { topic: "errors", title: "Исключения", points: [
+        "Ошибки: ValueError (int(\"abc\")), IndexError (выход за границы), KeyError, ZeroDivisionError.",
+        "try/except ловит ошибку и не даёт программе упасть. finally выполняется всегда."
+      ], code: "try:\n    print(int(\"abc\"))\nexcept ValueError:\n    print(\"это не число\")" },
+      { topic: "modules", title: "Модули и импорт", points: [
+        "Чужой код подключается через import: import random, import math.",
+        "Дальше вызываем через точку: random.randint(1, 6), math.sqrt(16)."
+      ], code: "import math\nprint(math.sqrt(16))" }
+    ];
+
+    (function () {
+      "use strict";
+      const box = document.getElementById("lessons");
+      LESSONS.forEach((l) => {
+        const card = document.createElement("section");
+        card.className = "card";
+        const pts = l.points.map((p) => "<li>• " + p + "</li>").join("");
+        card.innerHTML = "<h2>" + l.title + "</h2>" +
+          "<ul class='facts' style='margin:0 0 12px'>" + pts + "</ul>" +
+          (l.code ? "<pre class='code'>" + l.code + "</pre>" : "");
+        box.appendChild(card);
+      });
+
+      const LET = ["A", "B", "C", "D"];
+      let good = 0, total = 0, cur = null;
+      const pool = [];
+      QUESTIONS.forEach((q) => pool.push({ kind: "q", ref: q }));
+      FILL_TASKS.forEach((t) => pool.push({ kind: "f", ref: t }));
+      ERROR_TASKS.forEach((t) => pool.push({ kind: "e", ref: t }));
+      COPY_TASKS.forEach((t) => pool.push({ kind: "c", ref: t }));
+      CODE_TASKS.forEach((t) => pool.push({ kind: "k", ref: t }));
+
+      const $ = (id) => document.getElementById(id);
+
+      // Тренировка по ошибкам из профиля
+      const kindBank = { mc: QUESTIONS, fill: FILL_TASKS, error: ERROR_TASKS, copy: COPY_TASKS, code: CODE_TASKS };
+      let mode = "all";
+      let errorPool = [];
+      let profileName = getLastName();
+
+      const KIND_MAP = { mc: "q", fill: "f", error: "e", copy: "c", code: "k" };
+
+      function buildErrorPool() {
+        errorPool = [];
+        if (!profileName) return;
+        const prof = getProfile(profileName);
+        if (!prof) return;
+        prof.wrongPool.forEach((w) => {
+          const bank = kindBank[w.kind] || QUESTIONS;
+          const ref = bank.find((x) => x.id === w.id);
+          if (ref) errorPool.push({ kind: KIND_MAP[w.kind] || "q", ref: ref, srcKind: w.kind });
+        });
+      }
+
+      function refreshRevInfo() {
+        const info = $("rev-info");
+        if (!profileName) {
+          info.textContent = "Сначала пройди тест — ошибки сохранятся в профиль.";
+          return;
+        }
+        info.textContent = "Профиль: " + profileName + ". Ошибок для повторения: " + errorPool.length + ".";
+      }
+
+      function activePool() {
+        return mode === "errors" && errorPool.length ? errorPool : pool;
+      }
+
+      function dropFromErrors(item) {
+        if (!profileName || !item) return;
+        const srcKind = item.srcKind || Object.keys(KIND_MAP).find((k) => KIND_MAP[k] === item.kind) || "mc";
+        const prof = getProfile(profileName);
+        if (!prof) return;
+        const idx = prof.wrongPool.findIndex((w) => w.kind === srcKind && w.id === item.ref.id);
+        if (idx >= 0) { prof.wrongPool.splice(idx, 1); putProfile(profileName, prof); }
+        buildErrorPool();
+        refreshRevInfo();
+      }
+
+      function draw() {
+        const p = activePool();
+        cur = p[Math.floor(Math.random() * p.length)];
+        const r = cur.ref;
+        $("pr-stars").textContent = "★".repeat(r.level || 2) + "☆".repeat(4 - (r.level || 2));
+        $("pr-q").textContent = cur.kind === "q" ? r.text : r.title;
+        const code = $("pr-code");
+        if (r.code) { code.textContent = r.code; code.classList.remove("hidden"); }
+        else code.classList.add("hidden");
+        const fb = $("pr-fb");
+        fb.className = "feedback hidden";
+        fb.innerHTML = "";
+        const opts = $("pr-options");
+        opts.innerHTML = "";
+        const taStyle = "width:100%;min-height:110px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;padding:12px;font-family:monospace";
+        if (cur.kind === "k") {
+          $("pr-q").textContent = r.title;
+          code.textContent = r.task;
+          code.classList.remove("hidden");
+          const ta = document.createElement("textarea");
+          ta.id = "pr-code2";
+          ta.style.cssText = taStyle;
+          ta.value = r.starter;
+          ta.spellcheck = false;
+          opts.appendChild(ta);
+          const b = document.createElement("button");
+          b.className = "btn"; b.type = "button"; b.textContent = "Проверить и запустить";
+          b.style.marginTop = "10px";
+          b.addEventListener("click", runCheck);
+          opts.appendChild(b);
+        } else if (cur.kind === "c") {
+          const ta = document.createElement("textarea");
+          ta.id = "pr-copy";
+          ta.style.cssText = taStyle;
+          ta.spellcheck = false;
+          opts.appendChild(ta);
+          const b = document.createElement("button");
+          b.className = "btn"; b.type = "button"; b.textContent = "Проверить";
+          b.style.marginTop = "10px";
+          b.addEventListener("click", check);
+          opts.appendChild(b);
+        } else {
+          r.options.forEach((o, i) => {
+            const b = document.createElement("button");
+            b.className = "option"; b.type = "button";
+            b.innerHTML = '<span class="key">' + LET[i] + "</span><span></span>";
+            b.lastChild.textContent = o;
+            b.addEventListener("click", () => answer(i));
+            opts.appendChild(b);
+          });
+        }
+      }
+
+      function norm(s) {
+        return String(s || "").replace(/\s+/g, "");
+      }
+
+      function answer(i) {
+        total++;
+        const ok = i === cur.ref.answer;
+        if (ok) { good++; dropFromErrors(cur); }
+        lockOptions(i, cur.ref.answer);
+        showFb(ok, ok ? "" : "Правильный ответ: " + LET[cur.ref.answer] + ". ", cur.ref.explanation);
+      }
+
+      function check() {
+        const ta = document.getElementById("pr-copy");
+        const typed = ta ? ta.value : "";
+        if (!typed.trim()) return;
+        total++;
+        const ok = norm(typed) === norm(cur.ref.code);
+        if (ok) { good++; dropFromErrors(cur); }
+        if (ta) ta.disabled = true;
+        showFb(ok, ok ? "" : "Сравни с образцом. ", cur.ref.explanation);
+      }
+
+      function runCheck() {
+        const ta = document.getElementById("pr-code2");
+        const code = ta ? ta.value : "";
+        if (!code.trim()) return;
+        total++;
+        fetch("/api/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: code, tests: cur.ref.tests })
+        }).then((r) => r.json()).then((data) => {
+          const ok = data.ok && data.passed === data.total;
+          if (ok) { good++; dropFromErrors(cur); }
+          if (ta) ta.disabled = true;
+          let head = ok ? "" : "Не все тесты пройдены. ";
+          if (!data.ok && data.error) head = data.error + ". ";
+          showFb(ok, head, cur.ref.explanation);
+        }).catch(() => { total--; showFb(false, "Сервер недоступен. ", ""); });
+      }
+
+      function lockOptions(chosen, answer) {
+        Array.from($("pr-options").children).forEach((b, i) => {
+          if (!b.classList.contains("option")) return;
+          b.disabled = true;
+          if (i === answer) b.classList.add("correct");
+          if (i === chosen && chosen !== answer) b.classList.add("wrong");
+        });
+      }
+
+      function showFb(ok, head, exp) {
+        const fb = $("pr-fb");
+        fb.className = "feedback " + (ok ? "ok" : "no");
+        fb.innerHTML = "<b>" + (ok ? "Верно!" : "Неверно. " + head) + "</b>" + exp;
+        $("pr-score").textContent = "Счёт: " + good + " из " + total;
+      }
+
+      document.getElementById("pr-next").addEventListener("click", draw);
+
+      buildErrorPool();
+      refreshRevInfo();
+      const revStart = document.getElementById("rev-start");
+      const revAll = document.getElementById("rev-all");
+      if (revStart) revStart.addEventListener("click", () => {
+        if (!errorPool.length) { toast("Ошибок для повторения нет"); return; }
+        mode = "errors"; draw();
+      });
+      if (revAll) revAll.addEventListener("click", () => { mode = "all"; draw(); });
+      draw();
+
+      // Аккаунт
+      const accName = document.getElementById("acc-name");
+      const accPin = document.getElementById("acc-pin");
+      const accStatus = document.getElementById("acc-status");
+      if (profileName) accName.value = profileName;
+      const accMsg = (t) => { if (accStatus) accStatus.textContent = t; };
+      function afterAccount(name) {
+        profileName = name;
+        setLastName(name);
+        setPin(accPin.value);
+        buildErrorPool();
+        refreshRevInfo();
+        draw();
+      }
+      document.getElementById("acc-login").addEventListener("click", () => {
+        accountFetch("/api/login", { name: accName.value.trim(), pin: accPin.value }).then((res) => {
+          if (!res.ok) { accMsg(res.error || "Ошибка входа"); return; }
+          applyServerProfile(accName.value.trim(), res.profile || {});
+          afterAccount(accName.value.trim());
+          accMsg("Вход выполнен. Профиль загружен с сервера.");
+        }).catch(() => accMsg("Сервер недоступен"));
+      });
+      document.getElementById("acc-reg").addEventListener("click", () => {
+        const nm = accName.value.trim();
+        if (!nm || accPin.value.length < 3) { accMsg("Нужны имя и PIN (минимум 3 символа)"); return; }
+        const prof = getProfile(nm);
+        serverRegister(nm, accPin.value, prof).then((res) => {
+          if (!res.ok) { accMsg(res.error || "Ошибка регистрации"); return; }
+          afterAccount(nm);
+          accMsg("Аккаунт создан, профиль сохранён на сервере.");
+        }).catch(() => accMsg("Сервер недоступен"));
+      });
+      document.getElementById("acc-save").addEventListener("click", () => {
+        const nm = accName.value.trim();
+        if (!nm || !getPin()) { accMsg("Сначала войдите или зарегистрируйтесь."); return; }
+        syncProfile(nm);
+        accMsg("Профиль отправлен на сервер.");
+      });
+
+      // Проверка «напиши и запусти код»
+      let rcCur = null;
+      function rcDraw() {
+        rcCur = CODE_TASKS[Math.floor(Math.random() * CODE_TASKS.length)];
+        $("rc-title").textContent = rcCur.title;
+        $("rc-task").textContent = rcCur.task;
+        $("rc-code").value = rcCur.starter;
+        $("rc-code").disabled = false;
+        $("rc-results").innerHTML = "";
+      }
+      function rcCheck() {
+        if (!rcCur) return;
+        const code = $("rc-code").value;
+        $("rc-results").textContent = "Проверяем на сервере...";
+        $("rc-check").disabled = true;
+        fetch("/api/check", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: code, tests: rcCur.tests })
+        }).then((r) => r.json()).then((data) => {
+          $("rc-check").disabled = false;
+          if (!data.ok) {
+            $("rc-results").innerHTML = "<div style='color:#f87171'>" + (data.error || "Ошибка") + "</div>";
+            return;
+          }
+          $("rc-results").innerHTML = (data.results || []).map((t, i) =>
+            "<div style='color:" + (t.ok ? "#16a34a" : "#dc2626") + "'>#" + (i + 1) + " " +
+            (t.ok ? "пройден" : "провален") + " · ожидалось " + t.expected + ", получено " + t.actual + "</div>"
+          ).join("") + "<div style='margin-top:6px;color:#94a3b8'>" + rcCur.explanation + "</div>";
+        }).catch(() => {
+          $("rc-check").disabled = false;
+          $("rc-results").textContent = "Сервер проверки недоступен";
+        });
+      }
+      document.getElementById("rc-check").addEventListener("click", rcCheck);
+      document.getElementById("rc-next").addEventListener("click", rcDraw);
+      rcDraw();
+    })();
+  </script>
+</body>
+</html>
