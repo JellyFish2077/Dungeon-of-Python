@@ -73,8 +73,11 @@ function initNavAuth() {
   const nav = document.getElementById("nav-teacher");
   if (!nav) return;
   nav.style.display = isTeacher() ? "" : "none";
+  const logged = !!currentUser();
   const plink = document.getElementById("nav-profile");
-  if (plink) plink.style.display = currentUser() ? "" : "none";
+  if (plink) plink.style.display = logged ? "" : "none";
+  const flink = document.getElementById("nav-friends");
+  if (flink) flink.style.display = logged ? "" : "none";
 }
 
 if (typeof document !== "undefined") {

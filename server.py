@@ -384,6 +384,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_file(os.path.join(STATIC_DIR, "study.html"))
         elif path in ("/profile", "/profile.html"):
             self._serve_file(os.path.join(STATIC_DIR, "profile.html"))
+        elif path in ("/friends", "/friends.html"):
+            self._serve_file(os.path.join(STATIC_DIR, "friends.html"))
         elif path == "/results":
             self._serve_file(os.path.join(STATIC_DIR, "results.html"))
         elif path.startswith("/static/"):
@@ -395,6 +397,8 @@ class Handler(BaseHTTPRequestHandler):
             self._api_me(parsed.query)
         elif path == "/api/user":
             self._api_user(parsed.query)
+        elif path in ("/api/users", "/api/friends", "/api/messages", "/api/invites"):
+            self._social_get(path, parsed.query)
         elif path == "/api/export.csv":
             self._export_csv()
         else:
@@ -418,6 +422,15 @@ class Handler(BaseHTTPRequestHandler):
             except (ValueError, json.JSONDecodeError):
                 data = {}
             self._handle_profile(path, data)
+            return
+        if path in ("/api/friends/request", "/api/friends/accept", "/api/friends/remove",
+                    "/api/messages", "/api/invites", "/api/invites/clear"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                data = json.loads(self.rfile.read(length).decode("utf-8"))
+            except (ValueError, json.JSONDecodeError):
+                data = {}
+            self._social_post(path, data)
             return
         if path != "/api/submit":
             self._send(404, b"404 Not Found")
@@ -566,6 +579,148 @@ class Handler(BaseHTTPRequestHandler):
         acc["updated"] = datetime.now().isoformat(timespec="seconds")
         save_users(users)
         self._send_json(200, {"ok": True})
+
+    def _key_or_401(self, token):
+        key = token_key(token)
+        if not key:
+            self._send_json(401, {"ok": False, "error": "Нужен вход"})
+        return key
+
+    def _display(self, users, key):
+        acc = users.get(key)
+        if not acc:
+            return {"name": key, "avatar": AVATAR_COLORS[0], "role": "student", "about": ""}
+        d = public_user(acc, key)
+        d["key"] = key
+        return d
+
+    def _social_get(self, path, query):
+        q = self._query(query)
+        key = self._key_or_401(q.get("token"))
+        if not key:
+            return
+        users = load_users()
+        with db() as conn:
+            if path == "/api/users":
+                term = str(q.get("q", "")).strip().lower()
+                out = []
+                for k in users:
+                    if k == key:
+                        continue
+                    if term and term not in k:
+                        continue
+                    out.append(self._display(users, k))
+                self._send_json(200, {"ok": True, "users": out[:50]})
+                return
+            if path == "/api/friends":
+                friends = [r["b"] for r in conn.execute("SELECT b FROM friends WHERE a=?", (key,))]
+                inc = [r["frm"] for r in conn.execute("SELECT frm FROM requests WHERE to_=?", (key,))]
+                outg = [r["to_"] for r in conn.execute("SELECT to_ FROM requests WHERE frm=?", (key,))]
+                with db() as c2:
+                    pass
+                self._send_json(200, {
+                    "ok": True,
+                    "friends": [self._display(users, k) for k in friends],
+                    "incoming": [self._display(users, k) for k in inc],
+                    "outgoing": [self._display(users, k) for k in outg],
+                })
+                return
+            if path == "/api/messages":
+                other = str(q.get("with", "")).strip().lower()
+                try:
+                    since = int(q.get("since", 0) or 0)
+                except ValueError:
+                    since = 0
+                rows = conn.execute(
+                    "SELECT id, frm, to_, body, created FROM messages "
+                    "WHERE ((frm=? AND to_=?) OR (frm=? AND to_=?)) AND id>? ORDER BY id",
+                    (key, other, other, key, since),
+                ).fetchall()
+                self._send_json(200, {"ok": True, "messages": [dict(r) for r in rows]})
+                return
+            if path == "/api/invites":
+                rows = conn.execute(
+                    "SELECT id, frm, to_, kind, payload, created FROM invites WHERE to_=? ORDER BY id DESC",
+                    (key,),
+                ).fetchall()
+                out = []
+                for r in rows:
+                    d = dict(r)
+                    d["from"] = self._display(users, r["frm"])["name"]
+                    out.append(d)
+                self._send_json(200, {"ok": True, "invites": out})
+                return
+        self._send_json(404, {"ok": False, "error": "Неизвестный запрос"})
+
+    def _social_post(self, path, data):
+        key = self._key_or_401(data.get("token"))
+        if not key:
+            return
+        users = load_users()
+        now = datetime.now().isoformat(timespec="seconds")
+
+        def other_key():
+            return str(data.get("to", data.get("name", data.get("from", "")))).strip().lower()
+
+        with db() as conn:
+            if path == "/api/friends/request":
+                to = other_key()
+                if not to or to == key or to not in users:
+                    self._send_json(404, {"ok": False, "error": "Пользователь не найден"})
+                    return
+                conn.execute("INSERT OR IGNORE INTO requests (frm,to_,created) VALUES (?,?,?)", (key, to, now))
+                # если вторая сторона уже отправила заявку — сразу подружиться
+                inv = conn.execute("SELECT 1 FROM requests WHERE frm=? AND to_=?", (to, key)).fetchone()
+                if inv:
+                    self._add_friends(conn, key, to, now)
+                    conn.execute("DELETE FROM requests WHERE (frm=? AND to_=?) OR (frm=? AND to_=?)", (key, to, to, key))
+                self._send_json(200, {"ok": True})
+                return
+            if path == "/api/friends/accept":
+                frm = other_key()
+                conn.execute("DELETE FROM requests WHERE frm=? AND to_=?", (frm, key))
+                self._add_friends(conn, key, frm, now)
+                self._send_json(200, {"ok": True})
+                return
+            if path == "/api/friends/remove":
+                nm = other_key()
+                conn.execute("DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)", (key, nm, nm, key))
+                conn.execute("DELETE FROM requests WHERE (frm=? AND to_=?) OR (frm=? AND to_=?)", (key, nm, nm, key))
+                self._send_json(200, {"ok": True})
+                return
+            if path == "/api/messages":
+                to = str(data.get("to", "")).strip().lower()
+                body = str(data.get("body", "")).strip()[:1000]
+                if not to or to not in users or not body:
+                    self._send_json(400, {"ok": False, "error": "Пустое сообщение"})
+                    return
+                conn.execute("INSERT INTO messages (frm,to_,body,created) VALUES (?,?,?,?)", (key, to, body, now))
+                self._send_json(200, {"ok": True})
+                return
+            if path == "/api/invites":
+                to = str(data.get("to", "")).strip().lower()
+                kind = str(data.get("kind", "friend"))[:20]
+                payload = json.dumps(data.get("payload", {}), ensure_ascii=False)[:1000]
+                if not to or to not in users:
+                    self._send_json(404, {"ok": False, "error": "Пользователь не найден"})
+                    return
+                conn.execute("INSERT INTO invites (frm,to_,kind,payload,created) VALUES (?,?,?,?,?)", (key, to, kind, payload, now))
+                self._send_json(200, {"ok": True})
+                return
+            if path == "/api/invites/clear":
+                try:
+                    iid = int(data.get("id", 0))
+                except (TypeError, ValueError):
+                    iid = 0
+                conn.execute("DELETE FROM invites WHERE id=? AND to_=?", (iid, key))
+                self._send_json(200, {"ok": True})
+                return
+        self._send_json(404, {"ok": False, "error": "Неизвестный запрос"})
+
+    @staticmethod
+    def _add_friends(conn, a, b, now):
+        conn.execute("INSERT OR IGNORE INTO friends (a,b,created) VALUES (?,?,?)", (a, b, now))
+        conn.execute("INSERT OR IGNORE INTO friends (a,b,created) VALUES (?,?,?)", (b, a, now))
 
     def _handle_check(self):
         try:
