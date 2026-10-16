@@ -1452,7 +1452,7 @@ body.game-page.battling .game-wrap > .panel {
 }
 
 .battle {
-  padding: 18px;
+  padding: 16px;
 }
 
 .battle-inner {
@@ -1677,7 +1677,9 @@ body.game-page .hp-bar.enemy > i {
      пустое поле под бойцами. */
   justify-content: center;
   gap: 10px;
-  padding: 14px;
+  /* По бокам поле чуть меньше, чем сверху и снизу: статы стоят у края блока,
+     но не прилипают к нему. */
+  padding: 12px 10px;
   border-radius: 12px;
   background: linear-gradient(180deg, rgba(10, 20, 36, 0.75), rgba(12, 24, 44, 0.45));
   border: 1px solid #24365a;
@@ -1763,14 +1765,6 @@ body.game-page .hp-bar.enemy > i {
    список статов, у врага — портрет. Так портреты стоят у середины арены,
    а статы занимают всё место до внешнего края, и пустых полос по бокам
    не остаётся. */
-.fighter-hero {
-  justify-content: flex-end;
-}
-
-.fighter-enemy {
-  justify-content: flex-start;
-}
-
 .fighter {
   flex: 1 1 0;
   min-width: 0;
@@ -1782,16 +1776,19 @@ body.game-page .hp-bar.enemy > i {
 /* Портрет смотрит в центр арены, а статы уходят к своему краю: у героя —
    влево, у врага — вправо. Раньше статы лежали под портретом во всю ширину. */
 .fighter-hero {
+  /* Герой слева, враг справа, но оба чуть сдвинуты к середине арены —
+     ровно настолько, чтобы бойцы читались как пара, а не как две крайности. */
   flex-direction: row;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  padding-left: 64px;
 }
 
 .fighter-enemy {
-  /* Портрет врага — первым, к центру арены; статы уходят вправо, к краю.
-     С row-reverse они вставали наоборот: портрет уезжал к краю, а статы
-     повисали между бойцами. */
+  /* Враг справа; тот же сдвиг к середине, что и у героя, — арена остаётся
+     зеркальной. */
   flex-direction: row;
-  justify-content: flex-start;
+  justify-content: flex-end;
+  padding-right: 64px;
 }
 
 .fighter-stats {
@@ -1799,9 +1796,10 @@ body.game-page .hp-bar.enemy > i {
   flex-direction: column;
   gap: 3px;
   min-width: 0;
-  /* Статы занимают всё место до края окна, портрет стоит у середины. */
-  flex: 1 1 auto;
-  max-width: 260px;
+  /* Ширина числом: полосы здоровья у обоих бойцов одной длины, и портрет
+     встаёт сразу за списком, а не посреди арены. */
+  flex: 0 0 220px;
+  width: 220px;
 }
 
 .fighter-hero .fighter-stats {
@@ -1837,6 +1835,11 @@ body.game-page .hp-bar.enemy > i {
   letter-spacing: 0.4px;
   color: #8296b5;
   min-height: 16px;
+}
+
+.fighter-stats .hp-bar {
+  width: 100%;
+  max-width: 220px;
 }
 
 /* Портреты в сцене крупнее, чем были в шапке: тут они главные. */
@@ -4526,4 +4529,10 @@ body.game-page .side-panel .effect-title {
   .action-btn .action-key {
     display: none;
   }
+}
+
+/* Число предметов в стеке: три зелья — одна строка «Малое зелье ×3». */
+.inv-count {
+  color: #f6c453;
+  font-weight: 700;
 }

@@ -144,7 +144,7 @@ if ((G.vaults || []).length) {
   // и нажмёт «Е» ещё раз, а проверка одноразовая.
   G.treasures = (G.treasures || []).filter((t) => !(t.x === vault.from.x && t.y === vault.from.y));
   const lockedTarget = API.interactTarget();
-  log(!!lockedTarget && lockedTarget.kind === "vault" && /Заперт/.test(lockedTarget.label),
+  log(!!lockedTarget && lockedTarget.kind === "vault" && /заперт/i.test(lockedTarget.label),
     "тайник заперт", lockedTarget && lockedTarget.label);
   API.doInteract();
   log(vault.locked === true, "и без ключа не открывается");
@@ -197,6 +197,58 @@ if ((G.levers || []).length) {
   API.openLever(lever);
   API.answerLever(lever, lever.view.answer);
   log(lever.used === true && vaultOfLever.locked === false, "верный ответ открывает тайник");
+}
+
+// Сбой в слое объектов не оставляет на карте чужие спрайты: раньше падение
+// на середине оставляло узлы прошлого места — деревья и жителей деревни
+// поверх карты подземелья. Проверяем по исходнику: слой объектов вызывается
+// под защитой, а ошибка уходит в консоль с местом и этажом.
+{
+  const gameSrc2 = fs.readFileSync(path.join(dir, "game.js"), "utf8");
+  const guarded = /try \{\s*renderEntities\(\);\s*\} catch \(err\) \{[\s\S]{0,400}?Сбой отрисовки объектов/.test(gameSrc2);
+  log(guarded, "слой объектов рисуется под защитой и не оставляет чужие спрайты");
+  log(/G\.entityEls\.forEach\(\(node\) => node\.remove\(\)\);[\s\S]{0,200}?renderEntities\(\)/.test(gameSrc2),
+    "после сбоя узлы убираются и отрисовка повторяется");
+}
+
+// Тайник тоже объясняет себя: в подписи кнопки сказано, где ключ.
+quietFloor(4);
+if ((G.vaults || []).length) {
+  const vv = G.vaults[0];
+  G.vaultKeys = 0;
+  G.playerPos = { x: vv.from.x, y: vv.from.y };
+  G.treasures = (G.treasures || []).filter((t) => !(t.x === vv.from.x && t.y === vv.from.y));
+  const vt = API.interactTarget();
+  log(/ключ/i.test(vt.label) && /страж/i.test(vt.label),
+    "в подписи запертого тайника сказано, где ключ", vt.label);
+}
+
+// Рычаг понятен и не смертелен: в подписи кнопки сказано, что он открывает
+// тайник, в окне — про удар током, а сам удар не может добить героя. Раньше
+// ученик умирал на вопросе у рычага, не зная, что ошибка вообще бьёт.
+const leverFloor2 = tries(30, () => {
+  quietFloor(4);
+  return (G.levers || []).length > 0;
+});
+quietFloor(4);
+if ((G.levers || []).length) {
+  const lv = G.levers[0];
+  G.playerPos = { x: lv.x, y: lv.y };
+  const lvTarget = API.interactTarget();
+  log(/тайник/i.test(lvTarget.label), "в подписи рычага сказано про тайник", lvTarget.label);
+  API.openLever(lv);
+  const lvHtml = el("dialog-box").innerHTML;
+  log(/не убьёт/i.test(lvHtml) && /током/i.test(lvHtml),
+    "и в окне объяснено, что за ошибку ударит током и что это не смертельно");
+  API.closeDialog();
+  // Самое главное: удар не добивает.
+  G.player.hp = 2;
+  API.openLever(lv);
+  API.answerLever(lv, lv.view.answer === 0 ? 1 : 0);
+  log(G.player.hp >= 1 && !G.dead, "неверный ответ у рычага не убивает героя",
+    "осталось здоровья: " + G.player.hp);
+  log(el("end-overlay").classList.contains("hidden"), "и экрана смерти не появляется");
+  G.player.hp = G.player.maxHp;
 }
 
 // Жилы: материал за нажатие уходит в профиль.
@@ -3872,6 +3924,13 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   // разделам», и после расширения поиска она устарела.
   log(/id="find"/.test(adminHtml) && /id="only-changed"/.test(adminHtml),
     "в админке есть поиск по полям и фильтр «только изменённое»");
+  // Вкладка «Враги»: все виды мобов и пулы этажей в одном месте. Раньше
+  // вид врага жил среди полусотни разделов контента, и найти его можно было
+  // только поиском.
+  log(/id: "enemies", label: "Враги"/.test(adminHtml) && /function fieldTabs/.test(adminHtml) &&
+    /key\.indexOf\("enemy\."\) === 0/.test(adminHtml) && /\.pool\$/.test(adminHtml),
+    "в панели есть вкладка «Враги» со всеми видами и пулами этажей");
+
   // Полей больше тысячи: страница раскладывает их по вкладкам и строит
   // разметку только у раскрытых разделов — иначе браузер учителя вешает
   // вкладку на десятки секунд.
@@ -5542,6 +5601,25 @@ if (lockedDoor) {
   }
 }
 
+// В деревне видно, с чем герой пойдёт вниз: зелья из кошелька и купленное
+// снаряжение. Раньше панель была пустой — renderInventory вызывался только
+// на спуске, и ученик не видел ни сумки, ни надетого.
+const bagProf = getProfile(G.name);
+bagProf.wallet = { gold: 100, small_potion: 2, big_potion: 1 };
+bagProf.hub = { revive: 0, gear: ["steel_sword"] };
+putProfile(G.name, bagProf);
+API.enterVillage(null);
+log((G.inventory || []).filter((i) => i.slot === "potion").length === 3,
+  "в деревне в сумке зелья из кошелька",
+  (G.inventory || []).filter((i) => i.slot === "potion").length + " зелий");
+log((G.inventory || []).some((i) => i.id === "steel_sword"),
+  "и купленное снаряжение ждёт спуска");
+log(/С собой в поход/.test(el("village-bank").innerHTML),
+  "панель деревни перечисляет, что герой берёт с собой");
+log(!el("inventory-box") || el("inventory-box").innerHTML.length > 0,
+  "и сумка в панели не пустая");
+bagProf.hub.gear = [];
+
 // В деревне нечего сохранять: сейв похода не должен затираться.
 globalThis.localStorage.removeItem(API.SAVE_KEY);
 API.saveGame();
@@ -5804,6 +5882,70 @@ log(getProfile(G.name).quests.repeat.ore === 1 && getProfile(G.name).quests.acti
   "выполнено раз: " + getProfile(G.name).quests.repeat.ore);
 API.takeRepeatQuest("guard");
 log(/Задание:/.test(API.questLine()), "цель задания видна строкой в панели", API.questLine());
+
+// Рассинхрон места: если в подземелье остались данные деревни, страховка
+// чистит их и пишет в консоль, что именно осталось, — по этой строке и
+// находится место, которое не убрало состояние.
+freshRun(1);
+G.mat = [["roof"]];
+G.roofKind = [["ridge"]];
+G.scenery = [{ x: 1, y: 1, kind: "chimney" }];
+G.npcs = [{ key: "elder" }];
+G.blocked = [[1]];
+const warned = [];
+const realWarn = console.warn;
+console.warn = (...args) => { warned.push(args); };
+API.render();
+console.warn = realWarn;
+log(G.mat === null && !G.scenery.length && !G.npcs.length && G.blocked === null,
+  "данные деревни в подземелье вычищаются, а не рисуются на карте");
+log(warned.length > 0 && /Рассинхрон места/.test(String(warned[0][0])),
+  "и о рассинхроне пишется строка в консоль", warned.length ? "да" : "нет");
+freshRun(2);
+G.mat = [["roof"]];
+API.render();
+log(G.mat === null, "в деревне материалы не трогаются — там они на месте");
+API.enterVillage(null);
+log(G.mat !== null, "и в самой деревне материалы остаются");
+
+// Стек одинаковых предметов: три зелья — одна строка с числом.
+freshRun(1);
+G.inventory = [];
+["small_potion", "small_potion", "small_potion", "steel_sword"].forEach((id) => {
+  const it = API.ITEM_POOL.filter((x) => x.id === id)[0];
+  if (it) G.inventory.push(Object.assign({}, it));
+});
+const stacks = API.stackedInventory();
+log(stacks.length === 2, "одинаковые предметы собраны в стеки", stacks.length + " строк");
+const potionStack = stacks.filter((x) => x.item.id === "small_potion")[0];
+log(potionStack && potionStack.count === 3, "и число предметов в стеке верное",
+  potionStack ? String(potionStack.count) : "стека нет");
+API.renderInventory();
+log(/inv-count/.test(el("inventory-box").innerHTML) && /×3/.test(el("inventory-box").innerHTML),
+  "в сумке видно число, а не три одинаковые строки");
+// Выпить из стека — остаётся два.
+G.player.hp = 1;
+API.usePotion(potionStack.index);
+log(API.stackedInventory().filter((x) => x.item.id === "small_potion")[0].count === 2,
+  "выпитое зелье уменьшает число в стеке, а не убирает строку");
+
+// Прогресс к цели сюжетного шага: ученик видит, что он не «провалил походы»,
+// а собирает материалы. Цель шага — постройка, значит нужна строка с числом.
+resetProgress();
+API.enterVillage(null);
+const goalText = API.goalProgressText(API.storyStep().goal);
+log(/руда \d+\/\d+/.test(goalText) || /древесина \d+\/\d+/.test(goalText),
+  "к цели шага видно, сколько материалов собрано", goalText);
+const p3 = getProfile(G.name);
+p3.loot.wood = 3;
+putProfile(G.name, p3);
+log(/древесина 3\//.test(API.goalProgressText(API.storyStep().goal)),
+  "и число растёт вместе с находками", API.goalProgressText(API.storyStep().goal));
+const p4 = getProfile(G.name);
+p4.loot.wood = 0;
+putProfile(G.name, p4);
+log(/древесина 0\//.test(API.goalProgressText(API.storyStep().goal)),
+  "а несобранное честно показывает ноль", API.goalProgressText(API.storyStep().goal));
 API.takeRepeatQuest("");
 log(getProfile(G.name).quests.active === "" && API.questLine() === "" || /Цель:|Староста/.test(API.questLine()),
   "от задания можно отказаться и идти без него", API.questLine());

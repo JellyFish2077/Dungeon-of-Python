@@ -523,6 +523,7 @@
   var TABS = [
     { id: "balance", label: "Числа баланса", hint: "урон, цены, шансы, сложность, деревня — числа, которыми правится игра" },
     { id: "content", label: "Контент", hint: "предметы, виды врагов и этажи: сколько чего лежит и стоит" },
+    { id: "enemies", label: "Враги", hint: "все виды монстров и их этажи: имя, здоровье, урон, дистанция и пул этажа" },
     { id: "questions", label: "Вопросы", hint: "текст вопроса, четыре варианта, разбор, уровень и тема" },
     { id: "tasks", label: "Задания", hint: "повтори код, вставь пропущенное, найди ошибку, напиши функцию" }
   ];
@@ -537,6 +538,19 @@
   function fieldTab(f) {
     if (f.bank) { return f.bank; }
     return f.optional ? "content" : "balance";
+  }
+
+  // Вкладки поля. Вид врага и пул этажа нужны в двух местах: в «Контенте»,
+  // где правится всё содержимое подряд, и во «Врагах», где учитель ищет
+  // именно мобов. Раньше вид врага жил среди полусотни разделов контента,
+  // и найти его можно было только поиском.
+  function fieldTabs(f) {
+    var main = fieldTab(f);
+    var key = String(f.key);
+    if (key.indexOf("enemy.") === 0 || /\.pool$/.test(key)) {
+      return main === "enemies" ? ["enemies"] : [main, "enemies"];
+    }
+    return [main];
   }
 
   // Раздел поля: у банка это сам вопрос или задание, у контента — предмет,
@@ -562,15 +576,16 @@
     var seen = {};
     fields.forEach(function (f) {
       byKey[f.key] = f;
-      var tab = fieldTab(f);
-      if (!index[tab]) { return; }
-      var sec = sectionOf(f);
-      var id = tab + "|" + sec;
-      if (!seen[id]) {
-        seen[id] = { id: id, title: sectionTitle(f), sub: f.group, fields: [] };
-        index[tab].push(seen[id]);
-      }
-      seen[id].fields.push(f);
+      fieldTabs(f).forEach(function (tab) {
+        if (!index[tab]) { return; }
+        var sec = sectionOf(f);
+        var id = tab + "|" + sec;
+        if (!seen[id]) {
+          seen[id] = { id: id, title: sectionTitle(f), sub: f.group, fields: [] };
+          index[tab].push(seen[id]);
+        }
+        seen[id].fields.push(f);
+      });
     });
   }
 

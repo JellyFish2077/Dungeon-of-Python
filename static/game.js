@@ -1229,7 +1229,8 @@
     if (!vault) return false;
     if (!vault.locked) { setMsg("Тайник уже открыт — заходи."); return true; }
     if ((G.vaultKeys || 0) <= 0) {
-      setMsg("Тайник заперт. Ключ держит страж этажа, а рядом должен быть рычаг.");
+      setMsg("Тайник заперт. Ключ держит страж лестницы — победи его. " +
+        "Ещё дверь открывает рычаг этажа: он спросит вопрос и за ошибку ударит током, но не насмерть.");
       return false;
     }
     G.vaultKeys -= 1;
@@ -1280,7 +1281,12 @@
     const box = el("dialog-box");
     if (!box) return false;
     G.dialogNpc = { key: "lever", name: "Рычаг" };
-    box.innerHTML = dialogHead("Рычаг", "На табличке вопрос — рычаг ждёт ответа") +
+    const shock = Math.max(3, Math.round(G.player.maxHp * 0.08));
+    box.innerHTML = dialogHead("Рычаг", "Открывает тайник этажа") +
+      "<p class='lead'>За рычагом — запертая комната с добычей. Ответишь на вопрос " +
+      "верно — дверь откроется; ошибёшься — ударит током на " + shock +
+      " здоровья, но <b>не убьёт</b>: рычаг оставляет герою одно здоровье. " +
+      "Дёргать его не обязательно.</p>" +
       "<p class='lead'>" + (q.text || "") + "</p>" +
       "<div class='battle-options' id='lever-options'>" +
       view.options.map((o, i) =>
@@ -1308,17 +1314,23 @@
         log("Рычаг опущен, но открывать было нечего.", "loot");
       }
     } else {
-      const dmg = Math.max(3, Math.round(G.player.maxHp * 0.08));
-      G.player.hp = Math.max(0, G.player.hp - dmg);
-      log("Рычаг бьёт током: −" + dmg + " здоровья. Попробуй ещё раз.", "fight");
-      toast("Рычаг ударил током (−" + dmg + " HP)");
+      // Ток не убивает: он оставляет герою одно здоровье. Раньше удар мог
+      // добить, и на вопросе у рычага погиб ученик — это не тот риск, который
+      // уместен в задании «открой тайник».
+      const shock = Math.max(3, Math.round(G.player.maxHp * 0.08));
+      const dmg = Math.min(shock, Math.max(0, G.player.hp - 1));
+      G.player.hp = Math.max(1, G.player.hp - dmg);
+      log(dmg > 0
+        ? "Рычаг бьёт током: −" + dmg + " здоровья. Не смертельно — попробуй ещё раз."
+        : "Ток бьёт, но добить героя рычаг не может. Передохни и попробуй снова.", "fight");
+      toast(dmg > 0 ? "Ток ударил (−" + dmg + " HP), но не насмерть" : "Рычаг не может добить героя");
       G.stats.leverWrong = (G.stats.leverWrong || 0) + 1;
     }
     lever.view = null;
     closeDialog();
     updateHud();
     render();
-    if (G.player.hp <= 0) showDeath();
+    // Смерти от рычага быть не может: удар оставляет одно здоровье.
     return right;
   }
 
@@ -1647,6 +1659,26 @@
     return "Этаж " + (G.floorIndex + 1) + " · " + floorNameAt(G.floorIndex);
   }
 
+  // Сумка героя между походами: зелья из кошелька и снаряжение, купленное
+  // у торговца. Собирается при каждом входе в деревню — герой-заглушка живёт
+  // долго, и заполнять сумку только при её создании значило бы показывать
+  // пустую панель после каждого похода. Надетого в деревне нет: снаряжение
+  // надевают в подземелье.
+  function villageKitFromProfile() {
+    G.inventory = [];
+    G.equipment = { weapon: null, armor: null, accessory: null };
+    const prof = hubProfile();
+    if (!prof) return;
+    const w = prof.wallet || {};
+    const add = (id, n) => {
+      const it = typeof itemById === "function" ? itemById(id) : null;
+      for (let i = 0; i < (n || 0) && it; i += 1) G.inventory.push(Object.assign({}, it));
+    };
+    add("small_potion", w.small_potion || 0);
+    add("big_potion", w.big_potion || 0);
+    ((prof.hub && prof.hub.gear) || []).forEach((id) => add(id, 1));
+  }
+
   // Раскладка → та же форма, что у этажа подземелья, поэтому рендер, камера
   // и ходьба деревню и подземелье не различают.
   function villagePlaceState(rows, npcPlace) {
@@ -1748,6 +1780,23 @@
     // В деревне героя нет, но панель деревни показывает, с чем он уйдёт
     // в подземелье: улучшения читаются из того же progressBonus.
     G.prog = progressBonus();
+    // Сумка и снаряжение в деревне — из профиля, а не с прошлого похода:
+    // поход заканчивается смертью или победой, и его вещи либо уехали в банк,
+    // либо пропали. Между походами у героя есть зелья из кошелька и то
+    // снаряжение, что куплено у торговца и ждёт спуска.
+    G.inventory = [];
+    G.equipment = { weapon: null, armor: null, accessory: null };
+    const villageProf = hubProfile();
+    if (villageProf) {
+      const w = villageProf.wallet || {};
+      const add = (id, n) => {
+        const it = typeof itemById === "function" ? itemById(id) : null;
+        for (let i = 0; i < (n || 0) && it; i += 1) G.inventory.push(Object.assign({}, it));
+      };
+      add("small_potion", w.small_potion || 0);
+      add("big_potion", w.big_potion || 0);
+      (villageProf.hub && villageProf.hub.gear ? villageProf.hub.gear : []).forEach((id) => add(id, 1));
+    }
   }
 
   // Вход в место. at — куда поставить героя; без него — точка появления.
@@ -1804,6 +1853,12 @@
     measureViewport();
     render();
     renderVillageInfo();
+    // Сумка и характеристики рисуются и в деревне: между походами у героя
+    // есть зелья из кошелька и купленное снаряжение, и он должен их видеть,
+    // а не пустую панель. Раньше панель заполнялась только при спуске.
+    villageKitFromProfile();
+    renderInventory();
+    updateEquipBar();
     requestAnimationFrame(() => el("map").classList.remove("no-cam-anim"));
     return true;
   }
@@ -1913,7 +1968,7 @@
         (done
           ? "<button class='btn quest-claim' type='button' data-quest='story' data-goal=\"" +
             step.key + "\">Забрать награду</button>"
-          : "<span class='hub-stock'>цель ещё не выполнена</span>") +
+          : "<span class='hub-stock'>Нужно: " + (goalProgressText(step.goal) || "цель ещё не выполнена") + "</span>") +
         "</div>";
     }
     const active = prof.quests.active;
@@ -2244,6 +2299,15 @@
     html += "<p class='lead'><b>Постройки:</b> " + (built.length
       ? built.map((k) => VILLAGE_BUILDINGS[k].name + " " + villageLevel(k)).join(", ")
       : "пока ничего не восстановлено") + "</p>";
+    // Сумка и снаряжение героя между походами: то, с чем он спустится.
+    const bag = G.inventory || [];
+    const potions = bag.filter((i) => i && i.slot === "potion").length;
+    const gear = bag.filter((i) => i && i.slot !== "potion");
+    html += "<p class='lead'><b>С собой в поход:</b> " + (potions || gear.length
+      ? (potions ? "зелий " + potions : "") +
+        (potions && gear.length ? ", " : "") +
+        (gear.length ? "снаряжение: " + gear.map((i) => i.name).join(", ") : "")
+      : "пусто — купи у торговца или возьми из банка") + "</p>";
     const cap = upgradeCap();
     if (cap > 0) {
       const up = HERO_UPGRADE_LIST.filter((u) => heroLevel(u.kind) > 0);
@@ -2741,11 +2805,55 @@
     setTimeout(() => tiles.classList.remove("floor-in"), 700);
   }
 
+  // Страховка от рассинхрона места. В подземелье не должно быть ни материалов
+  // деревни (крыши, фасады, окна), ни её предметов (двери, дымоходы, деревья),
+  // ни жителей: если что-то из этого вдруг осталось, на карте появляются чужие
+  // спрайты. Пишем в консоль, что именно осталось, — по этой строке и найдём
+  // место, которое их не убрало, — и чистим, чтобы игрок видел нормальную карту.
+  function healPlaceState() {
+    if (G.place !== "dungeon") return;
+    const left = {
+      материалы: !!G.mat,
+      предметы: (G.scenery || []).length,
+      двери: (G.doors || []).filter((d) => !d.key).length,
+      жители: (G.npcs || []).length,
+      стены: !!G.blocked,
+      крыша: !!(G.roofKind || G.roofColor)
+    };
+    if (!left.материалы && !left.предметы && !left.жители && !left.стены && !left.крыша) return;
+    console.warn("Рассинхрон места: в подземелье остались данные деревни", left, {
+      место: G.place, этаж: G.floorIndex, кадр: G.place
+    });
+    G.mat = null;
+    G.roofKind = null;
+    G.roofColor = null;
+    G.scenery = [];
+    G.npcs = [];
+    G.blocked = null;
+  }
+
   function render() {
+    healPlaceState();
     setZoomCell();
     computeVisibility();
     renderTiles();
-    renderEntities();
+    // Слой объектов чиним отдельно. Плитки перерисовываются первыми, и если
+    // слой объектов падает на середине, на карте остаются узлы прошлого места:
+    // ученики видели деревья, жителей и двери деревни поверх карты подземелья.
+    // Ловим сбой, убираем все узлы и повторяем один раз, а ошибку пишем в
+    // консоль с этажом и местом — по этой строке причина видна сразу.
+    try {
+      renderEntities();
+    } catch (err) {
+      console.error("Сбой отрисовки объектов", { место: G.place, этаж: G.floorIndex }, err);
+      G.entityEls.forEach((node) => node.remove());
+      G.entityEls.clear();
+      try {
+        renderEntities();
+      } catch (err2) {
+        console.error("Слой объектов не поднялся и со второго раза, карта идёт без объектов", err2);
+      }
+    }
     positionCamera();
     // «Фонарь» вокруг героя — примета подземелья; в деревне он только мешает.
     if (G.place === "dungeon") updateVignette();
@@ -3033,7 +3141,7 @@
       const vis = G.visible.has(key(v.door.x, v.door.y));
       place("vault-" + v.uid, v.door.x, v.door.y, vis,
         v.locked ? "doorLocked" : "door", "ent-vault" + (v.locked ? " locked" : ""), null,
-        v.locked ? "Запертый тайник" : "Открытый тайник", 2);
+        v.locked ? "Запертый тайник — ключ у стража лестницы" : "Открытый тайник", 2);
     });
     (G.nodes || []).forEach((n) => {
       if (n.taken) return;
@@ -4063,6 +4171,24 @@
     renderInventory();
   }
 
+  // Стек одинаковых предметов: три малых зелья в сумке — одна строка с числом,
+  // а не три одинаковые. Кнопки работают с первой вещью стека: для одинаковых
+  // предметов это то же самое, а число уменьшается на единицу за нажатие.
+  function stackedInventory() {
+    const out = [];
+    const where = {};
+    (G.inventory || []).forEach((item, i) => {
+      const id = String(item.id);
+      if (where[id] === undefined) {
+        where[id] = out.length;
+        out.push({ item: item, index: i, count: 1 });
+      } else {
+        out[where[id]].count += 1;
+      }
+    });
+    return out;
+  }
+
   function openInventory() {
     if (!G.running) return;
     renderInventory();
@@ -4208,7 +4334,10 @@
     if (G.inventory.length === 0) {
       html += "<div class='inv-empty'>Пока пусто. Ищи сундуки и побеждай монстров.</div>";
     } else {
-      G.inventory.forEach((item, i) => {
+      stackedInventory().forEach((stack) => {
+        const item = stack.item;
+        const i = stack.index;
+        const count = stack.count;
         const isPotion = item.slot === "potion";
         const rarity = RARITY[item.rarity];
         const ico = itemPic(item, rarity.color);
@@ -4231,7 +4360,8 @@
         const cmpLine = isPotion ? "" : itemCompareText(item);
         html += "<div class='inv-item' data-tip=\"" + tipAttr(tip) +
           "\" style='border-left-color:" + rarity.color + "'>" +
-          "<div class='info'><b>" + ico + item.name + "</b>" +
+          "<div class='info'><b>" + ico + item.name +
+          (count > 1 ? " <span class='inv-count'>×" + count + "</span>" : "") + "</b>" +
           "<span>" + rarity.name + " · " + itemBonusText(item) + "</span>" +
           cmpLine + "</div>" +
           "<div class='inv-actions'>" +
@@ -4456,8 +4586,13 @@
       if (vault) {
         return {
           kind: "vault",
-          label: vault.locked ? "Запертый тайник" : "Открытый тайник",
-          icon: "▮", obj: vault
+          icon: "▮", obj: vault,
+          // В подписи сказано, где взять ключ: ученики видели «Запертый тайник»
+          // и не понимали, что делать, а страж этажа с ключом оставался без
+          // внимания.
+          label: vault.locked
+            ? "Тайник заперт: ключ у стража лестницы"
+            : "Тайник открыт"
         };
       }
       const node = nodeAt(x, y);
@@ -4469,7 +4604,15 @@
         };
       }
       const lever = leverAt(x, y);
-      if (lever) return { kind: "lever", label: "Дёрнуть рычаг", icon: "⚙", obj: lever };
+      if (lever) {
+        // В подписи сразу сказано, что рычаг открывает тайник, и что за
+        // ошибку ударит током: ученики видели «рычаг» и не понимали, зачем он,
+        // а один погиб, потому что про удар нигде не было сказано.
+        return {
+          kind: "lever", icon: "⚙", obj: lever,
+          label: "Рычаг: открыть тайник (ударит током за ошибку)"
+        };
+      }
       const sign = signAt(x, y);
       if (sign) return { kind: "sign", label: "Прочитать табличку", icon: "▤", obj: sign };
       // Костёр-привал: один раз за костёр и не больше, чем привалов на поход.
@@ -7670,6 +7813,26 @@ function topicName(key) {
     return STORY_QUESTS[q.story] || null;
   }
 
+  // Сколько уже собрано к цели шага: «руда 4/8 · древесина 2/4». Без этой
+  // строки первые походы выглядят как пять провалов подряд, хотя на самом деле
+  // ученик идёт к постройке и половину пути уже прошёл.
+  function goalProgressText(goal) {
+    if (!goal || goal === "victory") return "";
+    const cost = buildCost(goal);
+    const prof = hubProfile();
+    if (!cost || !prof) return "";
+    const parts = [];
+    Object.keys(cost).forEach((k) => {
+      if (k === "key") {
+        parts.push((prof.loot.keys.indexOf(cost[k]) >= 0 ? "✓ " : "") + keyName(cost[k]));
+        return;
+      }
+      const have = Math.min(prof.loot[k] || 0, cost[k]);
+      parts.push(LOOT_NAMES[k] + " " + have + "/" + cost[k]);
+    });
+    return parts.join(" · ");
+  }
+
   // Выполнена ли цель шага. Постройки — по уровню в профиле, дракон — по рекорду.
   function goalDone(goal) {
     if (goal === "victory") {
@@ -7800,7 +7963,9 @@ function topicName(key) {
     }
     const step = storyStep();
     if (!step) return "";
-    return goalDone(step.goal) ? "Староста ждёт награды: " + step.title : "Цель: " + step.title;
+    if (goalDone(step.goal)) return "Староста ждёт награды: " + step.title;
+    const prog = goalProgressText(step.goal);
+    return "Цель: " + step.title + (prog ? " (" + prog + ")" : "");
   }
 
   function amuletWord(n) {
@@ -8350,11 +8515,14 @@ function topicName(key) {
     updateResumeButton();
   }
 
+  // «Выйти» — это выход в главное меню сайта, а не возврат в деревню. Раньше
+  // кнопка звала reset(), а он возвращает в деревню: стоя в деревне, ученик
+  // нажимал и не видел ничего — «кнопка не работает».
   function leave() {
-    if (window.confirm("Выйти в меню? Прогресс сохранится, можно будет продолжить.")) {
-      saveGame();
-      reset();
-    }
+    if (!window.confirm("Выйти в главное меню? Поход сохранится, его можно будет продолжить.")) return;
+    // Сохраняем только поход: в деревне сохранять нечего, там сейв не пишется.
+    if (G.running) saveGame();
+    window.location.href = "/";
   }
 
   // ---------- Сохранение / загрузка ----------

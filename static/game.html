@@ -23,7 +23,8 @@
       <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад. У торговца на этаже дешевле.">Лавка</button>
       <button class="head-link" id="forge-btn" type="button" data-tip="Кузница: вложить золото в урон, защиту или здоровье. Клавиша F.">Кузница</button>
       <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
-      <button class="head-link" id="leave-btn" type="button" data-tip="Выйти из похода к заданиям. Найденное останется в кошельке.">Выйти</button>
+      <a class="head-link" id="menu-btn" href="/" data-tip="Главное меню сайта. Поход сохранится, его можно будет продолжить.">Меню</a>
+      <button class="head-link" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
     </div>
   </header>
 
@@ -76,7 +77,6 @@
       </div>
     </section>
   </div>
-
     <aside class="side-panel hidden">
       <div class="side-card" id="village-info">
         <div class="side-title">Деревня</div>
@@ -124,14 +124,6 @@
             <span class="equip-value" id="equip-stats">+0 / 0</span>
           </div>
         </div>
-
-        <!-- Что сейчас работает на герое. Пусто, пока нет особых эффектов:
-             без этой подсказки игрок не понимает, что надето и что сработает.
-             Заголовок рисует сам renderEffectList вместе со списком, чтобы он
-             не торчал над пустотой и не повторялся.
-             Список живёт под снаряжением, а не в закреплённой сводке: с тремя
-             эффектами и комплектами сводка вырастала выше колонки и закрывала
-             снаряжение и сумку целиком. -->
         <div class="effect-list" id="effect-list"></div>
       </div>
 
@@ -140,6 +132,7 @@
       </div>
 
     </aside>
+
   </div>
 
   <!-- Окно входа в подземелье. Настройки спуска переехали сюда из бывшего
