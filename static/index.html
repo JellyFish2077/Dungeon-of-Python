@@ -9,24 +9,22 @@
 </head>
 <body>
   <div class="app">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Python: проверь свой уровень</h1>
-        <p>Интерактивный тест для определения стартового уровня</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
 
-    </div>
-
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn active" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn" href="/">Главная</a>
+        <a class="nav-btn active" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
+        <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
+        <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <section id="screen-start" class="card">
       <h2>Добро пожаловать!</h2>
@@ -35,9 +33,11 @@
         что ты уже знаешь, а чему стоит научиться. На каждый вопрос один правильный ответ.
       </p>
 
+      <p class="account-line hidden" id="account-line"></p>
       <label class="field" for="name">Как тебя зовут? (это твоя учётная запись)</label>
       <input type="text" id="name" placeholder="Имя и фамилия" autocomplete="off" />
       <p class="lead hidden" id="profile-line" style="margin:12px 0 0"></p>
+      <p class="badge-next hidden" id="next-badge"></p>
 
       <div class="modes" id="modes">
         <div class="mode active" data-mode="practice">
@@ -50,7 +50,32 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="run-setup">
+        <div class="setup-row">
+          <span class="setup-label">Что решать</span>
+          <div class="chips" id="source-chips">
+            <button class="chip active" type="button" data-source="bank">Весь банк</button>
+            <button class="chip" type="button" data-source="wrong" id="chip-wrong">Мои ошибки</button>
+          </div>
+        </div>
+        <div class="setup-row">
+          <span class="setup-label">Длина прогона</span>
+          <div class="chips" id="length-chips">
+            <button class="chip active" type="button" data-length="15">Короткий · 15</button>
+            <button class="chip" type="button" data-length="30">Обычный · 30</button>
+            <button class="chip" type="button" data-length="0">Полный прогон</button>
+          </div>
+        </div>
+        <div class="setup-row">
+          <span class="setup-label">Тема</span>
+          <select id="topic-select"></select>
+        </div>
+        <p class="run-hint" id="run-hint"></p>
+      </div>
+
+      <div class="topic-progress hidden" id="topic-progress"></div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
         <button class="btn" id="start-btn">Начать</button>
         <a class="btn ghost" href="/" style="text-decoration:none;display:inline-block">Главная</a>
         <a class="btn ghost" href="/game" style="text-decoration:none;display:inline-block">Режим подземелья</a>
@@ -58,16 +83,18 @@
       </div>
 
       <ul class="facts">
-        <li>• 85 вопросов + задания: вставь пропущенное, найди ошибку, повтори код</li>
+        <li>• Банк: вопросы, «вставь пропущенное», «найди ошибку», «повтори код», «напиши функцию»</li>
         <li>• 9 тем: от синтаксиса до функций и исключений</li>
-        <li>• Примерно 10–15 минут</li>
-        <li>• В конце — персональный уровень, рекомендации и награда в подземелье</li>
+        <li>• В конце — уровень, разбор ошибок, разминка по слабым темам и награда в подземелье</li>
       </ul>
     </section>
 
     <section id="screen-quiz" class="card hidden">
       <div class="topbar">
-        <span id="progress-text">Вопрос 1 из 28</span>
+        <span class="topbar-left">
+          <span id="progress-text">Вопрос</span>
+          <span class="streak-line" id="quiz-streak"></span>
+        </span>
         <span class="topbar-right">
           <span class="badge" id="topic-badge">Тема</span>
           <button class="exit-btn" id="exit-btn" type="button">Выйти</button>
@@ -80,6 +107,7 @@
       <pre class="code hidden" id="question-code"></pre>
       <div class="options" id="options"></div>
       <div class="feedback hidden" id="feedback"></div>
+      <p class="keys-hint" id="keys-hint">Клавиши: 1–4 или A–D — выбрать ответ, Enter — дальше</p>
 
       <div class="footer">
         <button class="btn hidden" id="next-btn">Далее</button>
@@ -92,10 +120,12 @@
         <h2 id="level-title"></h2>
         <div class="score-circle" id="score-circle"></div>
         <p class="lead" id="level-desc" style="margin: 0 auto;"></p>
+        <p class="delta-line" id="delta-line"></p>
         <p class="lead hidden" id="reward-line" style="margin:10px auto 0"></p>
       </div>
 
       <table class="breakdown" id="breakdown"></table>
+      <p class="level-line" id="level-line"></p>
 
       <div class="review hidden" id="review">
         <h3>Разбор ошибок</h3>
@@ -122,6 +152,7 @@
     </div>
   </div>
 
+  <script src="/static/task-meta.js"></script>
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>

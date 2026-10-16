@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Админ-панель · PyDungeon</title>
+<style>
+  /* Админ-панель живёт отдельной страницей без общего style.css, но язык
+     тот же, что на игровых экранах: одна плоская поверхность, иерархия —
+     типографика, волосяные линейки и воздух. Карточек нет: поля баланса
+     это строки-реестр, а не 274 прямоугольника. Токены совпадают с
+     game.css, чтобы палитра сайта была одной. */
+  :root {
+    --ocean: #0a1220;
+    --card: #101d31;
+    --line: rgba(125, 162, 217, 0.18);
+    --text: #e7eefa;
+    --dim: #93a8c8;
+    --gold: #f6c453;
+    --gold-ink: #2b1e04;
+    --good: #7ee787;
+    --bad: #ff8d8d;
+    --display: Georgia, "Times New Roman", serif;
+    --tex-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Ccircle cx='1' cy='1' r='.6' fill='%23ffffff' fill-opacity='.05'/%3E%3C/svg%3E");
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    padding: 20px 16px 64px;
+    background-color: var(--ocean);
+    background-image: var(--tex-dots);
+    color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+
+  /* Шапка сайта — копия style.css: страница автономна, но выглядит как все. */
+  .site-head {
+    display: flex; align-items: center; justify-content: flex-start;
+    flex-wrap: wrap; gap: 10px 24px; margin-bottom: 18px;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; color: #e2e8f0; margin: 0; }
+  .brand .logo {
+    width: 44px; height: 44px; border-radius: 12px; display: grid;
+    place-items: center; background: #f6c453; font-size: 22px;
+    font-weight: 700; color: #0f172a;
+  }
+  .brand h1 { font-size: 20px; margin: 0; }
+  .nav { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: flex-start; gap: 4px 18px; margin: 0; }
+  .nav-btn {
+    position: relative; padding: 3px 1px; border: 0; border-radius: 0;
+    background: none; text-decoration: none; font-weight: 600; font-size: 14px;
+    color: #93a3ba; transition: color 0.14s ease, text-shadow 0.14s ease;
+  }
+  .nav-btn:hover {
+    color: #f2f7ff;
+    text-shadow: 0 1px 12px rgba(125, 162, 217, 0.65), 0 0 2px rgba(226, 240, 255, 0.4);
+  }
+  .nav-btn:focus-visible { outline: 2px solid #7da2d9; outline-offset: 3px; border-radius: 2px; }
+  .nav-btn.active { color: #f6c453; }
+  .nav-btn.active::after {
+    content: ""; position: absolute; left: 1px; right: 1px; bottom: -4px;
+    height: 2px; border-radius: 2px; background: currentColor; opacity: 0.85;
+  }
+
+  .kicker {
+    margin: 6px 0 4px; color: var(--dim); font-size: 11.5px;
+    letter-spacing: 0.16em; text-transform: uppercase;
+  }
+  h1 {
+    margin: 0 0 6px; font-family: var(--display); font-size: 30px;
+    font-weight: 600; color: #f4f8ff;
+  }
+  .lead { color: var(--dim); margin: 0 0 22px; max-width: 68ch; }
+  .hidden { display: none !important; }
+  a { color: var(--gold); }
+  code {
+    background: rgba(125, 162, 217, 0.1); border: 1px solid var(--line);
+    border-radius: 5px; padding: 1px 6px; font-size: 13px;
+  }
+
+  /* Вход: не карточка, а короткий блок между двумя линейками. */
+  .login {
+    max-width: 460px; padding: 18px 0 14px;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  label.field {
+    display: flex; flex-direction: column; gap: 6px; flex: 1 1 220px;
+    font-size: 11.5px; color: var(--dim); letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  input[type="password"], input[type="number"], input[type="text"],
+  input[type="search"], textarea {
+    background: #0c1728; border: 1px solid var(--line); border-radius: 7px;
+    color: var(--text); padding: 8px 10px; font: inherit; font-size: 14px;
+  }
+  input:focus, textarea:focus {
+    outline: none; border-color: #4a72ad;
+    box-shadow: 0 0 0 3px rgba(74, 114, 173, 0.18);
+  }
+  input[type="number"] { width: 108px; text-align: right; }
+  button {
+    background: var(--gold); border: 0; border-radius: 8px; color: var(--gold-ink);
+    font: inherit; font-weight: 600; padding: 9px 18px; cursor: pointer;
+  }
+  button:hover { background: #ffd77a; }
+  button.ghost {
+    background: transparent; border: 1px solid var(--line);
+    color: #cfe0f5; font-weight: 500;
+  }
+  button.ghost:hover { border-color: #4a72ad; color: #fff; }
+  button:disabled { opacity: 0.5; cursor: default; }
+
+  /* Панель действий липнет к верху: полей больше тысячи, «Сохранить»
+     не должно уезжать за десять экранов вниз. */
+  .toolbar {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+    margin: 0 0 2px; padding: 12px 0;
+    background-color: rgba(10, 18, 32, 0.94);
+    border-bottom: 1px solid var(--line);
+  }
+  .toolbar .status { flex: 1 1 240px; }
+
+  .search-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0 4px; }
+  .find {
+    color: var(--dim); font-size: 11.5px; letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  #find { flex: 1 1 260px; min-width: 160px; }
+  .group-hidden { display: none !important; }
+
+  /* Вкладки. Панель была одной простыней: 1334 поля сразу, из них 1049 —
+     из банка вопросов и заданий. Теперь работа разделена по вкладкам, а
+     «поштучные» разделы рисуются лениво: поля строятся, когда раздел
+     раскрыли, и в DOM живёт десяток полей, а не тысяча. */
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 2px 20px; margin: 16px 0 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .tab {
+    position: relative; background: none; border: 0; padding: 9px 2px;
+    cursor: pointer; color: var(--dim);
+    font: inherit; font-weight: 600; font-size: 14px;
+  }
+  .tab:hover { color: #f2f7ff; }
+  .tab.active { color: var(--gold); }
+  .tab.active::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+    height: 2px; border-radius: 2px; background: currentColor;
+  }
+  .tab .cnt { color: var(--dim); font-weight: 400; font-size: 12px; }
+  .tab-hint { color: var(--dim); font-size: 12.5px; margin: 10px 0 0; min-height: 18px; }
+
+  .filter-row { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin: 12px 0 0; }
+  .check { display: flex; align-items: center; gap: 7px; color: var(--dim); font-size: 13.5px; cursor: pointer; }
+  .check input { width: 16px; height: 16px; margin: 0; }
+
+  /* Поле, на которое сервер указал как на ошибку: видно, что именно править. */
+  .fld.bad { background: rgba(255, 141, 141, 0.07); }
+  .fld.bad input, .fld.bad textarea { border-color: #b45454; }
+  /* Текст ошибки красный. Правило должно быть точнее, чем «.fld .cap span»
+     выше, иначе серый цвет подписи перебивает красный. */
+  .fld .cap span.why { color: var(--bad); font-size: 11.5px; }
+  /* Кнопка «вернуть к стандарту»: в строке поля, за значением. */
+  .revert {
+    background: none; border: 1px solid var(--line); border-radius: 6px;
+    color: var(--dim); font: inherit; font-size: 12px; line-height: 1;
+    padding: 5px 7px; cursor: pointer; white-space: nowrap;
+  }
+  .revert:hover { color: var(--gold); border-color: var(--gold); }
+
+  .status { min-height: 20px; color: var(--dim); font-size: 13.5px; }
+  .status.good { color: var(--good); }
+  .status.bad { color: var(--bad); }
+  .note { color: var(--dim); font-size: 13px; margin: 10px 0 0; max-width: 78ch; }
+
+  /* Разделы: заголовок-надпись с линейкой сверху, а не золотая шапка. */
+  h2 {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--dim);
+    margin: 26px 0 2px; padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  details { margin: 0; }
+  /* Строка группы читается как текст, а не как заголовок: у вопросов и
+     заданий в имени лежит сама формулировка, капсом её читать тяжело. */
+  details > summary {
+    cursor: pointer; list-style: none;
+    font-size: 13.5px; font-weight: 500; color: #cfe0f5;
+    margin: 0; padding: 11px 0;
+    border-top: 1px solid var(--line);
+  }
+  details > summary::before { content: "▸ "; color: var(--gold); }
+  details[open] > summary::before { content: "▾ "; }
+  details[open] > summary { color: var(--gold); }
+  details > summary .cnt { color: var(--dim); font-weight: 400; }
+
+  /* Поля: строка-реестр. Подпись и пометка слева, значение справа,
+     снизу волосяная линейка. Рамок и фонов у строк нет. */
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 0 28px;
+  }
+  .fld {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center; gap: 2px 12px;
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .fld .cap { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .fld .cap b { display: block; font-weight: 500; font-size: 13.5px; }
+  .fld .cap span { color: var(--dim); font-size: 11.5px; }
+  .fld .cap .changed { color: var(--gold); }
+  /* Подпись, у которой есть пояснение: пунктир снизу и курсор-подсказка. */
+  .fld .cap b.has-tip {
+    border-bottom: 1px dotted rgba(125, 162, 217, 0.45); cursor: help;
+  }
+  .fld .cap b.has-tip:hover { border-bottom-color: var(--gold); color: var(--gold); }
+  /* Всплывающее пояснение к настройке. Окно одно на всю страницу, положение
+     ему задаёт скрипт — на сетку полей оно не влияет. */
+  .tippop {
+    position: fixed; z-index: 30; max-width: 340px; padding: 9px 11px;
+    background: #0d1a2c; border: 1px solid var(--line); border-radius: 8px;
+    color: var(--text); font-size: 12.5px; line-height: 1.45;
+    box-shadow: 0 12px 28px rgba(3, 8, 18, 0.6);
+    opacity: 0; visibility: hidden; transition: opacity 0.12s ease;
+    pointer-events: none;
+  }
+  .tippop.on { opacity: 1; visibility: visible; }
+  /* Текстовые поля стоят подписью над полем; длинные (текст вопроса,
+     разбор, код задания) занимают всю ширину — в колонке их читать
+     неудобно, а короткие варианты ответа остаются в сетке. */
+  .fld-text { grid-template-columns: minmax(0, 1fr); align-items: stretch; gap: 6px; padding: 12px 0; }
+  .fld-text .revert { justify-self: start; }
+  .fld-wide { grid-column: 1 / -1; }
+  .fld-text input, .fld-text textarea { width: 100%; }
+  .fld-text textarea { min-height: 76px; resize: vertical; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="site-head">
+    <div class="brand">
+      <div class="logo">Py</div>
+      <h1>PyDungeon</h1>
+    </div>
+    <nav class="nav">
+      <a class="nav-btn" href="/">Главная</a>
+      <a class="nav-btn" href="/quiz">Тест</a>
+      <a class="nav-btn" href="/game">Подземелье</a>
+      <a class="nav-btn" href="/study">Самоподготовка</a>
+      <a class="nav-btn active" href="/admin">Админ-панель</a>
+    </nav>
+  </header>
+
+  <p class="kicker">Панель учителя</p>
+  <h1>Баланс и контент игры</h1>
+  <p class="lead">Числа игры меняются без правки кода: они сохраняются на сервере
+    в <code id="cfg-name">game-config.json</code> и подхватываются у всех учеников
+    после обновления страницы.</p>
+
+  <section class="login" id="login-card">
+    <div class="row">
+      <label class="field" for="pin">Пароль администратора
+        <input type="password" id="pin" autocomplete="current-password" placeholder="из файла .admin-secret">
+      </label>
+      <button id="login-btn">Войти</button>
+      <span class="status" id="login-status"></span>
+    </div>
+    <p class="note" id="pin-hint"></p>
+  </section>
+
+  <section class="hidden" id="panel-card">
+    <div class="toolbar">
+      <button id="save-btn">Сохранить</button>
+      <button class="ghost" id="reload-btn">Обновить</button>
+      <button class="ghost" id="restore-btn" data-tip="Поменять местами текущие настройки и резервную копию: так возвращается прошлая версия, а повторное нажатие — обратно.">Вернуть прошлую версию</button>
+      <button class="ghost" id="reset-btn">Сбросить к стандарту</button>
+      <button class="ghost" id="logout-btn">Выйти</button>
+      <span class="status" id="counts"></span>
+      <span class="status" id="status"></span>
+    </div>
+    <p class="note" id="meta"></p>
+
+    <nav class="tabs" id="tabs" aria-label="Разделы панели"></nav>
+    <p class="tab-hint" id="tab-hint"></p>
+
+    <div class="filter-row">
+      <label class="find" for="find">Поиск</label>
+      <input type="search" id="find" placeholder="слово из вопроса, название предмета, подпись или значение поля">
+      <label class="check"><input type="checkbox" id="only-changed"><span>Только изменённое</span></label>
+      <span class="status" id="find-status"></span>
+    </div>
+    <div id="groups"></div>
+    <p class="note">Для числовых полей баланса пустое поле = вернуть стандартное
+      значение. Предметы, виды врагов и этажи пустыми и остаются — заполняйте
+      только то, что хотите изменить: пусто значит «как в коде». Вопросы и
+      задания, наоборот, показаны как есть: правьте текст прямо в поле, а
+      неизменённое в файл не попадёт. Перед каждой записью сервер кладёт копию
+      прошлого файла в <code id="backup-name">game-config.backup.json</code>.</p>
+  </section>
+
+  <p class="note"><a href="/game">← Вернуться в подземелье</a></p>
+  <div class="tippop" id="tip-pop" role="tooltip" aria-hidden="true"></div>
+</div>
+
+<!-- Банк вопросов и заданий: страница читает те же файлы, что и игра, и
+     строит по ним поля. Так список вопросов не приходится дублировать. -->
+<script src="static/questions.js"></script>
+<script src="static/code-tasks.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var TOKEN_KEY = "pyquiz_admin_token";
+  var fields = [];
+  var token = "";
+
+  function el(id) { return document.getElementById(id); }
+
+  // Пояснение к настройке. Окно одно: показываем его у подписи, а если снизу
+  // не помещается — над ней. Прячем при уходе курсора, потере фокуса,
+  // прокрутке и по Escape.
+  var tipPop = null;
+  var tipCurrent = null;
+  // Подпись, у которой подсказку открыло касание. Нужна, чтобы отличить
+  // «клик закрывает» от «клик показывает»: при работе мышью подсказка уже
+  // открыта наведением, и клик не должен её гасить.
+  var tipByClick = null;
+
+  function tipShow(target, text) {
+    if (!tipPop || !text) { return; }
+    tipCurrent = target;
+    tipPop.textContent = text;
+    tipPop.classList.add("on");
+    tipPop.setAttribute("aria-hidden", "false");
+    var r = target.getBoundingClientRect();
+    var box = tipPop.getBoundingClientRect();
+    var left = Math.max(8, Math.min(r.left, window.innerWidth - box.width - 8));
+    var top = r.bottom + 6;
+    if (top + box.height > window.innerHeight - 8) { top = r.top - box.height - 6; }
+    tipPop.style.left = Math.round(left) + "px";
+    tipPop.style.top = Math.round(Math.max(8, top)) + "px";
+  }
+
+  function tipHide() {
+    if (!tipPop) { return; }
+    tipCurrent = null;
+    tipByClick = null;
+    tipPop.classList.remove("on");
+    tipPop.setAttribute("aria-hidden", "true");
+  }
+
+  function setStatus(text, kind) {
+    var node = el("status");
+    node.textContent = text || "";
+    node.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function setLoginStatus(text, kind) {
+    var node = el("login-status");
+    node.textContent = text || "";
+    node.className = "status" + (kind ? " " + kind : "");
+  }
+
+  function api(path, body, method) {
+    return fetch(path, {
+      method: method || (body ? "POST" : "GET"),
+      cache: "no-store",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        return { status: r.status, data: data || {} };
+      });
+    });
+  }
+
+  function fmt(num) {
+    // Запятая, а не точка: браузер показывает значение в поле «число»
+    // по локали страницы, и «0,18» рядом с «стандарт: 0.18» читалось как
+    // разные числа. fmt отвечает только за показ, разбор идёт через parseFloat.
+    var s = String(num).replace(".", ",");
+    return s;
+  }
+
+  function isText(f) { return f.kind === "text"; }
+
+  // --- Вопросы и задания ---
+  // Их список страница берёт из тех же файлов, что и игра, поэтому в схеме
+  // сервера их нет: там заданы только имена полей и границы. В отличие от
+  // предметов, здесь поля показаны с настоящим текстом: учитель чаще правит
+  // опечатку, чем меняет число, и пустое поле заставляло бы переписывать всё
+  // заново. Значение «как в коде» запоминается отдельно, и в файл попадает
+  // только то, что учитель действительно изменил.
+  var TOPIC_LABEL = {};
+
+  function topicName(key) {
+    var t = (typeof TOPICS !== "undefined" && TOPICS[key]) || null;
+    if (!t) { return key; }
+    return (typeof t === "string" ? t : (t.name || t.title || key));
+  }
+
+  function snippet(text, limit) {
+    var s = String(text == null ? "" : text).replace(/\s+/g, " ").trim();
+    return s.length > limit ? s.slice(0, limit - 1) + "…" : s;
+  }
+
+  function bankField(key, group, label, kind, origin, limits) {
+    var lim = limits || {};
+    return {
+      key: key, group: group, label: label, kind: kind,
+      min: lim.min, max: lim.max, step: lim.step,
+      default: null, optional: true, maxlen: lim.maxlen || 0,
+      origin: origin, value: origin
+    };
+  }
+
+  // Пояснения к полям вопросов и заданий: их подписи страница строит сама,
+  // поэтому и подсказки живут рядом. У полей баланса и содержимого подсказка
+  // приходит с сервера вместе со схемой.
+  var BANK_TIPS = {
+    text: "Текст вопроса — то, что читает ученик.",
+    a0: "Вариант A: один из четырёх вариантов ответа.",
+    a1: "Вариант B: один из четырёх вариантов ответа.",
+    a2: "Вариант C: один из четырёх вариантов ответа.",
+    a3: "Вариант D: один из четырёх вариантов ответа.",
+    right: "Номер верного варианта: 0 — A, 1 — B, 2 — C, 3 — D.",
+    explain: "Разбор: показывается ученику после ответа.",
+    level: "Уровень: 1 — самый простой, 4 — самый сложный. На этаже вопросы подбираются по уровню.",
+    topic: "Тема: по ней вопросы раскладываются в самоподготовке и подбираются в подземелье.",
+    title: "Название задания — так оно подписано в списке.",
+    task: "Условие задания: что именно нужно сделать.",
+    code: "Код, который ученик видит в условии.",
+    starter: "Заготовка: этот текст уже стоит в поле ответа, ученик его дописывает."
+  };
+
+  // Подсказка к полю: с сервера, а для вопросов и заданий — из таблицы выше.
+  function fieldTip(f) {
+    if (f.hint) { return f.hint; }
+    var tail = String(f.key || "").split(".").pop();
+    return BANK_TIPS[tail] || "";
+  }
+
+  function questionFields() {
+    var out = [];
+    if (typeof QUESTIONS === "undefined") { return out; }
+    QUESTIONS.forEach(function (q) {
+      var group = "Вопрос " + q.id + " · " + snippet(q.text, 48);
+      out.push(bankField("q." + q.id + ".text", group, "текст вопроса",
+        "text", q.text, { maxlen: 400 }));
+      (q.options || []).forEach(function (opt, i) {
+        out.push(bankField("q." + q.id + ".a" + i, group,
+          "вариант " + "ABCD".charAt(i), "text", opt, { maxlen: 160 }));
+      });
+      out.push(bankField("q." + q.id + ".right", group, "верный вариант (0–3)",
+        "number", q.answer, { min: 0, max: 3, step: 1 }));
+      out.push(bankField("q." + q.id + ".explain", group, "разбор ответа",
+        "text", q.explanation, { maxlen: 600 }));
+      out.push(bankField("q." + q.id + ".level", group, "уровень (1–4)",
+        "number", q.level, { min: 1, max: 4, step: 1 }));
+      if (q.topic) {
+        out.push(bankField("q." + q.id + ".topic", group,
+          "тема (" + topicName(q.topic) + ")", "text", q.topic, { maxlen: 40 }));
+      }
+    });
+    return out;
+  }
+
+  function taskFields() {
+    var out = [];
+    var tables = [];
+    if (typeof CODE_TASKS !== "undefined") { tables.push(CODE_TASKS); }
+    if (typeof COPY_TASKS !== "undefined") { tables.push(COPY_TASKS); }
+    if (typeof FILL_TASKS !== "undefined") { tables.push(FILL_TASKS); }
+    if (typeof ERROR_TASKS !== "undefined") { tables.push(ERROR_TASKS); }
+    tables.forEach(function (list) {
+      (list || []).forEach(function (task) {
+        var group = "Задание " + task.id + " · " + snippet(task.title, 42);
+        out.push(bankField("t." + task.id + ".title", group, "название",
+          "text", task.title, { maxlen: 120 }));
+        if (task.task !== undefined) {
+          out.push(bankField("t." + task.id + ".task", group, "условие",
+            "text", task.task, { maxlen: 700 }));
+        }
+        if (task.code !== undefined) {
+          out.push(bankField("t." + task.id + ".code", group, "код задания",
+            "text", task.code, { maxlen: 700 }));
+        }
+        if (task.starter !== undefined) {
+          out.push(bankField("t." + task.id + ".starter", group, "заготовка кода",
+            "text", task.starter, { maxlen: 700 }));
+        }
+        if (task.explanation !== undefined) {
+          out.push(bankField("t." + task.id + ".explain", group, "разбор",
+            "text", task.explanation, { maxlen: 700 }));
+        }
+        if (typeof task.answer === "number") {
+          out.push(bankField("t." + task.id + ".right", group, "верный вариант (0–3)",
+            "number", task.answer, { min: 0, max: 3, step: 1 }));
+        }
+        if (typeof task.level === "number") {
+          out.push(bankField("t." + task.id + ".level", group, "уровень (1–4)",
+            "number", task.level, { min: 1, max: 4, step: 1 }));
+        }
+        if (task.topic) {
+          out.push(bankField("t." + task.id + ".topic", group,
+            "тема (" + topicName(task.topic) + ")", "text", task.topic, { maxlen: 40 }));
+        }
+      });
+    });
+    return out;
+  }
+
+  // ---------- вкладки и ленивая отрисовка ----------
+  // Панель была одной простыней: 1334 поля в DOM сразу, из них 1049 — из банка
+  // вопросов и заданий. Теперь четыре вкладки, а «поштучные» разделы рисуются
+  // по раскрытию: поля строятся, когда раздел открыли, и в DOM живёт десяток
+  // полей вместо тысячи. Поиск и фильтр работают по данным, а не по разметке,
+  // поэтому им не нужно ничего строить.
+  var TABS = [
+    { id: "balance", label: "Числа баланса", hint: "урон, цены, шансы, сложность, деревня — числа, которыми правится игра" },
+    { id: "content", label: "Контент", hint: "предметы, виды врагов и этажи: сколько чего лежит и стоит" },
+    { id: "questions", label: "Вопросы", hint: "текст вопроса, четыре варианта, разбор, уровень и тема" },
+    { id: "tasks", label: "Задания", hint: "повтори код, вставь пропущенное, найди ошибку, напиши функцию" }
+  ];
+  var activeTab = "balance";
+  var index = {};    // вкладка → разделы → поля
+  var byKey = {};    // ключ поля → само поле
+  // Поле, на которое указал сервер при отказе сохранения. Разметка строится
+  // лениво, поэтому пометку ставит не «снаружи», а сама сборка полей: см.
+  // lazyDetails.
+  var pendingBad = "";
+
+  function fieldTab(f) {
+    if (f.bank) { return f.bank; }
+    return f.optional ? "content" : "balance";
+  }
+
+  // Раздел поля: у банка это сам вопрос или задание, у контента — предмет,
+  // вид врага или этаж, у чисел баланса — их группа.
+  function sectionOf(f) {
+    if (f.bank) { return f.group; }
+    var parts = String(f.key).split(".");
+    return parts.length >= 3 ? parts[0] + "." + parts[1] : f.group;
+  }
+
+  // Название раздела: у контента подпись поля начинается с имени предмета
+  // («Ржавый меч: урон»), поэтому берём то, что до двоеточия.
+  function sectionTitle(f) {
+    if (f.bank) { return f.group; }
+    var head = String(f.label).split(":");
+    return head.length > 1 ? head[0].trim() : f.group;
+  }
+
+  function buildIndex() {
+    index = {};
+    byKey = {};
+    TABS.forEach(function (t) { index[t.id] = []; });
+    var seen = {};
+    fields.forEach(function (f) {
+      byKey[f.key] = f;
+      var tab = fieldTab(f);
+      if (!index[tab]) { return; }
+      var sec = sectionOf(f);
+      var id = tab + "|" + sec;
+      if (!seen[id]) {
+        seen[id] = { id: id, title: sectionTitle(f), sub: f.group, fields: [] };
+        index[tab].push(seen[id]);
+      }
+      seen[id].fields.push(f);
+    });
+  }
+
+  function isChanged(f) {
+    if (f.origin !== undefined && f.origin !== null) {
+      return String(f.value) !== String(f.origin);
+    }
+    if (f.optional || isText(f)) { return String(f.value) !== ""; }
+    return Math.abs(parseFloat(f.value) - f.default) > 1e-9;
+  }
+
+  function changedCount() {
+    return fields.filter(isChanged).length;
+  }
+
+  // Совпадение поля с поиском: смотрим подпись, группу, ключ, текущее значение
+  // и исходный текст. Раньше поиск знал только название раздела, поэтому ни
+  // подпись поля, ни слово из середины вопроса найти было нельзя.
+  function matchesFind(f, needle) {
+    if (!needle) { return true; }
+    var hay = [f.group, f.label, f.key, String(f.value),
+               f.origin === undefined || f.origin === null ? "" : String(f.origin)]
+      .join(" ").toLowerCase();
+    return hay.indexOf(needle) >= 0;
+  }
+
+  function needleOf() {
+    var box = el("find");
+    return box ? String(box.value || "").trim().toLowerCase() : "";
+  }
+
+  function renderTabs() {
+    var host = el("tabs");
+    if (!host) { return; }
+    host.innerHTML = "";
+    TABS.forEach(function (t) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.className = "tab" + (t.id === activeTab ? " active" : "");
+      b.textContent = t.label;
+      var cnt = document.createElement("span");
+      cnt.className = "cnt";
+      cnt.textContent = " " + (index[t.id] || []).length;
+      b.appendChild(cnt);
+      b.addEventListener("click", function () { showTab(t.id); });
+      host.appendChild(b);
+    });
+    var hint = el("tab-hint");
+    var cur = TABS.filter(function (t) { return t.id === activeTab; })[0];
+    if (hint) { hint.textContent = cur ? cur.hint : ""; }
+  }
+
+  function showTab(id) {
+    activeTab = id;
+    renderTabs();
+    renderTab();
+  }
+
+  // Раздел строится лениво: поля появляются при первом раскрытии. При поиске
+  // совпавшие разделы раскрываются сразу — иначе нашёл бы и не увидел.
+  function lazyDetails(sec, count, needle) {
+    var d = document.createElement("details");
+    d.dataset.section = sec.id;
+    var s = document.createElement("summary");
+    s.textContent = sec.title;
+    var c = document.createElement("span");
+    c.className = "cnt";
+    c.textContent = " (" + count + ")";
+    s.appendChild(c);
+    d.appendChild(s);
+    var built = false;
+    d.addEventListener("toggle", function () {
+      if (!d.open || built) { return; }
+      built = true;
+      var grid = document.createElement("div");
+      grid.className = "grid";
+      sec.fields.forEach(function (f) { grid.appendChild(fieldNode(f)); });
+      d.appendChild(grid);
+      // Поле, на которое указал сервер: подсвечиваем и ставим в него курсор.
+      // Пометку ставит именно сборка — до неё поля в разметке нет.
+      if (pendingBad) {
+        var bad = grid.querySelector('[data-key="' + pendingBad + '"]');
+        if (bad) {
+          var row = bad.closest(".fld");
+          if (row) { row.classList.add("bad"); }
+          bad.focus();
+          pendingBad = "";
+        }
+      }
+    });
+    if (needle) { d.open = true; }
+    return d;
+  }
+
+  function renderTab() {
+    var host = el("groups");
+    if (!host) { return; }
+    host.innerHTML = "";
+    tipHide();
+    var needle = needleOf();
+    var changedOnly = !!(el("only-changed") && el("only-changed").checked);
+    var secs = index[activeTab] || [];
+    var shown = 0, fieldsShown = 0;
+    secs.forEach(function (sec) {
+      var hits = sec.fields.filter(function (f) {
+        if (changedOnly && !isChanged(f)) { return false; }
+        return matchesFind(f, needle);
+      });
+      if (!hits.length) { return; }
+      shown += 1;
+      fieldsShown += hits.length;
+      var one = { id: sec.id, title: sec.title, sub: sec.sub, fields: hits };
+      host.appendChild(lazyDetails(one, hits.length, needle));
+    });
+    if (!shown) {
+      var empty = document.createElement("p");
+      empty.className = "note";
+      empty.textContent = changedOnly
+        ? "Изменённого пока нет — правьте поля, и они появятся здесь."
+        : "Ничего не нашлось. Попробуйте другое слово.";
+      host.appendChild(empty);
+    }
+    var status = el("find-status");
+    if (status) {
+      status.textContent = (needle || changedOnly) ? ("разделов: " + shown + ", полей: " + fieldsShown) : "";
+      status.className = "status" + (shown ? "" : " bad");
+    }
+    updateCounts();
+  }
+
+  function updateCounts() {
+    var st = el("counts");
+    if (!st || !fields.length) { return; }
+    var n = changedCount();
+    st.textContent = "Полей всего: " + fields.length + " · изменено: " + n;
+    st.className = "status" + (n ? " good" : "");
+  }
+
+  // Подтягиваем построенные поля к модели: после ответа сервера числа в модели
+  // уже канонические, а в полях могли остаться набранные.
+  function syncInputs() {
+    var host = el("groups");
+    if (!host) { return; }
+    var nodes = host.querySelectorAll("[data-key]");
+    for (var i = 0; i < nodes.length; i += 1) {
+      var f = byKey[nodes[i].dataset.key];
+      if (!f) { continue; }
+      var want = (f.value === null || f.value === undefined) ? "" : String(f.value);
+      nodes[i].value = want;
+      nodes[i].dispatchEvent(new Event("input"));
+    }
+  }
+
+  // Разбор ответа сервера: он присылает строки «ключ: что не так» или
+  // «неизвестное поле: ключ». Раньше это было одно предложение в строке
+  // состояния — при 1334 полях понять, где править, было нельзя. Теперь поле
+  // помечается, вкладка переключается на нужную, раздел раскрывается.
+  function markProblems(problems) {
+    fields.forEach(function (f) { f.why = ""; });
+    var first = null;
+    (problems || []).forEach(function (line) {
+      var text = String(line);
+      var key = "";
+      var unknown = "неизвестное поле: ";
+      if (text.indexOf(unknown) === 0) {
+        key = text.slice(unknown.length).trim();
+        byKey[key] = byKey[key] || { key: key, label: key };
+        first = first || byKey[key];
+        byKey[key].why = "поля с таким именем в игре нет";
+        return;
+      }
+      var cut = text.indexOf(": ");
+      if (cut > 0) {
+        key = text.slice(0, cut).trim();
+        var f = byKey[key];
+        if (f) {
+          f.why = text.slice(cut + 2).trim();
+          if (!first) { first = f; }
+        }
+      }
+    });
+    if (!first) { return; }
+    // Ошибка показывается на том же поле: ставим пометку до перерисовки, а
+    // раскрываем раздел после неё — раздел адресуется своим полным именем
+    // («вкладка|раздел»), как его строит buildIndex.
+    pendingBad = first.key;
+    if (fieldTab(first) !== activeTab) { showTab(fieldTab(first)); }
+    else { renderTab(); }
+    var sid = fieldTab(first) + "|" + sectionOf(first);
+    var host = el("groups");
+    for (var i = 0; i < host.children.length; i += 1) {
+      var node = host.children[i];
+      if (String(node.dataset && node.dataset.section) !== sid) { continue; }
+      node.open = true;
+      break;
+    }
+    setStatus("Поле «" + first.label + "»: " + (first.why || "не подходит"), "bad");
+  }
+
+  function fieldNode(f) {
+    var box = document.createElement("div");
+    // Длинный текст (текст вопроса, разбор, код задания) занимает всю
+    // ширину сетки, короткий («вариант A») остаётся в колонке рядом с числами.
+    var wide = isText(f) && f.maxlen > 200;
+    box.className = "fld" + (isText(f) ? " fld-text" : "") + (wide ? " fld-wide" : "");
+
+    var cap = document.createElement("div");
+    cap.className = "cap";
+    var b = document.createElement("b");
+    b.textContent = f.label;
+    // Если у поля есть пояснение, подчёркиваем подпись пунктиром и вешаем
+    // подсказку на неё саму: наводить надо именно на название настройки.
+    var tip = fieldTip(f);
+    if (tip) { b.className = "has-tip"; b.dataset.tip = tip; }
+    var hint = document.createElement("span");
+    cap.appendChild(b);
+    cap.appendChild(hint);
+
+    var input;
+    if (isText(f)) {
+      input = f.maxlen > 200 ? document.createElement("textarea")
+                             : document.createElement("input");
+      if (input.tagName === "INPUT") { input.type = "text"; }
+      input.maxLength = f.maxlen;
+      input.placeholder = "как в коде";
+    } else {
+      input = document.createElement("input");
+      input.type = "number";
+      input.step = f.step;
+      input.min = f.min;
+      input.max = f.max;
+      input.placeholder = f.optional ? "как в коде" : fmt(f.default);
+    }
+    input.value = (f.value === null || f.value === undefined) ? "" : String(f.value);
+    input.dataset.key = f.key;
+
+    var rev = document.createElement("button");
+    rev.type = "button";
+    rev.className = "revert";
+    rev.textContent = "↺";
+    rev.title = "Вернуть к стандарту";
+
+    function clearBad() {
+      f.why = "";
+      var row = input.closest(".fld");
+      if (row) { row.classList.remove("bad"); }
+    }
+
+    function updateHint() {
+      // Ошибка сервера важнее подписи: пока поле не исправлено, показываем её.
+      if (f.why) {
+        hint.className = "why";
+        hint.textContent = f.why;
+        rev.style.visibility = "visible";
+        return;
+      }
+      var raw = String(input.value).trim();
+      var changed;
+      if (f.origin !== undefined && f.origin !== null) {
+        // Поле вопроса или задания: сравнение с текстом, который лежит в коде.
+        // Сравниваем без крайних пробелов, иначе отступы в конце кода задания
+        // выглядели бы правкой, которой нет.
+        changed = raw !== String(f.origin).trim();
+        hint.className = changed ? "changed" : "";
+        hint.textContent = changed ? "изменено — в игре будет так" : "как в коде";
+      } else if (f.optional) {
+        changed = raw !== "";
+        hint.className = changed ? "changed" : "";
+        hint.textContent = changed ? "изменено — в игре будет так" : "пусто — как в коде";
+      } else {
+        var v = parseFloat(raw);
+        changed = isFinite(v) && Math.abs(v - f.default) > 1e-9;
+        hint.className = changed ? "changed" : "";
+        hint.textContent = changed ? "изменено (стандарт: " + fmt(f.default) + ")"
+                                   : "стандарт: " + fmt(f.default);
+      }
+      rev.style.visibility = changed ? "visible" : "hidden";
+    }
+
+    // Поле пишет в модель: с ленивой отрисовкой часть полей в DOM отсутствует,
+    // и сбор правок читает именно модель, а не разметку.
+    input.addEventListener("input", function () {
+      f.value = input.value;
+      if (f.why) { clearBad(); }
+      updateHint();
+      updateCounts();
+    });
+
+    // «Вернуть к стандарту»: у банка это исходный текст из кода, у чисел —
+    // стандартное значение, у контента — пусто («как в коде»).
+    rev.addEventListener("click", function () {
+      f.value = (f.origin !== undefined && f.origin !== null) ? f.origin
+        : (f.optional ? "" : f.default);
+      input.value = (f.value === null || f.value === undefined) ? "" : String(f.value);
+      clearBad();
+      updateHint();
+      updateCounts();
+    });
+
+    updateHint();
+
+    box.appendChild(cap);
+    box.appendChild(input);
+    box.appendChild(rev);
+    return box;
+  }
+
+  function showPanel(payload) {
+    el("login-card").classList.add("hidden");
+    el("panel-card").classList.remove("hidden");
+    if (payload.config) { el("cfg-name").textContent = payload.config; }
+    if (payload.backup) { el("backup-name").textContent = payload.backup; }
+    el("pin-hint").textContent = "";
+    var meta = el("meta");
+    var pinFrom = payload.pin_source || ".admin-secret";
+    if (payload.updated) {
+      meta.textContent = "Последняя правка: " + payload.updated +
+        " · файл: " + payload.config +
+        (payload.backup_meta && payload.backup_meta.has_backup
+          ? " · копия" + (payload.backup_meta.updated ? " от " + payload.backup_meta.updated : "")
+          : " · копии ещё нет") +
+        " · пароль берётся из " + pinFrom;
+    } else {
+      meta.textContent = "Правок ещё не было — действуют стандартные числа." +
+        " · пароль берётся из " + pinFrom;
+    }
+  }
+
+  function loadSchema() {
+    return api("/api/admin/schema?token=" + encodeURIComponent(token)).then(function (res) {
+      if (res.status !== 200 || !res.data.ok) {
+        if (res.status === 401) { logout("Сессия истекла, войдите снова."); return; }
+        setStatus(res.data.error || "Не удалось загрузить настройки", "bad");
+        return;
+      }
+      var values = res.data.values || {};
+      var serverFields = (res.data.fields || []).map(function (f) {
+        var has = Object.prototype.hasOwnProperty.call(values, f.key);
+        var v = has ? values[f.key] : (f.optional || f.kind === "text" ? "" : f.default);
+        return {
+          key: f.key, group: f.group, label: f.label,
+          min: f.min, max: f.max, step: f.step,
+          default: f.default, kind: f.kind || "number",
+          optional: !!f.optional, maxlen: f.maxlen || 0, value: v,
+          // Пояснение «за что отвечает» приходит вместе с полем схемы.
+          hint: f.hint || ""
+        };
+      });
+      // Вопросы и задания добавляем сами: в схеме сервера их нет, там только
+      // имена полей и границы. Уже сохранённая правка перекрывает текст из кода.
+      // Каждому полю банка ставим свою вкладку — по ней оно и разложится.
+      var bank = questionFields().concat(taskFields());
+      bank.forEach(function (f) {
+        if (Object.prototype.hasOwnProperty.call(values, f.key)) {
+          f.value = values[f.key];
+        }
+        f.bank = f.group.indexOf("Задание ") === 0 ? "tasks" : "questions";
+      });
+      fields = serverFields.concat(bank);
+      buildIndex();
+      renderTabs();
+      renderTab();
+      showPanel(res.data);
+      setStatus("Загружено — правки видны только после сохранения", "good");
+    });
+  }
+
+  function collect() {
+    var values = {};
+    var problems = [];
+    fields.forEach(function (f) {
+      var raw = String(f.value === null || f.value === undefined ? "" : f.value).trim();
+      // Поле вопроса или задания: в файл идёт только настоящее изменение,
+      // иначе конфиг превратился бы в застывшую копию всего банка.
+      if (f.origin !== undefined && f.origin !== null &&
+          raw === String(f.origin).trim()) {
+        return;
+      }
+      if (f.kind === "text") {
+        // Пустой текст значит «как в коде»: сервер такие поля не сохраняет.
+        if (raw === "") { return; }
+        values[f.key] = raw;
+        return;
+      }
+      if (f.optional && raw === "") { return; }
+      var v = raw === "" ? f.default : parseFloat(raw);
+      if (!isFinite(v)) { problems.push(f.key + ": нужно число"); return; }
+      if (v < f.min || v > f.max) {
+        problems.push(f.key + ": допустимо от " + f.min + " до " + f.max);
+        return;
+      }
+      values[f.key] = v;
+    });
+    return { values: values, problems: problems };
+  }
+
+  function login() {
+    var pin = el("pin").value;
+    if (!pin) { setLoginStatus("Введите пароль", "bad"); return; }
+    setLoginStatus("Проверяю…");
+    api("/api/admin/login", { pin: pin }).then(function (res) {
+      if (!res.data.ok) { setLoginStatus(res.data.error || "Неверный пароль", "bad"); return; }
+      token = res.data.token;
+      try { sessionStorage.setItem(TOKEN_KEY, token); } catch (e) { /* приватный режим */ }
+      setLoginStatus("");
+      loadSchema();
+    });
+  }
+
+  function logout(message) {
+    token = "";
+    try { sessionStorage.removeItem(TOKEN_KEY); } catch (e) { /* приватный режим */ }
+    el("panel-card").classList.add("hidden");
+    el("login-card").classList.remove("hidden");
+    el("pin").value = "";
+    if (message) { setLoginStatus(message, "bad"); }
+  }
+
+  function save() {
+    var packed = collect();
+    if (packed.problems.length) {
+      markProblems(packed.problems);
+      return;
+    }
+    setStatus("Сохраняю…");
+    api("/api/admin/save", { token: token, values: packed.values }).then(function (res) {
+      if (!res.data.ok) {
+        if (res.status === 401) { logout("Сессия истекла, войдите снова."); return; }
+        if (res.data.problems && res.data.problems.length) {
+          markProblems(res.data.problems);
+          return;
+        }
+        setStatus(res.data.error || "Не удалось сохранить", "bad");
+        return;
+      }
+      // Сервер вернул канонические значения: сверяем с ними модель и поля.
+      var vals = res.data.values || {};
+      fields.forEach(function (f) {
+        if (Object.prototype.hasOwnProperty.call(vals, f.key)) { f.value = vals[f.key]; }
+      });
+      markProblems([]);
+      syncInputs();
+      updateCounts();
+      setStatus("Сохранено (" + (res.data.updated || "") +
+        ") — ученики увидят новые числа после обновления страницы", "good");
+      if (res.data.backup_meta) { showBackup(res.data.backup_meta); }
+    });
+  }
+
+  // Прошлая версия: сервер меняет её с текущей местами, поэтому неудачный
+  // откат откатывается тем же нажатием.
+  function showBackup(meta) {
+    var node = el("status");
+    if (!meta || !meta.has_backup) { return; }
+    var when = meta.updated ? (" от " + meta.updated) : "";
+    if (node && !node.textContent) { node.textContent = "Прошлая версия" + when + " лежит в резервной копии"; }
+  }
+
+  function restore() {
+    if (!window.confirm("Вернуть прошлую версию? Текущие настройки встанут на её место — " +
+                        "ещё одно нажатие вернёт их обратно.")) { return; }
+    setStatus("Возвращаю…");
+    api("/api/admin/restore", { token: token }).then(function (res) {
+      if (!res.data.ok) {
+        if (res.status === 401) { logout("Сессия истекла, войдите снова."); return; }
+        setStatus(res.data.error || "Не удалось вернуть прошлую версию", "bad");
+        return;
+      }
+      // Сообщение ставим после перезагрузки настроек: loadSchema сама пишет
+      // «Загружено», и раньше её ответ затирал весть об откате.
+      loadSchema().then(function () {
+        setStatus("Прошлая версия вернулась — ученики увидят её после обновления страницы", "good");
+      });
+    });
+  }
+
+  function reset() {
+    if (!window.confirm("Вернуть все числа к стандартным? Прошлый файл останется в резервной копии.")) return;
+    setStatus("Сбрасываю…");
+    api("/api/admin/reset", { token: token }).then(function (res) {
+      if (!res.data.ok) {
+        if (res.status === 401) { logout("Сессия истекла, войдите снова."); return; }
+        setStatus(res.data.error || "Не удалось сбросить", "bad");
+        return;
+      }
+      loadSchema();
+      setStatus("Стандартные числа восстановлены", "good");
+    });
+  }
+
+  el("login-btn").addEventListener("click", login);
+  el("pin").addEventListener("keydown", function (e) { if (e.key === "Enter") login(); });
+  el("find").addEventListener("input", renderTab);
+  el("only-changed").addEventListener("change", renderTab);
+  el("restore-btn").addEventListener("click", restore);
+  el("save-btn").addEventListener("click", save);
+  el("reload-btn").addEventListener("click", loadSchema);
+  el("reset-btn").addEventListener("click", reset);
+  el("logout-btn").addEventListener("click", function () { logout(""); });
+
+  // Подсказки к настройкам: слушаем не каждое поле (их больше тысячи), а
+  // контейнер. У поля пояснение висит на подписи (.has-tip) и открывается при
+  // наведении, при фокусе в поле той же строки и по касанию — на планшете
+  // наведения нет. У кнопок панели пояснение лежит в data-tip самой кнопки.
+  tipPop = el("tip-pop");
+
+  // Кнопка панели с пояснением. Касание кнопки не слушаем: оно делает дело,
+  // а пояснение к нему всё равно перебил бы диалог подтверждения.
+  function buttonTipTarget(node) {
+    return node && node.closest ? node.closest("[data-tip]") : null;
+  }
+
+  // Подпись поля с пояснением — или, если курсор в поле, подпись его строки.
+  function fieldTipTarget(node) {
+    if (!node || !node.closest) { return null; }
+    var label = node.closest("b.has-tip");
+    if (label) { return label; }
+    var row = node.closest(".fld");
+    return row ? row.querySelector("b.has-tip") : null;
+  }
+
+  function wireTips(host, target, onTouch) {
+    if (!host) { return; }
+    host.addEventListener("mouseover", function (e) {
+      var t = target(e.target);
+      if (t) { tipShow(t, t.dataset.tip); }
+    });
+    host.addEventListener("mouseout", function (e) {
+      if (target(e.target)) { tipHide(); }
+    });
+    host.addEventListener("focusin", function (e) {
+      var t = target(e.target);
+      if (t) { tipShow(t, t.dataset.tip); }
+    });
+    host.addEventListener("focusout", function (e) {
+      if (target(e.target)) { tipHide(); }
+    });
+    if (!onTouch) { return; }
+    // Повторное касание закрывает — но только если подсказку открыло касание,
+    // а не наведение мышью: иначе рабочий клик гасил бы уже открытую подсказку.
+    host.addEventListener("click", function (e) {
+      var t = target(e.target);
+      if (!t) { return; }
+      if (tipByClick === t) { tipHide(); return; }
+      tipShow(t, t.dataset.tip);
+      tipByClick = t;
+    });
+  }
+
+  wireTips(el("groups"), fieldTipTarget, true);
+  wireTips(document.querySelector(".toolbar"), buttonTipTarget, false);
+
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") { tipHide(); } });
+  // Подсказку, открытую касанием, закрывает касание в стороне: на планшете
+  // наведения нет, и без этого она висела бы до первой прокрутки.
+  document.addEventListener("click", function (e) {
+    var node = e.target;
+    if (node && node.closest && node.closest("b.has-tip")) { return; }
+    tipHide();
+  });
+  window.addEventListener("scroll", tipHide, true);
+
+  try { token = sessionStorage.getItem(TOKEN_KEY) || ""; } catch (e) { token = ""; }
+  if (token) { loadSchema(); } else { el("pin").focus(); }
+})();
+</script>
+</body>
+</html>

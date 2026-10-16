@@ -1,5 +1,9 @@
 // SVG-спрайты подземелья: герой, монстры, объекты и иконки предметов.
 // Монстры — мрачный стиль: тёмные тона, угловатые формы, узкие глаза.
+// Сейчас это запасные значки: карта и бой рисуют пиксельные спрайты
+// (sprites.js) и тайлы (terrain.js), а mapIcon() берёт SVG отсюда, только
+// если для ключа нет ни спрайта, ни тайла — так всегда рисуется прицел
+// (sniper). itemIcon() — для вещи без картинки в ITEM_SPRITES.
 const OL = "#05070d";
 const ICONS = {
   player: `
@@ -181,6 +185,54 @@ const ICONS = {
       <path d="M5.5 12.8h5M6.3 12.8v1.8M8 12.8v1.8M9.7 12.8v1.8" stroke="#0b1120" stroke-width="0.6"/>
       <path d="M4.6 7 5.4 5.6M11.4 7l-.8-1.4" stroke="#7d7466" stroke-width="0.6"/>
     </svg>`,
+  // Двор деревни: дерево, забор, колодец и костёр. Черновые иконки, чтобы
+  // уровень читался ещё до появления настоящих тайлов (см. фазу графики).
+  tree: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="7.2" y="9" width="1.6" height="5" fill="#7c4a12" stroke="${OL}" stroke-width="0.5"/>
+      <circle cx="8" cy="6.2" r="4.4" fill="#166534" stroke="${OL}" stroke-width="0.6"/>
+      <circle cx="5.6" cy="7.4" r="2.6" fill="#15803d" stroke="${OL}" stroke-width="0.4"/>
+      <circle cx="10.4" cy="7.2" r="2.4" fill="#15803d" stroke="${OL}" stroke-width="0.4"/>
+      <circle cx="8" cy="4.6" r="2.2" fill="#22c55e" opacity="0.9"/>
+    </svg>`,
+  fence: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="3" width="1.6" height="10" rx="0.4" fill="#8b5a1e" stroke="${OL}" stroke-width="0.5"/>
+      <rect x="11.4" y="3" width="1.6" height="10" rx="0.4" fill="#8b5a1e" stroke="${OL}" stroke-width="0.5"/>
+      <rect x="2" y="5.4" width="12" height="1.5" rx="0.4" fill="#a16207" stroke="${OL}" stroke-width="0.4"/>
+      <rect x="2" y="9.2" width="12" height="1.5" rx="0.4" fill="#a16207" stroke="${OL}" stroke-width="0.4"/>
+    </svg>`,
+  well: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2.6 4.4 8 2.2l5.4 2.2-1 1.6H3.6z" fill="#7c4a12" stroke="${OL}" stroke-width="0.6"/>
+      <rect x="3.2" y="6.4" width="9.6" height="6.2" rx="1.2" fill="#64748b" stroke="${OL}" stroke-width="0.7"/>
+      <ellipse cx="8" cy="6.6" rx="4.6" ry="1.5" fill="#0b1220" stroke="${OL}" stroke-width="0.6"/>
+      <ellipse cx="8" cy="6.6" rx="2.8" ry="0.9" fill="#1d4ed8" opacity="0.8"/>
+    </svg>`,
+  campfire: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 12.6 13 12.6 11.4 14H4.6z" fill="#4b3418" stroke="${OL}" stroke-width="0.5"/>
+      <path d="M8 2.6c2.4 2.6 3.6 4.3 3.6 6.1a3.6 3.6 0 0 1-7.2 0c0-1.2.6-2.2 1.4-3 .1 1 .6 1.7 1.2 2.1.4-2 .6-3.4 1-5.2z" fill="#f97316" stroke="${OL}" stroke-width="0.6"/>
+      <path d="M8 6.4c1.2 1.4 1.8 2.4 1.8 3.4a1.8 1.8 0 0 1-3.6 0c0-.9.6-1.7 1.8-3.4z" fill="#fde047"/>
+    </svg>`,
+  // Дверь дома в деревне: заметная створка со ручкой, чтобы вход в дом
+  // читался на траве (сама клетка — обычный пол).
+  door: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="2" width="10" height="12" rx="1" fill="#7c4a12" stroke="${OL}" stroke-width="0.8"/>
+      <rect x="4.3" y="3.3" width="7.4" height="10.4" rx="0.6" fill="#8b5a1e" stroke="${OL}" stroke-width="0.4"/>
+      <path d="M4.3 3.3h7.4v10.4H4.3z" fill="none" stroke="#b07a2c" stroke-width="0.4"/>
+      <path d="M6 5.4h4M6 7.2h4M6 9h4" stroke="#6b3b0c" stroke-width="0.5"/>
+      <circle cx="11" cy="8.6" r="0.7" fill="#facc15" stroke="${OL}" stroke-width="0.4"/>
+    </svg>`,
+  // Запертая дверь: та же створка, но с замком и без ручки.
+  doorLocked: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="2" width="10" height="12" rx="1" fill="#4b3418" stroke="${OL}" stroke-width="0.8"/>
+      <rect x="4.3" y="3.3" width="7.4" height="10.4" rx="0.6" fill="#5b4020" stroke="${OL}" stroke-width="0.4"/>
+      <rect x="6.2" y="7" width="3.6" height="3.4" rx="0.5" fill="#94a3b8" stroke="${OL}" stroke-width="0.5"/>
+      <path d="M7 7v-1.2a1 1 0 0 1 2 0V7" fill="none" stroke="#94a3b8" stroke-width="0.7"/>
+    </svg>`,
   treasure: `
     <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <rect x="2.5" y="6" width="11" height="7" rx="1" fill="#92400e" stroke="${OL}" stroke-width="0.7"/>
@@ -213,8 +265,125 @@ const ICONS = {
       <circle cx="12.4" cy="11.4" r="2.1" fill="#c9a227" stroke="${OL}" stroke-width="0.6"/>
       <path d="M12.4 9.6v-1M11.2 10.4l1.2 1 1.2-1" stroke="#7c5a10" stroke-width="0.6" fill="none"/>
       <path d="M11.7 11.4h1.4M12.4 10.7v1.4" stroke="#7c5a10" stroke-width="0.5"/>
+    </svg>`,
+  // ---------- Ловушки ----------
+  spikes: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2.5 13h11" stroke="#334155" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M4 13l1.2-6 1.2 6z" fill="#94a3b8" stroke="${OL}" stroke-width="0.5"/>
+      <path d="M7.4 13L8.6 5 9.8 13z" fill="#cbd5e1" stroke="${OL}" stroke-width="0.5"/>
+      <path d="M10.8 13L12 6.6 13.2 13z" fill="#94a3b8" stroke="${OL}" stroke-width="0.5"/>
+    </svg>`,
+  pit: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="8" cy="9.5" rx="5.6" ry="4.2" fill="#020617" stroke="${OL}" stroke-width="0.7"/>
+      <ellipse cx="8" cy="9" rx="4.2" ry="2.9" fill="#0f172a"/>
+      <path d="M4.4 11.8C3.6 13.6 4.6 15 6 15.4M11.6 11.8c.8 1.8-.2 3.2-1.6 3.6"
+            stroke="#1e293b" stroke-width="0.8" fill="none" stroke-linecap="round"/>
+      <path d="M5.6 8.2c1-1.2 3.8-1.2 4.8 0" stroke="#475569" stroke-width="0.5" fill="none" opacity="0.6"/>
+    </svg>`,
+  mushroom_spore: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4.2 8.6A3.9 3.3 0 0 1 11.8 8.6Z" fill="#a855f7" stroke="${OL}" stroke-width="0.6"/>
+      <circle cx="6.4" cy="7.2" r="0.7" fill="#f3e8ff"/><circle cx="9.6" cy="7.6" r="0.5" fill="#f3e8ff"/>
+      <rect x="7.2" y="8.4" width="1.4" height="4" rx="0.4" fill="#e7e5e4" stroke="${OL}" stroke-width="0.5"/>
+      <circle cx="4.6" cy="5.2" r="0.8" fill="#c084fc" opacity="0.55"/>
+      <circle cx="11.8" cy="4.4" r="0.6" fill="#c084fc" opacity="0.55"/>
+      <circle cx="8.4" cy="3.2" r="0.5" fill="#c084fc" opacity="0.45"/>
+    </svg>`,
+  crystal_shard: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M7 1.6L9.4 7 7.6 12 5 7z" fill="#38bdf8" stroke="${OL}" stroke-width="0.6"/>
+      <path d="M7 1.6L7 12" stroke="#bae6fd" stroke-width="0.5" opacity="0.8"/>
+      <path d="M11.6 7.2L13.4 11.2 11 12 10 8.6z" fill="#0ea5e9" stroke="${OL}" stroke-width="0.5"/>
+      <path d="M3.4 8.6L5 12.4 2.8 13 2.2 10z" fill="#7dd3fc" stroke="${OL}" stroke-width="0.5"/>
+    </svg>`,
+  chain_snare: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#94a3b8" stroke-width="1.1">
+        <ellipse cx="5.4" cy="5.4" rx="2.4" ry="1.5" transform="rotate(45 5.4 5.4)"/>
+        <ellipse cx="8" cy="8" rx="2.4" ry="1.5" transform="rotate(45 8 8)"/>
+        <ellipse cx="10.6" cy="10.6" rx="2.4" ry="1.5" transform="rotate(45 10.6 10.6)"/>
+      </g>
+      <circle cx="8" cy="8" r="0.6" fill="#475569"/>
+    </svg>`,
+  curse_tile: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2.4" y="2.4" width="11.2" height="11.2" rx="1.4" fill="#1c1917" stroke="${OL}" stroke-width="0.7"/>
+      <path d="M8 4.6l4.2 3.4L8 14.2 3.8 8z" fill="none" stroke="#ef4444" stroke-width="0.9"/>
+      <path d="M8 6.6l2.4 2L8 12.4 5.6 8.6z" fill="#7f1d1d" opacity="0.8"/>
+      <circle cx="8" cy="8.6" r="0.8" fill="#fca5a5"/>
+    </svg>`,
+  // Новые виды: щитоносец при крышке, жрица в светлом одеянии, некромант
+  // в тёмном капюшоне. Те же угловатые силуэты, что у остальных монстров.
+  shieldman: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 1.6l1.6 1.4v8.4L8 14.2 6.4 11.4V3z" fill="#9aa7b5" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M4.2 5.4c0-1.6 1.7-2.8 3.8-2.8s3.8 1.2 3.8 2.8v2.8c0 1.6-1.7 2.8-3.8 2.8S4.2 9.8 4.2 8.2z" fill="#7c8794" stroke="${OL}" stroke-width="0.8"/>
+      <circle cx="6.6" cy="6.4" r="0.5" fill="#0b1120"/><circle cx="9.4" cy="6.4" r="0.5" fill="#0b1120"/>
+      <path d="M2.6 7.4h2.6M10.8 7.4h2.6" stroke="#cbd5e1" stroke-width="1.1" stroke-linecap="round"/>
+    </svg>`,
+  priest: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 1.4l1.8 1.6v9.4H6.2V3z" fill="#e7d7a8" stroke="${OL}" stroke-width="0.8"/>
+      <circle cx="8" cy="5.4" r="2.6" fill="#f6e7bd" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M6.2 4.8c.4-1 1.1-1.6 1.8-1.6s1.4.6 1.8 1.6z" fill="#fffbe8"/>
+      <circle cx="7.1" cy="5.6" r="0.45" fill="#0b1120"/><circle cx="8.9" cy="5.6" r="0.45" fill="#0b1120"/>
+      <path d="M4.4 12.6h7.2l-.8 2.2H5.2z" fill="#cbd5e1" stroke="${OL}" stroke-width="0.7"/>
+      <circle cx="8" cy="10.6" r="0.7" fill="#f6c453" stroke="${OL}" stroke-width="0.5"/>
+    </svg>`,
+  necromancer: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 1.2l2.4 2.4v9h-4.8v-9z" fill="#4c1d95" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M4.6 6.2c0-1.8 1.5-3 3.4-3s3.4 1.2 3.4 3v1.6H4.6z" fill="#2e1065" stroke="${OL}" stroke-width="0.8"/>
+      <circle cx="6.8" cy="6.6" r="0.55" fill="#a78bfa"/>
+      <circle cx="9.2" cy="6.6" r="0.55" fill="#a78bfa"/>
+      <path d="M6 12.6h4l-.6 2.2H6.6z" fill="#1c1917" stroke="${OL}" stroke-width="0.7"/>
+      <circle cx="12.6" cy="4" r="1.1" fill="#8b5cf6" opacity="0.85"/>
+    </svg>`,
+  // Интерактив этажа: жила руды, завал, рычаг и табличка. Пиксельного набора
+  // для них нет, поэтому они рисуются значками — так же, как прицел sniper.
+  ore: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 3l3 1 2 3-1 4-3 2-3-2-1-4z" fill="#64748b" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M6.4 5l2 1 .6 2.4-1.6 1.6-2-1L5 6.6z" fill="#cbd5e1"/>
+      <path d="M9.6 4.4l2-.6 1.6 1.6-.8 2-2 .4-1.2-1.4z" fill="#f6c453" stroke="${OL}" stroke-width="0.7"/>
+    </svg>`,
+  rubble: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M2 13l2-5 3-2 3 2 4 5z" fill="#57534e" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M5.4 7.6l1.6-2 2 1.6-1.2 2.2z" fill="#a8a29e"/>
+      <path d="M10.6 9l1.4-1.4 1.6 1.4-1.2 1.6z" fill="#78716c"/>
+    </svg>`,
+  lever: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6.6" y="9" width="2.8" height="4.6" rx="0.6" fill="#44403c" stroke="${OL}" stroke-width="0.7"/>
+      <path d="M8 9.6L12.4 3.4" stroke="#a16207" stroke-width="1.6" stroke-linecap="round"/>
+      <circle cx="12.6" cy="3" r="1.6" fill="#f6c453" stroke="${OL}" stroke-width="0.7"/>
+    </svg>`,
+  sign: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <rect x="7.2" y="7" width="1.6" height="7" rx="0.5" fill="#78350f" stroke="${OL}" stroke-width="0.6"/>
+      <rect x="2.4" y="2.6" width="11.2" height="5" rx="0.8" fill="#b45309" stroke="${OL}" stroke-width="0.8"/>
+      <path d="M4.2 4.4h7.6M4.2 6.2h5.4" stroke="#fde68a" stroke-width="0.8" stroke-linecap="round"/>
+    </svg>`,
+  sniper: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="8" cy="8" r="4.6" fill="none" stroke="#f472b6" stroke-width="0.9" opacity="0.85"/>
+      <path d="M8 1.4v3.2M8 11.4v3.2M1.4 8h3.2M11.4 8h3.2" stroke="#f472b6" stroke-width="0.9" stroke-linecap="round"/>
+      <circle cx="8" cy="8" r="1.3" fill="#f472b6"/>
     </svg>`
 };
+
+// Значок стража лестницы: щит с замочной скважиной в углу клетки врага.
+// Пока страж жив, лестница вниз закрыта; по одному свечению его не отличить
+// от обычного врага того же вида.
+ICONS.guard = `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8 1.4l5.2 2v4.3c0 3.3-2.3 5.5-5.2 6.9-2.9-1.4-5.2-3.6-5.2-6.9V3.4z" fill="#0c4a6e" stroke="#7dd3fc" stroke-width="1.2"/>
+      <circle cx="8" cy="6.5" r="1.6" fill="#e0f2fe"/>
+      <path d="M7.1 7.5h1.8l.6 3.4H6.5z" fill="#e0f2fe"/>
+    </svg>`;
 
 function iconSvg(key) {
   return ICONS[key] || ICONS.slime;

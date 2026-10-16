@@ -3,33 +3,30 @@
 
   const LETTERS = ["A", "B", "C", "D"];
 
-  const COPY_TOPICS = {
-    copy_hello: "strings", copy_hp: "syntax", copy_damage: "operators",
-    copy_name: "strings", copy_if: "control", copy_for: "control",
-    copy_list: "collections", copy_upper: "strings", copy_def: "functions",
-    copy_sum: "operators", copy_while: "control", copy_fstring: "strings"
-  };
-
-  const copyLevel = (i) => (i < 3 ? 1 : i < 7 ? 2 : 3);
-
-  const CODE_TOPICS = {
-    attack_power: "operators", health_after_hit: "operators", is_alive: "control",
-    heal: "functions", double_gold: "operators", total_hp: "collections",
-    max_damage: "collections", count_monsters: "collections", greet: "strings",
-    count_even: "control", average: "collections"
-  };
+  // Тема и уровень заданий «повтори код» / «напиши код» лежат не в банке,
+  // а в общей таблице task-meta.js — ею же пользуется самоподготовка.
+  const META = window.TASK_META || {};
+  const COPY_TOPICS = META.COPY_TOPICS || {};
+  const CODE_TOPICS = META.CODE_TOPICS || {};
+  const copyLevel = META.copyLevel || (() => 2);
 
   const kindTitle = { mc: "Вопрос", fill: "Вставь пропущенное", error: "Найди ошибку", copy: "Повтори код", code: "Напиши код" };
 
   const state = {
     name: "",
     mode: "practice",
+    source: "bank",
+    length: 15,
+    topic: "",
     order: [],
     index: 0,
     answers: [],
     locked: false,
     startedAt: 0,
-    result: null
+    result: null,
+    // Серия верных ответов подряд — мотивация внутри прогона.
+    streak: 0,
+    bestStreak: 0
   };
 
   const el = (id) => document.getElementById(id);
@@ -45,7 +42,26 @@
 
   const prefillName = () => {
     const m = parseHash();
-    if (m.name) el("name").value = m.name;
+    const params = new URLSearchParams(window.location.search);
+    const session = typeof currentUser === "function" ? currentUser() : null;
+    const saved = typeof getLastName === "function" ? getLastName() : "";
+    const guess = (session && session.name) || saved || m.name || params.get("name") || "";
+    if (guess) el("name").value = guess;
+    // Кто уже вошёл в аккаунт — говорим прямо: имя подставлено, менять не нужно.
+    // Учитель видит, прислан ли результат из аккаунта, — об этом тоже говорим.
+    const line = el("account-line");
+    if (line && session && session.name) {
+      line.innerHTML = "";
+      const b = document.createElement("b");
+      b.textContent = session.name;
+      line.append("Ты в аккаунте ", b, " — имя подставлено. Учитель увидит отметку, " +
+        "что результат твой; если сменишь имя, отметки не будет.");
+      line.classList.remove("hidden");
+    } else if (line) {
+      line.textContent = "Ты не вошёл в аккаунт: результат дойдёт до учителя без отметки, " +
+        "что он твой. Войти можно на главной странице.";
+      line.classList.remove("hidden");
+    }
   };
 
   const shuffle = (arr) => {
@@ -56,23 +72,91 @@
     return arr;
   };
 
-  const buildOrder = () => {
+  // Весь банк страницы: вопросы (в том числе сгенерированные варианты) и задания.
+  const bankPool = () => {
     const pool = [];
     QUESTIONS.forEach((q) => pool.push({ kind: "mc", level: q.level, ref: q }));
     FILL_TASKS.forEach((t) => pool.push({ kind: "fill", level: t.level, ref: t }));
     ERROR_TASKS.forEach((t) => pool.push({ kind: "error", level: t.level, ref: t }));
     COPY_TASKS.forEach((t, i) => pool.push({ kind: "copy", level: copyLevel(i), ref: t }));
     CODE_TASKS.forEach((t) => pool.push({ kind: "code", level: 3, ref: t }));
-    const byLevel = {};
-    pool.forEach((item) => {
-      (byLevel[item.level] = byLevel[item.level] || []).push(item);
+    return pool;
+  };
+
+  // Задания из пула ошибок профиля. Вместе с ошибкой лежит снимок задания,
+  // поэтому повтор работает и для сгенерированных вариантов: их id меняется
+  // при каждой загрузке страницы, и по одному id вопрос уже не найти.
+  const wrongItems = (name) => {
+    const prof = name ? getProfile(name) : null;
+    if (!prof || !prof.wrongPool) return [];
+    const banks = { mc: QUESTIONS, fill: FILL_TASKS, error: ERROR_TASKS, copy: COPY_TASKS, code: CODE_TASKS };
+    const out = [];
+    prof.wrongPool.forEach((w) => {
+      const snap = w.snapshot;
+      const bank = banks[w.kind] || QUESTIONS;
+      const live = bank.find((x) => x.id === w.id);
+      const ref = live || (snap ? Object.assign({ id: w.id }, snap) : null);
+      if (!ref) return;
+      out.push({
+        kind: w.kind,
+        level: ref.level || (snap && snap.level) || 2,
+        ref: ref,
+        fromPool: !live
+      });
     });
-    const order = [];
-    Object.keys(byLevel)
+    return out;
+  };
+
+  const buildOrder = (opts) => {
+    const o = opts || {};
+    let pool = o.source === "wrong" ? wrongItems(o.name) : bankPool();
+    if (o.source !== "wrong" && o.topic) {
+      pool = pool.filter((item) => itemTopic(item) === o.topic);
+    }
+    pool = shuffle(pool.slice());
+    if (!pool.length) return [];
+    const limit = o.length || 0;
+    const levelOf = (item) => item.level || 2;
+    if (!limit || limit >= pool.length) {
+      // Полный прогон: подъём по уровням, внутри уровня — вперемешку.
+      const byLevel = {};
+      pool.forEach((item) => {
+        (byLevel[levelOf(item)] = byLevel[levelOf(item)] || []).push(item);
+      });
+      const order = [];
+      Object.keys(byLevel)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .forEach((lvl) => order.push(...shuffle(byLevel[lvl].slice())));
+      return order;
+    }
+    // Короткий прогон: настоящая смесь уровней — берём задания по кругу из каждого
+    // уровня (★, ★★, ★★★, ★★★★), иначе короткая выборка почти всегда выходит
+    // из одних заданий ★☆☆☆ и разбор по уровням ничего не показывает.
+    const buckets = {};
+    pool.forEach((item) => {
+      const lvl = levelOf(item);
+      (buckets[lvl] = buckets[lvl] || []).push(item);
+    });
+    const levels = Object.keys(buckets)
       .map(Number)
-      .sort((a, b) => a - b)
-      .forEach((lvl) => order.push(...shuffle(byLevel[lvl].slice())));
-    return order;
+      .sort((a, b) => a - b);
+    levels.forEach((lvl) => {
+      buckets[lvl] = shuffle(buckets[lvl]);
+    });
+    const picked = [];
+    for (let round = 0; picked.length < limit; round++) {
+      let added = false;
+      for (const lvl of levels) {
+        if (round < buckets[lvl].length) {
+          picked.push(buckets[lvl][round]);
+          added = true;
+          if (picked.length >= limit) break;
+        }
+      }
+      if (!added) break;
+    }
+    return picked;
   };
 
   const itemTopic = (item) => {
@@ -85,6 +169,47 @@
     item.kind === "mc" ? item.ref.text : item.ref.title;
 
   const itemCode = (item) => item.ref.code || "";
+
+  // Компактный снимок задания для пула ошибок: его хватает, чтобы показать
+  // задание заново, не отыскивая его в банке.
+  const snapshotOf = (item) => {
+    if (!item || !item.ref) return null;
+    const r = item.ref;
+    const snap = {
+      level: item.level,
+      topic: itemTopic(item),
+      code: r.code || "",
+      explanation: r.explanation || ""
+    };
+    if (item.kind === "mc") snap.text = r.text;
+    else snap.title = r.title;
+    if (r.options) {
+      snap.options = r.options.slice();
+      snap.answer = r.answer;
+    }
+    if (r.task) snap.task = r.task;
+    if (r.starter) snap.starter = r.starter;
+    if (r.tests) snap.tests = r.tests.map((t) => ({ call: t.call, expected: t.expected }));
+    return snap;
+  };
+
+  const findItem = (a) => {
+    const inRun = state.order.find((it) => it.kind === a.kind && it.ref.id === a.id);
+    if (inRun) return inRun;
+    // findRef ниже ищет по банкам; снимок нужен, когда задания в банке уже нет.
+    const ref = findRef(a);
+    return ref ? { kind: a.kind, ref: ref, level: a.level } : null;
+  };
+
+  // Настройки прогона, выбранные на стартовом экране.
+  function readSetup() {
+    const src = document.querySelector("#source-chips .chip.active");
+    const len = document.querySelector("#length-chips .chip.active");
+    state.source = src ? src.dataset.source : "bank";
+    state.length = len ? Number(len.dataset.length) : 15;
+    const sel = el("topic-select");
+    state.topic = sel && !sel.disabled ? sel.value : "";
+  }
 
   const stars = (level) => "★".repeat(level) + "☆".repeat(4 - level);
 
@@ -104,9 +229,26 @@
     }
     state.name = name;
     setLastName(name);
-    state.order = buildOrder();
+    readSetup();
+    state.order = buildOrder({
+      source: state.source,
+      topic: state.topic,
+      length: state.length,
+      name: state.name
+    });
+    if (!state.order.length) {
+      toast(
+        state.source === "wrong"
+          ? "В пуле ошибок пока пусто — сначала пройди тест"
+          : "По этой теме заданий нет"
+      );
+      return;
+    }
     state.index = 0;
     state.answers = [];
+    state.streak = 0;
+    state.bestStreak = 0;
+    updateStreak();
     state.startedAt = Date.now();
     show("quiz");
     renderQuestion();
@@ -139,6 +281,14 @@
       (state.index / state.order.length) * 100 + "%";
     el("difficulty").textContent = stars(item.level);
     el("question-text").textContent = itemText(item);
+    // Подсказка про клавиши нужна там, где ответ выбирают из вариантов.
+    const keysHint = el("keys-hint");
+    if (keysHint) {
+      keysHint.classList.toggle(
+        "hidden",
+        item.kind === "copy" || item.kind === "code"
+      );
+    }
 
     const codeEl = el("question-code");
     const code = itemCode(item);
@@ -215,16 +365,47 @@
     }
   }
 
-  function recordAnswer(item, chosen, correct) {
+  function recordAnswer(item, chosen, correct, shown) {
     state.locked = true;
     state.answers.push({
       kind: item.kind,
-      id: item.kind === "mc" ? item.ref.id : item.ref.id,
+      id: item.ref.id,
       topic: itemTopic(item),
       level: item.level,
       chosen,
-      correct
+      correct,
+      // Что именно видел ученик: варианты на экране перемешаны, поэтому буквы и
+      // тексты надо запомнить здесь — иначе в разборе ошибок будут не те.
+      chosenLetter: shown ? shown.chosenLetter : "",
+      answerLetter: shown ? shown.answerLetter : "",
+      chosenText: shown ? shown.chosenText : "",
+      answerText: shown ? shown.answerText : ""
     });
+    if (correct) {
+      state.streak += 1;
+      if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+    } else {
+      state.streak = 0;
+    }
+    updateStreak();
+  }
+
+  // Живая серия в шапке прогона: «🔥 4 подряд».
+  function updateStreak() {
+    const box = el("quiz-streak");
+    if (!box) return;
+    if (state.streak < 2) {
+      box.textContent = "";
+      box.classList.remove("pop");
+      return;
+    }
+    box.textContent = "🔥 " + state.streak + " подряд";
+    box.classList.remove("pop");
+    void box.offsetWidth; // без перезапуска анимация не сработает второй раз
+    box.classList.add("pop");
+    if (state.streak === 5 || state.streak % 10 === 0) {
+      toast("Серия " + state.streak + " верных подряд!");
+    }
   }
 
   function showAnswerFeedback(item, correct, correctText, explanation) {
@@ -233,7 +414,7 @@
     if (showFeedback) {
       fb.className = "feedback " + (correct ? "ok" : "no");
       fb.innerHTML =
-        "<b>" + (correct ? "Верно!" : "Неверно. " + correctText) + "</b>" + explanation;
+        "<b>" + (correct ? "Верно!" : "Неверно. " + correctText) + "</b><br>" + explanation;
     } else {
       fb.className = "feedback hidden";
     }
@@ -247,9 +428,15 @@
     const item = state.order[state.index];
     const ref = item.ref;
     const view = item.view || { answer: ref.answer, order: ref.options.map((_, i) => i) };
+    const options = view.options || ref.options;
     const originalChosen = view.order[chosen];
     const correct = originalChosen === ref.answer;
-    recordAnswer(item, originalChosen, correct);
+    recordAnswer(item, originalChosen, correct, {
+      chosenLetter: LETTERS[chosen],
+      answerLetter: LETTERS[view.answer],
+      chosenText: options[chosen],
+      answerText: options[view.answer]
+    });
 
     const buttons = Array.from(el("options").children);
     buttons.forEach((b, i) => {
@@ -261,7 +448,7 @@
     showAnswerFeedback(
       item,
       correct,
-      "Правильный ответ: " + LETTERS[view.answer],
+      "Правильный ответ: " + LETTERS[view.answer] + ") " + options[view.answer],
       ref.explanation
     );
   }
@@ -288,14 +475,20 @@
     })
       .then((r) => r.json())
       .then((data) => {
+        if (data && data.unavailable) {
+          serverDidNotCheck(data, btn, res);
+          return;
+        }
         const correct = data.ok && data.passed === data.total;
         if (res) {
+          // Текст ошибки и значения пришли из программы ученика — экранируем.
           if (!data.ok) {
-            res.innerHTML = "<div style='color:#f87171'>" + (data.error || "Ошибка") + "</div>";
+            res.innerHTML = "<div style='color:#f87171'>" + escHtml(data.error || "Ошибка") + "</div>";
           } else {
             res.innerHTML = (data.results || []).map((t, i) =>
               "<div style='color:" + (t.ok ? "#16a34a" : "#dc2626") + "'>#" + (i + 1) + " " +
-              (t.ok ? "пройден" : "провален") + " · ожидалось " + t.expected + ", получено " + t.actual + "</div>"
+              (t.ok ? "пройден" : "провален") + " · ожидалось " + escHtml(t.expected) +
+              ", получено " + escHtml(t.actual) + "</div>"
             ).join("");
           }
         }
@@ -307,6 +500,33 @@
         if (btn) { btn.disabled = false; btn.textContent = "Проверить и запустить"; }
         toast("Сервер проверки недоступен");
       });
+  }
+
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Сервер не проверил код: выключен (--no-code) или занят. Ученик не ошибся,
+  // поэтому ответ не засчитываем. Раньше такой ответ шёл в тест как неверный
+  // и снижал процент, который видит учитель.
+  function serverDidNotCheck(data, btn, res) {
+    state.locked = false;
+    if (data.disabled) {
+      // Проверки не будет до конца теста: убираем эту и следующие задачи на код.
+      state.order = state.order.filter((it, i) => i < state.index || it.kind !== "code");
+      toast("Проверка кода на сервере выключена — задачи на код убраны из теста");
+      if (state.index < state.order.length) {
+        renderQuestion();
+      } else if (state.answers.length) {
+        finish();
+      } else {
+        reset(false);
+      }
+      return;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = "Проверить и запустить"; }
+    if (res) res.textContent = (data.error || "Сервер проверки недоступен") + ". Ответ не засчитан — попробуй ещё раз.";
   }
 
   function checkQuizCopy() {
@@ -457,11 +677,20 @@
   function finish() {
     el("progress-bar").style.width = "100%";
     state.result = computeResult();
-    const rw = rewardForRun(state.result.percent, state.mode);
-    state.result.reward = rw;
     setLastName(state.name);
-    let earned = [];
     const prof = getProfile(state.name);
+    // Прошлый прогон того же режима и личный рекорд ДО этого прогона —
+    // чтобы итог мог сказать «стало лучше» и «новый рекорд».
+    const sameMode = prof ? prof.quizRuns.filter((r) => r.mode === state.mode) : [];
+    const prevRun = sameMode.length ? sameMode[sameMode.length - 1] : null;
+    state.result.prevPercent = prevRun ? prevRun.percent : null;
+    state.result.bestBefore = prof
+      ? prof.quizRuns.reduce((m, r) => Math.max(m, r.percent || 0), 0)
+      : 0;
+    state.result.bestStreak = state.bestStreak;
+    const rw = rewardForRun(state.result.percent, state.mode, state.bestStreak);
+    state.result.reward = rw;
+    let earned = [];
     if (prof) {
       prof.quizRuns.push({
         date: state.result.date,
@@ -469,7 +698,10 @@
         percent: state.result.percent,
         level: state.result.level.title,
         correct: state.result.correctCount,
-        total: state.result.total
+        total: state.result.total,
+        // Нужно стартовому экрану: прогресс по темам из истории.
+        topicStats: state.result.topicStats,
+        bestStreak: state.bestStreak
       });
       prof.wallet.gold += rw.gold;
       prof.wallet.small_potion += rw.small_potion;
@@ -479,16 +711,32 @@
       if (prof.stats.days.indexOf(today) < 0) prof.stats.days.push(today);
       prof.stats.runs += 1;
       prof.stats.correct += state.result.correctCount;
+      if (state.bestStreak > (prof.stats.bestStreak || 0)) {
+        prof.stats.bestStreak = state.bestStreak;
+      }
 
       state.answers.forEach((a) => {
         const idx = prof.wrongPool.findIndex((w) => w.kind === a.kind && w.id === a.id);
         if (!a.correct) {
-          if (idx < 0) prof.wrongPool.push({ kind: a.kind, id: a.id });
+          const entry = {
+            kind: a.kind,
+            id: a.id,
+            topic: a.topic,
+            level: a.level,
+            // Снимок задания: сгенерированные варианты получают новые id при
+            // каждой загрузке, поэтому повтор ошибок по одному id невозможен.
+            snapshot: snapshotOf(findItem(a))
+          };
+          if (idx < 0) prof.wrongPool.push(entry);
+          else prof.wrongPool[idx] = entry;
         } else if (idx >= 0) {
           prof.wrongPool.splice(idx, 1);
           if (a.kind === "code") prof.stats.codeSolved += 1;
         }
       });
+      if (prof.wrongPool.length > 150) {
+        prof.wrongPool.splice(0, prof.wrongPool.length - 150);
+      }
       earned = earnBadges(prof);
       putProfile(state.name, prof);
       syncProfile(state.name);
@@ -514,6 +762,31 @@
       r.percent + "%<small style='font-size:16px;color:#64748b'> правильно</small>";
     el("level-desc").textContent = r.level.desc;
 
+    // Рост относительно прошлого прогона того же режима + рекорд + серия.
+    const deltaEl = el("delta-line");
+    if (deltaEl) {
+      const parts = [];
+      if (typeof r.prevPercent === "number") {
+        const d = r.percent - r.prevPercent;
+        const cls = d > 0 ? "up" : d < 0 ? "down" : "same";
+        const word =
+          d > 0 ? "лучше прошлого раза" : d < 0 ? "хуже прошлого раза" : "как в прошлый раз";
+        parts.push(
+          "<span class='" + cls + "'>" + (d > 0 ? "+" : d < 0 ? "−" : "") + Math.abs(d) +
+          " %</span> " + word + " (" + r.prevPercent + " %)"
+        );
+      } else {
+        parts.push("<span class='same'>Первый прогон в этом режиме</span>");
+      }
+      if (r.percent > (r.bestBefore || 0)) {
+        parts.push("<span class='record'>🏆 новый личный рекорд</span>");
+      } else if (r.bestBefore) {
+        parts.push("личный рекорд: " + r.bestBefore + " %");
+      }
+      if (r.bestStreak >= 3) parts.push("серия: " + r.bestStreak + " подряд");
+      deltaEl.innerHTML = parts.join(" · ");
+    }
+
     const rewardEl = el("reward-line");
     if (rw) {
       const prof = getProfile(r.name);
@@ -522,6 +795,7 @@
         "<b>Награда в подземелье:</b> +" +
         rw.gold +
         " золота" +
+        (rw.streak_bonus ? " (в том числе +" + rw.streak_bonus + " за серию)" : "") +
         (rw.small_potion ? ", малое зелье" : "") +
         (rw.big_potion ? ", большое зелье" : "") +
         (prof ? "<br>В кошельке: " + walletText(prof.wallet) : "");
@@ -557,6 +831,9 @@
         tr.innerHTML =
           "<td>" +
           (TOPICS[topic] || topic) +
+          "<button type='button' class='topic-practice' data-topic='" +
+          topic +
+          "'>потренировать тему</button>" +
           "<div class='bar'><i style='width:" +
           pct +
           "%;background:" +
@@ -569,6 +846,65 @@
           "</td>";
         table.appendChild(tr);
       });
+    // Разбивка по уровням сложности: видно, какой «этаж» банка проседает.
+    const levelLine = el("level-line");
+    if (levelLine) {
+      const parts = [1, 2, 3, 4]
+        .filter((lv) => r.levelStats && r.levelStats[lv])
+        .map((lv) => {
+          const s = r.levelStats[lv];
+          const pct = s.total ? Math.round((s.correct / s.total) * 100) : 0;
+          return stars(lv) + " " + s.correct + "/" + s.total + " (" + pct + "%)";
+        });
+      levelLine.innerHTML = parts.length
+        ? "<b>По уровням сложности:</b> " + parts.join(" · ")
+        : "";
+    }
+
+    // Слабая тема в разбивке — сразу кнопка: короткий прогон по этой теме.
+    table.onclick = (e) => {
+      const btn = e.target.closest(".topic-practice");
+      if (!btn) return;
+      window.location.href =
+        "/quiz?topic=" + encodeURIComponent(btn.dataset.topic) + "&len=15";
+    };
+
+    const oldPractice = el("practice-row");
+    if (oldPractice) oldPractice.remove();
+    const prof3 = getProfile(r.name);
+    const wrongCount = prof3 && prof3.wrongPool ? prof3.wrongPool.length : 0;
+    const weak = Object.keys(r.topicStats)
+      .filter((t) => r.topicStats[t].correct / r.topicStats[t].total < 0.6)
+      .sort((a, b) => a.localeCompare(b))
+      .slice(0, 3);
+    if (weak.length || wrongCount) {
+      const practice = document.createElement("div");
+      practice.id = "practice-row";
+      practice.className = "practice-row";
+      const label = document.createElement("span");
+      label.className = "setup-label";
+      label.textContent = "Разминка:";
+      practice.appendChild(label);
+      weak.forEach((topic) => {
+        const a = document.createElement("a");
+        a.className = "btn ghost";
+        a.style.textDecoration = "none";
+        a.style.display = "inline-block";
+        a.href = "/quiz?topic=" + encodeURIComponent(topic) + "&len=15";
+        a.textContent = TOPICS[topic] || topic;
+        practice.appendChild(a);
+      });
+      if (wrongCount) {
+        const a = document.createElement("a");
+        a.className = "btn ghost";
+        a.style.textDecoration = "none";
+        a.style.display = "inline-block";
+        a.href = "/quiz?wrong=1";
+        a.textContent = "Повторить мои ошибки (" + wrongCount + ")";
+        practice.appendChild(a);
+      }
+      table.parentNode.insertBefore(practice, el("review"));
+    }
 
     const oldRec = el("summary-line");
     if (oldRec) oldRec.remove();
@@ -589,7 +925,10 @@
     } else {
       review.classList.remove("hidden");
       r.wrong.forEach((a) => {
-        const ref = findRef(a);
+        // findItem ищет и в текущем прогоне: сгенерированные варианты в банке
+        // уже не найти, их id меняется при каждой загрузке страницы.
+        const item0 = findItem(a);
+        const ref = item0 && item0.ref;
         if (!ref) return;
         const item = document.createElement("div");
         item.className = "review-item";
@@ -599,8 +938,14 @@
           yours = "Твой код (начало): " + String(a.chosen).split("\n")[0];
           right = "Смотри пояснение по задаче ниже";
         } else {
-          yours = LETTERS[a.chosen] + ") " + ref.options[a.chosen];
-          right = LETTERS[ref.answer] + ") " + ref.options[ref.answer];
+          // Буквы и тексты берём те, что ученик видел на экране: варианты
+          // перемешиваются, поэтому порядок банка здесь не подходит.
+          const yourLetter = a.chosenLetter || LETTERS[a.chosen];
+          const rightLetter = a.answerLetter || LETTERS[ref.answer];
+          const yourText = a.chosenText || (ref.options || [])[a.chosen];
+          const rightText = a.answerText || (ref.options || [])[ref.answer];
+          yours = yourLetter + ") " + yourText;
+          right = rightLetter + ") " + rightText;
         }
         item.innerHTML =
           "<div class='q'>" + title + "</div>" +
@@ -614,10 +959,14 @@
 
   function submit(result) {
     if (!/^https?:$/.test(window.location.protocol)) return;
+    // Токен сессии подписывает результат: учитель видит, что он прислан из
+    // аккаунта. Гость отправляет результат как раньше, без отметки.
+    const session = typeof currentUser === "function" ? currentUser() : null;
+    const body = session && session.token ? Object.assign({ token: session.token }, result) : result;
     fetch("/api/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(result)
+      body: JSON.stringify(body)
     })
       .then((res) => {
         if (res.ok) toast("Результат сохранён у преподавателя");
@@ -660,6 +1009,103 @@
     URL.revokeObjectURL(url);
   }
 
+  // Темы для селектора: подписи берём из TOPICS, пустой ключ — все темы.
+  function fillTopics() {
+    const sel = el("topic-select");
+    if (!sel) return;
+    sel.innerHTML = "";
+    const all = document.createElement("option");
+    all.value = "";
+    all.textContent = "Все темы";
+    sel.appendChild(all);
+    Object.keys(TOPICS).forEach((key) => {
+      const opt = document.createElement("option");
+      opt.value = key;
+      opt.textContent = TOPICS[key];
+      sel.appendChild(opt);
+    });
+  }
+
+  // Короткая справка под настройками: сколько заданий и сколько это примерно.
+  function updateRunHint() {
+    const hint = el("run-hint");
+    if (!hint) return;
+    const name = (el("name").value || "").trim();
+    if (state.source === "wrong") {
+      const n = wrongItems(name).length;
+      hint.textContent = n
+        ? "Повтор ошибок: " + n + " заданий. Тема и длина не применяются."
+        : "Пул ошибок пуст — сначала пройди тест или тренажёр.";
+      return;
+    }
+    const all = bankPool();
+    const filtered = state.topic ? all.filter((i) => itemTopic(i) === state.topic) : all;
+    const n = state.length ? Math.min(state.length, filtered.length) : filtered.length;
+    hint.textContent =
+      n + " заданий из " + all.length + " · " +
+      (state.topic ? TOPICS[state.topic] || state.topic : "все темы") +
+      (state.length ? " · примерно " + Math.max(2, Math.round(n * 0.5)) + " мин" : " · полный банк");
+  }
+
+  // Пул ошибок берётся из профиля по имени, поэтому подпись обновляется вместе с ним.
+  function refreshWrongChip() {
+    const chip = el("chip-wrong");
+    if (!chip) return;
+    const name = (el("name").value || "").trim();
+    const n = name ? wrongItems(name).length : 0;
+    chip.textContent = n ? "Мои ошибки (" + n + ")" : "Мои ошибки";
+    chip.disabled = n === 0;
+    if (n === 0 && state.source === "wrong") {
+      state.source = "bank";
+      const box = el("source-chips");
+      box.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+      const bank = box.querySelector('[data-source="bank"]');
+      if (bank) bank.classList.add("active");
+      const sel = el("topic-select");
+      if (sel) sel.disabled = false;
+      el("length-chips").querySelectorAll(".chip").forEach((c) => { c.disabled = false; });
+    }
+  }
+
+  // Параметры в адресе: ?topic=strings&len=15, ?wrong=1, ?mode=test.
+  function applyParams() {
+    const p = new URLSearchParams(window.location.search);
+    const topic = p.get("topic");
+    if (topic && TOPICS[topic]) {
+      const sel = el("topic-select");
+      if (sel) sel.value = topic;
+      state.topic = topic;
+    }
+    const len = Number(p.get("len"));
+    if (len) {
+      const box = el("length-chips");
+      const chip = box && box.querySelector('[data-length="' + len + '"]');
+      if (chip) {
+        box.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+      }
+    }
+    const mode = p.get("mode");
+    if (mode === "practice" || mode === "test") {
+      document.querySelectorAll(".mode").forEach((m) => {
+        m.classList.toggle("active", m.dataset.mode === mode);
+      });
+      state.mode = mode;
+    }
+    if (p.get("wrong") === "1") {
+      const wrong = el("chip-wrong");
+      if (wrong && !wrong.disabled) {
+        const box = el("source-chips");
+        box.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        wrong.classList.add("active");
+        const sel = el("topic-select");
+        if (sel) sel.disabled = true;
+        el("length-chips").querySelectorAll(".chip").forEach((c) => { c.disabled = true; });
+        state.source = "wrong";
+      }
+    }
+  }
+
   let toastTimer = null;
   function toast(msg) {
     const t = el("toast");
@@ -672,21 +1118,110 @@
   function updateProfileLine() {
     const line = el("profile-line");
     const name = el("name").value.trim();
+    renderTopicProgress();
+    updateNextBadge();
     if (!name) {
       line.classList.add("hidden");
+      refreshWrongChip();
+      updateRunHint();
       return;
     }
     const prof = getProfile(name);
+    const total = ACHIEVEMENTS.length;
+    const got = prof
+      ? ACHIEVEMENTS.filter((a) => prof.badges && prof.badges[a.id]).length
+      : 0;
     if (!prof || prof.quizRuns.length === 0) {
       line.classList.remove("hidden");
-      line.textContent = "Новая учётная запись: " + name + ". Кошелёк: " + walletText(prof ? prof.wallet : { gold: 0 });
+      line.textContent =
+        "Новая учётная запись: " + name +
+        ". Достижений: 0 из " + total +
+        ". Кошелёк: " + walletText(prof ? prof.wallet : { gold: 0 });
+      refreshWrongChip();
+      updateRunHint();
       return;
     }
     const best = Math.max.apply(null, prof.quizRuns.map((r) => r.percent));
     line.classList.remove("hidden");
     line.textContent =
       name + ": прохождений " + prof.quizRuns.length +
-      ", лучший результат " + best + "%. Кошелёк: " + walletText(prof.wallet);
+      ", лучший результат " + best + "%" +
+      ", достижений " + got + " из " + total +
+      ". Кошелёк: " + walletText(prof.wallet);
+    refreshWrongChip();
+  }
+
+  // Ближайшее недостигнутое достижение — чтобы на старте была видимая цель.
+  function updateNextBadge() {
+    const node = el("next-badge");
+    if (!node) return;
+    const name = el("name").value.trim();
+    if (!name) {
+      node.classList.add("hidden");
+      node.textContent = "";
+      return;
+    }
+    const prof = getProfile(name);
+    const next = ACHIEVEMENTS.filter((a) => !(prof.badges && prof.badges[a.id]))[0];
+    node.classList.remove("hidden");
+    node.textContent = next
+      ? "Следующая цель: «" + next.title + "» — " + next.desc
+      : "Все достижения собраны: " + ACHIEVEMENTS.length + " из " + ACHIEVEMENTS.length + ".";
+  }
+
+  // Прогресс по темам из истории прогонов: последний результат по каждой теме,
+  // слабые сверху. Кнопка ведёт в короткий прогон по этой теме.
+  function renderTopicProgress() {
+    const box = el("topic-progress");
+    if (!box) return;
+    const name = el("name").value.trim();
+    const prof = name ? getProfile(name) : null;
+    const runs = prof ? prof.quizRuns : [];
+    const last = {};
+    runs.forEach((run) => {
+      const ts = run.topicStats || {};
+      Object.keys(ts).forEach((topic) => {
+        if (ts[topic] && ts[topic].total) last[topic] = ts[topic];
+      });
+    });
+    // Темы, которые ученик тренировал только в самоподготовке, тоже видны.
+    const studyTopics = (prof && prof.study && prof.study.topics) || {};
+    Object.keys(studyTopics).forEach((topic) => {
+      const t = studyTopics[topic];
+      if (t && t.total && !last[topic]) last[topic] = { correct: t.ok || 0, total: t.total };
+    });
+    const topics = Object.keys(last);
+    if (!topics.length) {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      return;
+    }
+    const rows = topics
+      .sort((a, b) => {
+        return last[a].correct / last[a].total - last[b].correct / last[b].total;
+      })
+      .map((topic) => {
+        const t = last[topic];
+        const pct = Math.round((t.correct / t.total) * 100);
+        const color = pct >= 70 ? "#16a34a" : pct >= 40 ? "#f59e0b" : "#dc2626";
+        return (
+          "<button type='button' class='tp-row' data-topic='" + topic + "'>" +
+          "<span class='tp-name'>" + (TOPICS[topic] || topic) + "</span>" +
+          "<span class='tp-bar'><i style='width:" + pct + "%;background:" + color + "'></i></span>" +
+          "<span class='tp-pct'>" + pct + " %</span></button>"
+        );
+      })
+      .join("");
+    box.classList.remove("hidden");
+    box.innerHTML =
+      "<p class='tp-title'><b>Мой прогресс по темам</b> — слабые сверху, нажми, чтобы потренировать</p>" +
+      rows;
+    box.onclick = (e) => {
+      const btn = e.target.closest(".tp-row");
+      if (!btn) return;
+      window.location.href =
+        "/quiz?topic=" + encodeURIComponent(btn.dataset.topic) + "&len=15";
+    };
   }
 
   function reset(clearName) {
@@ -709,9 +1244,45 @@
   }
 
   document.addEventListener("DOMContentLoaded", () => {
+    fillTopics();
+    applyParams();
+    readSetup();
     prefillName();
     updateProfileLine();
+    refreshWrongChip();
+    updateRunHint();
     el("name").addEventListener("input", updateProfileLine);
+
+    // Выбор источника заданий и длины прогона — кнопками-чипами.
+    const chipBox = (boxId) => {
+      const box = el(boxId);
+      if (!box) return;
+      box.addEventListener("click", (e) => {
+        const chip = e.target.closest(".chip");
+        if (!chip || chip.disabled) return;
+        box.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        if (boxId === "source-chips") {
+          const wrong = chip.dataset.source === "wrong";
+          const sel = el("topic-select");
+          if (sel) sel.disabled = wrong;
+          el("length-chips").querySelectorAll(".chip").forEach((c) => {
+            c.disabled = wrong;
+          });
+        }
+        readSetup();
+        updateRunHint();
+      });
+    };
+    chipBox("source-chips");
+    chipBox("length-chips");
+    const topicSel = el("topic-select");
+    if (topicSel) {
+      topicSel.addEventListener("change", () => {
+        readSetup();
+        updateRunHint();
+      });
+    }
 
     el("start-btn").addEventListener("click", start);
     el("next-btn").addEventListener("click", next);
@@ -731,6 +1302,34 @@
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !el("exit-modal").classList.contains("hidden")) {
         closeExit();
+        return;
+      }
+      if (el("screen-quiz").classList.contains("hidden")) return;
+      if (!el("exit-modal").classList.contains("hidden")) return;
+      const tag = (e.target && e.target.tagName) || "";
+      // В поле имени, в поле кода и в «повтори код» цифры и Enter — свои.
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      // 1–4 и A–D: на русской раскладке это ф, и, с, в.
+      const keys = {
+        "1": 0, "2": 1, "3": 2, "4": 3,
+        a: 0, b: 1, c: 2, d: 3,
+        ф: 0, и: 1, с: 2, в: 3
+      };
+      const idx = keys[String(e.key).toLowerCase()];
+      if (typeof idx === "number") {
+        const opts = Array.from(el("options").querySelectorAll(".option"));
+        if (opts[idx] && !opts[idx].disabled) {
+          e.preventDefault();
+          opts[idx].click();
+        }
+        return;
+      }
+      if (e.key === "Enter") {
+        const nb = el("next-btn");
+        if (nb && !nb.classList.contains("hidden")) {
+          e.preventDefault();
+          nb.click();
+        }
       }
     });
     el("name").addEventListener("keydown", (e) => {

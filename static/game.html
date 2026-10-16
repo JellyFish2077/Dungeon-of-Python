@@ -3,107 +3,86 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Подземелье Python</title>
+  <title>PyDungeon</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="stylesheet" href="/static/game.css" />
 </head>
 <body class="game-page">
-  <div class="brand">
-    <div class="logo">Py</div>
-    <div>
-      <h1>Подземелье Python</h1>
-      <p>Сражайся с монстрами правильными ответами и кодом</p>
+  <header class="site-head">
+    <!-- В подземелье меню сайта убрано: это игра на весь экран, а не раздел сайта.
+         Название ведёт на главную, а игровые пункты живут справа в шапке. -->
+    <a class="brand" href="/" data-tip="Главная страница PyDungeon">
+      <div class="logo">Py</div>
+      <h1>PyDungeon</h1>
+    </a>
+
+    <!-- Пункты похода. Показываются только в игре (правило в game.css с :has(.stage.playing)):
+         на стартовом экране ни лавки, ни кузницы, ни журнала ещё нет. -->
+    <div class="head-actions" id="head-actions">
+      <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад. У торговца на этаже дешевле.">Лавка</button>
+      <button class="head-link" id="forge-btn" type="button" data-tip="Кузница: вложить золото в урон, защиту или здоровье. Клавиша F.">Кузница</button>
+      <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
+      <button class="head-link" id="leave-btn" type="button" data-tip="Выйти из похода к заданиям. Найденное останется в кошельке.">Выйти</button>
     </div>
-
-  </div>
-
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn active" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+  </header>
 
   <div class="stage" id="stage">
+  <!-- Всплывающее уведомление о сработавшем эффекте предмета.
+       Один элемент: показываем по одному событию, перезапуская анимацию. -->
+  <div class="effect-flash" id="effect-flash" role="status" aria-live="polite"></div>
   <aside class="battle-col" id="battle-col">
-    <div class="hidden" id="battle-overlay">
+    <!-- Бой — настоящее модальное окно поверх карты (.overlay), а не колонка
+         в 24% ширины: раньше карточка не помещалась и кнопки уезжали за край. -->
+    <div class="overlay hidden" id="battle-overlay">
       <div class="battle" id="battle-box"></div>
     </div>
   </aside>
   <div class="game-wrap">
-    <section id="screen-start" class="panel center-card">
-      <h2>Спустись в подземелье</h2>
-      <p class="lead">
-        Ты — путник, который исследует подземелье. На каждом этаже тебя ждут монстры.
-        Чтобы победить, отвечай на вопросы и пиши код на Python. Правильный ответ — удар по врагу,
-        ошибка — удар по тебе. Найди лестницу и одолей дракона!
-      </p>
 
-      <label class="field" for="name" style="text-align:left">Как тебя зовут, герой? (та же учётная запись, что в тесте)</label>
-      <input type="text" id="name" placeholder="Имя и фамилия" autocomplete="off" />
-      <p class="lead hidden" id="wallet-line" style="text-align:left;margin:12px 0 0"></p>
-      <label class="field" style="text-align:left;margin-top:6px">
-        <input type="checkbox" id="claim-box" checked style="width:auto;margin-right:8px" />Забрать награды из кошелька в этот поход
-      </label>
-
-      <label class="field" style="text-align:left;margin-top:20px">Уровень сложности</label>
-      <div class="modes" id="difficulty">
-        <div class="mode active" data-diff="easy">
-          <b>Лёгкий</b>
-          <span>Вопросы, «повтори код» и «вставь пропущенное». Без def</span>
-        </div>
-        <div class="mode" data-diff="normal">
-          <b>Обычный</b>
-          <span>Плюс «найди ошибку» и иногда написание функции (def)</span>
-        </div>
-        <div class="mode" data-diff="hard">
-          <b>Сложный</b>
-          <span>Много заданий на код и функций, сильные монстры</span>
-        </div>
-      </div>
-
-      <div class="start-grid" style="margin-top:22px">
-        <button class="btn" id="begin-btn">Начать спуск</button>
-        <button class="btn ghost" id="resume-btn" style="display:none">Продолжить</button>
-        <a class="btn ghost link-btn" href="/quiz">Вернуться к тесту</a>
-        <a class="btn ghost link-btn" href="/">Главная</a>
-        <a class="btn ghost link-btn" href="/study">Самоподготовка</a>
-      </div>
-
-      <ul class="facts" style="text-align:left;margin-top:22px">
-        <li>• 10 этажей подземелья и битва с драконом</li>
-        <li>• Задания: вопросы, «повтори код», «вставь пропущенное», «найди ошибку», «напиши функцию»</li>
-        <li>• Собирай оружие, броню и зелья, экипируй лучшие предметы</li>
-        <li>• За верные удары дают золото — трать в лавке или у торговца на этаже</li>
-        <li>• Ошибки возвращаются «призраками» — их стоит добить</li>
-        <li>• В бою есть подсказка за 10 HP</li>
-        <li>• Монстры ходят вместе с тобой и преследуют героя</li>
-        <li>• Можно спуститься на этаж ниже, не убивая всех монстров</li>
-        <li>• Лестница вверх вернёт на прошлый этаж — прогресс сохраняется</li>
-        <li>• Управление: стрелки или WASD, колесо мыши — зум камеры</li>
-      </ul>
-    </section>
-
-    <section id="screen-game" class="panel hidden">
+    <section id="screen-game" class="panel">
       <div class="map-scroll" id="map-scroll">
         <div class="map" id="map" role="grid" aria-label="Карта подземелья">
           <div class="tiles" id="tiles"></div>
           <div class="entities" id="entities"></div>
+          <!-- Дымка по краю зрения: центр совпадает с героем, поэтому
+               затемнение работает как фонарь в подземелье. -->
+          <div class="map-vignette" id="map-vignette" aria-hidden="true"></div>
         </div>
         <div class="game-msg" id="game-msg"></div>
+        <!-- Кнопка действия: сундук, торговец и лестница больше не срабатывают
+             сами от шага. Герой встаёт на клетку или рядом и нажимает её (или E). -->
+        <button class="action-btn hidden" id="action-btn" type="button" data-tip="Взаимодействовать с тем, что рядом: сундук, торговец, лестница. Клавиша E.">
+          <span class="action-icon" id="action-icon">✦</span>
+          <span class="action-label" id="action-label">Взаимодействовать</span>
+          <span class="action-key">E</span>
+        </button>
+        <!-- Пропуск хода: герой остаётся на месте, монстры ходят по карте
+             и могут сами найти его и ударить. -->
+        <button class="action-btn skip-btn" id="skip-btn" type="button" data-tip="Пропустить ход: герой стоит, монстры ходят. Клавиша Пробел.">
+          <span class="action-icon">⏳</span>
+          <span class="action-label">Пропустить ход</span>
+          <span class="action-key">Пробел</span>
+        </button>
+        <div class="floor-arrival hidden" id="floor-arrival" role="status">
+          <!-- Текст пишется во внутренний блок: showFloorArrival задаёт
+               innerHTML, и кнопку закрытия он стёр бы вместе с собой. -->
+          <div class="floor-arrival-body" id="floor-arrival-body"></div>
+          <button class="floor-arrival-close" id="floor-arrival-close" type="button" title="Скрыть" aria-label="Скрыть">×</button>
+        </div>
         <div class="cam-hint">колесо мыши — зум · M — карта</div>
-        <canvas class="minimap" id="minimap" width="184" height="132" title="Мини-карта (M)"></canvas>
-        <button class="log-toggle" id="log-toggle" type="button" title="Показать/скрыть журнал">≡</button>
+        <canvas class="minimap" id="minimap" width="184" height="132" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
         <div class="log collapsed" id="log"></div>
       </div>
     </section>
   </div>
 
     <aside class="side-panel hidden">
+      <div class="side-card" id="village-info">
+        <div class="side-title">Деревня</div>
+        <div id="village-bank" class="village-bank"></div>
+        <p class="lead" id="village-hint">Дома отмечены дверьми: подойди и нажми E. У стража у входа — спуск в подземелье.</p>
+      </div>
       <div class="side-card">
         <div class="hud">
           <div class="hud-block">
@@ -118,35 +97,42 @@
           </div>
           <div class="hud-block">
             <div class="floor-name" id="floor-name">Этаж 1</div>
+            <div class="hud-num" id="hud-nick">Герой</div>
             <div class="hud-num" id="enemies-left">Монстров: 0</div>
             <div class="hud-num">Золото: <span id="gold-text">0</span></div>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="exit-btn" id="shop-btn" type="button">Лавка</button>
-            <button class="exit-btn" id="leave-btn" type="button">Выйти</button>
+            <div class="hud-num quest-line hidden" id="quest-line"></div>
           </div>
         </div>
       </div>
 
       <div class="side-card">
         <div class="equip-bar">
-          <div class="equip-slot">
+          <button class="equip-slot" type="button" data-unequip="weapon">
             <span class="equip-label">Оружие</span>
             <span class="equip-value" id="equip-weapon">пусто</span>
-          </div>
-          <div class="equip-slot">
+          </button>
+          <button class="equip-slot" type="button" data-unequip="armor">
             <span class="equip-label">Броня</span>
             <span class="equip-value" id="equip-armor">пусто</span>
-          </div>
-          <div class="equip-slot">
+          </button>
+          <button class="equip-slot" type="button" data-unequip="accessory">
             <span class="equip-label">Амулет</span>
             <span class="equip-value" id="equip-accessory">пусто</span>
-          </div>
+          </button>
           <div class="equip-slot">
-            <span class="equip-label">Атака / Защита</span>
+            <span class="equip-label">Бонусы</span>
             <span class="equip-value" id="equip-stats">+0 / 0</span>
           </div>
         </div>
+
+        <!-- Что сейчас работает на герое. Пусто, пока нет особых эффектов:
+             без этой подсказки игрок не понимает, что надето и что сработает.
+             Заголовок рисует сам renderEffectList вместе со списком, чтобы он
+             не торчал над пустотой и не повторялся.
+             Список живёт под снаряжением, а не в закреплённой сводке: с тремя
+             эффектами и комплектами сводка вырастала выше колонки и закрывала
+             снаряжение и сумку целиком. -->
+        <div class="effect-list" id="effect-list"></div>
       </div>
 
       <div class="side-card" id="inventory-card">
@@ -154,6 +140,77 @@
       </div>
 
     </aside>
+  </div>
+
+  <!-- Окно входа в подземелье. Настройки спуска переехали сюда из бывшего
+       экрана-меню: сложность, режим и кнопка спуска живут у стража. -->
+  <div class="overlay hidden" id="entrance-overlay">
+    <div class="battle inventory" id="entrance-box">
+      <div class="battle-head">
+        <div>
+          <div class="enemy-name">Страж входа</div>
+          <div class="hud-num">Подземелье: <b>10 этажей</b> · дракон в конце</div>
+        </div>
+        <button class="exit-btn" id="entrance-close" type="button" data-tip="Закрыть. Клавиша Escape.">Закрыть</button>
+      </div>
+      <p class="lead">Внизу ждут вопросы и задачи по Python. Выбери сложность и режим.</p>
+      <label class="check">
+        <input type="checkbox" id="claim-box" checked />
+        <span class="check-box" aria-hidden="true"></span>
+        <span class="check-text">Взять золото и зелья из банка в этот поход</span>
+      </label>
+      <div class="pick">
+        <p class="pick-label" id="label-mode">Режим похода</p>
+        <div class="modes" id="game-mode" role="radiogroup" aria-labelledby="label-mode">
+          <div class="mode active" data-mode="dungeon" role="radio" aria-checked="true" tabindex="0">
+            <span class="mode-mark" aria-hidden="true"></span>
+            <b>Обычный спуск</b>
+            <span class="mode-note">10 этажей до дракона. Победа закрывает поход</span>
+          </div>
+          <div class="mode" data-mode="endless" role="radio" aria-checked="false" tabindex="0">
+            <span class="mode-mark" aria-hidden="true"></span>
+            <b>Бесконечное подземелье</b>
+            <span class="mode-note">После дракона этажи не кончаются — спуск идёт, пока герой жив</span>
+          </div>
+        </div>
+      </div>
+      <div class="pick">
+        <p class="pick-label" id="label-diff">Уровень сложности</p>
+        <div class="modes" id="difficulty" role="radiogroup" aria-labelledby="label-diff">
+          <div class="mode" data-diff="easy" role="radio" aria-checked="false" tabindex="0">
+            <span class="mode-mark" aria-hidden="true"></span>
+            <b>Лёгкий</b>
+            <span class="mode-note">Вопросы, «повтори код» и «вставь пропущенное». Без def</span>
+          </div>
+          <div class="mode active" data-diff="normal" role="radio" aria-checked="true" tabindex="0">
+            <span class="mode-mark" aria-hidden="true"></span>
+            <b>Обычный</b>
+            <span class="mode-note">Плюс «найди ошибку» и иногда написание функции (def)</span>
+          </div>
+          <div class="mode" data-diff="hard" role="radio" aria-checked="false" tabindex="0">
+            <span class="mode-mark" aria-hidden="true"></span>
+            <b>Сложный</b>
+            <span class="mode-note">Много заданий на код и функций, сильные монстры</span>
+          </div>
+        </div>
+      </div>
+      <div class="pick hidden" id="ability-pick">
+        <p class="pick-label">Умение похода</p>
+        <div class="modes" id="ability-list" role="radiogroup" aria-label="Умение похода"></div>
+        <p class="mode-note" id="ability-note"></p>
+      </div>
+      <div class="setup-actions">
+        <button class="btn" id="begin-btn" type="button">Спуститься</button>
+        <button class="btn ghost" id="resume-btn" type="button" style="display:none">Продолжить</button>
+        <a class="btn ghost link-btn" href="/quiz">К тесту</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Окно жителя деревни: у торговца — лавка, у старосты — банк, рекорд и
+       достижения, у наставника — памятка. Содержимое собирает renderDialog(). -->
+  <div class="overlay hidden" id="dialog-overlay">
+    <div class="battle inventory" id="dialog-box"></div>
   </div>
 
   <div class="overlay hidden" id="shop-overlay">
@@ -164,14 +221,27 @@
     <div class="battle center-card" id="end-box"></div>
   </div>
 
+  <div class="overlay hidden" id="blessing-overlay">
+    <div class="battle center-card bless-box" id="blessing-box"></div>
+  </div>
+
+  <div class="overlay hidden" id="forge-overlay">
+    <div class="battle inventory" id="forge-box"></div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>
+  <script src="/static/task-meta.js"></script>
+  <script src="/static/practice-variants.js"></script>
   <script src="/static/items.js"></script>
   <script src="/static/icons.js"></script>
-  <script src="/static/tiles.js"></script>
+<script src="/static/sprites.js"></script>
+<script src="/static/terrain.js"></script>
+  <script src="/static/dungeon-content.js"></script>
+  <script src="/static/village-content.js"></script>
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/game.js"></script>

@@ -30,23 +30,22 @@
 </head>
 <body>
   <div class="wrap2">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Друзья и чат</h1>
-        <p>Заявки, друзья, личные сообщения и приглашения</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
-    </div>
 
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn" href="/">Главная</a>
+        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends">Друзья</a>
+        <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
+        <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <section class="card" id="login-card" style="display:none">
       <h2>Нужен вход</h2>
@@ -108,7 +107,8 @@
     function get(u, q) { return fetch(u + "?" + new URLSearchParams(Object.assign({ token: TOKEN }, q || {}))).then(r => r.json()); }
     function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
     function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),2000);}
-    function ava(u){return "<span class='dot' style='background:"+(u.avatar||"#2563eb")+"'>"+esc((u.name||"?")[0].toUpperCase())+"</span>";}
+    var AVATAR_COLORS = ["#2563eb","#16a34a","#dc2626","#d97706","#7c3aed","#0891b2","#db2777"];
+    function ava(u){var c = AVATAR_COLORS.indexOf(String(u.avatar||"")) >= 0 ? u.avatar : "#2563eb";return "<span class='dot' style='background:"+c+"'>"+esc((u.name||"?")[0].toUpperCase())+"</span>";}
 
     function loadFriends() {
       return get("/api/friends").then((r) => {

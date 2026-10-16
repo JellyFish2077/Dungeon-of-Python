@@ -9,24 +9,22 @@
 </head>
 <body>
   <div class="app">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Самоподготовка по Python</h1>
-        <p>Учи темы сам, проверяй себя, забирай награды в подземелье</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
 
-    </div>
-
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn active" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn" href="/">Главная</a>
+        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn active" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
+        <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
+        <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <section class="card">
       <h2>Как заниматься</h2>
@@ -51,18 +49,29 @@
       </div>
     </section>
 
-    <section class="card" style="margin-top:16px">
+    <section class="card" style="margin-top:16px" id="pr-card">
       <h2>Быстрая практика</h2>
-      <p class="lead">Случайное задание из банка. Отвечай — и иди дальше.</p>
-      <div class="difficulty" id="pr-stars">★☆☆☆</div>
+      <p class="lead">Случайное задание из банка. Отвечай — и иди дальше. Счёт и серия сохраняются, их видно в профиле.</p>
+      <div class="practice-setup">
+        <span class="setup-label">Тема</span>
+        <select id="pr-topic"></select>
+      </div>
+      <p class="lead hidden" id="pr-weak-list" style="margin:8px 0 0"></p>
+      <div class="practice-head">
+        <span class="difficulty" id="pr-stars">★☆☆☆</span>
+        <span class="practice-topic" id="pr-topic-name"></span>
+        <button class="link-btn hidden" id="pr-lesson" type="button">К уроку темы</button>
+      </div>
       <div class="question" id="pr-q"></div>
       <pre class="code hidden" id="pr-code"></pre>
       <div class="options" id="pr-options"></div>
       <div class="feedback hidden" id="pr-fb"></div>
+      <p class="lead hidden" id="pr-tests" style="margin:10px 0 0;font-family:monospace;font-size:13px;line-height:1.6;white-space:pre-line"></p>
       <div class="footer">
         <button class="btn" id="pr-next">Дальше</button>
       </div>
       <p class="lead" id="pr-score" style="margin:12px 0 0"></p>
+      <p class="keys-hint">Клавиши: 1–4 или A–D — выбрать ответ, Enter — дальше</p>
     </section>
 
     <section class="card" style="margin-top:16px">
@@ -96,6 +105,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="/static/task-meta.js"></script>
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>
@@ -160,29 +170,79 @@
       LESSONS.forEach((l) => {
         const card = document.createElement("section");
         card.className = "card";
+        // По этому id быстрая практика находит урок своей темы.
+        card.id = "lesson-" + l.topic;
         const pts = l.points.map((p) => "<li>• " + p + "</li>").join("");
         card.innerHTML = "<h2>" + l.title + "</h2>" +
           "<ul class='facts' style='margin:0 0 12px'>" + pts + "</ul>" +
-          (l.code ? "<pre class='code'>" + l.code + "</pre>" : "");
+          (l.code ? "<pre class='code'>" + l.code + "</pre>" : "") +
+          "<button class='btn ghost lesson-practice' type='button' data-topic='" + l.topic +
+          "'>Потренировать тему</button>";
         box.appendChild(card);
+      });
+      // Кнопка урока включает практику по своей теме (функция — из блока ниже).
+      box.addEventListener("click", (e) => {
+        const b = e.target.closest(".lesson-practice");
+        if (b && typeof startTopicPractice === "function") {
+          startTopicPractice(b.dataset.topic);
+        }
       });
 
       const LET = ["A", "B", "C", "D"];
-      let good = 0, total = 0, cur = null;
-      const pool = [];
-      QUESTIONS.forEach((q) => pool.push({ kind: "q", ref: q }));
-      FILL_TASKS.forEach((t) => pool.push({ kind: "f", ref: t }));
-      ERROR_TASKS.forEach((t) => pool.push({ kind: "e", ref: t }));
-      COPY_TASKS.forEach((t) => pool.push({ kind: "c", ref: t }));
-      CODE_TASKS.forEach((t) => pool.push({ kind: "k", ref: t }));
-
+      const KIND_TITLE = { q: "Вопрос", f: "Вставь пропущенное", e: "Найди ошибку", c: "Повтори код", k: "Напиши код" };
+      const META = window.TASK_META || {};
       const $ = (id) => document.getElementById(id);
+
+      // Уровень и тему заданий «повтори код» / «напиши код» берём из общей
+      // таблицы: в самом банке этих полей нет, и звёзды у них всегда были ★★☆☆.
+      const metaTopic = (kind, t) => (META.taskTopic ? META.taskTopic(kind, t.id) : "");
+      const metaLevel = (kind, t, i) => (META.taskLevel ? META.taskLevel(kind, i) : 2);
+
+      const pool = [];
+      QUESTIONS.forEach((q) => pool.push({ kind: "q", bankKind: "mc", ref: q, topic: q.topic, level: q.level }));
+      FILL_TASKS.forEach((t) => pool.push({ kind: "f", bankKind: "fill", ref: t, topic: t.topic, level: t.level }));
+      ERROR_TASKS.forEach((t) => pool.push({ kind: "e", bankKind: "error", ref: t, topic: t.topic, level: t.level }));
+      COPY_TASKS.forEach((t, i) => pool.push({
+        kind: "c", bankKind: "copy", ref: t, topic: metaTopic("copy", t), level: metaLevel("copy", t, i)
+      }));
+      CODE_TASKS.forEach((t, i) => pool.push({
+        kind: "k", bankKind: "code", ref: t, topic: metaTopic("code", t), level: metaLevel("code", t, i)
+      }));
+
+      // Занятия за сегодня переживают перезагрузку: счёт, серия и разбивка по
+      // темам лежат в localStorage, а каждый ответ доезжает до профиля.
+      const STUDY_KEY = "pyquiz_study_v1";
+      const today = () => {
+        const d = new Date();
+        return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
+          "-" + String(d.getDate()).padStart(2, "0");
+      };
+      function loadStudy() {
+        let s = null;
+        try { s = JSON.parse(localStorage.getItem(STUDY_KEY) || "null"); } catch (e) { s = null; }
+        if (!s || typeof s !== "object") s = {};
+        if (s.day !== today()) { s.day = today(); s.good = 0; s.total = 0; s.streak = 0; }
+        if (typeof s.good !== "number") s.good = 0;
+        if (typeof s.total !== "number") s.total = 0;
+        if (typeof s.streak !== "number") s.streak = 0;
+        if (typeof s.best !== "number") s.best = 0;
+        if (!s.topics || typeof s.topics !== "object") s.topics = {};
+        return s;
+      }
+      const study = loadStudy();
+      const saveStudy = () => {
+        try { localStorage.setItem(STUDY_KEY, JSON.stringify(study)); } catch (e) {}
+      };
+
+      let good = study.good, total = study.total, cur = null;
 
       // Тренировка по ошибкам из профиля
       const kindBank = { mc: QUESTIONS, fill: FILL_TASKS, error: ERROR_TASKS, copy: COPY_TASKS, code: CODE_TASKS };
       let mode = "all";
+      let topicMode = "";
       let errorPool = [];
-      let profileName = getLastName();
+      const session = (typeof currentUser === "function") ? currentUser() : null;
+      let profileName = (session && session.name) || getLastName();
 
       const KIND_MAP = { mc: "q", fill: "f", error: "e", copy: "c", code: "k" };
 
@@ -192,9 +252,18 @@
         const prof = getProfile(profileName);
         if (!prof) return;
         prof.wrongPool.forEach((w) => {
-          const bank = kindBank[w.kind] || QUESTIONS;
-          const ref = bank.find((x) => x.id === w.id);
-          if (ref) errorPool.push({ kind: KIND_MAP[w.kind] || "q", ref: ref, srcKind: w.kind });
+          const bankKind = w.kind || "mc";
+          const bank = kindBank[bankKind] || QUESTIONS;
+          const live = bank.find((x) => x.id === w.id);
+          // Ошибка из сгенерированного варианта по id не находится (он новый
+          // при каждой загрузке) — тогда задание поднимаем из снимка.
+          const ref = live || (w.snapshot ? Object.assign({ id: w.id }, w.snapshot) : null);
+          if (!ref) return;
+          errorPool.push({
+            kind: KIND_MAP[bankKind] || "q", bankKind: bankKind, ref: ref, srcKind: bankKind,
+            topic: (w.snapshot && w.snapshot.topic) || (live && live.topic) || "",
+            level: (w.snapshot && w.snapshot.level) || (live && live.level) || 2
+          });
         });
       }
 
@@ -208,12 +277,21 @@
       }
 
       function activePool() {
-        return mode === "errors" && errorPool.length ? errorPool : pool;
+        const base = mode === "errors" && errorPool.length ? errorPool : pool;
+        return topicMode ? base.filter((i) => i.topic === topicMode) : base;
+      }
+
+      // Вопрос по выбранной теме: если в пуле ошибок такой темы нет, берём банк.
+      function pickItem() {
+        let p = activePool();
+        if (!p.length && mode === "errors") p = topicMode ? pool.filter((i) => i.topic === topicMode) : pool;
+        if (!p.length) return null;
+        return p[Math.floor(Math.random() * p.length)];
       }
 
       function dropFromErrors(item) {
         if (!profileName || !item) return;
-        const srcKind = item.srcKind || Object.keys(KIND_MAP).find((k) => KIND_MAP[k] === item.kind) || "mc";
+        const srcKind = item.srcKind || item.bankKind || Object.keys(KIND_MAP).find((k) => KIND_MAP[k] === item.kind) || "mc";
         const prof = getProfile(profileName);
         if (!prof) return;
         const idx = prof.wrongPool.findIndex((w) => w.kind === srcKind && w.id === item.ref.id);
@@ -223,10 +301,24 @@
       }
 
       function draw() {
-        const p = activePool();
-        cur = p[Math.floor(Math.random() * p.length)];
+        cur = pickItem();
+        if (!cur) {
+          $("pr-q").textContent = "По этой теме заданий нет — выбери другую тему.";
+          $("pr-options").innerHTML = "";
+          return;
+        }
         const r = cur.ref;
-        $("pr-stars").textContent = "★".repeat(r.level || 2) + "☆".repeat(4 - (r.level || 2));
+        const lvl = Math.min(4, Math.max(1, cur.level || 2));
+        $("pr-stars").textContent = "★".repeat(lvl) + "☆".repeat(4 - lvl);
+        // Тема задания и переход к её уроку — связка теории и практики.
+        const topicName = TOPICS[cur.topic] || "";
+        $("pr-topic-name").textContent =
+          (KIND_TITLE[cur.kind] || "") + (topicName ? " · " + topicName : "");
+        const lesson = $("pr-lesson");
+        if (lesson) {
+          lesson.classList.toggle("hidden", !cur.topic);
+          lesson.dataset.topic = cur.topic || "";
+        }
         $("pr-q").textContent = cur.kind === "q" ? r.text : r.title;
         const code = $("pr-code");
         if (r.code) { code.textContent = r.code; code.classList.remove("hidden"); }
@@ -234,6 +326,8 @@
         const fb = $("pr-fb");
         fb.className = "feedback hidden";
         fb.innerHTML = "";
+        const tests = $("pr-tests");
+        if (tests) { tests.className = "lead hidden"; tests.textContent = ""; }
         const opts = $("pr-options");
         opts.innerHTML = "";
         const taStyle = "width:100%;min-height:110px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;padding:12px;font-family:monospace";
@@ -280,43 +374,151 @@
         return String(s || "").replace(/\s+/g, "");
       }
 
-      function answer(i) {
+      // Один ответ: счёт дня, серия, статистика по теме и запись в профиль.
+      function scoreAnswer(ok) {
         total++;
+        study.total++;
+        if (ok) {
+          good++;
+          study.good++;
+          study.streak++;
+          if (study.streak > study.best) study.best = study.streak;
+          dropFromErrors(cur);
+        } else {
+          study.streak = 0;
+        }
+        if (cur && cur.topic) {
+          const t = study.topics[cur.topic] || (study.topics[cur.topic] = { ok: 0, total: 0 });
+          t.total++;
+          if (ok) t.ok++;
+        }
+        saveStudy();
+        writeToProfile(ok);
+        paintScore();
+        renderWeakTopics();
+      }
+
+      // В профиль — сразу, на сервер — не чаще раза в 20 секунд.
+      let lastSync = 0;
+      function writeToProfile(ok) {
+        if (!profileName || typeof recordStudy !== "function") return;
+        try {
+          recordStudy(profileName, {
+            ok: ok, topic: cur ? cur.topic : "", kind: cur ? cur.bankKind : ""
+          });
+        } catch (e) { return; }
+        const now = Date.now();
+        if (now - lastSync > 20000) {
+          lastSync = now;
+          if (typeof syncProfile === "function") syncProfile(profileName);
+        }
+      }
+
+      function paintScore() {
+        const parts = ["Счёт: " + good + " из " + total];
+        if (study.streak >= 2) parts.push("серия " + study.streak + " подряд");
+        if (study.best > 0) parts.push("лучшая серия " + study.best);
+        $("pr-score").textContent = parts.join(" · ") + " — занятия сохраняются в профиль";
+      }
+
+      // Слабые темы: и практика, и прогоны теста.
+      function renderWeakTopics() {
+        const box = $("pr-weak-list");
+        if (!box) return;
+        const prof = profileName ? getProfile(profileName) : null;
+        if (!prof) { box.className = "lead hidden"; box.innerHTML = ""; return; }
+        const agg = {};
+        const add = (topic, correct, total) => {
+          if (!topic || !total) return;
+          if (!agg[topic]) agg[topic] = { correct: 0, total: 0 };
+          agg[topic].correct += correct;
+          agg[topic].total += total;
+        };
+        const studyTopics = prof.study ? prof.study.topics : {};
+        Object.keys(studyTopics).forEach((topic) => add(topic, studyTopics[topic].ok, studyTopics[topic].total));
+        (prof.quizRuns || []).forEach((run) => {
+          const ts = run.topicStats || {};
+          Object.keys(ts).forEach((topic) => add(topic, ts[topic].correct, ts[topic].total));
+        });
+        const weak = Object.keys(agg)
+          .filter((topic) => agg[topic].correct / agg[topic].total < 0.6)
+          .sort((a, b) => agg[a].correct / agg[a].total - agg[b].correct / agg[b].total)
+          .slice(0, 4);
+        if (!weak.length) { box.className = "lead hidden"; box.innerHTML = ""; return; }
+        box.className = "lead";
+        box.innerHTML = "";
+        box.append("Что подтянуть: ");
+        weak.forEach((topic, i) => {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "weak-topic";
+          b.textContent = (TOPICS[topic] || topic) + " (" +
+            Math.round((agg[topic].correct / agg[topic].total) * 100) + " %)";
+          b.addEventListener("click", () => setTopic(topic));
+          if (i) box.append(" ");
+          box.append(b);
+        });
+      }
+
+      function answer(i) {
         const right = cur.view ? cur.view.answer : cur.ref.answer;
         const ok = i === right;
-        if (ok) { good++; dropFromErrors(cur); }
         lockOptions(i, right);
         showFb(ok, ok ? "" : "Правильный ответ: " + LET[right] + ". ", cur.ref.explanation);
+        scoreAnswer(ok);
       }
 
       function check() {
         const ta = document.getElementById("pr-copy");
         const typed = ta ? ta.value : "";
         if (!typed.trim()) return;
-        total++;
         const ok = norm(typed) === norm(cur.ref.code);
-        if (ok) { good++; dropFromErrors(cur); }
         if (ta) ta.disabled = true;
         showFb(ok, ok ? "" : "Сравни с образцом. ", cur.ref.explanation);
+        scoreAnswer(ok);
+      }
+
+      // Проверка кода: показываем каждый тест задания, а не только «не все».
+      function renderTests(data) {
+        const box = $("pr-tests");
+        if (!box) return;
+        const list = (data && data.results) || [];
+        if (!list.length) { box.className = "lead hidden"; box.textContent = ""; return; }
+        box.className = "lead";
+        box.textContent = list.map((t, i) =>
+          "Тест " + (i + 1) + ": " + (t.ok ? "пройден" : "провален") +
+          (t.ok ? "" : " — ожидалось " + String(t.expected) + ", получено " + String(t.actual))
+        ).join("\n") + "\nПройдено тестов: " + (data.passed || 0) + " из " + (data.total || list.length) + ".";
       }
 
       function runCheck() {
         const ta = document.getElementById("pr-code2");
         const code = ta ? ta.value : "";
         if (!code.trim()) return;
-        total++;
+        const item = cur;
         fetch("/api/check", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code: code, tests: cur.ref.tests })
+          body: JSON.stringify({ code: code, tests: item.ref.tests })
         }).then((r) => r.json()).then((data) => {
+          // Сервер не проверил код (выключен или занят) — ученик не ошибся:
+          // в счёт дня не идёт, можно нажать «Проверить» ещё раз.
+          if (data.unavailable) {
+            const fb = $("pr-fb");
+            fb.className = "feedback";
+            fb.textContent = (data.error || "Сервер проверки недоступен") + ". Ответ не засчитан.";
+            return;
+          }
           const ok = data.ok && data.passed === data.total;
-          if (ok) { good++; dropFromErrors(cur); }
           if (ta) ta.disabled = true;
+          renderTests(data);
           let head = ok ? "" : "Не все тесты пройдены. ";
-          if (!data.ok && data.error) head = data.error + ". ";
-          showFb(ok, head, cur.ref.explanation);
-        }).catch(() => { total--; showFb(false, "Сервер недоступен. ", ""); });
+          if (!data.ok && data.error) {
+            head = String(data.error).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + ". ";
+          }
+          showFb(ok, head, item.ref.explanation);
+          scoreAnswer(ok);
+        }).catch(() => { showFb(false, "Сервер недоступен. ", ""); });
       }
 
       function lockOptions(chosen, answer) {
@@ -332,10 +534,52 @@
         const fb = $("pr-fb");
         fb.className = "feedback " + (ok ? "ok" : "no");
         fb.innerHTML = "<b>" + (ok ? "Верно!" : "Неверно. " + head) + "</b>" + exp;
-        $("pr-score").textContent = "Счёт: " + good + " из " + total;
       }
 
       document.getElementById("pr-next").addEventListener("click", draw);
+
+      // Выбор темы, переход к уроку и практика из урока.
+      function setTopic(topic) {
+        topicMode = topic || "";
+        const sel = $("pr-topic");
+        if (sel) sel.value = topicMode;
+        draw();
+      }
+
+      function startTopicPractice(topic) {
+        setTopic(topic);
+        const card = $("pr-card");
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      window.startTopicPractice = startTopicPractice;
+
+      function gotoLesson(topic) {
+        const card = topic ? document.getElementById("lesson-" + topic) : null;
+        if (card && card.scrollIntoView) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      const topicSel = $("pr-topic");
+      if (topicSel) {
+        topicSel.innerHTML = "<option value=''>Все темы</option>" +
+          Object.keys(TOPICS).map((k) => "<option value='" + k + "'>" + TOPICS[k] + "</option>").join("");
+        topicSel.value = topicMode;
+        topicSel.addEventListener("change", () => setTopic(topicSel.value));
+      }
+      const lessonBtn = $("pr-lesson");
+      if (lessonBtn) lessonBtn.addEventListener("click", () => { if (cur && cur.topic) gotoLesson(cur.topic); });
+
+      // Клавиши: 1–4 или A–D — ответ, Enter — следующее задание.
+      const KEYMAP = { "1": 0, "2": 1, "3": 2, "4": 3, a: 0, b: 1, c: 2, d: 3, "ф": 0, "и": 1, "с": 2, "в": 3 };
+      document.addEventListener("keydown", (e) => {
+        const tag = e.target && e.target.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "BUTTON" || tag === "SELECT" || tag === "A") return;
+        if (e.key === "Enter") { document.getElementById("pr-next").click(); return; }
+        const key = String(e.key || "").toLowerCase();
+        if (!(key in KEYMAP)) return;
+        const opts = Array.from($("pr-options").children).filter((b) => b.classList.contains("option"));
+        const btn = opts[KEYMAP[key]];
+        if (btn && !btn.disabled) btn.click();
+      });
 
       buildErrorPool();
       refreshRevInfo();
@@ -347,6 +591,8 @@
       });
       if (revAll) revAll.addEventListener("click", () => { mode = "all"; draw(); });
       draw();
+      paintScore();
+      renderWeakTopics();
 
       // Аккаунт
       const accName = document.getElementById("acc-name");
@@ -357,33 +603,35 @@
       function afterAccount(name) {
         profileName = name;
         setLastName(name);
-        setPin(accPin.value);
+        // PIN не храним: дальше профиль уходит на сервер по токену сессии.
+        accPin.value = "";
         buildErrorPool();
         refreshRevInfo();
         draw();
+        paintScore();
+        renderWeakTopics();
       }
+      // Вход и регистрация — те же, что на главной (auth.js): сервер выдаёт
+      // токен сессии, и ученик вошёл на всех страницах сразу. Раньше здесь
+      // был свой вход, который запоминал PIN в браузере открытым текстом.
       document.getElementById("acc-login").addEventListener("click", () => {
-        accountFetch("/api/login", { name: accName.value.trim(), pin: accPin.value }).then((res) => {
+        loginAccount(accName.value, accPin.value).then((res) => {
           if (!res.ok) { accMsg(res.error || "Ошибка входа"); return; }
-          applyServerProfile(accName.value.trim(), res.profile || {});
-          afterAccount(accName.value.trim());
+          afterAccount(res.user.name);
           accMsg("Вход выполнен. Профиль загружен с сервера.");
-        }).catch(() => accMsg("Сервер недоступен"));
+        });
       });
       document.getElementById("acc-reg").addEventListener("click", () => {
-        const nm = accName.value.trim();
-        if (!nm || accPin.value.length < 3) { accMsg("Нужны имя и PIN (минимум 3 символа)"); return; }
-        const prof = getProfile(nm);
-        serverRegister(nm, accPin.value, prof).then((res) => {
+        registerAccount(accName.value, accPin.value).then((res) => {
           if (!res.ok) { accMsg(res.error || "Ошибка регистрации"); return; }
-          afterAccount(nm);
+          afterAccount(res.user.name);
           accMsg("Аккаунт создан, профиль сохранён на сервере.");
-        }).catch(() => accMsg("Сервер недоступен"));
+        });
       });
       document.getElementById("acc-save").addEventListener("click", () => {
-        const nm = accName.value.trim();
-        if (!nm || !getPin()) { accMsg("Сначала войдите или зарегистрируйтесь."); return; }
-        syncProfile(nm);
+        const user = currentUser();
+        if (!user || !user.token) { accMsg("Сначала войдите или зарегистрируйтесь."); return; }
+        syncProfile(user.name);
         accMsg("Профиль отправлен на сервер.");
       });
 

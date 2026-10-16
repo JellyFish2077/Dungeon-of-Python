@@ -24,33 +24,37 @@
     .heat-row { display: grid; grid-template-columns: 210px 1fr 60px; gap: 8px; align-items: center; font-size: 13px; }
     .heat-bar { height: 18px; border-radius: 6px; background: #e2e8f0; overflow: hidden; }
     .heat-bar > i { display: block; height: 100%; }
+    .acc { margin-left: 6px; font-size: 12px; font-weight: 600; }
+    .acc.ok { color: #16a34a; }
+    .acc.other { color: #b45309; }
+    .acc-note { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
+    .only-acc { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; cursor: pointer; }
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Результаты студентов</h1>
-        <p>Панель преподавателя</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
 
-    </div>
-
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn active" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn" href="/">Главная</a>
+        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
+        <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
+        <a class="nav-btn active" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <div class="card">
       <div class="head">
         <h2 style="margin:0">Сводка</h2>
-        <div style="display:flex;gap:10px">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <label class="only-acc"><input type="checkbox" id="only-acc" /> Только из аккаунтов</label>
           <a class="btn" href="/api/export.csv">Скачать CSV</a>
           <button class="btn ghost" id="refresh">Обновить</button>
         </div>
@@ -69,6 +73,11 @@
         </table>
       </div>
       <div class="empty hidden" id="empty">Пока никто не прошёл тест.</div>
+      <p class="acc-note">
+        <span class="acc ok" style="margin:0">✓</span> — результат прислан из аккаунта ученика с этим именем.
+        «Вход: …» — имя набрано вручную, а вошёл другой ученик. Без отметки — имя набрано без входа
+        (или запись старше этой проверки): чьё оно на самом деле, не проверить.
+      </p>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -97,20 +106,56 @@
     const PIN = new URLSearchParams(location.search).get("pin") || "";
     const QS = PIN ? "?pin=" + encodeURIComponent(PIN) : "";
 
-    function fmtTime(s) {
-      s = s || 0;
+    // results.json пополняет любой, кто отправил результат. Числа приводим к
+    // числам, а не вставляем как есть: строка-скрипт в «percent» исполнялась
+    // бы здесь, у учителя, — а в адресе этой страницы лежит его пароль.
+    function num(v) {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.round(n) : 0;
+    }
+
+    function fmtDate(v) {
+      // Только ISO-дата, как её пишут игра и сервер: «гибкий» разбор Date
+      // превращает мусор вроде «x=1» в 2001 год.
+      if (typeof v !== "string" || !/^\d{4}-\d{2}-\d{2}T/.test(v)) return "—";
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? "—" : d.toLocaleString("ru-RU");
+    }
+
+    function fmtTime(v) {
+      const s = Math.max(0, num(v));
       return Math.floor(s / 60) + "м " + (s % 60) + "с";
     }
 
     function weakTopics(r) {
-      const ts = r.topicStats || {};
+      const ts = r.topicStats && typeof r.topicStats === "object" ? r.topicStats : {};
       return Object.keys(ts)
-        .filter((k) => ts[k].total && ts[k].correct / ts[k].total < 0.6)
+        .filter((k) => ts[k] && num(ts[k].total) && num(ts[k].correct) / num(ts[k].total) < 0.6)
         .map((k) => TOPICS[k] || k)
         .join(", ") || "—";
     }
 
+    // Отметку ставит сервер по токену сессии: подделать её из браузера нельзя.
+    function accMark(r) {
+      if (r.verified === true) {
+        return "<span class='acc ok' title='Прислано из аккаунта ученика с этим именем'>✓</span>";
+      }
+      if (typeof r.account === "string" && r.account) {
+        return "<span class='acc other' title='Имя набрано вручную, а вход был в другой аккаунт'>вход: " +
+          esc(r.account) + "</span>";
+      }
+      return "";
+    }
+
+    const MODE_NAMES = { dungeon: "Подземелье", practice: "Тренажёр", test: "Тест" };
+
+    let lastData = [];
+
     function render(data) {
+      lastData = data;
+      const all = (Array.isArray(data) ? data : []).filter((r) => r && typeof r === "object");
+      const onlyAcc = document.getElementById("only-acc").checked;
+      data = onlyAcc ? all.filter((r) => r.verified === true) : all;
       const stats = document.getElementById("stats");
       const rows = document.getElementById("rows");
       const empty = document.getElementById("empty");
@@ -118,14 +163,20 @@
       rows.innerHTML = "";
       if (!data.length) {
         stats.innerHTML = "";
+        empty.textContent = onlyAcc && all.length ? "Результатов из аккаунтов пока нет."
+          : "Пока никто не прошёл тест.";
         empty.classList.remove("hidden");
+        // Карта тем и рейтинг тоже пустеют: иначе после фильтра в них
+        // оставались бы строки прошлой отрисовки.
+        renderHeat(data);
+        renderBoard(data);
         return;
       }
       empty.classList.add("hidden");
 
-      const avg = Math.round(data.reduce((s, r) => s + (r.percent || 0), 0) / data.length);
+      const avg = Math.round(data.reduce((s, r) => s + num(r.percent), 0) / data.length);
       const dist = { novice: 0, basic: 0, confident: 0, advanced: 0 };
-      data.forEach((r) => { const k = (r.level || {}).key; if (k) dist[k]++; });
+      data.forEach((r) => { const k = (r.level || {}).key; if (k in dist) dist[k]++; });
 
       stats.innerHTML =
         card(data.length, "Прошли тест") +
@@ -144,12 +195,12 @@
         const tr = document.createElement("tr");
         tr.innerHTML =
           "<td>" + (i + 1) + "</td>" +
-          "<td><b>" + esc(r.name) + "</b></td>" +
-          "<td>" + (r.mode === "dungeon" ? "Подземелье" : "Тест") + "</td>" +
-          "<td>" + new Date(r.date).toLocaleString("ru-RU") + "</td>" +
-          "<td><b>" + (r.percent || 0) + "%</b></td>" +
+          "<td><b>" + esc(r.name) + "</b>" + accMark(r) + "</td>" +
+          "<td>" + (MODE_NAMES[r.mode] || "Тест") + "</td>" +
+          "<td>" + esc(fmtDate(r.date)) + "</td>" +
+          "<td><b>" + num(r.percent) + "%</b></td>" +
           "<td><span class='lvl' style='background:" + color + "'>" + esc(lvl.title || "") + "</span></td>" +
-          "<td>" + (r.correctCount || 0) + "/" + (r.total || 0) + "</td>" +
+          "<td>" + num(r.correctCount) + "/" + num(r.total) + "</td>" +
           "<td>" + fmtTime(r.seconds) + "</td>" +
           "<td>" + esc(weakTopics(r)) + "</td>";
         rows.appendChild(tr);
@@ -159,11 +210,12 @@
     function renderHeat(data) {
       const agg = {};
       data.forEach((r) => {
-        const ts = r.topicStats || {};
+        const ts = r.topicStats && typeof r.topicStats === "object" ? r.topicStats : {};
         Object.keys(ts).forEach((k) => {
+          if (!ts[k] || !num(ts[k].total)) return;
           if (!agg[k]) agg[k] = { correct: 0, total: 0 };
-          agg[k].correct += ts[k].correct || 0;
-          agg[k].total += ts[k].total || 0;
+          agg[k].correct += num(ts[k].correct);
+          agg[k].total += num(ts[k].total);
         });
       });
       const box = document.getElementById("heat");
@@ -180,23 +232,28 @@
     }
 
     function renderBoard(data) {
+      // Строки из аккаунта и строки с тем же именем без входа — разные места
+      // в рейтинге: иначе чужой результат под этим именем поднимал бы ученика.
       const byName = {};
       data.forEach((r) => {
-        const n = (r.name || "").trim();
+        const n = String(r.name || "").trim();
         if (!n) return;
-        const cur = byName[n] || { name: n, quiz: 0, floors: 0, victory: false };
-        if (r.mode !== "dungeon") cur.quiz = Math.max(cur.quiz, r.percent || 0);
+        const verified = r.verified === true;
+        const key = (verified ? "✓" : "?") + n;
+        const cur = byName[key] || { name: n, verified: verified, quiz: 0, floors: 0, victory: false };
+        if (r.mode !== "dungeon") cur.quiz = Math.max(cur.quiz, num(r.percent));
         if (r.dungeon) {
-          cur.floors = Math.max(cur.floors, r.dungeon.floorsCleared || 0);
+          cur.floors = Math.max(cur.floors, num(r.dungeon.floorsCleared));
           cur.victory = cur.victory || !!r.dungeon.victory;
         }
-        byName[n] = cur;
+        byName[key] = cur;
       });
       const list = Object.keys(byName).map((k) => byName[k])
         .sort((a, b) => (b.victory - a.victory) || (b.floors - a.floors) || (b.quiz - a.quiz));
       const board = document.getElementById("board");
       board.innerHTML = list.map((r, i) =>
-        "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b></td><td>" +
+        "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b>" +
+        (r.verified ? "<span class='acc ok' title='Из аккаунта ученика'>✓</span>" : "") + "</td><td>" +
         (r.quiz ? r.quiz + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
         (r.victory ? "★" : "—") + "</td></tr>").join("") ||
         "<tr><td colspan='5' class='empty'>Нет данных.</td></tr>";
@@ -208,7 +265,8 @@
 
     function esc(s) {
       return String(s == null ? "" : s)
-        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
     }
 
     function load() {
@@ -227,6 +285,7 @@
 
     document.querySelector(".head .btn").href = "/api/export.csv" + QS;
     document.getElementById("refresh").addEventListener("click", load);
+    document.getElementById("only-acc").addEventListener("change", () => render(lastData));
     load();
     setInterval(load, 15000);
   </script>

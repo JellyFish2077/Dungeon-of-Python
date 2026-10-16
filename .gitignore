@@ -10,4 +10,18 @@ users.json.tmp
 .env
 node_modules/
 .secret
+.admin-secret
+game-config.json
+game-config.json.tmp
+game-config.backup.json
 social.db
+# Драйвер проверок собирается verify_dungeon.py из tools/ и удаляется после
+# прогона. Если процесс убьют, файл останется в корне — в коммит ему не надо.
+_verify_dungeon.js
+# Рабочие пробы бота: одиночные скрипты для отладки, не часть проекта.
+_probe_*.js
+_probe_*.txt
+
+# Рабочие планы и логи агента: не часть проекта.
+.zcode/
+*.log.err

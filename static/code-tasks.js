@@ -344,7 +344,17 @@ const FILL_TASKS = [
     topic: "control",
     level: 3,
     explanation: "Цикл while повторяется, пока условие истинно."
-  }
+   },
+  {
+    id: "fill_import",
+    title: "Подключаем модуль",
+    code: "import math\nprint(math.___(81))",
+    options: ["sqrt", "root", "pow2", "abs"],
+    answer: 0,
+    topic: "modules",
+    level: 2,
+    explanation: "math.sqrt(81) — квадратный корень, результат 9.0. Доступ к функции модуля пишется через точку: math.sqrt."
+  },
 ];
 
 // Задания «найди ошибку». В коде есть ошибка — выбери, в чём она.
@@ -468,5 +478,35 @@ const ERROR_TASKS = [
     topic: "errors",
     level: 3,
     explanation: "В пустом списке нет элемента с индексом 0 — будет IndexError."
-  }
+   },
+  {
+    id: "err_default",
+    title: "Найди ошибку",
+    code: "def add(item, bag=[]):\n    bag.append(item)\n    return bag",
+    options: [
+      "Значение по умолчанию создаётся один раз: нужно bag=None и список внутри",
+      "Нет ошибки, так и задумано",
+      "Нужно вернуть bag[:] вместо bag",
+      "append нельзя вызывать внутри функции"
+    ],
+    answer: 0,
+    topic: "functions",
+    level: 4,
+    explanation: "Пустой список в значении по умолчанию один на все вызовы, поэтому предметы копятся между вызовами. Пишут bag=None, а внутри функции: if bag is None: bag = []."
+  },
+  {
+    id: "err_alias",
+    title: "Найди ошибку",
+    code: "def clone(items):\n    return items\n\na = [1, 2]\nb = clone(a)\nb.append(3)",
+    options: [
+      "clone возвращает ту же ссылку: копию делает return items[:]",
+      "Нет ошибки: b — копия списка a",
+      "Нужно print(b) вместо b.append(3)",
+      "Список нельзя передавать в функцию"
+    ],
+    answer: 0,
+    topic: "collections",
+    level: 4,
+    explanation: "return items отдаёт тот же список, поэтому b.append(3) меняет и a. Копию делает return items[:] или items.copy()."
+  },
 ];

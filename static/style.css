@@ -14,6 +14,14 @@
   --border: #e2e8f0;
   --radius: 16px;
   --shadow: 0 10px 30px rgba(15, 23, 42, 0.15);
+  /* Микротекстура вместо градиентов: точка 0.6 px в сетке 4 px, 5% белого. */
+  --tex-dots: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4'%3E%3Ccircle cx='1' cy='1' r='.6' fill='%23ffffff' fill-opacity='.05'/%3E%3C/svg%3E");
+  /* Сетка неизведанных плиток подземелья. */
+  --tex-grid: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10'%3E%3Ccircle cx='2' cy='2' r='.7' fill='%237da2d9' fill-opacity='.12'/%3E%3C/svg%3E");
+  /* Камешки, кости и грибы — рисунок в плитке вместо радиальных пятен. */
+  --tex-stones: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Ccircle cx='3' cy='4' r='1.1' fill='%2394a3b8' fill-opacity='.5'/%3E%3Ccircle cx='8' cy='8' r='1.3' fill='%2364748b' fill-opacity='.5'/%3E%3Ccircle cx='9.5' cy='3' r='.9' fill='%2394a3b8' fill-opacity='.4'/%3E%3C/svg%3E");
+  --tex-bones: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Cpath d='M2 12 L12 2 M2 9 L8 2' stroke='%23cbd5e1' stroke-opacity='.65' stroke-width='1.4' fill='none'/%3E%3C/svg%3E");
+  --tex-mushrooms: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14'%3E%3Ccircle cx='5' cy='9' r='2.2' fill='%23f87171' fill-opacity='.85'/%3E%3Ccircle cx='9' cy='6' r='1.8' fill='%23ef4444' fill-opacity='.75'/%3E%3C/svg%3E");
 }
 
 * {
@@ -25,7 +33,8 @@ body {
   min-height: 100vh;
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   color: var(--text);
-  background: radial-gradient(circle at 20% 0%, #1e3a8a 0%, var(--bg) 45%, #020617 100%);
+  background-color: #0b1220;
+  background-image: var(--tex-dots);
   padding: 24px 16px 48px;
   display: flex;
   justify-content: center;
@@ -36,44 +45,74 @@ body {
   max-width: 760px;
 }
 
+/* Шапка сайта: имя и сразу за ним переходы по сайту — одной группой слева,
+   а не по разным краям окна. Кнопок как таковых нет — это текстовые ссылки;
+   при наведении текст подсвечивается и даёт мягкую тень. */
+.site-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px 24px;
+  margin-bottom: 18px;
+}
+
 .brand {
   display: flex;
   align-items: center;
   gap: 12px;
   color: #e2e8f0;
-  margin-bottom: 18px;
+  margin: 0;
 }
 
 .nav {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-  margin: 0 0 16px;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px 18px;
+  margin: 0;
 }
 
 .nav-btn {
-  padding: 9px 16px;
-  border-radius: 999px;
+  position: relative;
+  padding: 3px 1px;
+  border: 0;
+  border-radius: 0;
+  background: none;
   text-decoration: none;
   font-weight: 600;
   font-size: 14px;
-  border: 1px solid #334155;
-  color: #cbd5e1;
-  background: rgba(15, 23, 42, 0.35);
-  transition: all 0.12s;
+  color: #93a3ba;
+  transition: color 0.14s ease, text-shadow 0.14s ease;
 }
 
 .nav-btn:hover {
-  border-color: var(--primary);
-  color: #fff;
-  background: rgba(37, 99, 235, 0.35);
+  color: #f2f7ff;
+  text-shadow: 0 1px 12px rgba(125, 162, 217, 0.65), 0 0 2px rgba(226, 240, 255, 0.4);
 }
 
+.nav-btn:focus-visible {
+  outline: 2px solid #7da2d9;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Текущий раздел: тот же текст, только акцентный и с волосяной чертой снизу. */
 .nav-btn.active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  color: #f6c453;
+}
+
+.nav-btn.active::after {
+  content: "";
+  position: absolute;
+  left: 1px;
+  right: 1px;
+  bottom: -4px;
+  height: 2px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.85;
 }
 
 .brand .logo {
@@ -82,7 +121,7 @@ body {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: linear-gradient(135deg, #3b82f6, #facc15);
+  background: #f6c453;
   font-size: 22px;
   font-weight: 700;
   color: #0f172a;
@@ -323,7 +362,7 @@ input[type="text"]:focus {
   display: block;
   height: 100%;
   width: 0;
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  background: #3b82f6;
   transition: width 0.3s ease;
 }
 
@@ -607,25 +646,6 @@ table.breakdown td:last-child {
 
 /* ================= Визуальный апгрейд ================= */
 
-/* Живой фон */
-body::before {
-  content: "";
-  position: fixed;
-  inset: -20%;
-  z-index: 0;
-  background:
-    radial-gradient(circle at 18% 12%, rgba(59, 130, 246, 0.28), transparent 42%),
-    radial-gradient(circle at 82% 8%, rgba(168, 85, 247, 0.22), transparent 40%),
-    radial-gradient(circle at 70% 88%, rgba(246, 196, 83, 0.12), transparent 45%),
-    radial-gradient(circle at 25% 85%, rgba(16, 185, 129, 0.12), transparent 42%);
-  animation: bgDrift 24s ease-in-out infinite alternate;
-  pointer-events: none;
-}
-
-@keyframes bgDrift {
-  0% { transform: translate3d(-2%, -1%, 0) scale(1.02); }
-  100% { transform: translate3d(2%, 1.5%, 0) scale(1.08); }
-}
 
 .app {
   position: relative;
@@ -645,13 +665,13 @@ body::before {
 
 /* Логотип */
 .brand .logo {
-  box-shadow: 0 0 18px rgba(59, 130, 246, 0.6), inset 0 -3px 6px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 0 18px rgba(246, 196, 83, 0.45), inset 0 -3px 6px rgba(0, 0, 0, 0.3);
   animation: logoGlow 3.5s ease-in-out infinite;
 }
 
 @keyframes logoGlow {
-  0%, 100% { box-shadow: 0 0 14px rgba(59, 130, 246, 0.5); }
-  50% { box-shadow: 0 0 24px rgba(246, 196, 83, 0.7); }
+  0%, 100% { box-shadow: 0 0 14px rgba(246, 196, 83, 0.35); }
+  50% { box-shadow: 0 0 22px rgba(246, 196, 83, 0.6); }
 }
 
 /* Кнопки */
@@ -698,17 +718,6 @@ body::before {
   40%, 60% { transform: translateX(5px); }
 }
 
-/* Прогресс-бар с бликом */
-.progress > i {
-  background: linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6);
-  background-size: 200% 100%;
-  animation: shimmer 2.4s linear infinite;
-}
-
-@keyframes shimmer {
-  from { background-position: 0 0; }
-  to { background-position: 200% 0; }
-}
 
 /* Бейдж уровня */
 .level-badge {
@@ -733,4 +742,340 @@ body::before {
 input:focus-visible {
   outline: 3px solid rgba(125, 211, 252, 0.7);
   outline-offset: 2px;
+}
+
+/* ================= Прогон теста: настройки перед стартом ================= */
+
+.run-setup {
+  margin-top: 18px;
+  display: grid;
+  gap: 12px;
+}
+
+.setup-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.setup-label {
+  flex: 0 0 128px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.chip.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#topic-select {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  min-width: 220px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #1e293b;
+}
+
+#topic-select:disabled {
+  opacity: 0.55;
+}
+
+.run-hint {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.account-line {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: #334155;
+}
+
+/* Разминка по слабым темам в итоге и кнопки у строк разбивки */
+.practice-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.practice-row .btn {
+  font-size: 13px;
+  padding: 8px 14px;
+}
+
+.topic-practice {
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.topic-practice:hover {
+  color: #1d4ed8;
+}
+
+/* Разбивка по уровням сложности под таблицей тем */
+.level-line {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #64748b;
+}
+
+.level-line b {
+  color: #334155;
+}
+
+/* --- Проход 2: мотивация (серия, рост, прогресс по темам, клавиши) --- */
+.topbar-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.streak-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ea580c;
+}
+
+.streak-line.pop {
+  animation: correctPop 0.35s ease;
+}
+
+.keys-hint {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.delta-line {
+  margin: 10px auto 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.delta-line .up {
+  color: #16a34a;
+}
+
+.delta-line .down {
+  color: #dc2626;
+}
+
+.delta-line .same {
+  color: #64748b;
+}
+
+.delta-line .record {
+  color: #b45309;
+}
+
+.badge-next {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.topic-progress {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 6px 22px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.topic-progress .tp-title {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 13px;
+  color: #334155;
+}
+
+.topic-progress .tp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  color: #334155;
+  text-align: left;
+  cursor: pointer;
+}
+
+.topic-progress .tp-row:hover {
+  color: #1d4ed8;
+}
+
+.topic-progress .tp-name {
+  flex: 0 1 auto;
+  max-width: 170px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.topic-progress .tp-pct {
+  flex: 0 0 42px;
+  color: #64748b;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.topic-progress .tp-bar {
+  flex: 1 1 auto;
+  min-width: 50px;
+  height: 6px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.topic-progress .tp-bar i {
+  display: block;
+  height: 100%;
+}
+
+/* Проход 3: самоподготовка — выбор темы, связка с уроком, слабые темы */
+.practice-setup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+}
+
+.practice-setup #pr-topic {
+  flex: 0 1 240px;
+  min-width: 160px;
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.practice-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin: 12px 0 6px;
+}
+
+.practice-head .difficulty {
+  margin: 0;
+}
+
+.practice-topic {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: #2563eb;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.weak-topic {
+  border: 1px solid #fbbf24;
+  background: #fffbeb;
+  color: #92400e;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.weak-topic:hover {
+  background: #fef3c7;
+}
+
+.lesson-practice {
+  margin-top: 10px;
+}
+
+/* На узком экране код и поля заданий не должны распирать карточку */
+@media (max-width: 640px) {
+  .practice-setup {
+    align-items: stretch;
+  }
+
+  .practice-setup #pr-topic {
+    flex: 1 1 100%;
+  }
+
+  #pr-code2,
+  #pr-copy,
+  #rc-code {
+    font-size: 13px;
+  }
+
+  pre.code {
+    overflow-x: auto;
+  }
+}
+
+/* Системная настройка «меньше движения»: гасим анимации страницы */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

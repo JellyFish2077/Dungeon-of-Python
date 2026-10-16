@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Подземелье Python — главное меню</title>
+  <title>PyDungeon — главное меню</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/static/style.css" />
   <style>
@@ -32,24 +32,22 @@
 </head>
 <body>
   <div class="home">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Подземелье Python</h1>
-        <p>Тест, самоподготовка и игра — учись и сражайся знаниями</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
 
-    </div>
-
-    <nav class="nav">
-      <a class="nav-btn active" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn active" href="/">Главная</a>
+        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
+        <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
+        <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <div class="cols">
       <main>

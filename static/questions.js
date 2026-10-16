@@ -849,7 +849,67 @@ const QUESTIONS = [
     options: ["Привет, {name}!", "Привет, Герой!", "Привет, name!", "Ошибка"],
     answer: 1,
     explanation: "Буква f перед строкой подставляет значения переменных из фигурных скобок."
-  }
+   },
+  // ----- Добавлено под лекцию «Python: основы до ООП»: модули и ловушки -----
+  {
+    id: 86,
+    topic: "modules",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.sqrt(16))",
+    options: ["4.0", "4", "16", "Ошибка: math не подключён"],
+    answer: 0,
+    explanation: "Модуль сначала подключают через import, а потом берут из него функции с точкой. sqrt() возвращает float, поэтому 4.0, а не 4."
+  },
+  {
+    id: 87,
+    topic: "modules",
+    level: 3,
+    text: "Что даёт строка from math import sqrt?",
+    code: "from math import sqrt\nprint(sqrt(25))",
+    options: ["Подключает только sqrt: вызывать как sqrt(25)", "Подключает весь модуль math", "Переименовывает sqrt в math", "Так писать нельзя"],
+    answer: 0,
+    explanation: "from модуль import имя берёт из модуля одно имя, и обращаться к нему нужно без точки. Весь модуль подключает обычный import math."
+  },
+  {
+    id: 88,
+    topic: "modules",
+    level: 2,
+    text: "Как поставить сторонний пакет, например requests?",
+    options: ["pip install requests", "import pip requests", "python install requests", "pip get requests"],
+    answer: 0,
+    explanation: "pip — установщик пакетов: pip install requests ставит пакет из PyPI, после чего его подключают обычным import requests."
+  },
+  {
+    id: 89,
+    topic: "modules",
+    level: 4,
+    text: "Что делает блок if __name__ == \"__main__\":?",
+    code: "if __name__ == \"__main__\":\n    print(\"старт\")",
+    options: ["Выполняется только при прямом запуске файла, а не при импорте", "Выполняется всегда", "Объявляет функцию main", "Запускает файл заново"],
+    answer: 0,
+    explanation: "При прямом запуске __name__ равно \"__main__\", при импорте — имени модуля. Блок защищает код запуска: чужой import его не выполнит."
+  },
+  {
+    id: 90,
+    topic: "strings",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "name = \"герой\"\nname[0] = \"Г\"\nprint(name)",
+    options: ["TypeError: строку изменить нельзя", "Герой", "герой", "Пустую строку"],
+    answer: 0,
+    explanation: "Строка неизменяема, поэтому присваивание по индексу вызывает TypeError. Нужную строку собирают заново: name = \"Г\" + name[1:]."
+  },
+  {
+    id: 91,
+    topic: "functions",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "def add(item, bag=[]):\n    bag.append(item)\n    return bag\n\nprint(add(\"меч\"))\nprint(add(\"щит\"))",
+    options: ["['меч'] и ['меч', 'щит']", "['меч'] и ['щит']", "['меч', 'щит'] в обоих вызовах", "Ошибка: список в аргументе"],
+    answer: 0,
+    explanation: "Значение по умолчанию создаётся один раз, при определении функции, поэтому список один и тот же во всех вызовах. Безопасно: bag=None, а внутри if bag is None: bag = []."
+  },
 ];
 
 // Понятные названия тем для отчёта

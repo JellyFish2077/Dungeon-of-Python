@@ -23,23 +23,22 @@
 </head>
 <body>
   <div class="prof">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>Профиль</h1>
-        <p>Аккаунт, статистика и достижения</p>
+    <header class="site-head">
+      <div class="brand">
+        <div class="logo">Py</div>
+        <h1>PyDungeon</h1>
       </div>
-    </div>
 
-    <nav class="nav">
-      <a class="nav-btn" href="/">Главная</a>
-      <a class="nav-btn" href="/quiz">Тест</a>
-      <a class="nav-btn" href="/game">Подземелье</a>
-      <a class="nav-btn" href="/study">Самоподготовка</a>
-      <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
-      <a class="nav-btn active" id="nav-profile" href="/profile">Профиль</a>
-      <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
-    </nav>
+      <nav class="nav">
+        <a class="nav-btn" href="/">Главная</a>
+        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/game">Подземелье</a>
+        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
+        <a class="nav-btn active" id="nav-profile" href="/profile">Профиль</a>
+        <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+      </nav>
+    </header>
 
     <section class="card" id="login-card" style="display:none">
       <h2>Нужен вход</h2>
@@ -59,6 +58,10 @@
 
       <label class="field" style="margin-top:16px">О себе</label>
       <textarea id="about" maxlength="300" placeholder="Пара слов о себе"></textarea>
+
+      <label class="field" style="margin-top:12px" for="nick">Никнейм в подземелье</label>
+      <input id="nick" type="text" maxlength="16" placeholder="Например: Бешеный Ёж" />
+      <p class="lead" id="nick-hint" style="margin:6px 0 0"></p>
 
       <label class="field" style="margin-top:12px">Цвет аватара</label>
       <div class="palette" id="palette"></div>
@@ -117,11 +120,15 @@
       const best = runs.reduce((m, r) => Math.max(m, r.percent || 0), 0);
       const floors = local.dungeonBest ? local.dungeonBest.floors : 0;
       const win = !!(local.dungeonBest && local.dungeonBest.victory);
+      const studyTotal = (local.stats && local.stats.studyTotal) || 0;
+      const studyBest = (local.stats && local.stats.studyBestStreak) || 0;
       document.getElementById("stats").innerHTML =
         box(runs.length, "Прохождений теста") +
         box(best + "%", "Лучший результат") +
         box(floors || "—", "Этаж в подземелье") +
-        box(win ? "★" : "—", "Победа над драконом");
+        box(win ? "★" : "—", "Победа над драконом") +
+        box(studyTotal || "—", "Заданий в самоподготовке") +
+        box(studyBest ? studyBest + " подряд" : "—", "Лучшая серия практики");
       document.getElementById("wallet").textContent = "Кошелёк: " + walletText(local.wallet || {gold:0});
       document.getElementById("badges").innerHTML = badgesHtml(local);
     }
@@ -145,6 +152,10 @@
           document.getElementById("p-role").textContent = me.role === "teacher" ? "преподаватель" : "ученик";
           document.getElementById("p-created").textContent = me.created ? "С нами с " + me.created.slice(0, 10) : "";
           document.getElementById("about").value = me.about || "";
+          const local = getProfile(me.name) || {};
+          document.getElementById("nick").value = local.dungeonName || "";
+          document.getElementById("nick-hint").textContent =
+            "Так героя зовут в подземелье. Пусто — имя учётной записи: " + me.name + ".";
           renderPalette(); paintAvatar(); renderStats();
         })
         .catch(() => { document.getElementById("msg").textContent = "Сервер недоступен"; });
@@ -154,13 +165,35 @@
       const u = currentUser();
       if (!u || !u.token) return;
       const about = document.getElementById("about").value;
+      const msg = document.getElementById("msg");
+      // Никнейм хранится в локальном профиле (profile.js): он попадает и на
+      // сервер вместе с остальным профилем, а учётное имя остаётся ключом.
+      const before = (getProfile(u.name) || {}).dungeonName || "";
+      const nick = document.getElementById("nick").value.replace(/\s+/g, " ").trim();
+      if (nick && nick.length < 2) {
+        msg.textContent = "Никнейм: минимум 2 символа (или оставьте поле пустым).";
+        return;
+      }
+      if (/[<>"'&]/.test(nick)) {
+        msg.textContent = "Никнейм: без символов < > \" ' &.";
+        return;
+      }
+      const prof = getProfile(u.name);
+      if (prof) {
+        if (nick) prof.dungeonName = nick; else delete prof.dungeonName;
+        putProfile(u.name, prof);
+        if (typeof syncProfile === "function") syncProfile(u.name);
+      }
       fetch("/api/profile/update", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token: u.token, about: about, avatar: avatar })
       }).then((r) => r.json()).then((res) => {
-        document.getElementById("msg").textContent = res.ok ? "Сохранено." : (res.error || "Ошибка");
-        if (res.ok) { me = res.user; paintAvatar(); toast("Профиль сохранён"); }
-      }).catch(() => { document.getElementById("msg").textContent = "Сервер недоступен"; });
+        msg.textContent = res.ok ? "Сохранено." : (res.error || "Ошибка");
+        if (res.ok) {
+          me = res.user; paintAvatar();
+          toast(nick !== before ? "Никнейм в подземелье сохранён" : "Профиль сохранён");
+        }
+      }).catch(() => { msg.textContent = "Сервер недоступен"; });
     });
     document.getElementById("reload-btn").addEventListener("click", load);
 
