@@ -495,6 +495,19 @@
     toast._timer = setTimeout(() => t.classList.remove("show"), ms || 2200);
   }
 
+  // Звук необязателен для логики: в node-проверках модуля нет, и игра просто
+  // молчит. Ошибку аудио тоже глотаем — она не должна ломать бой.
+  function sfx(name) {
+    if (typeof window === "undefined") return;
+    const sound = window.PySound;
+    if (!sound || typeof sound.play !== "function") return;
+    try {
+      sound.play(name);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   // ---------- Подсказки при наведении ----------
 
   // Строки в панели и в лавке короткие, а подробности (эффект, семья,
@@ -5250,6 +5263,13 @@
   // жители. Ученик, который проскочил развилку, застревал: дракон повержен,
   // выход открыт, а «Спуститься ниже» нажать нечем.
   function overlayOpen() {
+    // Стартовое меню — тоже модальное окно: под ним нельзя открыть сундук
+    // или пропустить ход. Проверяем через PyMenu, а не через DOM: в
+    // node-проверках этого модуля нет, и заглушка элемента всегда «видима».
+    if (typeof window !== "undefined" && window.PyMenu &&
+        typeof window.PyMenu.isOpen === "function" && window.PyMenu.isOpen()) {
+      return true;
+    }
     return ["end-overlay", "shop-overlay", "battle-overlay", "forge-overlay",
       "level-loading", "entrance-overlay", "calibration-overlay", "dialog-overlay"].some((id) => {
       const node = el(id);
@@ -6754,6 +6774,8 @@
 
   function applyAttack(damage, message, counter, explanation, correct) {
     const b = G.battle;
+    if (correct) sfx("correct");
+    else if (counter) sfx("wrong");
     const e = b.enemy;
     const ability = abilityOf(e);
     // «Точный удар»: заряд удваивает следующий верный ответ. Промах заряда
@@ -8109,6 +8131,7 @@ function topicName(key) {
   }
 
   function showDeath() {
+    sfx("death");
     const earned = earnGameBadges();
     if (earned.length) toast("Достижение: " + earned.map((b) => b.title).join(", "));
     saveDungeonBest(false);
@@ -8937,6 +8960,7 @@ function topicName(key) {
 
   function victory() {
     if (G.finishedVictory) return;
+    sfx("victory");
     G.finishedVictory = true;
     G.running = false;
     // Сначала банк, потом сейв: закрытая вкладка на экране победы не должна
@@ -9868,6 +9892,14 @@ function topicName(key) {
       if (t.closest("#calib-close")) { closeCalibration(); }
     });
     el("leave-btn").addEventListener("click", leave);
+    const menuBtn = el("menu-btn");
+    if (menuBtn) {
+      menuBtn.addEventListener("click", () => {
+        if (window.PyMenu && typeof window.PyMenu.open === "function") {
+          window.PyMenu.open();
+        }
+      });
+    }
     el("village-btn").addEventListener("click", returnToVillage);
     el("shop-btn").addEventListener("click", () => openShop(false));
     el("action-btn").addEventListener("click", doInteract);
@@ -10036,6 +10068,13 @@ function topicName(key) {
     );
 
     document.addEventListener("keydown", (e) => {
+      // Меню — модальное окно: под ним не ходят, не пропускают ход и не
+      // открывают панели. Свои клавиши (Escape, Enter в полях) меню
+      // обрабатывает отдельным слушателем.
+      if (typeof window !== "undefined" && window.PyMenu &&
+          typeof window.PyMenu.isOpen === "function" && window.PyMenu.isOpen()) {
+        return;
+      }
       // F2 открывает панель разработчика, если сервер запущен с --dev.
       if (e.key === "F2" && devEnabled()) {
         e.preventDefault();
@@ -10190,7 +10229,13 @@ function topicName(key) {
     // Игра открывается в деревне, только если продолжать нечего: иначе
     // обновление страницы посреди похода выбрасывало в деревню, а «Продолжить»
     // пряталось в окне стража — со стороны это выглядело как сброс прогресса.
-    if (!resumeOnLoad()) enterVillage(null);
+    const resumed = resumeOnLoad();
+    if (!resumed) enterVillage(null);
+    // Стартовое меню — первый экран. После входа страница перезагружается,
+    // и PyMenu.boot сам пропускает меню, если игрок уже нажал «Играть».
+    if (window.PyMenu && typeof window.PyMenu.boot === "function") {
+      window.PyMenu.boot({ resumed: resumed });
+    }
     devInit();
   });
 
@@ -10963,6 +11008,28 @@ function topicName(key) {
       // Игра открыта без сервера (файлом) — играем на своих числах.
       return Promise.resolve(0);
     }
+  }
+
+  // Меню не знает внутренностей игры: ему достаточно места, этажа и того,
+  // есть ли что продолжать. resume — та же загрузка сейва, что у стража.
+  if (typeof window !== "undefined") {
+    window.PyGameMenuAPI = {
+      status: function () {
+        const paused = pausedRun();
+        const place = G.place || (G.running ? "dungeon" : "village");
+        const floor = (paused ? (paused.floorIndex || 0) : (G.floorIndex || 0)) + 1;
+        const gold = paused && paused.player ? (paused.player.gold || 0)
+          : (G.player ? (G.player.gold || 0) : 0);
+        return {
+          paused: !!paused && !paused.over,
+          running: !!G.running,
+          place: place,
+          floor: floor,
+          gold: gold
+        };
+      },
+      resume: loadGame
+    };
   }
 
   // Публичной сборке нужен только вход из стартового экрана; серверная

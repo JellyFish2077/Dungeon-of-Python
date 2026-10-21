@@ -7,6 +7,7 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="stylesheet" href="/static/game.css" />
+  <link rel="stylesheet" href="/static/menu.css" />
 </head>
 <body class="game-page">
   <header class="site-head">
@@ -25,7 +26,7 @@
       <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
       <button class="head-link" id="hud-btn" type="button" data-tip="Показать или скрыть панель героя: здоровье, снаряжение, сумка.">HUD</button>
       <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню, не заканчивая поход: этаж, золото и снаряжение сохранятся. Продолжить можно у стража у входа.">В деревню</button>
-      <a class="head-link" id="menu-btn" href="/" data-tip="Главное меню сайта. Поход сохранится, его можно будет продолжить.">Меню</a>
+      <button class="head-link" id="menu-btn" type="button" data-tip="Главное меню игры: вход, настройки и продолжение похода.">Меню</button>
       <button class="head-link" id="fullscreen-btn" type="button" data-tip="На весь экран (F11)">⛶</button>
       <button class="head-link" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
       <span class="app-version" data-app-version></span>
@@ -250,6 +251,95 @@
     <div class="battle inventory" id="forge-box"></div>
   </div>
 
+  <!-- Стартовое меню: вход, продолжение похода и настройки. Лежит поверх игры,
+       поэтому деревня успевает отрисоваться за ним, а «Играть» просто
+       закрывает меню. В веб-сборке вместо PIN — локальное имя. -->
+  <div class="overlay menu-overlay hidden" id="menu-overlay">
+    <main class="menu-screen" role="dialog" aria-modal="true" aria-labelledby="menu-title">
+      <header class="menu-top">
+        <div class="menu-brand">
+          <div class="menu-logo" aria-hidden="true">Py</div>
+          <div>
+            <h1 id="menu-title">PyDungeon</h1>
+            <p>Python-рогалик: вопросы, код, деревня и дракон</p>
+          </div>
+        </div>
+        <span class="menu-version" data-app-version></span>
+      </header>
+
+      <div class="menu-grid">
+        <section class="menu-main">
+          <p class="menu-kicker">Главное меню</p>
+          <h2 id="menu-greeting">Добро пожаловать</h2>
+          <p class="menu-status" id="menu-status" aria-live="polite">
+            Войди в аккаунт — и можно спускаться.
+          </p>
+
+          <div class="menu-account" id="menu-account"></div>
+
+          <div class="menu-actions">
+            <button class="menu-btn primary" id="menu-play" type="button">Играть</button>
+            <button class="menu-btn" id="menu-settings-btn" type="button">Настройки</button>
+            <button class="menu-btn ghost" id="menu-help-btn" type="button"
+                    aria-expanded="false" aria-controls="menu-help">Как играть</button>
+          </div>
+
+          <div class="menu-help hidden" id="menu-help">
+            <h3>Управление</h3>
+            <div class="menu-keys">
+              <div><b>WASD / стрелки</b> — ходить</div>
+              <div><b>E</b> — действие</div>
+              <div><b>Пробел</b> — пропустить ход</div>
+              <div><b>I</b> — сумка</div>
+              <div><b>F</b> — кузница</div>
+              <div><b>M</b> — мини-карта</div>
+            </div>
+            <p>
+              Первый спуск — у стража у входа в подземелье: он же покажет
+              сложность и режим похода.
+            </p>
+          </div>
+        </section>
+
+        <aside class="menu-side">
+          <section class="menu-panel" id="menu-settings" aria-labelledby="menu-settings-title">
+            <h3 id="menu-settings-title">Настройки</h3>
+
+            <label class="menu-toggle" for="set-sound">
+              <input type="checkbox" id="set-sound" />
+              <span class="menu-toggle-box" aria-hidden="true"></span>
+              <span>Звук</span>
+            </label>
+
+            <label class="menu-range" for="set-volume">
+              <span>Громкость</span>
+              <output id="set-volume-out" for="set-volume">60%</output>
+              <input type="range" id="set-volume" min="0" max="100" step="5" />
+            </label>
+
+            <label class="menu-toggle" for="set-motion">
+              <input type="checkbox" id="set-motion" />
+              <span class="menu-toggle-box" aria-hidden="true"></span>
+              <span>Меньше анимации</span>
+            </label>
+
+            <button class="menu-btn" id="set-fullscreen" type="button">На весь экран</button>
+            <button class="menu-btn ghost" id="set-reset-hints" type="button">Сбросить подсказки</button>
+            <p class="menu-note" id="set-note">Настройки хранятся в этом браузере.</p>
+          </section>
+        </aside>
+      </div>
+
+      <footer class="menu-foot">
+        <span>Поход сохраняется автоматически</span>
+        <span class="menu-foot-links">
+          <a class="menu-link hidden" id="menu-teacher" href="/results">Панель учителя</a>
+          <a class="menu-link" id="menu-home" href="/">На главную</a>
+        </span>
+      </footer>
+    </main>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="/api/features.js"></script>
@@ -266,6 +356,8 @@
   <script src="/static/village-content.js"></script>
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
+  <script src="/static/audio.js"></script>
+  <script src="/static/menu.js"></script>
   <script src="/static/game.js"></script>
   <script src="/api/version.js"></script>
 </body>

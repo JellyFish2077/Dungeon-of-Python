@@ -28,6 +28,7 @@ import argparse
 import functools
 import http.server
 import os
+import re
 import socketserver
 import subprocess
 import sys
@@ -177,10 +178,31 @@ def run_checks(browser, base):
     check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
     check(page.locator("#new-game").is_visible(), "на старте есть «Новая игра»")
 
-    # 2. Переход в игру и карта.
+    # 2. «Новая игра» сразу открывает деревню: стартовый экран уже собрал имя,
+    #    поэтому игровое меню не дублируется.
     page.fill("#player-name", "Смоук")
     page.click("#new-game")
-    page.wait_for_url("**/game.html", timeout=15000)
+    page.wait_for_url(re.compile(r".*/game\.html\?play=1$"), timeout=15000)
+    page.wait_for_function(
+        "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
+    check(not page.locator("#menu-overlay").is_visible(),
+          "«Новая игра» открывает деревню без лишнего меню")
+    # Дожидаемся загрузки крупных ассетов (спрайты, рельеф, иконки), прежде
+    # чем уходить на ?menu=1: иначе браузер обрывает их загрузку и в консоли
+    # появляются сетевые ошибки, не связанные с игрой.
+    page.wait_for_load_state("load", timeout=15000)
+
+    # 3. Меню по ?menu=1: вход подставлен локальным именем, «Играть» отдаёт карту.
+    page.goto(base + "/game.html?menu=1", wait_until="load")
+    page.wait_for_function(
+        "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
+    check(page.locator("#menu-overlay").is_visible(), "стартовое меню игры открывается")
+    account = page.locator("#menu-account").inner_text()
+    check("Смоук" in account, "меню видит имя игрока", account)
+    page.click("#menu-play")
+    page.wait_for_timeout(250)
+    check(not page.locator("#menu-overlay").is_visible(), "«Играть» закрывает меню")
+
     page.wait_for_function(
         "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
     tiles = page.evaluate("() => document.querySelectorAll('#map .tile').length")
@@ -188,7 +210,7 @@ def run_checks(browser, base):
     check(page.evaluate("() => window.__PYQUIZ_WEB === true"),
           "сборка запущена в веб-режиме (без сервера)")
 
-    # 3. Python-код через Pyodide. Первый вызов грузит runtime (несколько секунд).
+    # 4. Python-код через Pyodide. Первый вызов грузит runtime (несколько секунд).
     good = page.evaluate(
         "async ({code, task}) => await window.__PYQUIZ_CHECK_CODE(code, task)",
         {"code": GOOD_CODE, "task": TASK_ID})
@@ -200,7 +222,7 @@ def run_checks(browser, base):
     check(bad.get("ok") and 0 < bad.get("passed", 0) < bad.get("total", 1),
           "неверное решение не проходит всё", bad)
 
-    # 4. Поход создаёт сейв, «Продолжить» его поднимает.
+    # 5. Поход создаёт сейв, «Продолжить» его поднимает.
     page.evaluate("() => window.__PYQUIZ_WEB_API.begin()")
     page.wait_for_function(
         "() => Object.keys(localStorage).some(k => k.startsWith('pyquiz_save_v1'))",
@@ -211,13 +233,13 @@ def run_checks(browser, base):
     page.wait_for_selector("#continue-game:not(.hidden)", timeout=10000)
     check(page.locator("#continue-game").is_visible(), "появилась «Продолжить поход»")
     page.click("#continue-game")
-    page.wait_for_url("**/game.html?resume=1", timeout=10000)
+    page.wait_for_url(re.compile(r".*/game\.html\?resume=1.*"), timeout=10000)
     page.wait_for_function(
         "() => ((document.getElementById('log') || {}).textContent || '')"
         ".includes('Продолжение игры')", timeout=15000)
     check(True, "продолжение поднимает сохранённый поход")
 
-    # 5. Сборка без сервера.
+    # 6. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))
 
     # favicon — не ошибка сборки, его отсутствие допустимо.

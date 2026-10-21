@@ -6576,6 +6576,27 @@ if (vault) {
     JSON.stringify(neutral.knowledge));
 }
 
+// Серверная копия профиля применяется на клиенте. Здесь раньше была
+// `const merged`, которую функция переприсваивала: вход и регистрация
+// падали после создания сессии, хотя аккаунт уже был создан.
+{
+  let merged = null;
+  let err = "";
+  try {
+    merged = globalThis.applyServerProfile("__server_profile_probe__", {
+      name: "__server_profile_probe__",
+      wallet: { gold: 7 },
+      stats: { codeSolved: 2 }
+    });
+  } catch (e) {
+    err = String(e && e.message ? e.message : e);
+  }
+  log(!!merged && merged.name === "__server_profile_probe__" &&
+      merged.wallet && merged.wallet.gold === 7,
+    "профиль: серверная копия применяется без ошибки",
+    err || JSON.stringify(merged && merged.wallet));
+}
+
 freshRun(0);
 
 console.log("__JSON__" + JSON.stringify(out));

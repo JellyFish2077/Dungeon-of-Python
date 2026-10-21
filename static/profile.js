@@ -364,7 +364,7 @@ function syncProfile(name) {
 
 function applyServerProfile(name, profile) {
   const local = getProfile(name) || { name: name };
-  const merged = Object.assign({}, local, profile);
+  let merged = Object.assign({}, local, profile);
   merged.name = name;
   merged.wallet = profile.wallet || local.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
   merged.wrongPool = profile.wrongPool || local.wrongPool || [];

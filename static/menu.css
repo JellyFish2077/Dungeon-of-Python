@@ -1,0 +1,608 @@
+/* ============================================================
+   Стартовое меню PyDungeon.
+   Это первый экран нового интерфейса: тёмная сталь, золото, крупная
+   антиква в заголовках и спокойные панели. Классы с префиксом menu-,
+   чтобы не спорить с игровыми .btn/.mode/.battle и не тянуть их
+   поведение в меню.
+   ============================================================ */
+
+#menu-overlay {
+  /* Поверх боя, лавки и загрузки этажа: меню — главный экран. */
+  z-index: 90;
+  padding: clamp(10px, 2.4vw, 28px);
+  background:
+    radial-gradient(900px 520px at 20% 0%, rgba(47, 111, 228, 0.16) 0%, transparent 60%),
+    radial-gradient(760px 480px at 100% 100%, rgba(246, 196, 83, 0.07) 0%, transparent 55%),
+    rgba(2, 6, 23, 0.94);
+}
+
+body.menu-open {
+  overflow: hidden;
+}
+
+/* Подсказка управления из веб-сборки не должна перекрывать меню: она
+   появляется при первом запуске и живёт поверх игры. */
+body.menu-open #web-controls-hint {
+  display: none !important;
+}
+
+.menu-screen {
+  position: relative;
+  width: min(1040px, 100%);
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(16px, 2.4vw, 26px);
+  padding: clamp(20px, 3.2vw, 38px);
+  color: #e6edf7;
+  border: 1px solid var(--steel-line, rgba(125, 162, 217, 0.18));
+  border-top: 3px solid var(--gold, #f6c453);
+  border-radius: 22px;
+  background:
+    radial-gradient(760px 300px at 12% -20%, rgba(47, 111, 228, 0.22) 0%, transparent 65%),
+    linear-gradient(180deg, #0d1a2d 0%, #0a1424 100%);
+  box-shadow:
+    0 40px 120px rgba(0, 0, 0, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 0 40px rgba(246, 196, 83, 0.06);
+  animation: menuIn 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.15);
+}
+
+@keyframes menuIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.992); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Шапка ---------- */
+
+.menu-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.menu-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.menu-logo {
+  width: 56px;
+  height: 56px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  border: 1px solid #6ea0ff;
+  background: linear-gradient(180deg, #3d7ee0, #1d4ed8);
+  box-shadow:
+    0 8px 22px rgba(37, 99, 235, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.menu-brand h1 {
+  margin: 0;
+  font-family: var(--display, Georgia, "Times New Roman", serif);
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+  color: #f4f0e6;
+  text-shadow: 0 2px 0 #000, 0 8px 26px rgba(0, 0, 0, 0.5);
+}
+
+.menu-brand p {
+  margin: 4px 0 0;
+  color: var(--steel-muted, #93a8c8);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.menu-version {
+  flex: 0 0 auto;
+  padding-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ---------- Две колонки ---------- */
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(290px, 0.88fr);
+  gap: clamp(18px, 3vw, 34px);
+  align-items: start;
+}
+
+.menu-main {
+  min-width: 0;
+}
+
+.menu-kicker {
+  margin: 0;
+  color: var(--gold, #f6c453);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.menu-main h2 {
+  margin: 6px 0 8px;
+  font-family: var(--display, Georgia, "Times New Roman", serif);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.1;
+  color: #f4f0e6;
+  overflow-wrap: anywhere;
+}
+
+.menu-status {
+  margin: 0 0 16px;
+  min-height: 22px;
+  color: var(--steel-muted, #93a8c8);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ---------- Аккаунт ---------- */
+
+.menu-account {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.menu-field {
+  margin-top: 6px;
+  color: var(--steel-muted, #93a8c8);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.menu-input {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid #33496e;
+  border-radius: 10px;
+  background: #081222;
+  color: #f1f5fb;
+  font: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.menu-input::placeholder {
+  color: #5f7395;
+}
+
+.menu-input:focus {
+  border-color: var(--gold, #f6c453);
+  box-shadow: 0 0 0 3px rgba(246, 196, 83, 0.14);
+}
+
+.menu-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.menu-error {
+  margin: 2px 0 0;
+  min-height: 18px;
+  color: #fca5a5;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.menu-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--steel-line, rgba(125, 162, 217, 0.18));
+  border-radius: 14px;
+  background: rgba(8, 18, 34, 0.72);
+}
+
+.menu-avatar {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  border: 1px solid #3b82f6;
+  background: #1e3a8a;
+  color: #dbeafe;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.menu-user-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.menu-user-text b {
+  color: #f4f0e6;
+  overflow-wrap: anywhere;
+}
+
+.menu-user-text span {
+  color: var(--steel-muted, #93a8c8);
+  font-size: 12px;
+}
+
+.menu-user .menu-btn {
+  margin-left: auto;
+}
+
+/* ---------- Кнопки ---------- */
+
+.menu-btn {
+  appearance: none;
+  padding: 11px 16px;
+  border: 1px solid #33496e;
+  border-radius: 11px;
+  background: #16263f;
+  color: #dbe6f5;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s, filter 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.menu-btn:hover {
+  border-color: #5b7db0;
+  filter: brightness(1.1);
+}
+
+.menu-btn:active {
+  transform: translateY(1px);
+}
+
+.menu-btn:focus-visible,
+.menu-link:focus-visible {
+  outline: 2px solid rgba(246, 196, 83, 0.8);
+  outline-offset: 2px;
+}
+
+.menu-btn.primary {
+  border-color: #f6c453;
+  background: linear-gradient(180deg, #f8cf6a, #d9a326);
+  color: #2b1e04;
+  font-weight: 800;
+  box-shadow:
+    0 9px 24px rgba(246, 196, 83, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.menu-btn.primary:hover {
+  filter: brightness(1.04);
+}
+
+.menu-btn.ghost {
+  background: transparent;
+}
+
+.menu-btn.small {
+  padding: 7px 11px;
+  font-size: 12px;
+}
+
+.menu-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.menu-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+
+.menu-actions .menu-btn.primary {
+  min-width: 190px;
+}
+
+/* ---------- Панель настроек ---------- */
+
+.menu-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.menu-panel {
+  padding: 18px;
+  border: 1px solid var(--steel-line, rgba(125, 162, 217, 0.18));
+  border-radius: 16px;
+  background: rgba(8, 18, 34, 0.62);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.menu-panel h3 {
+  margin: 0 0 12px;
+  font-family: var(--display, Georgia, "Times New Roman", serif);
+  font-size: 19px;
+  color: #f4f0e6;
+}
+
+.menu-panel-focus {
+  border-color: var(--gold, #f6c453);
+  box-shadow: 0 0 0 3px rgba(246, 196, 83, 0.12);
+}
+
+.menu-toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  color: #dbe6f5;
+  font-size: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.menu-toggle input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.menu-toggle-box {
+  position: relative;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 22px;
+  border: 1px solid #33496e;
+  border-radius: 999px;
+  background: #1e2f4d;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.menu-toggle-box::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #94a3b8;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.menu-toggle input:checked + .menu-toggle-box {
+  border-color: #5b8ef0;
+  background: #2f6fe4;
+}
+
+.menu-toggle input:checked + .menu-toggle-box::after {
+  transform: translateX(18px);
+  background: #fff;
+}
+
+.menu-toggle input:focus-visible + .menu-toggle-box {
+  outline: 2px solid rgba(246, 196, 83, 0.8);
+  outline-offset: 2px;
+}
+
+.menu-range {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 10px;
+  align-items: center;
+  margin: 4px 0 10px;
+  color: #dbe6f5;
+  font-size: 14px;
+}
+
+.menu-range output {
+  color: var(--steel-muted, #93a8c8);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.menu-range input[type="range"] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--gold, #f6c453);
+  cursor: pointer;
+}
+
+.menu-range input[type="range"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.menu-panel .menu-btn {
+  width: 100%;
+  margin-top: 8px;
+  text-align: center;
+}
+
+.menu-note {
+  margin: 12px 0 0;
+  color: #7d90ad;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+/* ---------- Подсказка по управлению ---------- */
+
+.menu-help {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-left: 2px solid var(--gold, #f6c453);
+  border-radius: 0 10px 10px 0;
+  background: rgba(246, 196, 83, 0.06);
+}
+
+.menu-help h3 {
+  margin: 0 0 10px;
+  font-family: var(--display, Georgia, "Times New Roman", serif);
+  font-size: 17px;
+  color: #f4f0e6;
+}
+
+.menu-keys {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 6px 14px;
+  color: #c7d4e6;
+  font-size: 13px;
+}
+
+.menu-keys b {
+  color: #f6c453;
+}
+
+.menu-help p {
+  margin: 10px 0 0;
+  color: var(--steel-muted, #93a8c8);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ---------- Подвал ---------- */
+
+.menu-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  flex-wrap: wrap;
+  padding-top: 14px;
+  border-top: 1px solid var(--steel-line, rgba(125, 162, 217, 0.18));
+  color: #7d90ad;
+  font-size: 12px;
+}
+
+.menu-foot-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.menu-link {
+  color: var(--gold, #f6c453);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.menu-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ---------- Мобильный экран ---------- */
+
+@media (max-width: 840px) {
+  #menu-overlay {
+    padding: 8px;
+    align-items: start;
+  }
+
+  .menu-screen {
+    margin: 0 auto;
+    padding: 18px 15px;
+    border-radius: 16px;
+    gap: 16px;
+  }
+
+  .menu-brand {
+    gap: 11px;
+  }
+
+  .menu-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    font-size: 20px;
+  }
+
+  .menu-brand h1 {
+    font-size: 28px;
+  }
+
+  .menu-brand p {
+    font-size: 12px;
+  }
+
+  .menu-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .menu-actions .menu-btn {
+    flex: 1 1 100%;
+  }
+
+  .menu-user {
+    flex-wrap: wrap;
+  }
+
+  .menu-user .menu-btn {
+    margin-left: 0;
+  }
+
+  .menu-foot {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-height: 720px) and (min-width: 841px) {
+  .menu-screen {
+    gap: 16px;
+    padding-top: 22px;
+    padding-bottom: 22px;
+  }
+
+  .menu-main h2 {
+    font-size: 26px;
+  }
+
+  .menu-help {
+    margin-top: 10px;
+  }
+}
+
+/* Игрок включил «меньше анимации» в настройках. */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-screen {
+    animation: none;
+  }
+}

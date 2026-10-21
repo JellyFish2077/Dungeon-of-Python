@@ -54,7 +54,7 @@ def main():
 
     # Игровые ассеты. Серверные страницы (admin/results/friends/profile)
     # в публичную сборку не входят: у них нет сервера.
-    for name in ("style.css", "game.css", "game.html"):
+    for name in ("style.css", "game.css", "menu.css", "game.html"):
         src = STATIC / name
         if not src.exists():
             continue
@@ -70,7 +70,7 @@ def main():
         "task-meta.js", "practice-variants.js", "items.js", "icons.js",
         "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
         "profile.js", "auth.js", "web-boot.js", "pyodide-check.js",
-        "pyodide-worker.js", "game.js",
+        "pyodide-worker.js", "audio.js", "menu.js", "game.js",
     ):
         src = STATIC / name
         if not src.exists():

@@ -7,7 +7,7 @@
   "use strict";
   if (typeof window === "undefined") return;
   window.__PYQUIZ_WEB = true;
-  window.__PYQUIZ_VERSION = { version: "1.5.0-web", date: "2026-10-21", commit: "" };
+  window.__PYQUIZ_VERSION = { version: "1.6.0-web", date: "2026-10-21", commit: "" };
   window.__PYQUIZ_FEATURES = { code: true, dev: false, generatedCode: false };
 
   const saved = (typeof getLastName === "function" && getLastName()) || "Игрок";
@@ -75,6 +75,11 @@
         setTimeout(function () {
           const api = window.__PYQUIZ_WEB_API;
           if (api && typeof api.resume === "function") api.resume();
+          // Меню открыто поверх игры и должно показать «Поход продолжается»,
+          // а не «Ты в деревне»: обновляем статус после загрузки этажа.
+          if (window.PyMenu && typeof window.PyMenu.render === "function") {
+            setTimeout(function () { window.PyMenu.render(); }, 800);
+          }
         }, 500);
       }
     } catch (e) {}
