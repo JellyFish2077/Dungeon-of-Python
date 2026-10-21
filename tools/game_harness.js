@@ -313,7 +313,7 @@
       // Список повторяет overlayOpen() в game.js: забытый здесь forge-overlay
       // молча ломает doInteract() — сундук «открывается» и не открывается.
       ["end-overlay", "shop-overlay", "battle-overlay", "blessing-overlay", "forge-overlay",
-        "level-loading", "entrance-overlay", "dialog-overlay"]
+        "level-loading", "entrance-overlay", "calibration-overlay", "dialog-overlay"]
         .forEach((id) => el(id).classList.add("hidden"));
       API.activateFloor(floorIndex || 0);
     }

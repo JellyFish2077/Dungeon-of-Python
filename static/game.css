@@ -2909,6 +2909,136 @@ pre.code {
   font-size: 13px;
 }
 
+/* ---------- Калибровка уровня ---------- */
+.calibration-box {
+  text-align: left;
+  max-width: 620px;
+}
+
+.calibration-box h2 {
+  text-align: center;
+  margin: 14px 0 8px;
+}
+
+.calibration-box .battle-head {
+  margin-bottom: 12px;
+}
+
+.calib-question {
+  margin: 10px 0 12px;
+  color: #f1f5f9;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.calib-code {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #2f4468;
+  border-radius: 10px;
+  background: #0b1526;
+  color: #dbeafe;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.calib-options {
+  display: grid;
+  gap: 8px;
+}
+
+.calib-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #334a6e;
+  border-radius: 10px;
+  background: #1b2b49;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.calib-option b {
+  margin-right: 4px;
+  color: #93c5fd;
+}
+
+.calib-option:hover:not(:disabled) {
+  border-color: #3d7ee0;
+  background: #22385c;
+}
+
+.calib-option:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.calib-option.correct {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.calib-option.wrong {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.calib-feedback {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.calib-feedback.ok {
+  color: #86efac;
+}
+
+.calib-feedback.bad {
+  color: #fca5a5;
+}
+
+.calib-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.calib-foot .btn {
+  min-width: 120px;
+}
+
+@media (max-width: 560px) {
+  .calibration-box {
+    padding: 18px;
+  }
+
+  .calib-question {
+    font-size: 16px;
+  }
+
+  .calib-foot {
+    flex-direction: column-reverse;
+  }
+
+  .calib-foot .btn {
+    width: 100%;
+  }
+}
+
 /* ---------- Итоговые экраны ---------- */
 .center-card {
   text-align: center;

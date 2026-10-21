@@ -275,6 +275,9 @@
     // ответов идёт около трёх уроков, а на «Лёгком» — два. Совпадает с
     // карточкой .mode.active в game.html.
     difficulty: "normal",
+    // Стартовый уровень знаний из калибровки (1–3). Влияет только на
+    // сложность вопросов и заданий, не на силу монстров.
+    knowledgeLevel: 2,
     floorIndex: 0,
     playerPos: { x: 1, y: 1 },
     player: null,
@@ -2530,6 +2533,7 @@
     el("entrance-overlay").classList.remove("hidden");
     updateResumeButton();
     updateWalletLine();
+    updateKnowledgeLine();
   }
 
   // Выбор умения перед спуском. Умения открывает дом мастера: без него блок
@@ -2573,11 +2577,207 @@
     el("entrance-overlay").classList.add("hidden");
   }
 
+  // ---------- Калибровка: окно и запись результата ----------
+  // Уровень хранится в профиле, а не в сейве похода: он переезжает между
+  // компьютерами вместе с аккаунтом и остаётся после смерти героя.
+  let calibrationState = null;
+
+  function updateKnowledgeLine() {
+    const line = el("knowledge-line");
+    const btn = el("calibration-btn");
+    const k = accountName() ? knowledgeFor(accountName()) : null;
+    if (line) {
+      if (!k || !k.level) {
+        line.textContent = "Уровень знаний пока не определён: перед первым спуском — 6 коротких вопросов.";
+      } else {
+        line.textContent = "Уровень знаний: " + knowledgeTitle(k.level) +
+          (k.source === "skipped" ? " (выбран по умолчанию)" : "") + ".";
+      }
+    }
+    if (btn) btn.textContent = k && k.level ? "Пройти калибровку заново" : "Проверить уровень";
+  }
+
+  function saveCalibration(level, source, correct, total, score) {
+    const name = accountName();
+    if (!name) return;
+    const prof = getProfile(name);
+    prof.knowledge = normalizeKnowledge({
+      level: level, source: source, date: new Date().toISOString(),
+      correct: correct, total: total, score: score
+    });
+    putProfile(name, prof);
+    syncProfile(name);
+    G.knowledgeLevel = level;
+    updateKnowledgeLine();
+  }
+
+  function openCalibration(after) {
+    const name = accountName();
+    if (!name) {
+      toast("Войди в аккаунт на главной странице");
+      return;
+    }
+    const questions = calibrationQuestions();
+    if (questions.length < 3) {
+      toast("Не удалось загрузить вопросы калибровки");
+      return;
+    }
+    calibrationState = {
+      questions: questions,
+      index: 0,
+      score: 0,
+      correct: 0,
+      total: questions.length,
+      chosen: -1,
+      answered: false,
+      saved: false,
+      after: typeof after === "function" ? after : null
+    };
+    el("calibration-overlay").classList.remove("hidden");
+    renderCalibration();
+  }
+
+  function closeCalibration() {
+    el("calibration-overlay").classList.add("hidden");
+    calibrationState = null;
+  }
+
+  function finishCalibration() {
+    if (!calibrationState) return;
+    const after = calibrationState.after;
+    closeCalibration();
+    if (after) after();
+  }
+
+  function calibrationResultHtml(state) {
+    const level = calibrationLevelFor(state.score);
+    if (!state.saved) {
+      saveCalibration(level, "calibration", state.correct, state.total, state.score);
+      state.saved = true;
+    }
+    return "<div class='battle-head'><div>" +
+      "<div class='enemy-name'>Проверка уровня</div>" +
+      "<div class='hud-num'>Результат</div></div>" +
+      "<button class='exit-btn' id='calib-close' type='button'>Закрыть</button></div>" +
+      "<h2>Уровень: " + knowledgeTitle(level) + "</h2>" +
+      "<p class='lead'>Правильных ответов: " + state.correct + " из " + state.total +
+      ". Баллов: " + state.score + " из 12.</p>" +
+      "<p class='lead'>" + KNOWLEDGE_NOTES[level] + "</p>" +
+      "<p class='mode-note'>" +
+      ((typeof window !== "undefined" && window.__PYQUIZ_WEB)
+        ? "Уровень сохранён в локальном сохранении этого браузера."
+        : "Уровень сохранён в профиле: он будет действовать и на другом компьютере после входа.") +
+      "</p>" +
+      "<div class='calib-foot'>" +
+      "<button class='btn' id='calib-continue' type='button'>" +
+      (state.after ? "Спуститься" : "Готово") + "</button>" +
+      "<button class='btn ghost' id='calib-again' type='button'>Пройти заново</button>" +
+      "</div>";
+  }
+
+  function renderCalibration() {
+    const state = calibrationState;
+    const box = el("calibration-box");
+    if (!state || !box) return;
+    if (state.index >= state.questions.length) {
+      box.innerHTML = calibrationResultHtml(state);
+      return;
+    }
+    const q = state.questions[state.index];
+    const opts = (q.options || []).map((text, i) => {
+      let cls = "calib-option";
+      if (state.answered) {
+        if (i === q.answer) cls += " correct";
+        else if (i === state.chosen) cls += " wrong";
+      }
+      return "<button class='" + cls + "' type='button' data-calib-option='" + i + "'" +
+        (state.answered ? " disabled" : "") + ">" +
+        "<b>" + String.fromCharCode(65 + i) + ".</b> " + escText(text) + "</button>";
+    }).join("");
+    let feedback = "";
+    if (state.answered) {
+      const ok = state.chosen === q.answer;
+      feedback = "<div class='calib-feedback " + (ok ? "ok" : "bad") + "'>" +
+        "<b>" + (ok ? "Верно." : "Правильный ответ: " +
+          String.fromCharCode(65 + q.answer) + ".") + "</b> " +
+        escText(q.explanation || "") + "</div>";
+    }
+    box.innerHTML =
+      "<div class='battle-head'><div>" +
+      "<div class='enemy-name'>Проверка уровня</div>" +
+      "<div class='hud-num'>Вопрос " + (state.index + 1) + " из " + state.questions.length + "</div>" +
+      "</div><button class='exit-btn' id='calib-close' type='button'>Закрыть</button></div>" +
+      "<div class='calib-question'>" + escText(q.text || "") + "</div>" +
+      (q.code ? "<pre class='calib-code'>" + escText(q.code) + "</pre>" : "") +
+      "<div class='calib-options'>" + opts + "</div>" +
+      feedback +
+      "<div class='calib-foot'>" +
+      (state.answered
+        ? "<button class='btn' id='calib-next' type='button'>" +
+          (state.index + 1 >= state.questions.length ? "Результат" : "Дальше") + "</button>"
+        : "<button class='btn ghost' id='calib-skip' type='button'>Пропустить проверку</button>") +
+      "</div>";
+  }
+
+  function pickCalibrationOption(index) {
+    const state = calibrationState;
+    if (!state || state.answered) return;
+    const q = state.questions[state.index];
+    if (!q || !q.options || index < 0 || index >= q.options.length) return;
+    state.chosen = index;
+    state.answered = true;
+    state.correct += index === q.answer ? 1 : 0;
+    if (index === q.answer) state.score += q.level || 1;
+    renderCalibration();
+  }
+
+  function nextCalibration() {
+    const state = calibrationState;
+    if (!state || !state.answered) return;
+    state.index += 1;
+    state.chosen = -1;
+    state.answered = false;
+    renderCalibration();
+  }
+
+  function skipCalibration() {
+    // Пропуск не оставляет ученика без уровня: игра начинается с «Базового»,
+    // а калибровку можно пройти заново у стража.
+    saveCalibration(2, "skipped", 0, 0, 0);
+    finishCalibration();
+  }
+
+  function restartCalibration() {
+    if (!calibrationState) return;
+    const after = calibrationState.after;
+    const questions = calibrationQuestions();
+    calibrationState = {
+      questions: questions,
+      index: 0, score: 0, correct: 0, total: questions.length, chosen: -1,
+      answered: false, saved: false, after: after
+    };
+    renderCalibration();
+  }
+
   // Спуск: читаем выбранные сложность и режим (их выставляют обработчики
-  // карточек) и запускаем поход как раньше.
+  // карточек) и запускаем поход. Это «сырой» старт для бота и проверок;
+  // калибровку спрашивает только кнопка в окне стража (beginFromEntrance),
+  // чтобы программный запуск не упирался в модальное окно.
   function enterDungeon() {
     closeEntrance();
     begin();
+  }
+
+  // Кнопка «Спуститься»: перед первым спуском без калибровки сначала
+  // показываем шесть вопросов. После ответа или пропуска начинаем поход.
+  function beginFromEntrance() {
+    const name = accountName();
+    const k = name ? knowledgeFor(name) : null;
+    if (name && (!k || !k.level)) {
+      openCalibration(() => { closeEntrance(); begin(); });
+      return;
+    }
+    enterDungeon();
   }
 
   // Блок деревни в боковой панели: банк и амулеты вместо здоровья похода.
@@ -5051,7 +5251,7 @@
   // выход открыт, а «Спуститься ниже» нажать нечем.
   function overlayOpen() {
     return ["end-overlay", "shop-overlay", "battle-overlay", "forge-overlay",
-      "level-loading", "entrance-overlay", "dialog-overlay"].some((id) => {
+      "level-loading", "entrance-overlay", "calibration-overlay", "dialog-overlay"].some((id) => {
       const node = el(id);
       return node && !node.classList.contains("hidden");
     });
@@ -5954,12 +6154,63 @@
   // шаги чередуются. Раньше вопросы и задания выпадали вперемешку, и ничто
   // не связывало «вспомнил» с «применил».
 
-  // Уровни вопросов этажа с поправкой на сложность.
+  // ---------- Калибровка стартового уровня ----------
+  // Шесть вопросов из общего банка: по два уровня 1, 2 и 3. Вес верного
+  // ответа равен уровню вопроса, поэтому «вытянуть» третий уровень
+  // угадыванием двух сложных вопросов не выйдет.
+  const CALIBRATION_IDS = [1, 6, 16, 55, 23, 35];
+  const KNOWLEDGE_TITLES = { 1: "Новичок", 2: "Базовый", 3: "Уверенный" };
+  const KNOWLEDGE_NOTES = {
+    1: "Задания будут на ступень проще: больше «вставь пропуск» и «повтори код».",
+    2: "Обычная выдача: вопросы и задания этажа без поправки.",
+    3: "Задания будут на ступень сложнее: чаще функции и разбор кода."
+  };
+
+  function calibrationQuestions() {
+    const byId = {};
+    QUESTIONS.forEach((q) => { byId[q.id] = q; });
+    return CALIBRATION_IDS.map((id) => byId[id]).filter(Boolean);
+  }
+
+  // 0–3 балла — новичок, 4–6 — базовый, 7–12 — уверенный. Один верный
+  // ответ третьего уровня (3 балла) сам по себе уровень не поднимает:
+  // нужны ещё базовые знания.
+  function calibrationLevelFor(score) {
+    const s = Math.max(0, Math.min(12, Math.floor(Number(score) || 0)));
+    if (s <= 3) return 1;
+    if (s <= 6) return 2;
+    return 3;
+  }
+
+  function knowledgeFor(name) {
+    if (typeof getProfile !== "function") return null;
+    const prof = getProfile(name || accountName());
+    return prof ? normalizeKnowledge(prof.knowledge) : null;
+  }
+
+  function knowledgeLevel(name) {
+    const k = knowledgeFor(name);
+    return k && k.level >= 1 ? k.level : 2;
+  }
+
+  function knowledgeTitle(level) {
+    return KNOWLEDGE_TITLES[level] || KNOWLEDGE_TITLES[2];
+  }
+
+  // Поправка к уровню вопросов: −1 для новичка, 0 для базового, +1 для
+  // уверенного. Дальше floorLevels сам зажимает результат в 1–4.
+  function knowledgeOffset() {
+    const level = G.knowledgeLevel || 2;
+    return clamp(level - 2, -1, 1);
+  }
+
+  // Уровни вопросов этажа с поправкой на сложность и калибровку.
   function floorLevels() {
     const f = floorDef(G.floorIndex);
     const qb = DIFFICULTY[G.difficulty].qBonus;
-    const qmin = clamp(f.qmin + qb, 1, 4);
-    const qmax = clamp(f.qmax + qb, qmin, 4);
+    const kb = knowledgeOffset();
+    const qmin = clamp(f.qmin + qb + kb, 1, 4);
+    const qmax = clamp(f.qmax + qb + kb, qmin, 4);
     return { qmin: qmin, qmax: qmax };
   }
 
@@ -7767,6 +8018,9 @@
   function buildResult(victoryFlag) {
     const total = G.stats.correct + G.stats.wrong;
     const percent = total ? Math.round((G.stats.correct / total) * 100) : 0;
+    // Для старой партии без калибровки честно отправляем 0, а не базовый
+    // уровень по умолчанию: учитель должен видеть «—», а не выдуманный старт.
+    const known = knowledgeFor(G.name);
     return {
       name: G.name,
       mode: "dungeon",
@@ -7779,6 +8033,9 @@
       total,
       seconds: Math.round((Date.now() - G.startedAt) / 1000),
       level: levelFromPercent(percent),
+      // Стартовая ступень из калибровки: учитель видит, с каким уровнем
+      // ученик начал поход, а не только итоговый процент.
+      knowledgeLevel: known && known.level ? known.level : 0,
       topicStats: G.stats.topicStats,
       dungeon: {
         floorsCleared: G.stats.floorsCleared,
@@ -8740,6 +8997,8 @@ function topicName(key) {
       toast("Войди в аккаунт на главной странице");
       return;
     }
+    const known = knowledgeFor(name);
+    G.knowledgeLevel = known && known.level ? known.level : 2;
     // Незаконченный поход затирается при старте нового: startRun делает
     // clearSave(). Раньше это происходило молча, и собранный лут исчезал.
     const paused = pausedRun();
@@ -8865,6 +9124,9 @@ function topicName(key) {
     measureViewport();
     log("В подземелье входит " + (G.nick || "герой") + ": " + floorNameAt(0) + ".", "floor");
     log("Сложность: " + DIFFICULTY[G.difficulty].name + ".", "floor");
+    if (known && known.level) {
+      log("Стартовый уровень заданий: " + knowledgeTitle(G.knowledgeLevel) + ".", "floor");
+    }
     activateFloorLoaded(0, () => {
       claimWallet();
       // Кошелёк пополняет золото уже после первой отрисовки панели: без этого
@@ -9365,6 +9627,7 @@ function topicName(key) {
     if (me && (data.name || "") !== me) return false;
     G.name = data.name || "Герой";
     G.nick = dungeonNick(G.name);
+    G.knowledgeLevel = knowledgeLevel(G.name);
     G.difficulty = data.difficulty || "easy";
     G.startedAt = data.startedAt || Date.now();
     // Битый сейв с player:null раньше ронял загрузку на первом же обращении
@@ -9587,9 +9850,23 @@ function topicName(key) {
       node.innerHTML = iconSvg(node.dataset.icon);
     });
 
-    el("begin-btn").addEventListener("click", enterDungeon);
+    el("begin-btn").addEventListener("click", beginFromEntrance);
     el("resume-btn").addEventListener("click", loadGame);
+    el("calibration-btn").addEventListener("click", () => openCalibration(null));
     el("entrance-close").addEventListener("click", closeEntrance);
+    // Окно калибровки перерисовывается после каждого ответа, поэтому клики
+    // ловим делегированием на оверлее, а не на отдельных кнопках.
+    el("calibration-overlay").addEventListener("click", (e) => {
+      const t = e.target;
+      if (!t || !t.closest) return;
+      const opt = t.closest("[data-calib-option]");
+      if (opt) { pickCalibrationOption(Number(opt.dataset.calibOption)); return; }
+      if (t.closest("#calib-next")) { nextCalibration(); return; }
+      if (t.closest("#calib-skip")) { skipCalibration(); return; }
+      if (t.closest("#calib-continue")) { finishCalibration(); return; }
+      if (t.closest("#calib-again")) { restartCalibration(); return; }
+      if (t.closest("#calib-close")) { closeCalibration(); }
+    });
     el("leave-btn").addEventListener("click", leave);
     el("village-btn").addEventListener("click", returnToVillage);
     el("shop-btn").addEventListener("click", () => openShop(false));
@@ -9639,6 +9916,7 @@ function topicName(key) {
     }
     updateResumeButton();
     updateWalletLine();
+    updateKnowledgeLine();
     renderVillageInfo();
     // Лавка торговца живёт в его окне: карточки перерисовываются после
     // покупки, поэтому клик по «Купить» делегируем контейнеру.
@@ -9763,6 +10041,20 @@ function topicName(key) {
         e.preventDefault();
         devToggle();
         return;
+      }
+      // Калибровка — модальное окно поверх стража: Escape закрывает, Enter
+      // после ответа ведёт к следующему вопросу.
+      if (!el("calibration-overlay").classList.contains("hidden")) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeCalibration();
+          return;
+        }
+        if (e.key === "Enter" && calibrationState && calibrationState.answered) {
+          e.preventDefault();
+          nextCalibration();
+          return;
+        }
       }
       // Пока этаж грузится, клавиши не должны ходить по старой карте.
       if (G.loading) return;

@@ -24,13 +24,21 @@ HOOK = r"""#!/bin/sh
 # Отключить: python tools/install_hooks.py --remove
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
-    echo "Пропуск: не найден python" >&2
+# На Windows команда python3 может быть заглушкой Microsoft Store: она есть
+# в PATH, печатает «Python» и завершается ошибкой. Поэтому проверяем, что
+# интерпретатор действительно запускается, а не только находится.
+PY=
+for candidate in python3 python; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+       "$candidate" -c "import sys" >/dev/null 2>&1; then
+        PY=$candidate
+        break
+    fi
+done
+if [ -z "$PY" ]; then
+    echo "Пропуск: рабочий python не найден" >&2
     exit 0
 fi
-
-PY=python3
-command -v "$PY" >/dev/null 2>&1 || PY=python
 
 STAGED=$(git diff --cached --name-only)
 # Проверки имеет смысл гонять только когда менялся код, а не, скажем, README.

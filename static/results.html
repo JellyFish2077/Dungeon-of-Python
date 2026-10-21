@@ -18,6 +18,7 @@
     table.data th, table.data td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
     table.data th { background: #f1f5f9; position: sticky; top: 0; }
     .lvl { padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
+    .kn { color: #475569; font-size: 13px; font-weight: 600; }
     .empty { text-align: center; color: var(--muted); padding: 40px 0; }
     .head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
     .heat { display: grid; gap: 6px; }
@@ -67,7 +68,7 @@
           <thead>
             <tr>
               <th>#</th><th>Имя</th><th>Режим</th><th>Дата</th><th>Результат</th>
-              <th>Уровень</th><th>Верно</th><th>Время</th><th>Слабые темы</th>
+              <th>Старт</th><th>Итог</th><th>Верно</th><th>Время</th><th>Слабые темы</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
@@ -104,6 +105,7 @@
   <script src="/static/auth.js"></script>
   <script>
     const LEVEL_COLORS = { novice: "#dc2626", basic: "#f59e0b", confident: "#2563eb", advanced: "#16a34a" };
+    const KNOWLEDGE_NAMES = { 1: "Новичок", 2: "Базовый", 3: "Уверенный" };
     const PIN = new URLSearchParams(location.search).get("pin") || "";
     const QS = PIN ? "?pin=" + encodeURIComponent(PIN) : "";
 
@@ -134,6 +136,12 @@
         .filter((k) => ts[k] && num(ts[k].total) && num(ts[k].correct) / num(ts[k].total) < 0.6)
         .map((k) => TOPICS[k] || k)
         .join(", ") || "—";
+    }
+
+    // Стартовая ступень из калибровки. У старых результатов её нет — «—».
+    function knowledgeMark(r) {
+      const level = num(r.knowledgeLevel);
+      return KNOWLEDGE_NAMES[level] || "—";
     }
 
     // Отметку ставит сервер по токену сессии: подделать её из браузера нельзя.
@@ -200,6 +208,7 @@
           "<td>" + (MODE_NAMES[r.mode] || "Тест") + "</td>" +
           "<td>" + esc(fmtDate(r.date)) + "</td>" +
           "<td><b>" + num(r.percent) + "%</b></td>" +
+          "<td><span class='kn'>" + esc(knowledgeMark(r)) + "</span></td>" +
           "<td><span class='lvl' style='background:" + color + "'>" + esc(lvl.title || "") + "</span></td>" +
           "<td>" + num(r.correctCount) + "/" + num(r.total) + "</td>" +
           "<td>" + fmtTime(r.seconds) + "</td>" +

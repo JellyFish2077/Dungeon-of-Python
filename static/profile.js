@@ -131,6 +131,54 @@ function progressMerge(local, remote) {
   return out;
 }
 
+// --- Стартовый уровень знаний (калибровка) ---
+// Уровень 0 — калибровка ещё не пройдена; 1–3 — ступень, которую ученик
+// показал на шести вопросах. Это не оценка за поход, а стартовая настройка
+// выдачи заданий, поэтому она живёт отдельно от процентов и достижений.
+const KNOWLEDGE_LEVELS = 3;
+const KNOWLEDGE_QUESTIONS = 6;
+const KNOWLEDGE_MAX_SCORE = 12;
+
+function knowledgeEmpty() {
+  return { level: 0, source: "", date: "", correct: 0, total: 0, score: 0 };
+}
+
+function clampKnowledgeInt(value, max) {
+  const n = Math.floor(Number(value) || 0);
+  if (!isFinite(n) || n < 0) return 0;
+  return Math.min(max, n);
+}
+
+// Приводит запись калибровки к известной форме. Правила те же, что на
+// сервере в clean_profile: клиент не должен записать уровень 9 или счёт 999.
+function normalizeKnowledge(raw) {
+  const out = knowledgeEmpty();
+  if (!raw || typeof raw !== "object") return out;
+  const level = Math.floor(Number(raw.level) || 0);
+  // Как и на сервере, слишком большое значение зажимаем потолком, а не
+  // обнуляем: иначе рассинхрон клиента и сервера выглядел бы как «ученик
+  // никогда не проходил калибровку».
+  out.level = level >= 1 ? Math.min(KNOWLEDGE_LEVELS, level) : 0;
+  out.source = typeof raw.source === "string" ? raw.source.slice(0, 20) : "";
+  out.date = typeof raw.date === "string" && /^\d{4}-\d{2}-\d{2}T/.test(raw.date)
+    ? raw.date.slice(0, 40) : "";
+  out.correct = clampKnowledgeInt(raw.correct, KNOWLEDGE_QUESTIONS);
+  out.total = clampKnowledgeInt(raw.total, KNOWLEDGE_QUESTIONS);
+  out.score = clampKnowledgeInt(raw.score, KNOWLEDGE_MAX_SCORE);
+  return out;
+}
+
+// При входе на другом компьютере у сервера может быть свежее прохождение
+// калибровки, а локально — старее. Берём запись с более поздней датой;
+// если даты нет, доверяем серверу. Ноль (не пройдена) не затирает уровень.
+function pickKnowledge(local, remote) {
+  const l = normalizeKnowledge(local);
+  const r = normalizeKnowledge(remote);
+  if (!r.level) return l;
+  if (!l.level) return r;
+  return (r.date || "") >= (l.date || "") ? r : l;
+}
+
 function getProfile(name) {
   const key = profileKey(name);
   if (!key) return null;
@@ -148,6 +196,7 @@ function getProfile(name) {
       dungeonBest: null,
       wrongPool: [],
       badges: {},
+      knowledge: knowledgeEmpty(),
       stats: { correct: 0, codeSolved: 0, runs: 0, days: [], bestStreak: 0, studyTotal: 0, studyStreak: 0, studyBestStreak: 0 }
     };
     Object.assign(all[key], progressEmpty());
@@ -167,6 +216,7 @@ function getProfile(name) {
   if (typeof p.hub.revive !== "number" || !isFinite(p.hub.revive)) p.hub.revive = 0;
   p.hub.revive = Math.max(0, Math.min(HUB_AMULET_MAX, Math.floor(p.hub.revive)));
   if (!Array.isArray(p.hub.gear)) p.hub.gear = [];
+  p.knowledge = normalizeKnowledge(p.knowledge);
   normalizeProgress(p);
   return p;
 }
@@ -323,6 +373,9 @@ function applyServerProfile(name, profile) {
   // локальной и тогда сотрёт счёт самоподготовки.
   merged.stats = Object.assign({}, local.stats || {}, profile.stats || {});
   merged.study = profile.study || local.study || { day: "", good: 0, total: 0, topics: {} };
+  // Калибровка переезжает между компьютерами вместе с профилем. Дату
+  // сравниваем, чтобы старый вход не затёр свежее прохождение.
+  merged.knowledge = pickKnowledge(local.knowledge, profile.knowledge);
   // Амулеты — редкая валюта: берём большую из двух копий (серверная могла
   // отстать), но не выше потолка. Снаряжение — по приоритету сервера.
   const lhub = local.hub || { revive: 0, gear: [] };

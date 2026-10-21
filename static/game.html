@@ -167,6 +167,7 @@
         <button class="exit-btn" id="entrance-close" type="button" data-tip="Закрыть. Клавиша Escape.">Закрыть</button>
       </div>
       <p class="lead">Внизу ждут вопросы и задачи по Python. Выбери сложность и режим.</p>
+      <p class="lead" id="knowledge-line"></p>
       <label class="check">
         <input type="checkbox" id="claim-box" checked />
         <span class="check-box" aria-hidden="true"></span>
@@ -215,9 +216,16 @@
       <div class="setup-actions">
         <button class="btn" id="begin-btn" type="button">Спуститься</button>
         <button class="btn ghost" id="resume-btn" type="button" style="display:none">Продолжить</button>
+        <button class="btn ghost" id="calibration-btn" type="button">Проверить уровень</button>
         <a class="btn ghost link-btn" href="/quiz">К тесту</a>
       </div>
     </div>
+  </div>
+
+  <!-- Калибровка перед первым спуском: шесть вопросов из общего банка.
+       Окно перерисовывается на месте, поэтому разметка пустая. -->
+  <div class="overlay hidden" id="calibration-overlay">
+    <div class="battle calibration-box" id="calibration-box"></div>
   </div>
 
   <!-- Окно жителя деревни: у торговца — лавка, у старосты — банк, рекорд и

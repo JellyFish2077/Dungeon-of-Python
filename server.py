@@ -53,8 +53,8 @@ DATA_DIR = os.path.abspath(os.environ.get("PYQUIZ_DATA_DIR") or BASE_DIR)
 #   MINOR — новые возможности и изменения поведения/баланса;
 #   MAJOR — несовместимые изменения (формат сохранения, API).
 # Формат сохранения G (data.v = 1) версией приложения не является.
-VERSION = "1.4.0"
-VERSION_DATE = "2026-10-20"
+VERSION = "1.5.0"
+VERSION_DATE = "2026-10-21"
 
 VERSION_CLIENT_JS = """
 (function () {
@@ -1916,6 +1916,19 @@ def clean_profile(data):
                     gear.append(gid)
         out["hub"] = {"revive": _int(hub.get("revive"), 0, amulet_cap()), "gear": gear}
 
+    # Стартовый уровень из калибровки. Числа те же, что в static/profile.js:
+    # шесть вопросов, максимум 12 баллов, уровни 0–3. Ноль — «ещё не проходил».
+    knowledge = data.get("knowledge")
+    if isinstance(knowledge, dict):
+        out["knowledge"] = {
+            "level": _int(knowledge.get("level"), 0, 3),
+            "source": _text(knowledge.get("source"), 20),
+            "date": _text(knowledge.get("date"), 40),
+            "correct": _int(knowledge.get("correct"), 0, 6),
+            "total": _int(knowledge.get("total"), 0, 6),
+            "score": _int(knowledge.get("score"), 0, 12),
+        }
+
     stats = data.get("stats")
     if isinstance(stats, dict):
         days = []
@@ -2093,6 +2106,8 @@ def clean_result(data):
         },
         "topicStats": _stats(data.get("topicStats")),
     }
+    if "knowledgeLevel" in data:
+        out["knowledgeLevel"] = _int(data.get("knowledgeLevel"), 0, 3)
     for k in ("weighted", "maxWeighted", "bestStreak"):
         if k in data:
             out[k] = _int(data.get(k), 0, 10 ** 6)

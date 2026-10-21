@@ -227,6 +227,7 @@ def check_clean_result():
         "percent": "<img src=x onerror=alert(1)>", "correctCount": 99, "total": 10,
         "seconds": float("nan"), "level": {"key": "god", "title": "<script>" * 20},
         "topicStats": {"syntax": {"correct": 50, "total": 3}, "<b>": {"correct": 1, "total": 1}, "x": 5},
+        "knowledgeLevel": 99,
         "reward": {"gold": 10 ** 9}, "junk": "x" * 1000, "runId": "1760000000000",
         "dungeon": {"kills": "много", "victory": "yes", "floorsCleared": 3.7, "junk": 1},
     }
@@ -237,6 +238,7 @@ def check_clean_result():
     check("<" not in r["date"] and r["date"][:2] == "20", "дата-скрипт заменена временем сервера", r["date"])
     check(r["level"] == {"key": "", "title": ("<script>" * 5)}, "уровень: ключ из списка, заголовок до 40 знаков")
     check(r["topicStats"] == {"syntax": {"correct": 3, "total": 3}}, "темы: только разумные ключи и числа", r["topicStats"])
+    check(r["knowledgeLevel"] == 3, "стартовый уровень результата зажат 0–3", r.get("knowledgeLevel"))
     check("reward" not in r and "junk" not in r, "незнакомые поля отброшены")
     check(r["dungeon"] == {"kills": 0, "floorsCleared": 3, "victory": False}, "поля подземелья — числа", r["dungeon"])
     check(r["runId"] == "1760000000000", "номер похода сохраняется")
@@ -686,6 +688,8 @@ def check_http(tmp):
             "quests": {"story": -4, "done": ["ok"] + [5] * 100, "repeat": {"ore": 9999999999},
                        "progress": "не объект", "active": "о" * 200},
             "ability": {"pick": "п" * 100, "used": -1},
+            "knowledge": {"level": 9, "source": "к" * 100, "date": "2026-10-21T10:00:00",
+                          "correct": 99, "total": -1, "score": 999},
         }
         status, reg = call(root, "/api/register", {"name": "Хакер", "pin": "123", "profile": evil})
         prof = reg.get("profile", {})
@@ -720,6 +724,11 @@ def check_http(tmp):
               and prof.get("ability", {}).get("used") == 0,
               "профиль: умение обрезано, счётчик зарядов не отрицательный",
               prof.get("ability"))
+        knowledge = prof.get("knowledge", {})
+        check(knowledge.get("level") == 3 and len(knowledge.get("source", "")) <= 20
+              and knowledge.get("correct") == 6 and knowledge.get("total") == 0
+              and knowledge.get("score") == 12,
+              "профиль: калибровка зажата уровнями, ответами и баллами", knowledge)
 
         status, _ = call(root, "/api/profile/save",
                          {"token": reg["token"], "profile": {"hub": {"revive": 7}, "junk": 1}})
@@ -727,6 +736,14 @@ def check_http(tmp):
         check(status == 200 and me.get("profile", {}).get("hub", {}).get("revive") == 3
               and "junk" not in me.get("profile", {}),
               "профиль: сохранение тоже чистит и зажимает", me.get("profile"))
+        calibration = {"level": 3, "source": "calibration", "date": "2026-10-21T10:00:00",
+                       "correct": 6, "total": 6, "score": 12}
+        status, _ = call(root, "/api/profile/save",
+                         {"token": reg["token"], "profile": {"knowledge": calibration}})
+        _, me = call(root, "/api/me?token=" + reg["token"])
+        check(status == 200 and me.get("profile", {}).get("knowledge") == calibration,
+              "профиль: калибровка переживает сохранение и возвращается",
+              me.get("profile", {}).get("knowledge"))
 
         # Упавший обработчик не отвечает вовсе: браузер видит оборванное
         # соединение, а в консоли сервера — трассировку на каждый запрос.

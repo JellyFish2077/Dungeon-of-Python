@@ -6514,6 +6514,68 @@ if (vault) {
     "vaults=" + (G.vaults || []).length + " levers=" + (G.levers || []).length);
 }
 
+// ================= Калибровка стартового уровня =================
+{
+  const qs = API.calibrationQuestions();
+  log(qs.length === 6, "калибровка: шесть вопросов", qs.length);
+  log(new Set(qs.map((q) => q.id)).size === 6, "калибровка: вопросы не повторяются",
+    qs.map((q) => q.id).join(", "));
+  const byLevel = { 1: 0, 2: 0, 3: 0 };
+  qs.forEach((q) => { byLevel[q.level] = (byLevel[q.level] || 0) + 1; });
+  log(byLevel[1] === 2 && byLevel[2] === 2 && byLevel[3] === 2,
+    "калибровка: по два вопроса уровней 1–3", JSON.stringify(byLevel));
+  log(API.calibrationLevelFor(0) === 1 && API.calibrationLevelFor(3) === 1 &&
+      API.calibrationLevelFor(4) === 2 && API.calibrationLevelFor(6) === 2 &&
+      API.calibrationLevelFor(7) === 3 && API.calibrationLevelFor(12) === 3,
+    "калибровка: 0–3 — новичок, 4–6 — базовый, 7–12 — уверенный");
+
+  const savedLevel = G.knowledgeLevel;
+  const savedFloor = G.floorIndex;
+  G.floorIndex = 0;
+  G.difficulty = "normal";
+  G.knowledgeLevel = 1;
+  const low = API.floorLevels();
+  G.knowledgeLevel = 2;
+  const mid = API.floorLevels();
+  G.knowledgeLevel = 3;
+  const high = API.floorLevels();
+  log(low.qmin === 1 && low.qmax === 1 && mid.qmin === 1 && mid.qmax === 2 &&
+      high.qmin === 2 && high.qmax === 3,
+    "калибровка: уровень сдвигает вопросы этажа на ступень",
+    "новичок " + low.qmin + "–" + low.qmax + ", базовый " + mid.qmin + "–" + mid.qmax +
+    ", уверенный " + high.qmin + "–" + high.qmax);
+
+  G.floorIndex = 9;
+  const top = API.floorLevels();
+  log(top.qmax === 4 && top.qmin <= 4, "калибровка: на последнем этаже уровень не выходит за 4",
+    top.qmin + "–" + top.qmax);
+  G.floorIndex = savedFloor;
+  G.knowledgeLevel = savedLevel;
+
+  const kn = globalThis.normalizeKnowledge({
+    level: 9, source: "к".repeat(100), date: "мусор",
+    correct: 99, total: -1, score: 999
+  });
+  log(kn.level === 3 && kn.source.length === 20 && kn.date === "" &&
+      kn.correct === 6 && kn.total === 0 && kn.score === 12,
+    "калибровка: профиль зажимает уровень, ответы и баллы",
+    JSON.stringify(kn));
+  log(globalThis.normalizeKnowledge(null).level === 0,
+    "калибровка: без записи уровень 0, а не случайный");
+  log(globalThis.pickKnowledge(
+    { level: 3, date: "2026-03-01T10:00:00" },
+    { level: 1, date: "2026-02-01T10:00:00" }).level === 3,
+    "калибровка: более свежая локальная запись не затирается сервером");
+  log(globalThis.pickKnowledge(
+    { level: 1, date: "2026-01-01T10:00:00" },
+    { level: 3, date: "2026-02-01T10:00:00" }).level === 3,
+    "калибровка: более свежая серверная запись поднимает уровень");
+  const neutral = globalThis.getProfile("__calibration_probe__");
+  log(neutral.knowledge.level === 0 && neutral.knowledge.total === 0,
+    "калибровка: новый профиль начинается без уровня",
+    JSON.stringify(neutral.knowledge));
+}
+
 freshRun(0);
 
 console.log("__JSON__" + JSON.stringify(out));
