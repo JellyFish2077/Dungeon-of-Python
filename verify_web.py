@@ -200,8 +200,14 @@ def run_checks(browser, base):
     account = page.locator("#menu-account").inner_text()
     check("Смоук" in account, "меню видит имя игрока", account)
     page.click("#menu-play")
-    page.wait_for_timeout(250)
-    check(not page.locator("#menu-overlay").is_visible(), "«Играть» закрывает меню")
+    page.wait_for_timeout(400)
+    check(not page.locator("#menu-overlay").is_visible(), "«Начать поход» закрывает меню")
+    check(page.locator("#entrance-overlay").is_visible(),
+          "«Начать поход» открывает окно стража")
+    focused = page.evaluate("() => document.activeElement && document.activeElement.id")
+    check(focused in ("begin-btn", "resume-btn"), "фокус в окне стража", focused)
+    page.click("#entrance-close")
+    page.wait_for_timeout(200)
 
     page.wait_for_function(
         "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)

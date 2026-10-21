@@ -263,7 +263,7 @@
     const note = $("menu-play-note");
     const state = gameStatus();
     if (!hasUser()) {
-      if (label) label.textContent = "Играть";
+      if (label) label.textContent = "Начать поход";
       if (note) note.textContent = "сначала войди";
       return;
     }
@@ -279,23 +279,29 @@
       }
       return;
     }
-    if (label) label.textContent = "Играть";
-    if (note) note.textContent = "деревня";
+    if (label) label.textContent = "Начать поход";
+    if (note) note.textContent = "сложность у стража";
   }
 
   function renderVillage() {
     const item = $("menu-village");
     if (!item) return;
     const state = gameStatus();
-    const show = hasUser() && state && state.place === "dungeon" && !state.battle;
+    const show = hasUser() && state && !state.battle;
     item.classList.toggle("hidden", !show);
+    const note = $("menu-village-note");
+    if (note) {
+      note.textContent = state && state.place === "dungeon"
+        ? "поход сохранится" : "осмотреться";
+    }
   }
 
   function renderNew() {
     const item = $("menu-new");
     if (!item) return;
     const state = gameStatus();
-    item.classList.toggle("hidden", !!(state && state.battle));
+    const show = !!state && !state.battle && (state.paused || state.place === "dungeon");
+    item.classList.toggle("hidden", !show);
   }
 
   function renderAccountLine() {
@@ -460,6 +466,17 @@
     const input = $("menu-name");
     const name = String((input && input.value) || "").trim().slice(0, 60) || "Игрок";
     sound("click");
+    const user = current();
+    // В веб-сборке профиль, сейв и метка места лежат под именем. Без переноса
+    // «Изменить имя» создаёт пустой профиль, а поход остаётся под старым.
+    if (isWeb() && user && typeof renameProfile === "function") {
+      const moved = renameProfile(user.name, name);
+      if (!moved || !moved.ok) {
+        showError((moved && moved.error) || "Не удалось переименовать профиль");
+        sound("wrong");
+        return;
+      }
+    }
     if (typeof registerAccount !== "function") {
       afterAuth();
       return;
@@ -528,15 +545,30 @@
       return;
     }
     const state = gameStatus();
-    if (state && state.paused && state.place !== "dungeon" &&
-        api() && typeof api().resume === "function") {
-      try {
-        api().resume();
-      } catch (e) {
-        // Продолжение не удалось — просто закроем меню и покажем деревню.
-      }
+    if (state && state.place === "dungeon") {
+      close();
+      return;
     }
+    if (state && state.paused) {
+      if (api() && typeof api().resume === "function") {
+        try {
+          api().resume();
+        } catch (e) {
+          // Продолжение не удалось — просто закроем меню и покажем деревню.
+        }
+      }
+      close();
+      return;
+    }
+    // Похода нет: открываем окно стража, а не просто закрываем меню.
+    // Сначала закрываем меню, чтобы возврат фокуса не сбил фокус стража.
     close();
+    const game = api();
+    if (game && typeof game.newRun === "function") {
+      try {
+        game.newRun();
+      } catch (e) {}
+    }
   }
 
   function onVillage() {
@@ -545,11 +577,14 @@
       setView("account");
       return;
     }
-    const game = api();
-    if (game && typeof game.village === "function") {
-      let ok = true;
-      try { ok = game.village(); } catch (e) { ok = false; }
-      if (ok === false) return;
+    const state = gameStatus();
+    if (state && state.place === "dungeon") {
+      const game = api();
+      if (game && typeof game.village === "function") {
+        let ok = true;
+        try { ok = game.village(); } catch (e) { ok = false; }
+        if (ok === false) return;
+      }
     }
     close();
   }
@@ -560,13 +595,15 @@
       setView("account");
       return;
     }
+    // Закрываем меню до открытия стража: иначе close() вернёт фокус в меню
+    // уже после того, как окно стража попытается забрать его себе.
+    close();
     const game = api();
     if (game && typeof game.newRun === "function") {
-      let ok = true;
-      try { ok = game.newRun(); } catch (e) { ok = false; }
-      if (ok === false) return;
+      try {
+        game.newRun();
+      } catch (e) {}
     }
-    close();
   }
 
   function onExit() {
@@ -708,6 +745,26 @@
         const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
         if (!item || item.classList.contains("hidden") || item.classList.contains("is-disabled")) return;
         setActive(item, false);
+      });
+    }
+
+    // Tab ходит и по шестерёнке, и по строке аккаунта. Когда фокус уходит
+    // туда, золотая строка списка снимается: иначе на экране два акцента.
+    const overlay = $("menu-overlay");
+    if (overlay) {
+      overlay.addEventListener("focusin", (e) => {
+        const target = e.target;
+        const item = target && target.closest
+          ? target.closest("#menu-list .menu-item") : null;
+        if (item) {
+          setActive(item, false);
+          return;
+        }
+        if (target && target.closest &&
+            target.closest(".menu-gear, .menu-change")) {
+          mainItems().forEach((node) => node.classList.remove("is-active"));
+          activeItem = null;
+        }
       });
     }
 

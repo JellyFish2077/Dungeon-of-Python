@@ -2,6 +2,11 @@
 // Хранится локально в браузере. Кошелёк наград тратится в подземелье.
 const PROFILE_KEY = "pyquiz_profiles_v1";
 const LAST_NAME_KEY = "pyquiz_last_name";
+// Ключи сейва и метки места дублируют game.js: профиль не должен зависеть от
+// загруженной игры, но переименование обязано перенести обе записи вместе
+// с профилем. Это строки формата localStorage, а не игровая логика.
+const SAVE_STORAGE_PREFIX = "pyquiz_save_v1";
+const PLACE_STORAGE_PREFIX = "pyquiz_place_v1";
 // Потолок амулетов возврата. Значение по умолчанию: точное число задаёт
 // админка (hub.amuletMax в game.js), но профиль хранит счётчик сам и должен
 // уметь зажать его и без загруженной игры. Держим эти два числа в согласии.
@@ -227,6 +232,76 @@ function putProfile(name, profile) {
   const all = loadProfiles();
   all[key] = profile;
   saveProfiles(all);
+}
+
+// Переименование локального профиля в веб-сборке. Профиль лежит под ключом
+// в нижнем регистре, а сохранение похода и метка места — под точным именем.
+// Раньше «Изменить имя» просто создавало новый профиль: поход оставался под
+// старым именем и становился недоступен. Здесь переезжают все три записи.
+function renameProfile(oldName, newName) {
+  const from = String(oldName || "").trim();
+  const to = String(newName || "").trim().slice(0, 60);
+  if (!from || !to) return { ok: false, error: "Введи имя" };
+  if (from === to) return { ok: true, name: to };
+
+  const fromKey = profileKey(from);
+  const toKey = profileKey(to);
+  if (!fromKey) return { ok: false, error: "Профиль не найден" };
+
+  const all = loadProfiles();
+  const source = all[fromKey];
+  if (!source) return { ok: false, error: "Профиль не найден" };
+  if (fromKey !== toKey && all[toKey]) {
+    return { ok: false, error: "Это имя уже занято" };
+  }
+
+  const saveFrom = SAVE_STORAGE_PREFIX + ":" + from;
+  const saveTo = SAVE_STORAGE_PREFIX + ":" + to;
+  const placeFrom = PLACE_STORAGE_PREFIX + ":" + from;
+  const placeTo = PLACE_STORAGE_PREFIX + ":" + to;
+
+  try {
+    // Не затираем чужое сохранение, даже если профиля с таким именем нет.
+    if (saveFrom !== saveTo && localStorage.getItem(saveTo) != null) {
+      return { ok: false, error: "У этого имени уже есть сохранение" };
+    }
+    if (placeFrom !== placeTo && localStorage.getItem(placeTo) != null) {
+      return { ok: false, error: "У этого имени уже есть сохранение" };
+    }
+
+    all[toKey] = Object.assign({}, source, { name: to });
+    if (fromKey !== toKey) delete all[fromKey];
+    saveProfiles(all);
+
+    if (saveFrom !== saveTo) {
+      const save = localStorage.getItem(saveFrom);
+      if (save != null) {
+        // Внутри сейва тоже лежит имя владельца: game.js сверяет его при
+        // загрузке, поэтому одного переноса ключа мало.
+        let data = null;
+        try { data = JSON.parse(save); } catch (e) {}
+        if (data && typeof data === "object") {
+          data.name = to;
+          localStorage.setItem(saveTo, JSON.stringify(data));
+        } else {
+          localStorage.setItem(saveTo, save);
+        }
+        localStorage.removeItem(saveFrom);
+      }
+    }
+    if (placeFrom !== placeTo) {
+      const place = localStorage.getItem(placeFrom);
+      if (place != null) {
+        localStorage.setItem(placeTo, place);
+        localStorage.removeItem(placeFrom);
+      }
+    }
+  } catch (e) {
+    return { ok: false, error: "Не удалось перенести сохранение" };
+  }
+
+  setLastName(to);
+  return { ok: true, name: to };
 }
 
 function rewardForRun(percent, mode, bestStreak) {

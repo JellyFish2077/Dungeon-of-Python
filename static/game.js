@@ -2547,6 +2547,17 @@
     updateResumeButton();
     updateWalletLine();
     updateKnowledgeLine();
+    // Окно — модальное: фокус должен оказаться в нём, а не остаться на
+    // кнопке меню или в шапке. «Продолжить» важнее «Спуститься», если поход
+    // уже ждёт.
+    const resume = el("resume-btn");
+    const target = resume && resume.style.display !== "none"
+      ? resume : (el("begin-btn") || el("entrance-close"));
+    if (target) {
+      setTimeout(() => {
+        try { target.focus(); } catch (e) {}
+      }, 30);
+    }
   }
 
   // Выбор умения перед спуском. Умения открывает дом мастера: без него блок
@@ -5275,6 +5286,37 @@
       const node = el(id);
       return node && !node.classList.contains("hidden");
     });
+  }
+
+  // Tab внутри модального окна: без этого фокус уходит в шапку и на карту
+  // за оверлеем. Пока закрываем так окно стража — самое частое после меню.
+  function trapFocus(e, overlayId) {
+    if (e.key !== "Tab") return false;
+    const box = el(overlayId);
+    if (!box || box.classList.contains("hidden")) return false;
+    const nodes = Array.prototype.slice.call(box.querySelectorAll(
+      "button:not(:disabled), input:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])"
+    )).filter((node) => node.offsetParent !== null);
+    if (!nodes.length) return false;
+    const first = nodes[0];
+    const last = nodes[nodes.length - 1];
+    const active = document.activeElement;
+    if (!box.contains(active)) {
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+    if (e.shiftKey && active === first) {
+      e.preventDefault();
+      last.focus();
+      return true;
+    }
+    if (!e.shiftKey && active === last) {
+      e.preventDefault();
+      first.focus();
+      return true;
+    }
+    return false;
   }
 
   function doInteract() {
@@ -10073,6 +10115,12 @@ function topicName(key) {
       // обрабатывает отдельным слушателем.
       if (typeof window !== "undefined" && window.PyMenu &&
           typeof window.PyMenu.isOpen === "function" && window.PyMenu.isOpen()) {
+        return;
+      }
+      // Окно стража — модальное: Tab не должен уходить в шапку и на карту.
+      // Если поверх него открыта калибровка, фокусом управляет она.
+      if (el("calibration-overlay").classList.contains("hidden") &&
+          trapFocus(e, "entrance-overlay")) {
         return;
       }
       // F2 открывает панель разработчика, если сервер запущен с --dev.

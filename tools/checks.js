@@ -6597,6 +6597,37 @@ if (vault) {
     err || JSON.stringify(merged && merged.wallet));
 }
 
+// Переименование локального профиля в веб-сборке: вместе с профилем должны
+// переехать сохранение похода и метка места, иначе «Изменить имя» превращает
+// игрока в нового человека без прогресса.
+{
+  const oldName = "__rename_old__";
+  const newName = "__rename_new__";
+  const profile = globalThis.getProfile(oldName);
+  profile.wallet.gold = 77;
+  globalThis.putProfile(oldName, profile);
+  localStorage.setItem("pyquiz_save_v1:" + oldName, JSON.stringify({
+    v: 1, name: oldName, floorIndex: 2
+  }));
+  localStorage.setItem("pyquiz_place_v1:" + oldName, "dungeon");
+  const moved = globalThis.renameProfile(oldName, newName);
+  const after = globalThis.getProfile(newName);
+  let movedSave = null;
+  try {
+    movedSave = JSON.parse(localStorage.getItem("pyquiz_save_v1:" + newName) || "null");
+  } catch (e) {}
+  log(!!moved && moved.ok && after && after.wallet.gold === 77 &&
+      movedSave && movedSave.name === newName &&
+      localStorage.getItem("pyquiz_save_v1:" + oldName) === null &&
+      localStorage.getItem("pyquiz_save_v1:" + newName) !== null &&
+      localStorage.getItem("pyquiz_place_v1:" + newName) === "dungeon",
+    "профиль: переименование переносит сейв и метку места",
+    JSON.stringify(moved));
+  globalThis.putProfile("__rename_busy__", { name: "__rename_busy__" });
+  const busy = globalThis.renameProfile(newName, "__rename_busy__");
+  log(!busy.ok, "профиль: переименование не затирает занятое имя");
+}
+
 freshRun(0);
 
 console.log("__JSON__" + JSON.stringify(out));

@@ -336,7 +336,8 @@ body.menu-open #web-controls-hint {
 }
 
 .menu-keys-hint {
-  color: #64748b;
+  color: #93a8c8;
+  font-size: 13px;
   text-align: center;
   white-space: nowrap;
 }
