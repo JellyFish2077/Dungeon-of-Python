@@ -71,6 +71,45 @@ body.menu-open #web-controls-hint {
     radial-gradient(80% 60% at 50% 45%, transparent 35%, rgba(2, 6, 23, 0.45) 100%);
 }
 
+/* Шестерёнка настроек: отдельная кнопка, а не пункт списка. */
+.menu-gear {
+  position: absolute;
+  top: clamp(14px, 2.4vw, 26px);
+  right: clamp(14px, 2.4vw, 26px);
+  z-index: 3;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(125, 162, 217, 0.28);
+  border-radius: 50%;
+  background: rgba(8, 18, 34, 0.72);
+  color: #93a8c8;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.menu-gear:hover {
+  color: var(--gold, #f6c453);
+  border-color: var(--gold, #f6c453);
+  background: rgba(246, 196, 83, 0.08);
+}
+
+.menu-gear:active {
+  transform: translateY(1px);
+}
+
+.menu-gear:focus-visible {
+  outline: 2px solid rgba(246, 196, 83, 0.85);
+  outline-offset: 2px;
+}
+
+#menu-screen:not([data-view="main"]) .menu-gear {
+  display: none;
+}
+
 .menu-view {
   position: relative;
   z-index: 1;
@@ -310,8 +349,7 @@ body.menu-open #web-controls-hint {
 
 /* На подэкранах нижняя строка не нужна: там свои «Назад» и заголовок. */
 #menu-screen[data-view="settings"] .menu-statusbar,
-#menu-screen[data-view="account"] .menu-statusbar,
-#menu-screen[data-view="help"] .menu-statusbar {
+#menu-screen[data-view="account"] .menu-statusbar {
   display: none;
 }
 
@@ -626,7 +664,20 @@ body.menu-open #web-controls-hint {
   flex-wrap: wrap;
 }
 
-/* ---------- Управление ---------- */
+/* ---------- Управление (внутри настроек) ---------- */
+
+.menu-controls {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(125, 162, 217, 0.16);
+}
+
+.menu-controls h3 {
+  margin: 0 0 10px;
+  font-family: var(--display, Georgia, "Times New Roman", serif);
+  font-size: 18px;
+  color: #f4f0e6;
+}
 
 .menu-keys {
   display: grid;
@@ -707,6 +758,14 @@ body.reduce-motion *::after {
   .menu-screen {
     justify-content: flex-start;
     padding: 22px 14px 18px;
+  }
+
+  .menu-gear {
+    top: 12px;
+    right: 12px;
+    width: 40px;
+    height: 40px;
+    font-size: 19px;
   }
 
   .menu-view-main {

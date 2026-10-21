@@ -251,13 +251,17 @@
     <div class="battle inventory" id="forge-box"></div>
   </div>
 
-  <!-- Стартовое меню: крупное название и вертикальный список, как в
-       классическом главном меню. Настройки, аккаунт и управление — отдельные
-       экраны, а не колонки. Лежит поверх игры, поэтому деревня успевает
-       отрисоваться за ним, а «Играть» просто закрывает меню. -->
+  <!-- Стартовое меню: крупное название и один вертикальный список действий.
+       Настройки — отдельная кнопка-шестерёнка, аккаунт — строка игрока внизу.
+       Лежит поверх игры, поэтому деревня успевает отрисоваться за ним. -->
   <div class="overlay menu-overlay hidden" id="menu-overlay">
     <main class="menu-screen" id="menu-screen" role="dialog" aria-modal="true"
           aria-labelledby="menu-title" data-view="main">
+      <button class="menu-gear" id="menu-settings-btn" type="button"
+              aria-label="Настройки" title="Настройки">
+        <span aria-hidden="true">⚙</span>
+      </button>
+
       <section class="menu-view menu-view-main" id="menu-view-main">
         <header class="menu-title">
           <div class="menu-logo" aria-hidden="true">Py</div>
@@ -280,21 +284,6 @@
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Новая игра</span>
             <span class="menu-item-note">сложность у стража</span>
-          </button>
-          <button class="menu-item" id="menu-settings-btn" type="button" data-action="settings">
-            <span class="menu-item-mark" aria-hidden="true">▶</span>
-            <span class="menu-item-label">Настройки</span>
-            <span class="menu-item-note">звук и экран</span>
-          </button>
-          <button class="menu-item" id="menu-help-btn" type="button" data-action="help">
-            <span class="menu-item-mark" aria-hidden="true">▶</span>
-            <span class="menu-item-label">Управление</span>
-            <span class="menu-item-note">клавиши</span>
-          </button>
-          <button class="menu-item" id="menu-account-btn" type="button" data-action="account">
-            <span class="menu-item-mark" aria-hidden="true">▶</span>
-            <span class="menu-item-label">Аккаунт</span>
-            <span class="menu-item-note" id="menu-account-note"></span>
           </button>
           <button class="menu-item menu-item-quiet" id="menu-exit" type="button" data-action="exit">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
@@ -336,20 +325,9 @@
           <button class="menu-btn ghost" id="set-reset-hints" type="button">Сбросить подсказки</button>
           <p class="menu-note" id="set-note">Настройки хранятся в этом браузере.</p>
         </div>
-      </section>
 
-      <section class="menu-view menu-view-sub hidden" id="menu-view-account"
-               aria-labelledby="menu-account-title">
-        <button class="menu-back" id="menu-back-account" type="button">← Назад</button>
-        <h2 id="menu-account-title">Аккаунт</h2>
-        <div class="menu-panel" id="menu-account-panel"></div>
-      </section>
-
-      <section class="menu-view menu-view-sub hidden" id="menu-view-help"
-               aria-labelledby="menu-help-title">
-        <button class="menu-back" id="menu-back-help" type="button">← Назад</button>
-        <h2 id="menu-help-title">Управление</h2>
-        <div class="menu-panel">
+        <div class="menu-panel menu-controls">
+          <h3>Управление</h3>
           <div class="menu-keys">
             <div><b>WASD / стрелки</b> — ходить</div>
             <div><b>E</b> — действие</div>
@@ -363,6 +341,13 @@
             сложность и режим похода.
           </p>
         </div>
+      </section>
+
+      <section class="menu-view menu-view-sub hidden" id="menu-view-account"
+               aria-labelledby="menu-account-title">
+        <button class="menu-back" id="menu-back-account" type="button">← Назад</button>
+        <h2 id="menu-account-title">Аккаунт</h2>
+        <div class="menu-panel" id="menu-account-panel"></div>
       </section>
     </main>
   </div>

@@ -229,8 +229,7 @@
     const views = {
       main: $("menu-view-main"),
       settings: $("menu-view-settings"),
-      account: $("menu-view-account"),
-      help: $("menu-view-help")
+      account: $("menu-view-account")
     };
     Object.keys(views).forEach((key) => {
       if (views[key]) views[key].classList.toggle("hidden", key !== name);
@@ -252,9 +251,6 @@
       updateFullscreenLabel();
       focusLater($("menu-back-settings") || $("set-sound"));
       return;
-    }
-    if (name === "help") {
-      focusLater($("menu-back-help"));
     }
   }
 
@@ -302,21 +298,6 @@
     item.classList.toggle("hidden", !!(state && state.battle));
   }
 
-  function renderAccountButton() {
-    const item = $("menu-account-btn");
-    if (!item) return;
-    const label = item.querySelector(".menu-item-label");
-    const note = $("menu-account-note");
-    const user = current();
-    if (label) label.textContent = user ? "Аккаунт" : "Войти";
-    if (!note) return;
-    if (!user) {
-      note.textContent = "без входа играть нельзя";
-    } else {
-      note.textContent = user.role === "teacher" ? "преподаватель" : "ученик";
-    }
-  }
-
   function renderAccountLine() {
     const box = $("menu-account");
     if (!box) return;
@@ -347,7 +328,6 @@
     renderPlay();
     renderVillage();
     renderNew();
-    renderAccountButton();
     renderAccountLine();
     renderVersion();
     ensureActive();
@@ -604,9 +584,6 @@
       case "play": onPlay(); break;
       case "village": onVillage(); break;
       case "new": onNew(); break;
-      case "settings": sound("click"); setView("settings"); break;
-      case "help": sound("click"); setView("help"); break;
-      case "account": sound("click"); setView("account"); break;
       case "exit": onExit(); break;
       default: break;
     }
@@ -734,7 +711,7 @@
       });
     }
 
-    ["settings", "account", "help"].forEach((name) => {
+    ["settings", "account"].forEach((name) => {
       const back = $("menu-back-" + name);
       if (back) {
         back.addEventListener("click", () => {
@@ -744,6 +721,16 @@
         });
       }
     });
+
+    // Настройки — кнопка-шестерёнка, а не пункт списка: список остаётся
+    // только из действий игры.
+    const gear = $("menu-settings-btn");
+    if (gear) {
+      gear.addEventListener("click", () => {
+        sound("click");
+        setView("settings");
+      });
+    }
 
     const soundBox = $("set-sound");
     if (soundBox) {
