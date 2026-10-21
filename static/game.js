@@ -11011,7 +11011,8 @@ function topicName(key) {
   }
 
   // Меню не знает внутренностей игры: ему достаточно места, этажа и того,
-  // есть ли что продолжать. resume — та же загрузка сейва, что у стража.
+  // есть ли что продолжать. resume — та же загрузка сейва, что у стража;
+  // newRun открывает окно стража с выбором сложности и режима.
   if (typeof window !== "undefined") {
     window.PyGameMenuAPI = {
       status: function () {
@@ -11023,12 +11024,29 @@ function topicName(key) {
         return {
           paused: !!paused && !paused.over,
           running: !!G.running,
+          battle: !!G.battle,
           place: place,
           floor: floor,
           gold: gold
         };
       },
-      resume: loadGame
+      resume: loadGame,
+      village: function () {
+        if (G.place !== "dungeon" || G.battle) return false;
+        return returnToVillage();
+      },
+      newRun: function () {
+        // Из боя в «Новую игру» не уходят: иначе это бесплатный побег.
+        if (G.battle) return false;
+        if (G.place === "dungeon") {
+          if (!returnToVillage()) return false;
+        } else {
+          enterVillage(null);
+        }
+        openEntrance();
+        return true;
+      },
+      leave: leave
     };
   }
 

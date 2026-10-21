@@ -1,11 +1,12 @@
-// Стартовое меню PyDungeon: вход, продолжение похода и настройки.
+// Классическое главное меню PyDungeon.
 //
-// Меню живёт поверх уже загруженной игры, а не отдельной страницей: так
-// классная и публичная сборки используют один экран, отличаются только
-// способом входа. Серверная версия спрашивает имя и PIN, веб-сборка — имя.
+// Один экран с крупным названием и вертикальным списком. Настройки, аккаунт
+// и управление — отдельные экраны, а не постоянные колонки. Меню живёт поверх
+// уже загруженной игры, поэтому классная и публичная сборки используют один
+// экран; различается только способ входа (PIN или локальное имя).
 //
-// Модуль ничего не знает о внутренностях игры: состояние и продолжение
-// похода он спрашивает у window.PyGameMenuAPI, который выставляет game.js.
+// Модуль не знает внутренностей игры: состояние, продолжение, новую игру и
+// выход он спрашивает у window.PyGameMenuAPI, который выставляет game.js.
 (function () {
   "use strict";
 
@@ -16,8 +17,10 @@
   let settings = loadSettings();
   let inited = false;
   let isOpen = false;
+  let view = "main";
   let editingName = false;
   let focusBefore = null;
+  let activeItem = null;
 
   function $(id) {
     return document.getElementById(id);
@@ -159,43 +162,252 @@
     });
   }
 
-  function renderGreeting() {
-    const title = $("menu-greeting");
-    if (!title) return;
+  function gameStatus() {
+    try {
+      return api() && typeof api().status === "function" ? api().status() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ---------- Вертикальное меню и клавиатура ----------
+
+  function mainItems() {
+    const list = document.querySelectorAll("#menu-list .menu-item");
+    return Array.prototype.slice.call(list).filter((node) =>
+      !node.classList.contains("hidden") && !node.classList.contains("is-disabled")
+    );
+  }
+
+  function setActive(item, focus) {
+    mainItems().forEach((node) => node.classList.toggle("is-active", node === item));
+    activeItem = item;
+    if (focus && item && typeof item.focus === "function") {
+      try { item.focus(); } catch (e) {}
+    }
+  }
+
+  function ensureActive() {
+    const list = mainItems();
+    if (!list.includes(activeItem)) setActive(list[0] || null, false);
+  }
+
+  function moveActive(delta) {
+    const list = mainItems();
+    if (!list.length) return;
+    let index = list.indexOf(activeItem);
+    if (index < 0) index = delta > 0 ? -1 : 0;
+    const next = list[(index + delta + list.length) % list.length];
+    setActive(next, true);
+  }
+
+  function isTypingTarget(node) {
+    if (!node) return false;
+    const tag = String(node.tagName || "").toUpperCase();
+    return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || !!node.isContentEditable;
+  }
+
+  function focusables() {
+    const box = $("menu-overlay");
+    if (!box) return [];
+    return Array.prototype.slice.call(box.querySelectorAll(
+      "button:not(:disabled), input:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])"
+    )).filter((node) => node.offsetParent !== null || node === document.activeElement);
+  }
+
+  function focusLater(node) {
+    if (!node) return;
+    setTimeout(() => {
+      try { node.focus(); } catch (e) {}
+    }, 30);
+  }
+
+  function setView(name) {
+    view = name;
+    const screen = $("menu-screen");
+    if (screen) screen.dataset.view = name;
+    const views = {
+      main: $("menu-view-main"),
+      settings: $("menu-view-settings"),
+      account: $("menu-view-account"),
+      help: $("menu-view-help")
+    };
+    Object.keys(views).forEach((key) => {
+      if (views[key]) views[key].classList.toggle("hidden", key !== name);
+    });
+
+    if (name === "main") {
+      renderMain();
+      ensureActive();
+      setActive(activeItem || mainItems()[0] || null, true);
+      return;
+    }
+    if (name === "account") {
+      renderAccountView();
+      focusLater($("menu-name") || $("menu-back-account"));
+      return;
+    }
+    if (name === "settings") {
+      applySettings();
+      updateFullscreenLabel();
+      focusLater($("menu-back-settings") || $("set-sound"));
+      return;
+    }
+    if (name === "help") {
+      focusLater($("menu-back-help"));
+    }
+  }
+
+  // ---------- Главный экран ----------
+
+  function renderPlay() {
+    const item = $("menu-play");
+    if (!item) return;
+    const label = item.querySelector(".menu-item-label");
+    const note = $("menu-play-note");
+    const state = gameStatus();
+    if (!hasUser()) {
+      if (label) label.textContent = "Играть";
+      if (note) note.textContent = "сначала войди";
+      return;
+    }
+    if (state && state.place === "dungeon") {
+      if (label) label.textContent = "Вернуться в игру";
+      if (note) note.textContent = "этаж " + state.floor;
+      return;
+    }
+    if (state && state.paused) {
+      if (label) label.textContent = "Продолжить поход";
+      if (note) {
+        note.textContent = "этаж " + state.floor + " · " + state.gold + " зол.";
+      }
+      return;
+    }
+    if (label) label.textContent = "Играть";
+    if (note) note.textContent = "деревня";
+  }
+
+  function renderVillage() {
+    const item = $("menu-village");
+    if (!item) return;
+    const state = gameStatus();
+    const show = hasUser() && state && state.place === "dungeon" && !state.battle;
+    item.classList.toggle("hidden", !show);
+  }
+
+  function renderNew() {
+    const item = $("menu-new");
+    if (!item) return;
+    const state = gameStatus();
+    item.classList.toggle("hidden", !!(state && state.battle));
+  }
+
+  function renderAccountButton() {
+    const item = $("menu-account-btn");
+    if (!item) return;
+    const label = item.querySelector(".menu-item-label");
+    const note = $("menu-account-note");
     const user = current();
-    title.textContent = user ? "С возвращением, " + user.name : "Добро пожаловать";
+    if (label) label.textContent = user ? "Аккаунт" : "Войти";
+    if (!note) return;
+    if (!user) {
+      note.textContent = "без входа играть нельзя";
+    } else {
+      note.textContent = user.role === "teacher" ? "преподаватель" : "ученик";
+    }
   }
 
-  function renderTeacherLink() {
-    const link = $("menu-teacher");
-    if (!link) return;
-    const teacher = !isWeb() && typeof isTeacher === "function" && isTeacher();
-    link.classList.toggle("hidden", !teacher);
-  }
-
-  function renderAccount() {
+  function renderAccountLine() {
     const box = $("menu-account");
     if (!box) return;
     const user = current();
-    if (user && !(isWeb() && editingName)) {
+    if (user) {
+      const initial = String(user.name || "?").slice(0, 1).toUpperCase();
       const role = user.role === "teacher" ? "преподаватель" : "ученик";
       box.innerHTML =
-        "<div class='menu-user'>" +
-        "<div class='menu-avatar' aria-hidden='true'>" +
-        esc(String(user.name || "?").slice(0, 1).toUpperCase()) + "</div>" +
-        "<div class='menu-user-text'><b>" + esc(user.name) + "</b>" +
+        "<span class='menu-account-avatar' aria-hidden='true'>" + esc(initial) + "</span>" +
+        "<span class='menu-account-name'><b>" + esc(user.name) + "</b> <span>" +
+        role + "</span></span>" +
+        "<button class='menu-change' id='menu-change' type='button'>Сменить</button>";
+    } else {
+      box.innerHTML =
+        "<span class='menu-account-name'>Гость</span>" +
+        "<button class='menu-change' id='menu-change' type='button'>Войти</button>";
+    }
+    const change = $("menu-change");
+    if (change) {
+      change.addEventListener("click", () => {
+        sound("click");
+        setView("account");
+      });
+    }
+  }
+
+  function renderMain() {
+    renderPlay();
+    renderVillage();
+    renderNew();
+    renderAccountButton();
+    renderAccountLine();
+    renderVersion();
+    ensureActive();
+  }
+
+  function render() {
+    renderMain();
+    renderAccountView();
+    applySettings();
+    updateFullscreenLabel();
+    renderVersion();
+    if (view === "main") ensureActive();
+  }
+
+  // ---------- Экран аккаунта ----------
+
+  function renderAccountView() {
+    const panel = $("menu-account-panel");
+    if (!panel) return;
+    const user = current();
+    if (user && !(isWeb() && editingName)) {
+      const initial = String(user.name || "?").slice(0, 1).toUpperCase();
+      const role = user.role === "teacher" ? "преподаватель" : "ученик";
+      const teacher = !isWeb() && typeof isTeacher === "function" && isTeacher();
+      panel.innerHTML =
+        "<div class='menu-profile'>" +
+        "<div class='menu-avatar' aria-hidden='true'>" + esc(initial) + "</div>" +
+        "<div class='menu-profile-text'><b>" + esc(user.name) + "</b>" +
         "<span>" + role + "</span></div>" +
-        "<button class='menu-btn small ghost' id='menu-change' type='button'>Сменить</button>" +
-        "</div>";
-      const change = $("menu-change");
-      if (change) change.addEventListener("click", onChangeAccount);
+        "</div>" +
+        "<div class='menu-profile-actions'>" +
+        (isWeb()
+          ? "<button class='menu-btn' id='menu-edit-name' type='button'>Изменить имя</button>"
+          : "<button class='menu-btn' id='menu-logout' type='button'>Сменить игрока</button>") +
+        (teacher
+          ? "<a class='menu-btn ghost' href='/results'>Панель учителя</a>"
+          : "") +
+        "</div>" +
+        "<p class='menu-note'>" +
+        (isWeb()
+          ? "Профиль и сохранения хранятся в этом браузере."
+          : "Профиль и уровень знаний синхронизируются с сервером.") +
+        "</p>";
+      const edit = $("menu-edit-name");
+      if (edit) {
+        edit.addEventListener("click", () => {
+          editingName = true;
+          renderAccountView();
+          focusLater($("menu-name"));
+        });
+      }
+      const out = $("menu-logout");
+      if (out) out.addEventListener("click", onLogout);
       return;
     }
     if (isWeb()) {
-      renderWebNameForm(box, user);
-      return;
+      renderWebNameForm(panel, user);
+    } else {
+      renderLoginForm(panel);
     }
-    renderLoginForm(box);
   }
 
   function renderWebNameForm(box, user) {
@@ -219,12 +431,13 @@
       });
     }
     const cancel = $("menu-name-cancel");
-    if (cancel) cancel.addEventListener("click", () => {
-      editingName = false;
-      render();
-    });
-    const input = $("menu-name");
-    if (input && editingName) input.focus();
+    if (cancel) {
+      cancel.addEventListener("click", () => {
+        editingName = false;
+        renderAccountView();
+        focusLater($("menu-edit-name"));
+      });
+    }
   }
 
   function renderLoginForm(box) {
@@ -251,20 +464,12 @@
     }
     const register = $("menu-register");
     if (register) register.addEventListener("click", () => submitAuth(true));
-    const name = $("menu-name");
-    if (name) name.focus();
   }
 
-  function onChangeAccount() {
-    if (isWeb()) {
-      editingName = true;
-      render();
-      const input = $("menu-name");
-      if (input) input.focus();
-      return;
-    }
+  function onLogout() {
     if (!window.confirm("Выйти из аккаунта? Поход сохранится.")) return;
     if (typeof logout === "function") logout();
+    editingName = false;
     try {
       sessionStorage.removeItem(AUTOPLAY_KEY);
     } catch (e) {}
@@ -334,55 +539,249 @@
       });
   }
 
-  function renderStatus() {
-    const status = $("menu-status");
-    const play = $("menu-play");
-    if (!status || !play) return;
-    const user = hasUser();
-    play.disabled = !user;
-    if (!user) {
-      status.textContent = isWeb()
-        ? "Назови героя — и можно спускаться."
-        : "Войди в аккаунт — и можно спускаться.";
-      play.textContent = "Играть";
+  // ---------- Действия меню ----------
+
+  function onPlay() {
+    sound("click");
+    if (!hasUser()) {
+      setView("account");
       return;
     }
-    if (isWeb() && editingName) {
-      play.disabled = true;
-      status.textContent = "Измени имя и нажми «Сохранить».";
-      play.textContent = "Играть";
-      return;
+    const state = gameStatus();
+    if (state && state.paused && state.place !== "dungeon" &&
+        api() && typeof api().resume === "function") {
+      try {
+        api().resume();
+      } catch (e) {
+        // Продолжение не удалось — просто закроем меню и покажем деревню.
+      }
     }
-    let state = null;
-    try {
-      state = api() && api().status ? api().status() : null;
-    } catch (e) {
-      state = null;
-    }
-    if (state && state.place === "dungeon") {
-      status.textContent = "Поход продолжается: этаж " + state.floor +
-        ", золото " + state.gold + ".";
-      play.textContent = "Вернуться в игру";
-      return;
-    }
-    if (state && state.paused) {
-      status.textContent = "Поход на паузе: этаж " + state.floor +
-        ", золото " + state.gold + ".";
-      play.textContent = "Продолжить поход";
-      return;
-    }
-    status.textContent = "Ты в деревне. Страж у входа в подземелье ждёт.";
-    play.textContent = "Играть";
+    close();
   }
 
-  function render() {
-    renderGreeting();
-    renderAccount();
-    renderStatus();
-    renderTeacherLink();
-    renderVersion();
-    applySettings();
-    updateFullscreenLabel();
+  function onVillage() {
+    sound("click");
+    if (!hasUser()) {
+      setView("account");
+      return;
+    }
+    const game = api();
+    if (game && typeof game.village === "function") {
+      let ok = true;
+      try { ok = game.village(); } catch (e) { ok = false; }
+      if (ok === false) return;
+    }
+    close();
+  }
+
+  function onNew() {
+    sound("click");
+    if (!hasUser()) {
+      setView("account");
+      return;
+    }
+    const game = api();
+    if (game && typeof game.newRun === "function") {
+      let ok = true;
+      try { ok = game.newRun(); } catch (e) { ok = false; }
+      if (ok === false) return;
+    }
+    close();
+  }
+
+  function onExit() {
+    sound("click");
+    const game = api();
+    if (game && typeof game.leave === "function") {
+      try { game.leave(); } catch (e) {}
+      return;
+    }
+    window.location.href = isWeb() ? "index.html" : "/";
+  }
+
+  function activateAction(action) {
+    switch (action) {
+      case "play": onPlay(); break;
+      case "village": onVillage(); break;
+      case "new": onNew(); break;
+      case "settings": sound("click"); setView("settings"); break;
+      case "help": sound("click"); setView("help"); break;
+      case "account": sound("click"); setView("account"); break;
+      case "exit": onExit(); break;
+      default: break;
+    }
+  }
+
+  // ---------- Открытие и закрытие ----------
+
+  function open() {
+    init();
+    const box = $("menu-overlay");
+    if (!box) return;
+    if (isOpen) {
+      render();
+      setView(view);
+      return;
+    }
+    focusBefore = document.activeElement;
+    isOpen = true;
+    editingName = false;
+    activeItem = null;
+    box.classList.remove("hidden");
+    document.body.classList.add("menu-open");
+    const stage = $("stage");
+    if (stage) stage.setAttribute("aria-hidden", "true");
+    render();
+    setView("main");
+  }
+
+  function close() {
+    const box = $("menu-overlay");
+    if (!isOpen || !box) return;
+    isOpen = false;
+    view = "main";
+    editingName = false;
+    box.classList.add("hidden");
+    document.body.classList.remove("menu-open");
+    const stage = $("stage");
+    if (stage) stage.removeAttribute("aria-hidden");
+    if (focusBefore && typeof focusBefore.focus === "function") {
+      try { focusBefore.focus(); } catch (e) {}
+    }
+    focusBefore = null;
+  }
+
+  function boot() {
+    init();
+    render();
+    const forced = query("menu") === "1";
+    const play = query("play") === "1";
+    const autoplay = takeAutoplay();
+    // После входа страница перезагружается: не показываем меню второй раз,
+    // если игрок уже нажал «Играть» или пришёл со стартового экрана веб-сборки.
+    if (hasUser() && !forced && (autoplay || play)) return;
+    open();
+  }
+
+  // ---------- Клавиатура ----------
+
+  function onKey(e) {
+    if (!isOpen) return;
+
+    if (e.key === "Tab") {
+      const list = focusables();
+      if (!list.length) return;
+      const first = list[0];
+      const last = list[list.length - 1];
+      const box = $("menu-overlay");
+      const active = document.activeElement;
+      if (!box || !box.contains(active)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+      if (e.shiftKey && active === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+
+    if (view !== "main") {
+      if (e.key !== "Escape") return;
+      e.preventDefault();
+      if (view === "account" && editingName) {
+        editingName = false;
+        renderAccountView();
+        focusLater($("menu-edit-name"));
+        return;
+      }
+      setView("main");
+      return;
+    }
+
+    if (e.key === "Escape") {
+      if (!hasUser()) return;
+      e.preventDefault();
+      close();
+      return;
+    }
+    if (isTypingTarget(e.target)) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      moveActive(e.key === "ArrowDown" ? 1 : -1);
+    }
+  }
+
+  // ---------- Привязки ----------
+
+  function bind() {
+    const list = $("menu-list");
+    if (list) {
+      list.addEventListener("click", (e) => {
+        const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
+        if (!item || item.classList.contains("is-disabled")) return;
+        e.preventDefault();
+        activateAction(item.dataset.action);
+      });
+      list.addEventListener("mouseover", (e) => {
+        const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
+        if (!item || item.classList.contains("hidden") || item.classList.contains("is-disabled")) return;
+        setActive(item, false);
+      });
+    }
+
+    ["settings", "account", "help"].forEach((name) => {
+      const back = $("menu-back-" + name);
+      if (back) {
+        back.addEventListener("click", () => {
+          sound("click");
+          editingName = false;
+          setView("main");
+        });
+      }
+    });
+
+    const soundBox = $("set-sound");
+    if (soundBox) {
+      soundBox.addEventListener("change", (e) => {
+        settings.sound = !!e.target.checked;
+        saveSettings();
+        if (settings.sound) sound("click");
+      });
+    }
+    const volume = $("set-volume");
+    if (volume) {
+      volume.addEventListener("input", (e) => {
+        settings.volume = clampVolume(Number(e.target.value) / 100);
+        saveSettings();
+      });
+      volume.addEventListener("change", () => {
+        if (settings.sound) sound("click");
+      });
+    }
+    const motion = $("set-motion");
+    if (motion) {
+      motion.addEventListener("change", (e) => {
+        settings.reduceMotion = !!e.target.checked;
+        saveSettings();
+      });
+    }
+    const fullscreen = $("set-fullscreen");
+    if (fullscreen) fullscreen.addEventListener("click", toggleFullscreen);
+    const hints = $("set-reset-hints");
+    if (hints) hints.addEventListener("click", resetHints);
+    document.addEventListener("fullscreenchange", updateFullscreenLabel);
+    document.addEventListener("keydown", onKey);
+    window.addEventListener("storage", (e) => {
+      if (e.key === SETTINGS_KEY) {
+        settings = loadSettings();
+        applySettings();
+      }
+    });
   }
 
   function updateFullscreenLabel() {
@@ -423,194 +822,6 @@
     if (note) {
       note.textContent = "Подсказки и вид панели сброшены: после перезагрузки они вернутся к обычным.";
     }
-  }
-
-  function onPlay() {
-    if (!hasUser()) {
-      sound("wrong");
-      const name = $("menu-name");
-      if (name) name.focus();
-      return;
-    }
-    sound("click");
-    let state = null;
-    try {
-      state = api() && api().status ? api().status() : null;
-    } catch (e) {
-      state = null;
-    }
-    if (state && state.paused && state.place !== "dungeon" &&
-        api() && typeof api().resume === "function") {
-      try {
-        api().resume();
-      } catch (e) {
-        // Продолжение не удалось — ниже просто закроем меню и покажем деревню.
-      }
-    }
-    close();
-  }
-
-  function open() {
-    init();
-    const box = $("menu-overlay");
-    if (!box) return;
-    if (isOpen) {
-      render();
-      return;
-    }
-    focusBefore = document.activeElement;
-    isOpen = true;
-    box.classList.remove("hidden");
-    document.body.classList.add("menu-open");
-    const stage = $("stage");
-    if (stage) stage.setAttribute("aria-hidden", "true");
-    render();
-    const target = hasUser() ? $("menu-play") : $("menu-name");
-    if (target) {
-      setTimeout(() => {
-        try { target.focus(); } catch (e) {}
-      }, 40);
-    }
-  }
-
-  function close() {
-    const box = $("menu-overlay");
-    if (!isOpen || !box) return;
-    isOpen = false;
-    box.classList.add("hidden");
-    document.body.classList.remove("menu-open");
-    const stage = $("stage");
-    if (stage) stage.removeAttribute("aria-hidden");
-    if (focusBefore && typeof focusBefore.focus === "function") {
-      try { focusBefore.focus(); } catch (e) {}
-    }
-    focusBefore = null;
-  }
-
-  function boot() {
-    init();
-    render();
-    const forced = query("menu") === "1";
-    const play = query("play") === "1";
-    const autoplay = takeAutoplay();
-    // После входа страница перезагружается: не показываем меню второй раз,
-    // если игрок уже нажал «Играть» или пришёл со стартового экрана веб-сборки.
-    if (hasUser() && !forced && (autoplay || play)) return;
-    open();
-  }
-
-  // Видимые и доступные элементы меню: по ним Tab ходит только внутри
-  // модального окна и не утекает в шапку игры за оверлеем.
-  function menuFocusables() {
-    const box = $("menu-overlay");
-    if (!box) return [];
-    return Array.prototype.slice.call(box.querySelectorAll(
-      "button:not(:disabled), input:not(:disabled), a[href], [tabindex]:not([tabindex='-1'])"
-    )).filter((node) => node.offsetParent !== null || node === document.activeElement);
-  }
-
-  function onKey(e) {
-    if (!isOpen) return;
-    if (e.key === "Tab") {
-      const list = menuFocusables();
-      if (!list.length) return;
-      const first = list[0];
-      const last = list[list.length - 1];
-      const box = $("menu-overlay");
-      const active = document.activeElement;
-      if (!box || !box.contains(active)) {
-        e.preventDefault();
-        first.focus();
-        return;
-      }
-      if (e.shiftKey && active === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && active === last) {
-        e.preventDefault();
-        first.focus();
-      }
-      return;
-    }
-    if (e.key !== "Escape") return;
-    if (isWeb() && editingName) {
-      editingName = false;
-      render();
-      return;
-    }
-    if (!hasUser()) return;
-    e.preventDefault();
-    close();
-  }
-
-  function bind() {
-    const play = $("menu-play");
-    if (play) play.addEventListener("click", onPlay);
-    const settingsBtn = $("menu-settings-btn");
-    if (settingsBtn) {
-      settingsBtn.addEventListener("click", () => {
-        sound("click");
-        const panel = $("menu-settings");
-        if (!panel) return;
-        panel.classList.add("menu-panel-focus");
-        try {
-          panel.scrollIntoView({
-            behavior: settings.reduceMotion ? "auto" : "smooth",
-            block: "center"
-          });
-        } catch (e) {}
-        setTimeout(() => panel.classList.remove("menu-panel-focus"), 1400);
-      });
-    }
-    const helpBtn = $("menu-help-btn");
-    if (helpBtn) {
-      helpBtn.addEventListener("click", () => {
-        sound("click");
-        const help = $("menu-help");
-        if (!help) return;
-        const show = help.classList.contains("hidden");
-        help.classList.toggle("hidden", !show);
-        helpBtn.setAttribute("aria-expanded", String(show));
-        helpBtn.textContent = show ? "Скрыть управление" : "Как играть";
-      });
-    }
-    const soundBox = $("set-sound");
-    if (soundBox) {
-      soundBox.addEventListener("change", (e) => {
-        settings.sound = !!e.target.checked;
-        saveSettings();
-        if (settings.sound) sound("click");
-      });
-    }
-    const volume = $("set-volume");
-    if (volume) {
-      volume.addEventListener("input", (e) => {
-        settings.volume = clampVolume(Number(e.target.value) / 100);
-        saveSettings();
-      });
-      volume.addEventListener("change", () => {
-        if (settings.sound) sound("click");
-      });
-    }
-    const motion = $("set-motion");
-    if (motion) {
-      motion.addEventListener("change", (e) => {
-        settings.reduceMotion = !!e.target.checked;
-        saveSettings();
-      });
-    }
-    const fullscreen = $("set-fullscreen");
-    if (fullscreen) fullscreen.addEventListener("click", toggleFullscreen);
-    const hints = $("set-reset-hints");
-    if (hints) hints.addEventListener("click", resetHints);
-    document.addEventListener("fullscreenchange", updateFullscreenLabel);
-    document.addEventListener("keydown", onKey);
-    window.addEventListener("storage", (e) => {
-      if (e.key === SETTINGS_KEY) {
-        settings = loadSettings();
-        applySettings();
-      }
-    });
   }
 
   function init() {

@@ -251,92 +251,119 @@
     <div class="battle inventory" id="forge-box"></div>
   </div>
 
-  <!-- Стартовое меню: вход, продолжение похода и настройки. Лежит поверх игры,
-       поэтому деревня успевает отрисоваться за ним, а «Играть» просто
-       закрывает меню. В веб-сборке вместо PIN — локальное имя. -->
+  <!-- Стартовое меню: крупное название и вертикальный список, как в
+       классическом главном меню. Настройки, аккаунт и управление — отдельные
+       экраны, а не колонки. Лежит поверх игры, поэтому деревня успевает
+       отрисоваться за ним, а «Играть» просто закрывает меню. -->
   <div class="overlay menu-overlay hidden" id="menu-overlay">
-    <main class="menu-screen" role="dialog" aria-modal="true" aria-labelledby="menu-title">
-      <header class="menu-top">
-        <div class="menu-brand">
+    <main class="menu-screen" id="menu-screen" role="dialog" aria-modal="true"
+          aria-labelledby="menu-title" data-view="main">
+      <section class="menu-view menu-view-main" id="menu-view-main">
+        <header class="menu-title">
           <div class="menu-logo" aria-hidden="true">Py</div>
-          <div>
-            <h1 id="menu-title">PyDungeon</h1>
-            <p>Python-рогалик: вопросы, код, деревня и дракон</p>
-          </div>
-        </div>
+          <h1 id="menu-title">PyDungeon</h1>
+          <p class="menu-tagline">Python-рогалик · вопросы, код, деревня и дракон</p>
+        </header>
+
+        <nav class="menu-list" id="menu-list" aria-label="Главное меню">
+          <button class="menu-item is-active" id="menu-play" type="button" data-action="play">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Играть</span>
+            <span class="menu-item-note" id="menu-play-note"></span>
+          </button>
+          <button class="menu-item hidden" id="menu-village" type="button" data-action="village">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">В деревню</span>
+            <span class="menu-item-note">поход сохранится</span>
+          </button>
+          <button class="menu-item" id="menu-new" type="button" data-action="new">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Новая игра</span>
+            <span class="menu-item-note">сложность у стража</span>
+          </button>
+          <button class="menu-item" id="menu-settings-btn" type="button" data-action="settings">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Настройки</span>
+            <span class="menu-item-note">звук и экран</span>
+          </button>
+          <button class="menu-item" id="menu-help-btn" type="button" data-action="help">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Управление</span>
+            <span class="menu-item-note">клавиши</span>
+          </button>
+          <button class="menu-item" id="menu-account-btn" type="button" data-action="account">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Аккаунт</span>
+            <span class="menu-item-note" id="menu-account-note"></span>
+          </button>
+          <button class="menu-item menu-item-quiet" id="menu-exit" type="button" data-action="exit">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Выход</span>
+          </button>
+        </nav>
+      </section>
+
+      <footer class="menu-statusbar">
+        <div class="menu-account" id="menu-account"></div>
+        <div class="menu-keys-hint">↑↓ — выбор · Enter — подтвердить · Esc — закрыть</div>
         <span class="menu-version" data-app-version></span>
-      </header>
-
-      <div class="menu-grid">
-        <section class="menu-main">
-          <p class="menu-kicker">Главное меню</p>
-          <h2 id="menu-greeting">Добро пожаловать</h2>
-          <p class="menu-status" id="menu-status" aria-live="polite">
-            Войди в аккаунт — и можно спускаться.
-          </p>
-
-          <div class="menu-account" id="menu-account"></div>
-
-          <div class="menu-actions">
-            <button class="menu-btn primary" id="menu-play" type="button">Играть</button>
-            <button class="menu-btn" id="menu-settings-btn" type="button">Настройки</button>
-            <button class="menu-btn ghost" id="menu-help-btn" type="button"
-                    aria-expanded="false" aria-controls="menu-help">Как играть</button>
-          </div>
-
-          <div class="menu-help hidden" id="menu-help">
-            <h3>Управление</h3>
-            <div class="menu-keys">
-              <div><b>WASD / стрелки</b> — ходить</div>
-              <div><b>E</b> — действие</div>
-              <div><b>Пробел</b> — пропустить ход</div>
-              <div><b>I</b> — сумка</div>
-              <div><b>F</b> — кузница</div>
-              <div><b>M</b> — мини-карта</div>
-            </div>
-            <p>
-              Первый спуск — у стража у входа в подземелье: он же покажет
-              сложность и режим похода.
-            </p>
-          </div>
-        </section>
-
-        <aside class="menu-side">
-          <section class="menu-panel" id="menu-settings" aria-labelledby="menu-settings-title">
-            <h3 id="menu-settings-title">Настройки</h3>
-
-            <label class="menu-toggle" for="set-sound">
-              <input type="checkbox" id="set-sound" />
-              <span class="menu-toggle-box" aria-hidden="true"></span>
-              <span>Звук</span>
-            </label>
-
-            <label class="menu-range" for="set-volume">
-              <span>Громкость</span>
-              <output id="set-volume-out" for="set-volume">60%</output>
-              <input type="range" id="set-volume" min="0" max="100" step="5" />
-            </label>
-
-            <label class="menu-toggle" for="set-motion">
-              <input type="checkbox" id="set-motion" />
-              <span class="menu-toggle-box" aria-hidden="true"></span>
-              <span>Меньше анимации</span>
-            </label>
-
-            <button class="menu-btn" id="set-fullscreen" type="button">На весь экран</button>
-            <button class="menu-btn ghost" id="set-reset-hints" type="button">Сбросить подсказки</button>
-            <p class="menu-note" id="set-note">Настройки хранятся в этом браузере.</p>
-          </section>
-        </aside>
-      </div>
-
-      <footer class="menu-foot">
-        <span>Поход сохраняется автоматически</span>
-        <span class="menu-foot-links">
-          <a class="menu-link hidden" id="menu-teacher" href="/results">Панель учителя</a>
-          <a class="menu-link" id="menu-home" href="/">На главную</a>
-        </span>
       </footer>
+
+      <section class="menu-view menu-view-sub hidden" id="menu-view-settings"
+               aria-labelledby="menu-settings-title">
+        <button class="menu-back" id="menu-back-settings" type="button">← Назад</button>
+        <h2 id="menu-settings-title">Настройки</h2>
+        <div class="menu-panel" id="menu-settings">
+          <label class="menu-toggle" for="set-sound">
+            <input type="checkbox" id="set-sound" />
+            <span class="menu-toggle-box" aria-hidden="true"></span>
+            <span>Звук</span>
+          </label>
+
+          <label class="menu-range" for="set-volume">
+            <span>Громкость</span>
+            <output id="set-volume-out" for="set-volume">60%</output>
+            <input type="range" id="set-volume" min="0" max="100" step="5" />
+          </label>
+
+          <label class="menu-toggle" for="set-motion">
+            <input type="checkbox" id="set-motion" />
+            <span class="menu-toggle-box" aria-hidden="true"></span>
+            <span>Меньше анимации</span>
+          </label>
+
+          <button class="menu-btn" id="set-fullscreen" type="button">На весь экран</button>
+          <button class="menu-btn ghost" id="set-reset-hints" type="button">Сбросить подсказки</button>
+          <p class="menu-note" id="set-note">Настройки хранятся в этом браузере.</p>
+        </div>
+      </section>
+
+      <section class="menu-view menu-view-sub hidden" id="menu-view-account"
+               aria-labelledby="menu-account-title">
+        <button class="menu-back" id="menu-back-account" type="button">← Назад</button>
+        <h2 id="menu-account-title">Аккаунт</h2>
+        <div class="menu-panel" id="menu-account-panel"></div>
+      </section>
+
+      <section class="menu-view menu-view-sub hidden" id="menu-view-help"
+               aria-labelledby="menu-help-title">
+        <button class="menu-back" id="menu-back-help" type="button">← Назад</button>
+        <h2 id="menu-help-title">Управление</h2>
+        <div class="menu-panel">
+          <div class="menu-keys">
+            <div><b>WASD / стрелки</b> — ходить</div>
+            <div><b>E</b> — действие</div>
+            <div><b>Пробел</b> — пропустить ход</div>
+            <div><b>I</b> — сумка</div>
+            <div><b>F</b> — кузница</div>
+            <div><b>M</b> — мини-карта</div>
+          </div>
+          <p class="menu-note">
+            Первый спуск — у стража у входа в подземелье: он же покажет
+            сложность и режим похода.
+          </p>
+        </div>
+      </section>
     </main>
   </div>
 
