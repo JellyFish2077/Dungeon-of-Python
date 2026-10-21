@@ -23,6 +23,7 @@
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+        <span class="app-version" data-app-version></span>
       </nav>
     </header>
 
@@ -74,9 +75,9 @@
       <p class="keys-hint">Клавиши: 1–4 или A–D — выбрать ответ, Enter — дальше</p>
     </section>
 
-    <section class="card" style="margin-top:16px">
+    <section class="card" style="margin-top:16px" id="rc-card">
       <h2>Напиши и запусти код</h2>
-      <p class="lead">Задание проверяется реальным запуском Python на сервере.</p>
+      <p class="lead" id="rc-lead">Задание проверяется реальным запуском Python на сервере.</p>
       <div class="question" id="rc-title"></div>
       <p class="lead" id="rc-task"></p>
       <textarea id="rc-code" spellcheck="false" style="width:100%;min-height:140px;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:12px;padding:12px;font-family:monospace;font-size:14px"></textarea>
@@ -105,6 +106,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="/api/features.js"></script>
   <script src="/static/task-meta.js"></script>
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
@@ -205,9 +207,18 @@
       COPY_TASKS.forEach((t, i) => pool.push({
         kind: "c", bankKind: "copy", ref: t, topic: metaTopic("copy", t), level: metaLevel("copy", t, i)
       }));
+      // Сервер запущен с --no-code: задание на код проверить некому.
+      // Флаг приходит скриптом /api/features.js до этого блока.
+      const codeAllowed = !(window.__PYQUIZ_FEATURES && window.__PYQUIZ_FEATURES.code === false);
+
       CODE_TASKS.forEach((t, i) => pool.push({
         kind: "k", bankKind: "code", ref: t, topic: metaTopic("code", t), level: metaLevel("code", t, i)
       }));
+      if (!codeAllowed) {
+        for (let i = pool.length - 1; i >= 0; i--) {
+          if (pool[i].bankKind === "code") pool.splice(i, 1);
+        }
+      }
 
       // Занятия за сегодня переживают перезагрузку: счёт, серия и разбивка по
       // темам лежат в localStorage, а каждый ответ доезжает до профиля.
@@ -671,8 +682,22 @@
       }
       document.getElementById("rc-check").addEventListener("click", rcCheck);
       document.getElementById("rc-next").addEventListener("click", rcDraw);
-      rcDraw();
+      if (codeAllowed) {
+        rcDraw();
+      } else {
+        // Проверка кода выключена на сервере: показываем не задание с
+        // нерабочей кнопкой, а понятное объяснение, где код всё же есть.
+        $("rc-lead").textContent = "Проверка кода на этом занятии выключена: " +
+          "сервер запущен с ключом --no-code. Задания на код есть в тесте и в подземелье, " +
+          "когда проверка включена.";
+        $("rc-title").textContent = "Запуск кода недоступен";
+        $("rc-task").textContent = "";
+        $("rc-code").disabled = true;
+        $("rc-check").disabled = true;
+        $("rc-next").disabled = true;
+      }
     })();
   </script>
+  <script src="/api/version.js"></script>
 </body>
 </html>

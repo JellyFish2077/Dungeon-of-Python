@@ -166,6 +166,11 @@
     globalThis.window = globalThis;
     globalThis.self = globalThis;
     globalThis.top = globalThis;
+    // Проверки синхронные: они вызывают restartFloor/спуск и сразу читают
+    // состояние, а в браузере этаж грузится через кадр под оверлеем.
+    // Флаг включает в game.js синхронную ветку загрузки с той же проверкой
+    // генерации — ждать кадр в node некому.
+    globalThis.__PYQUIZ_SYNC_FLOORS = true;
     globalThis.getComputedStyle = (node) => ({
       getPropertyValue: (p) => {
         const own = node && node.style && node.style._vars ? node.style._vars[p] : undefined;
@@ -294,6 +299,8 @@
       G.battle = null;
       G.shopTrader = false;
       G.finishedVictory = false;
+      G.victoryBanked = false;
+      G.victoryBankedAmount = 0;
       G.running = true;
       // Опасная среда и сделки не должны протекать между прогонами.
       G.hazard = null;
@@ -306,7 +313,7 @@
       // Список повторяет overlayOpen() в game.js: забытый здесь forge-overlay
       // молча ломает doInteract() — сундук «открывается» и не открывается.
       ["end-overlay", "shop-overlay", "battle-overlay", "blessing-overlay", "forge-overlay",
-        "entrance-overlay", "dialog-overlay"]
+        "level-loading", "entrance-overlay", "dialog-overlay"]
         .forEach((id) => el(id).classList.add("hidden"));
       API.activateFloor(floorIndex || 0);
     }

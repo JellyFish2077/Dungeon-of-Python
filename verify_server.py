@@ -23,9 +23,11 @@ users.json и social.db подменяются временными файлам
 import json
 import os
 import shutil
+import socket
 import sys
 import tempfile
 import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -45,7 +47,7 @@ def check(ok, name, extra=""):
     print("[%s] %s%s" % (mark, name, tail))
 
 
-def call(root, path, body=None, raw=None):
+def _call_once(root, path, body, raw):
     data = raw if raw is not None else (json.dumps(body).encode("utf-8") if body is not None else None)
     req = urllib.request.Request(root + path, data=data,
                                  headers={"Content-Type": "application/json"})
@@ -57,6 +59,166 @@ def call(root, path, body=None, raw=None):
             return exc.code, json.loads(exc.read().decode("utf-8"))
         except ValueError:
             return exc.code, {}
+
+
+def call(root, path, body=None, raw=None):
+    # Windows изредка рвёт уже установленное локальное соединение (10053),
+    # особенно когда рядом работает WSL. Один повтор не скрывает настоящий
+    # сбой сервера: второй такой же обрыв всё равно уронит проверку.
+    for attempt in range(2):
+        try:
+            return _call_once(root, path, body, raw)
+        except (ConnectionError, urllib.error.URLError):
+            if attempt:
+                raise
+            time.sleep(0.15)
+
+
+def _call_no_ctype_once(root, path, body):
+    data = json.dumps(body).encode("utf-8")
+    req = urllib.request.Request(root + path, data=data)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return resp.status, json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        try:
+            return exc.code, json.loads(exc.read().decode("utf-8"))
+        except ValueError:
+            return exc.code, {}
+
+
+def call_no_ctype(root, path, body):
+    """Тот же POST, но без Content-Type — так приходит подделка с чужой страницы."""
+    for attempt in range(2):
+        try:
+            return _call_no_ctype_once(root, path, body)
+        except (ConnectionError, urllib.error.URLError):
+            if attempt:
+                raise
+            time.sleep(0.15)
+
+
+def check_code_cache():
+    # В классе один и тот же верный ответ пишут двадцать пять человек.
+    # Без кэша это двадцать пять процессов и очередь; с кэшем — один.
+    tests = [{"call": "double(5)", "expected": "10"}]
+    code = "def double(x):\n    return x * 2"
+    first = S.run_code(code, tests)
+    second = S.run_code(code, tests)
+    check(first.get("ok") and first.get("passed") == 1 and not first.get("cached"),
+          "кэш: первая проверка считается по-настоящему", first)
+    check(second.get("ok") and second.get("passed") == 1 and second.get("cached"),
+          "кэш: повтор того же кода отвечает без запуска", second)
+
+    other = S.run_code(code, [{"call": "double(6)", "expected": "12"}])
+    check(other.get("ok") and other.get("passed") == 1 and not other.get("cached"),
+          "кэш: те же строки кода с другими тестами — другой ключ", other)
+
+    wrong = S.run_code("def double(x):\n    return x * 3", tests)
+    check(wrong.get("ok") and wrong.get("passed") == 0,
+          "кэш: неверное решение честно возвращает провал", wrong)
+    again = S.run_code("def double(x):\n    return x * 3", tests)
+    check(again.get("cached"), "кэш: неверное решение тоже запоминается — оно детерминировано", again)
+
+    broken = "def double(x)\n    return x"
+    for _ in range(2):
+        res = S.run_code(broken, tests)
+    check(not res.get("cached"),
+          "кэш: недопустимый код каждый раз проверяется заново, а не кэшируется", res)
+    with S._code_cache_lock:
+        S._code_cache.clear()
+
+
+def check_env_number():
+    saved = dict(os.environ)
+    try:
+        os.environ.pop("PYQUIZ_TEST_NUM", None)
+        check(S._env_number("PYQUIZ_TEST_NUM", 4, int) == 4, "число из окружения: без переменной берётся запасное")
+        os.environ["PYQUIZ_TEST_NUM"] = "9"
+        check(S._env_number("PYQUIZ_TEST_NUM", 4, int) == 9, "число из окружения: значение читается")
+        os.environ["PYQUIZ_TEST_NUM"] = "не число"
+        check(S._env_number("PYQUIZ_TEST_NUM", 4, int) == 4, "число из окружения: мусор не роняет сервер")
+        os.environ["PYQUIZ_TEST_NUM"] = "0"
+        check(S._env_number("PYQUIZ_TEST_NUM", 4, int) == 4, "число из окружения: ноль или меньше игнорируется")
+        check(S.CODE_WORKERS >= 4 and S.CODE_QUEUE_WAIT >= 10,
+              "очередь проверки кода рассчитана на класс (%d слотов, %.0f с ожидания)"
+              % (S.CODE_WORKERS, S.CODE_QUEUE_WAIT))
+    finally:
+        os.environ.clear()
+        os.environ.update(saved)
+
+
+def check_resource_limits():
+    # Огромный stdout раньше целиком собирался в память сервера.
+    noisy = "for i in range(50000):\n    print('x' * 100)"
+    res = S.run_code(noisy, [{"call": "1 + 1", "expected": "2"}])
+    check(res.get("ok") is True and res.get("passed") == 1,
+          "песочница: огромный вывод не ломает проверку", res.get("error", ""))
+
+    # Мегабайтный результат не должен оставаться в кэше.
+    with S._code_cache_lock:
+        S._code_cache.clear()
+    S._cache_put("big-result", {"ok": True, "results": [{"actual": "x" * 200000}]})
+    with S._code_cache_lock:
+        cached = "big-result" in S._code_cache
+        S._code_cache.clear()
+    check(not cached, "кэш проверок не хранит мегабайтные результаты")
+
+
+def check_users_race(tmp):
+    # Ученики регистрируются одновременно на старте занятия. Раньше файл
+    # читался вне замка, и второй из писавших затирал первого: «профиль
+    # потерялся» без всякой ошибки. Пауза внутри правки делает окно гонки
+    # гарантированным, а не случайным.
+    S.USERS_FILE = os.path.join(tmp, "users-race.json")
+    names = ["ученик%02d" % i for i in range(8)]
+    errors = []
+
+    def work(name):
+        def register(all_users):
+            all_users[name] = {"name": name, "profile": {}}
+            # Пауза внутри правки делает окно гонки гарантированным:
+            # без общего замка читатель успевает уйти с пустым файлом.
+            time.sleep(0.05)
+            return None
+
+        try:
+            _, error = S.update_user(name, register)
+            if error:
+                errors.append(error)
+        except Exception as exc:  # noqa: BLE001
+            errors.append("%s: %s" % (type(exc).__name__, exc))
+
+    threads = [threading.Thread(target=work, args=(n,)) for n in names]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    stored = S.load_users()
+    check(not errors and sorted(stored) == names,
+          "регистрация восьми учеников разом: ни один профиль не потерялся",
+          "ошибки: %s; осталось: %d из %d" % (errors[:3], len(stored), len(names)))
+
+    taken = []
+
+    def claim(all_users):
+        if "одинаковый" in all_users:
+            return "уже есть"
+        all_users["одинаковый"] = {"name": "одинаковый"}
+        time.sleep(0.05)
+        return None
+
+    def work2():
+        _, error = S.update_user("одинаковый", claim)
+        taken.append(error)
+
+    threads = [threading.Thread(target=work2) for _ in range(6)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    check(taken.count(None) == 1, "при одновременной регистрации одного имени проходит ровно один",
+          "прошло: %d из 6" % taken.count(None))
 
 
 def check_clean_result():
@@ -108,6 +270,24 @@ def check_one_row_per_run(tmp):
     check(len(same) == 1 and same[0]["dungeon"]["floorsCleared"] == 5,
           "поход с двумя итогами — одна строка, последняя", len(same))
     check(len(rows) == 5, "другие походы, тесты и чужой поход с тем же номером не склеиваются", len(rows))
+
+
+def check_results_limit(tmp):
+    """Файл результатов не растёт без предела: лишняя строка не пишется."""
+    S.RESULTS_FILE = os.path.join(tmp, "results-limit.json")
+    old_max = S.RESULTS_MAX
+    try:
+        S.RESULTS_MAX = 1
+        first = S.save_result(S.clean_result(
+            {"name": "Первый", "total": 1, "correctCount": 1, "percent": 100}))
+        second = S.save_result(S.clean_result(
+            {"name": "Второй", "total": 1, "correctCount": 1, "percent": 100}))
+        rows = S.load_results()
+        check(first == 1 and second is None and len(rows) == 1,
+              "потолок файла результатов: лишняя строка не записывается",
+              "первый=%s, второй=%s, строк=%d" % (first, second, len(rows)))
+    finally:
+        S.RESULTS_MAX = old_max
 
 
 def check_account_mark(tmp):
@@ -185,6 +365,107 @@ def check_run_code():
     check(S._CODE_SLOTS._value == S.CODE_WORKERS, "после проверок все слоты свободны")
 
 
+# Регрессия: песочница исполняла код ученика в глобалах серверного прелюдия,
+# где лежала сохранённая ссылка на настоящий open. Через неё ученик читал
+# .secret и .admin-secret, подделывал админ-токен и переписывал server.py
+# (open(path, "w") проверку проходил). Теперь код выполняется в отдельном
+# пространстве имён, а файловые режимы проверяются в обе стороны.
+SECRET = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".secret"))
+
+
+def _escaped(code):
+    """True, если код выполнился целиком — то есть песочница его пропустила.
+
+    Проба в тестах должна быть заведомо верной: print(1) возвращает None,
+    и с ним сравнение 1 != None даёт «ошибку» даже при полном успехе —
+    на такой пробе все попытки выхода выглядели бы как отказы.
+    """
+    r = S.run_code(code, [{"call": "1 + 1", "expected": "2"}])
+    if not r.get("ok"):
+        return False
+    return bool(r.get("results", [{}])[0].get("ok"))
+
+
+def check_sandbox():
+    root = os.path.dirname(SECRET)
+    # В WSL настоящий путь к секрету — /mnt/c/…; после маскирования /mnt
+    # он обязан быть недоступен. На Linux путь уже свой, а в режиме process —
+    # обычный путь Windows.
+    if S.sandbox_backend() == "wsl" and os.name == "nt":
+        secret_in_sandbox = S.wsl_path(SECRET)
+    else:
+        secret_in_sandbox = SECRET
+    marker_file = os.path.join(root, "pwn.txt")
+    # Зачистка: иначе остаток прошлого прогона (или прогона на старой
+    # песочнице) валил бы эту проверку навсегда, и её перестали бы читать.
+    try:
+        os.remove(marker_file)
+    except OSError:
+        pass
+    escapes = [
+        ("сохранённый open из прелюдии", "_orig_open(%r).read()" % SECRET),
+        ("низкоуровневый os.open из прелюдии", "_orig_os_open(%r, os.O_RDONLY)" % SECRET),
+        ("запись вне папки задачи", "open(%r, 'w').write('x')" % os.path.join(root, "pwn.txt")),
+        ("дозапись вне папки задачи", "open(%r, 'a').write('x')" % os.path.join(root, "pwn.txt")),
+        ("чтение и запись (r+) вне папки", "open(%r, 'r+')" % os.path.join(root, "pwn.txt")),
+        ("чтение самого server.py", "open(%r).read()" % os.path.abspath(__file__)),
+        ("PIN админки", "_orig_open(%r).read()" % os.path.join(root, ".admin-secret")),
+        ("globals()['_orig_open']", "globals()['_orig_open']"),
+        ("import os", "import os"),
+        ("import sys", "import sys"),
+        ("import subprocess", "import subprocess"),
+        ("import socket", "import socket"),
+        ("import ctypes", "import ctypes"),
+        ("import builtins", "import builtins"),
+        ("встроенный eval", "eval('1+1')"),
+        ("встроенный exec", "exec('x=1')"),
+        ("встроенный input", "input()"),
+        ("подмена print через globals", "globals()"),
+        # Четыре реальных выхода, найденных адверсариальным ревью. Белый
+        # список модулей их не закрывает: это не «теоретические» векторы,
+        # а команды, которые действительно читают файлы и запускают процессы.
+        ("random._os", "import random\nrandom._os.path.getsize(%r)" % secret_in_sandbox),
+        ("statistics.sys.modules['os']",
+         "import statistics\nstatistics.sys.modules['os'].path.getsize(%r)" % secret_in_sandbox),
+        ("().__subclasses__() -> FileLoader.get_data",
+         "[c for c in ().__class__.__bases__[0].__subclasses__() "
+         "if c.__name__ == 'FileLoader'][0]('x', %r).get_data(%r)"
+         % (secret_in_sandbox, secret_in_sandbox)),
+        ("BuiltinImporter.load_module('os')",
+         "[c for c in ().__class__.__bases__[0].__subclasses__() "
+         "if c.__name__ == 'BuiltinImporter'][0].load_module('os')"
+         ".path.getsize(%r)" % secret_in_sandbox),
+    ]
+    bad = [name for name, code in escapes if _escaped(code)]
+    check(not bad, "песочница: %d способов выйти наружу закрыто" % len(escapes),
+          "прорвались: " + ", ".join(bad))
+    check(not os.path.exists(marker_file), "песочница: файлы вне папки задачи не создаются")
+
+    # Позитивные проверки: закрывая доступ, нельзя сломать рабочие задания.
+    works = [
+        ("функция", "def attack_power(base, bonus):\n    return base + bonus",
+         "attack_power(10, 5)", "15"),
+        ("print", "print('привет')", "1 + 1", "2"),
+        ("import math", "import math", "math.sqrt(81)", "9.0"),
+        ("import random", "import random", "random.randint(5, 5)", "5"),
+        ("from math import pi", "from math import pi", "round(pi, 2)", "3.14"),
+        ("список и генератор", "def f(xs):\n    return [x * 2 for x in xs]",
+         "f([1, 2, 3])", "[2, 4, 6]"),
+        ("try/except", "def f(d):\n    try:\n        return d['k']\n    except KeyError:\n        return 0",
+         "f({})", "0"),
+        ("свой класс", "class A:\n    def __init__(self, v):\n        self.v = v\n    def get(self):\n        return self.v",
+         "A(7).get()", "7"),
+        ("свой текст", "def f(xs):\n    return ', '.join(xs)", "f(['a', 'b'])", repr("a, b")),
+    ]
+    broken = []
+    for name, code, call, expected in works:
+        r = S.run_code(code, [{"call": call, "expected": expected}])
+        if not (r.get("ok") and r.get("results", [{}])[0].get("ok")):
+            broken.append("%s (%s)" % (name, r.get("error") or "тест не прошёл"))
+    check(not broken, "песочница: %d обычных заданий выполняются как раньше" % len(works),
+          "; ".join(broken))
+
+
 POST_PATHS = [
     "/api/register", "/api/login", "/api/profile/update", "/api/profile/save",
     "/api/friends/request", "/api/friends/accept", "/api/friends/remove",
@@ -192,6 +473,55 @@ POST_PATHS = [
     "/api/admin/login", "/api/admin/save", "/api/admin/reset",
     "/api/check", "/api/submit",
 ]
+
+
+def check_profile_save_race(root):
+    """Одновременные сохранения профилей не должны затирать друг друга.
+
+    Старый обработчик читал users.json вне замка, правил свою копию и
+    записывал её целиком: последний сохранивший затирал профили остальных.
+    Задержка внутри load_users делает окно гонки гарантированным, а не
+    случайным.
+    """
+    keys = ["профиль%02d" % i for i in range(8)]
+    S.save_users({k: {"name": k, "salt": "", "hash": "", "profile": {}} for k in keys})
+    real_load = S.load_users
+
+    def slow_load():
+        data = real_load()
+        time.sleep(0.05)
+        return data
+
+    S.load_users = slow_load
+    errors = []
+
+    def work(index, key):
+        status, res = call(root, "/api/profile/save", {
+            "token": S.new_token(key),
+            "profile": {"wallet": {"gold": index + 1}},
+        })
+        if status != 200 or not res.get("ok"):
+            errors.append("%s: %s %s" % (key, status, res.get("error")))
+
+    try:
+        threads = [threading.Thread(target=work, args=(i, key))
+                   for i, key in enumerate(keys)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+    finally:
+        S.load_users = real_load
+
+    stored = S.load_users()
+    lost = []
+    for i, key in enumerate(keys):
+        gold = (((stored.get(key) or {}).get("profile") or {}).get("wallet") or {}).get("gold")
+        if gold != i + 1:
+            lost.append("%s: %s вместо %d" % (key, gold, i + 1))
+    check(not errors and not lost,
+          "одновременное сохранение профилей: ни одна правка не потерялась",
+          "; ".join(errors[:2] + lost[:4]))
 
 
 def check_http(tmp):
@@ -207,6 +537,13 @@ def check_http(tmp):
         S.ALLOW_CODE = True
         _, cfg = call(root, "/api/game-config")
         check(cfg.get("features", {}).get("code") is True, "game-config: проверка кода включена")
+        _, ver = call(root, "/api/version")
+        check(ver.get("version") == S.VERSION and ver.get("date"),
+              "/api/version отдаёт ту же версию, что стоит в коде", ver)
+        with urllib.request.urlopen(root + "/api/version.js", timeout=30) as resp:
+            script = resp.read().decode("utf-8")
+        check(S.VERSION in script and "data-app-version" in script,
+              "/api/version.js подставляет версию в страницы", script[:60])
         S.ALLOW_CODE = False
         _, cfg = call(root, "/api/game-config")
         check(cfg.get("features", {}).get("code") is False, "game-config: --no-code видно игре")
@@ -216,23 +553,88 @@ def check_http(tmp):
         status, _ = call(root, "/api/check", [1, 2])
         check(status == 400, "/api/check: не объект — 400, а не падение обработчика", status)
 
+        # Тесты задания банка берутся на сервере, а не из тела запроса.
+        good_code = "def attack_power(base, bonus):\n    return base + bonus"
+        status, res = call(root, "/api/check", {"code": good_code, "taskId": "attack_power"})
+        check(status == 200 and res.get("ok") is True and res.get("passed") == 3,
+              "/api/check по taskId: серверные тесты задания банка", res)
+        status, res = call(root, "/api/check", {
+            "code": good_code, "taskId": "attack_power",
+            "tests": [{"call": "1", "expected": "1"}],
+        })
+        check(status == 200 and res.get("passed") == 3,
+              "/api/check: присланные клиентом tests игнорируются", res.get("passed"))
+
+        # Пользовательский __eq__ больше не проходит проверку.
+        evil_code = (
+            "class Always:\n"
+            "    def __eq__(self, other):\n"
+            "        return True\n"
+            "    def __repr__(self):\n"
+            "        return 'Always()'\n"
+            "def attack_power(base, bonus):\n"
+            "    return Always()"
+        )
+        status, res = call(root, "/api/check", {"code": evil_code, "taskId": "attack_power"})
+        check(status == 200 and res.get("ok") is True and res.get("passed") == 0,
+              "/api/check: __eq__ ученика не подменяет сравнение", res)
+
+        # Задания генератора не имеют серверных тестов — игра их не выдаёт.
+        status, res = call(root, "/api/check", {
+            "code": good_code, "taskId": "gen.code.operators.multiply.abc",
+        })
+        check(status == 200 and res.get("ok") is False and res.get("staleTask") is True,
+              "/api/check: задание генератора помечено staleTask, а не проверено", res)
+        status, res = call(root, "/api/check", {"code": good_code, "taskId": "нет-такого"})
+        check(status == 200 and res.get("ok") is False and res.get("unavailable") is True
+              and not res.get("staleTask"), "/api/check: неизвестное задание не проверяется", res)
+
+        # Подделка с чужой страницы: браузер шлёт text/plain без
+        # предварительного согласования, поэтому такой POST обязан быть отбит.
+        bad_ctype = []
+        for path in POST_PATHS:
+            status, _ = call_no_ctype(root, path, {"name": "Кто-то чужой", "pin": "1234"})
+            if status != 415:
+                bad_ctype.append("%s -> %s" % (path, status))
+        check(not bad_ctype, "POST без application/json отбит на всех адресах (защита от подделки)",
+              "; ".join(bad_ctype[:5]))
+
         status, _ = call(root, "/api/submit", {"name": "Тест", "percent": "<img src=x onerror=alert(1)>",
                                                 "runId": "r1", "evil": "x"})
         stored = S.load_results()
         check(status == 200 and stored and stored[-1]["percent"] == 0 and "evil" not in stored[-1],
               "/api/submit сохраняет очищенный результат", stored[-1] if stored else status)
-        call(root, "/api/submit", {"name": "Тест", "percent": 50, "runId": "r1"})
+        call(root, "/api/submit", {"name": "Тест", "percent": 50, "total": 10,
+                                    "correctCount": 5, "runId": "r1"})
         stored = S.load_results()
         check(len(stored) == 1 and stored[0]["percent"] == 50, "/api/submit: второй итог того же похода заменил первый")
+
+        # Итог похода без входа — подделка: в подземелье без аккаунта не войти.
+        status, _ = call(root, "/api/submit", {"name": "Гость", "mode": "dungeon",
+                                                "percent": 100, "total": 10, "correctCount": 10})
+        stored = S.load_results()
+        check(status == 401 and len(stored) == 1,
+              "/api/submit: итог похода без токена отбит и не попал в файл", status)
+
+        # Процент, не сходящийся с числом верных ответов, — не результат.
+        status, _ = call(root, "/api/submit", {"name": "Тест", "percent": 100,
+                                                "total": 10, "correctCount": 1})
+        stored = S.load_results()
+        check(status == 400 and len(stored) == 1,
+              "/api/submit: поддельный процент отбит", status)
+
         # С токеном входа строка отмечена аккаунтом; CSV показывает режим и отметку.
         S.save_users({"оля": {"name": "Оля", "salt": "", "hash": ""}})
         status, _ = call(root, "/api/submit", {"name": "оля", "mode": "practice", "percent": 90,
+                                                "total": 10, "correctCount": 9,
+                                                "weighted": 18, "maxWeighted": 20,
                                                 "token": S.new_token("оля")})
         stored = S.load_results()
         check(status == 200 and stored[-1].get("verified") is True and stored[-1]["name"] == "Оля"
               and "token" not in stored[-1], "/api/submit с токеном: отметка аккаунта, токен не хранится",
               stored[-1])
-        call(root, "/api/submit", {"name": "Гость", "percent": 10, "verified": True})
+        call(root, "/api/submit", {"name": "Гость", "percent": 10, "total": 10,
+                                   "correctCount": 1, "verified": True})
         stored = S.load_results()
         check(stored[-1]["name"] == "Гость" and "verified" not in stored[-1],
               "/api/submit без токена: «verified» из запроса не принят")
@@ -246,6 +648,19 @@ def check_http(tmp):
 
         status, _ = call(root, "/api/submit", raw=b"{" + b" " * 300001 + b"}")
         check(status == 413, "/api/submit: огромное тело — 413", status)
+
+        # Content-Length: -1 старый код принимал и читал до закрытия
+        # соединения: один запрос навсегда занимал поток.
+        try:
+            with socket.create_connection(("127.0.0.1", httpd.server_address[1]),
+                                          timeout=5) as sock:
+                sock.sendall(
+                    b"POST /api/submit HTTP/1.1\r\nHost: test\r\n"
+                    b"Content-Type: application/json\r\nContent-Length: -1\r\n\r\n")
+                raw = sock.recv(4096)
+            check(b" 413 " in raw, "отрицательный Content-Length отбит", raw[:80])
+        except OSError as exc:
+            check(False, "отрицательный Content-Length отбит", str(exc))
         status, _ = call(root, "/api/submit", ["name"])
         check(status == 400, "/api/submit: не объект — 400", status)
 
@@ -328,6 +743,7 @@ def check_http(tmp):
                     bad.append("%s %s: %s" % (path, raw.decode("utf-8"), status))
         check(not bad, "тело-не-объект на любом POST-адресе — ошибка с JSON, а не обрыв",
               "; ".join(bad[:6]) + (" … ещё %d" % (len(bad) - 6) if len(bad) > 6 else ""))
+        check_profile_save_race(root)
     finally:
         httpd.shutdown()
         httpd.server_close()
@@ -338,7 +754,10 @@ def main():
     saved = (S.RESULTS_FILE, S.USERS_FILE, S.DB_FILE, S.ALLOW_CODE, S.TEACHER_PIN)
     try:
         for part in (check_clean_result, lambda: check_one_row_per_run(tmp),
-                     lambda: check_account_mark(tmp), check_run_code, lambda: check_http(tmp)):
+                     lambda: check_results_limit(tmp), lambda: check_account_mark(tmp),
+                     check_run_code, check_sandbox, check_resource_limits,
+                     check_code_cache, check_env_number,
+                     lambda: check_users_race(tmp), lambda: check_http(tmp)):
             # Упавшая часть — это сбой проверки, а не конец отчёта.
             try:
                 part()

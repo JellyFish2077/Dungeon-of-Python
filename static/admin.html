@@ -252,7 +252,8 @@
       <a class="nav-btn" href="/game">Подземелье</a>
       <a class="nav-btn" href="/study">Самоподготовка</a>
       <a class="nav-btn active" href="/admin">Админ-панель</a>
-    </nav>
+          <span class="app-version" data-app-version></span>
+</nav>
   </header>
 
   <p class="kicker">Панель учителя</p>
@@ -1152,5 +1153,6 @@
   if (token) { loadSchema(); } else { el("pin").focus(); }
 })();
 </script>
+  <script src="/api/version.js"></script>
 </body>
 </html>

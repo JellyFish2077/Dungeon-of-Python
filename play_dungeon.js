@@ -347,7 +347,11 @@ function playStep(skill, rng, state) {
   // остальное время пережидаем: цепь рвётся сама за несколько ожиданий.
   if (G.player.snared) {
     const t = API.interactTarget();
-    if (t && t.kind === "chest") { API.doInteract(); return "chest"; }
+    if (t && t.kind === "chest") {
+      const before = (G.treasures || []).length;
+      API.doInteract();
+      return (G.treasures || []).length === before ? "chest-stuck" : "chest";
+    }
     // К каждому торговцу — один раз: иначе бот в цепях только открывал бы
     // лавку, а ожидание, от которого цепь слабеет, не наступало бы.
     if (t && t.kind === "trader" && !state.shopsDone.has(t.obj && t.obj.uid)) {
@@ -367,7 +371,12 @@ function playStep(skill, rng, state) {
   if (near && near.kind === "chest") {
     const before = (G.treasures || []).length;
     API.doInteract();
-    if ((G.treasures || []).length === before) state.chestStuck += 1;
+    if ((G.treasures || []).length === before) {
+      state.chestStuck += 1;
+      // Сундук не открылся — это не прогресс. Иначе бот считал «chest»
+      // успешным ходом и крутился на месте все 4000 ходов.
+      return "chest-stuck";
+    }
     return "chest";
   }
 
@@ -531,7 +540,7 @@ function startGame(opts, rng) {
   // и непроявленное окно выглядит открытым — тогда walkTo и doInteract
   // решают, что поверх карты окно, и деревня проходится вхолостую.
   for (const id of ["end-overlay", "shop-overlay", "battle-overlay", "blessing-overlay", "forge-overlay",
-    "entrance-overlay", "dialog-overlay"]) {
+    "level-loading", "entrance-overlay", "dialog-overlay"]) {
     H.el(id).classList.add("hidden");
   }
   // Деревня перед спуском: ученик приходит с накопленным золотом и тратит
@@ -721,10 +730,22 @@ function playOne(opts, rng, trace) {
     // поход кончен. Так выглядит первый поход ученика: он упирается в
     // запечатанную лестницу, возвращается в деревню и копит на кузницу.
     if (!API.canDescend() && !G.battle && (G.treasures || []).length === 0) {
-      seen.sealed = true;
       seen.toHub += 1;
-      if (trace) console.log("   лестница запечатана — возвращаюсь в деревню");
-      API.deathToHub();
+      seen.sealReturns = (seen.sealReturns || 0) + 1;
+      if (trace) console.log("   лестница запечатана — возвращаюсь в деревню за ключом");
+      // Настоящий цикл: поход ставится на паузу, игрок покупает/чинит
+      // деревню и продолжает с того же этажа. Раньше бот звал deathToHub(),
+      // терял поход и начинал новый — замеры были пессимистичнее игры.
+      API.returnToVillage();
+      if (opts.campaign) {
+        campaignSpend();
+        if (API.canDescend() && API.loadGame()) {
+          lastProgress = { steps, what: "resume", pos: G.playerPos.x + "," + G.playerPos.y,
+            hp: G.player.hp, floor: G.floorIndex };
+          continue;
+        }
+      }
+      seen.sealed = true;
       break;
     }
     const hadBattle = !!G.battle;
@@ -840,6 +861,7 @@ function playOne(opts, rng, trace) {
     // Поход кончился запечатанной лестницей: глубины ещё нет, герой вернулся
     // в деревню за материалами. Это нормальный первый поход, а не поломка.
     sealed: !!seen.sealed,
+    sealReturns: seen.sealReturns || 0,
     equipped: Object.values(G.equipment || {}).filter(Boolean).length,
     equips: seen.equips,
     lowestPct: seen.lowestPct,
@@ -958,6 +980,10 @@ function printCampaign(opts, rows) {
   const sealedRuns = ok.filter((r) => r.sealed).length;
   console.log("  упёрлись в затвор глубины: " + sealedRuns + " из " + ok.length +
     (sealedRuns ? " (лестница запечатана, пока нет оберега из деревни)" : ""));
+  const sealReturns = ok.reduce((n, r) => n + (r.sealReturns || 0), 0);
+  if (sealReturns) {
+    console.log("  пауз на затворе с возвратом и продолжением: " + sealReturns);
+  }
 }
 
 function printSummary(opts, rows) {

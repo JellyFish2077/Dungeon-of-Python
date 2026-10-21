@@ -69,3 +69,6 @@ if proc.stderr:
 print()
 print(f"Итог: {len(results) - len(failed)}/{len(results)} проверок пройдено.")
 DRIVER.unlink(missing_ok=True)
+# Без этого упавший набор возвращал 0, и run_all_checks.py с pre-commit
+# хуком считали прогон зелёным, хотя проверки печатали «СБОЙ».
+sys.exit(1 if failed else 0)

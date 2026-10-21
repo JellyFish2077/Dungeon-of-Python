@@ -126,7 +126,9 @@ quietFloor(4);
 if ((G.vaults || []).length) {
   const vault = G.vaults[0];
   const grid = G.map.grid;
-  log(grid[vault.door.y][vault.door.x] === 0, "дверь тайника стоит в монолите");
+  // Дверь — проход: раньше она оставалась монолитом, и комната была
+  // запечатана навсегда, хотя ключ и рычаг «открывали» её.
+  log(grid[vault.door.y][vault.door.x] === 1, "дверь тайника — проход, а не стена");
   // Комната внутри: девять клеток пола за дверью.
   let inner = 0;
   for (let y = 0; y < G.map.h; y += 1) {
@@ -166,13 +168,24 @@ if ((G.vaults || []).length) {
     log(G.vaultKeys === 0, "и ключ тратится", String(G.vaultKeys));
   }
 
-  // Запертая дверь не пускает: клетка двери остаётся стеной.
+  // Дверь тайника — проход, но закрытый: шагом не пройти, пока нет ключа.
+  // Раньше клетка двери была стеной, и комната оставалась запечатанной
+  // даже после ключа и рычага.
   quietFloor(4);
   if ((G.vaults || []).length) {
     const v3 = G.vaults[0];
-    log(G.map.grid[v3.door.y][v3.door.x] === 0, "через дверь тайника не пройти шагом");
-    const pathToInside = API.findPath(G.playerPos, { x: v3.door.x + 1, y: v3.door.y });
-    log(true, "путь внутрь ищется только через дверь", pathToInside ? "через дверь" : "внутри пусто");
+    const dir = { x: v3.door.x - v3.from.x, y: v3.door.y - v3.from.y };
+    const inside = { x: v3.door.x + dir.x, y: v3.door.y + dir.y };
+    log(G.map.grid[v3.door.y][v3.door.x] === 1, "клетка двери тайника проходима");
+    log(API.cellBlocked(v3.door.x, v3.door.y) === true,
+      "запертая дверь тайника не пропускает шагом");
+    G.vaultKeys = 1;
+    API.openVault(v3);
+    log(API.cellBlocked(v3.door.x, v3.door.y) === false,
+      "открытая дверь тайника пропускает шагом");
+    const pathToInside = API.findPath(G.playerPos, inside);
+    log(!!pathToInside && pathToInside.length > 0, "после открытия путь внутрь есть",
+      pathToInside ? pathToInside.length + " шагов" : "пути нет");
   }
 }
 
@@ -207,7 +220,7 @@ if ((G.levers || []).length) {
   const gameSrc2 = fs.readFileSync(path.join(dir, "game.js"), "utf8");
   const guarded = /try \{\s*renderEntities\(\);\s*\} catch \(err\) \{[\s\S]{0,400}?Сбой отрисовки объектов/.test(gameSrc2);
   log(guarded, "слой объектов рисуется под защитой и не оставляет чужие спрайты");
-  log(/G\.entityEls\.forEach\(\(node\) => node\.remove\(\)\);[\s\S]{0,200}?renderEntities\(\)/.test(gameSrc2),
+  log(/clearEntityLayer\(\);[\s\S]{0,120}?renderEntities\(\)/.test(gameSrc2),
     "после сбоя узлы убираются и отрисовка повторяется");
 }
 
@@ -925,6 +938,11 @@ log(/Тема этажа/.test(bodyBox.innerHTML), "эпиграф показы�
 // Проверяем по исходному game.html: заглушка DOM собирает элементы
 // искусственно и ничего не знает о настоящей вложенности.
 const gameHtml = fs.readFileSync(path.join(dir, "game.html"), "utf8");
+// Блок кошелька раньше создавался только в JS, а в разметке его id не было:
+// updateWalletLine молча выходил, и у стража не рисовались награды.
+log(/id="wallet-block"/.test(gameHtml) && /id="wallet-line"/.test(gameHtml) &&
+  /id="game-badges"/.test(gameHtml),
+  "в разметке есть кошелёк, строка банка и значки наград");
 const arrivalTag = (gameHtml.match(/<div[^>]*id="floor-arrival"[\s\S]*?<\/div>/) || [""])[0];
 log(/>\s*<\/div>/.test(arrivalTag.replace(/floor-arrival-close[\s\S]*$/, "")) ||
     /id="floor-arrival-body"[\s\S]*id="floor-arrival-close"/.test(arrivalTag),
@@ -981,6 +999,8 @@ G.traps = [trapToSave];
 G.player.poison = 2;
 G.player.freeHints = 1;
 G.player.snared = true;
+G.restsLeft = 1;
+G.questProgress = { n: 2 };
 const savedEnemy = API.makeEnemy("spider", 5);
 savedEnemy.x = 2; savedEnemy.y = 2;
 savedEnemy.poison = 2;
@@ -1000,6 +1020,10 @@ if (saved) {
   log(f0.traps[0].armed === false, "состояние ловушки (armed) сохраняется");
   log(saved.player.poison === 2 && saved.player.freeHints === 1 && saved.player.snared === true,
     "яд, подсказки и цепь игрока сохраняются");
+  log(saved.restsLeft === 1, "число привалов попадает в сохранение", saved.restsLeft);
+  log(saved.questProgress && saved.questProgress.n === 2,
+    "прогресс повторяемого задания попадает в сохранение",
+    JSON.stringify(saved.questProgress));
   log(f0.enemies[0].poison === 2 && f0.enemies[0].dmgBoost === 3,
     "яд и заряд врага сохраняются");
   log(f0.enemies[0].ability === "poison", "способность врага сохраняется");
@@ -1013,10 +1037,44 @@ if (saved) {
   log(G.player.poison === 2, "после загрузки яд на месте", G.player.poison);
   log(G.player.snared === true, "после загрузки цепь на месте", G.player.snared);
   log(G.player.freeHints === 1, "после загрузки бесплатные подсказки на месте", G.player.freeHints);
+  log(G.restsLeft === 1, "после загрузки привалы не обнуляются", G.restsLeft);
+  log(G.questProgress && G.questProgress.n === 2,
+    "после загрузки прогресс задания на месте", JSON.stringify(G.questProgress));
   log((G.traps || []).length === 1 && G.traps[0].armed === false,
     "после загрузки ловушка остаётся сработавшей");
   log(G.enemies.length >= 1 && G.enemies[0].poison === 2,
     "после загрузки враг сохраняет яд");
+}
+
+// Улучшения, купленные в деревне на паузе, применяются при продолжении похода.
+{
+  freshRun(1);
+  const original = JSON.parse(JSON.stringify(getProfile(G.name)));
+  const up = getProfile(G.name);
+  up.hero = { hp: 1, dmg: 1, potions: 1, loot: 0, armor: 0 };
+  up.village = { well: 0, barn: 0, forge: 0, smith: 0 };
+  putProfile(G.name, up);
+  G.prog = { hp: 0, dmg: 0, potions: 0, loot: 0, armor: 0 };
+  G.player.baseMaxHp = 100;
+  G.player.maxHp = 100;
+  G.player.dmgBase = 10;
+  G.player.hp = 60;
+  G.inventory = [];
+  API.saveGame();
+  API.loadGame();
+  log(G.player.baseMaxHp === 100 + API.HERO_STEPS.hp &&
+    G.player.dmgBase === 10 + API.HERO_STEPS.dmg,
+    "улучшения с паузы применяются к текущему походу",
+    "HP " + G.player.baseMaxHp + ", урон " + G.player.dmgBase);
+  log(G.prog.hp === API.HERO_STEPS.hp && G.prog.dmg === API.HERO_STEPS.dmg &&
+    G.prog.potions === API.HERO_STEPS.potions,
+    "и попадают в прогресс похода", JSON.stringify(G.prog));
+  log(G.player.hp === 60 + API.HERO_STEPS.hp &&
+    G.player.maxHp === 100 + API.HERO_STEPS.hp,
+    "текущее здоровье не теряется при добавке", G.player.hp + "/" + G.player.maxHp);
+  log(G.inventory.filter((i) => i.slot === "potion").length === API.HERO_STEPS.potions,
+    "купленные на паузе зелья лежат в сумке");
+  putProfile(G.name, original);
 }
 
 // битое сохранение не ломает игру
@@ -2566,6 +2624,20 @@ log(el("blessing-overlay").classList.contains("hidden"),
 API.activateFloor(4);
 log(G.blessingOffer === null, "повторно сделка не предлагается");
 
+// Развилка принадлежит этажу: при спуске старый оверлей закрывается, а дар
+// не переносится на другой этаж. freshRun(4) уже открыл развилку на этаже 4.
+freshRun(4);
+log(G.blessingOffer === 4 && !el("blessing-overlay").classList.contains("hidden"),
+  "развилка открыта на своём этаже", G.blessingOffer);
+G.visited = new Set([0, 1, 2, 3, 4, 5]);
+API.activateFloor(5);
+log(G.blessingOffer === null && el("blessing-overlay").classList.contains("hidden"),
+  "смена этажа закрывает старую развилку");
+API.chooseBlessing("blessing");
+log(G.blessings[4] === undefined && G.blessings[5] === undefined,
+  "выбор после смены этажа не применяет дар к чужому этажу",
+  JSON.stringify(G.blessings));
+
 // ================= 19. Пункт 1: кнопка действия у объекта ===========
 // Замысел: сундук, торговец и лестница перестали срабатывать сами от
 // шага. Герой подходит и жмёт кнопку (или E) — только тогда что-то
@@ -2944,8 +3016,15 @@ log(API.balanceSnapshot()["hub.deathGoldShare"] === 1,
 log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
   "после возврата в деревню сейв похода стёрт");
 
-// Загрузка «мёртвого» сейва не поднимает партию, а начинает этаж заново.
+// Загрузка «мёртвого» сейва больше не воскрешает бесплатно. Перезагрузка
+// страницы обходила экран смерти: этаж пересоздавался, золото и снаряжение
+// оставались, амулет не тратился — бесконечный фарм.
 freshRun(3);
+const profDead = getProfile(G.name);
+profDead.hub.revive = 0;
+profDead.wallet.gold = 0;
+putProfile(G.name, profDead);
+G.player.gold = 250;
 G.player.hp = 0;
 API.showDeath();
 const deadSave = globalThis.localStorage.getItem(API.SAVE_KEY);
@@ -2954,8 +3033,43 @@ G.running = false;
 G.player.hp = 0;
 globalThis.localStorage.setItem(API.SAVE_KEY, deadSave);
 API.loadGame();
-log(G.dead === false, "мёртвый сейв поднимает партию заново, а не продолжает");
-log(G.player.hp > 0, "и герой оживает с полным здоровьем", G.player.hp);
+log(G.dead === false, "мёртвый сейв без амулета не оставляет партию мёртвой");
+log(G.place === "village", "а возвращает в деревню, а не на этаж", G.place);
+log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
+  "мёртвый сейв без амулета стирается");
+log(getProfile(G.name).wallet.gold === 250,
+  "золото похода при этом переходит в деревню",
+  String(getProfile(G.name).wallet.gold));
+
+// С амулетом подняться можно, но амулет обязан потратиться.
+freshRun(3);
+const profAmulet = getProfile(G.name);
+profAmulet.hub.revive = 1;
+putProfile(G.name, profAmulet);
+G.player.gold = 333;
+G.player.hp = 0;
+API.showDeath();
+const amuletSave = globalThis.localStorage.getItem(API.SAVE_KEY);
+G.dead = false;
+G.running = false;
+G.player.hp = 0;
+globalThis.localStorage.setItem(API.SAVE_KEY, amuletSave);
+API.loadGame();
+log(G.dead === false && G.player.hp > 0,
+  "мёртвый сейв с амулетом поднимает этаж заново");
+log(getProfile(G.name).hub.revive === 0,
+  "и тратит амулет, а не воскрешает бесплатно",
+  String(getProfile(G.name).hub.revive));
+log(G.player.gold === 333, "золото похода при возрождении остаётся", G.player.gold);
+
+// Кнопка «В деревню» доступна с Tab/Enter даже под оверлеем боя. Из боя
+// уходить нельзя: раньше это был бесплатный побег, в том числе от дракона.
+freshRun(1);
+G.battle = { enemy: API.makeEnemy("rat", 1), phase: "question", challenge: {} };
+const battleLeave = API.returnToVillage();
+log(battleLeave === false && G.place === "dungeon" && !!G.battle,
+  "из боя в деревню не уйти без штрафа", G.place);
+G.battle = null;
 
 // ================= 23. Пункт 5: бесконечный режим =================
 // Замысел: после десятого этажа подземелье не кончается — этажи
@@ -3162,6 +3276,29 @@ G.player.snared = false;
   G.battle = null;
   el("battle-overlay").classList.add("hidden");
 }
+
+// Цепь — принадлежность подземелья. Если герой вошёл в деревню, оставшись
+// в цепях, move() запрещал шаг, а skipTurn() в деревне сразу выходил:
+// игрок застревал навсегда.
+freshRun(1);
+G.player.snared = true;
+G.player.snareWaits = 3;
+API.enterVillage(null);
+log(!G.player.snared, "при входе в деревню цепь снимается");
+G.player.snared = true;
+G.player.snareWaits = 0;
+API.skipTurn();
+log(!G.player.snared, "и ожидание в деревне тоже снимает цепь",
+  String(G.player.snareWaits));
+const villageFrom = { x: G.playerPos.x, y: G.playerPos.y };
+const villageSteps = walkableNeighbours(G.playerPos);
+if (villageSteps && villageSteps.length) {
+  API.move(villageSteps[0].x - villageFrom.x, villageSteps[0].y - villageFrom.y);
+  log(G.playerPos.x !== villageFrom.x || G.playerPos.y !== villageFrom.y,
+    "освобождённый герой ходит по деревне");
+}
+// Следующие проверки снова про подземелье: деревня не должна протекать.
+freshRun(1);
 
 // Пропуск отменяет набранный кликом маршрут, иначе это был бы обычный шаг.
 G.walkTarget = { x: G.playerPos.x, y: G.playerPos.y };
@@ -4528,7 +4665,41 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(G.player.hp === 150 && G.battle.phase === "question" && G.stats.codeTried === 0,
     "неполный ответ сервера: без удара и без попытки");
 
+  // --- на сервер уходит номер задания, а не клиентские тесты ---
+  task = codeBattle();
+  let sentBody = null;
+  globalThis.fetch = (url, opts) => {
+    sentBody = JSON.parse((opts && opts.body) || "{}");
+    return syncOk({ ok: true, json: () => syncOk({ ok: true, passed: 0, total: 1, results: [] }) });
+  };
+  API.checkCode();
+  log(!!sentBody && sentBody.taskId === task.id && !("tests" in sentBody),
+    "на сервер уходит taskId, а не клиентские tests", sentBody);
+  G.battle = null;
+
+  // Задание генератора сервер проверить не может: игра меняет его без урона.
+  codeBattle();
+  const staleChallenge = G.battle.challenge;
+  globalThis.fetch = answer({ ok: false, unavailable: true, staleTask: true,
+    error: "Задание генератора больше не проверяется", results: [] });
+  API.checkCode();
+  log(G.battle.challenge !== staleChallenge && G.player.hp === 150 &&
+    G.stats.codeTried === 0 && /другое/.test(G.battle.challenge.notice || ""),
+    "задание с клиентскими тестами заменяется без штрафа",
+    G.battle.challenge.type);
+  G.battle = null;
+
+  // Без серверного генератора задания gen.code в игру не попадают.
+  const genAll = API.practiceTasks("code").filter((p) => p.gen).length;
+  globalThis.__PYQUIZ_FEATURES = { code: true, generatedCode: false };
+  const genStrict = API.practiceTasks("code").filter((p) => p.gen).length;
+  delete globalThis.__PYQUIZ_FEATURES;
+  log(genAll > 0 && genStrict === 0,
+    "без серверных тестов задания gen.code не выдаются",
+    genAll + " -> " + genStrict);
+
   // --- сервер запущен с --no-code ---
+  codeBattle();
   globalThis.fetch = answer({ ok: false, unavailable: true, disabled: true,
     error: "Проверка кода отключена на сервере", results: [] });
   API.checkCode();
@@ -5607,7 +5778,12 @@ if (lockedDoor) {
 const bagProf = getProfile(G.name);
 bagProf.wallet = { gold: 100, small_potion: 2, big_potion: 1 };
 bagProf.hub = { revive: 0, gear: ["steel_sword"] };
+// Проверяем именно первый поход: без рекорда и без сохранения.
+bagProf.dungeonBest = null;
 putProfile(G.name, bagProf);
+Object.keys(globalThis.localStorage._d || {})
+  .filter((k) => k.indexOf("pyquiz_save") === 0)
+  .forEach((k) => globalThis.localStorage.removeItem(k));
 API.enterVillage(null);
 log((G.inventory || []).filter((i) => i.slot === "potion").length === 3,
   "в деревне в сумке зелья из кошелька",
@@ -5616,6 +5792,10 @@ log((G.inventory || []).some((i) => i.id === "steel_sword"),
   "и купленное снаряжение ждёт спуска");
 log(/С собой в поход/.test(el("village-bank").innerHTML),
   "панель деревни перечисляет, что герой берёт с собой");
+log(/Следующий шаг/.test(el("village-bank").innerHTML),
+  "панель деревни говорит, что делать дальше", el("village-bank").innerHTML.slice(0, 80));
+log(/Первый поход/.test(el("village-bank").innerHTML),
+  "первому игроку объясняют цель первого похода");
 log(!el("inventory-box") || el("inventory-box").innerHTML.length > 0,
   "и сумка в панели не пустая");
 bagProf.hub.gear = [];
@@ -5876,10 +6056,39 @@ API.takeRepeatQuest("ore");
 log(getProfile(G.name).quests.active === "ore", "задание у старосты берётся");
 API.gainLoot("ore", 3);
 log(API.questProgress() >= 3, "находки двигают задание", String(API.questProgress()));
+const beforeRepeatGold = getProfile(G.name).wallet.gold;
+const beforeRepeatWood = getProfile(G.name).loot.wood || 0;
 API.claimRepeat();
-log(getProfile(G.name).quests.repeat.ore === 1 && getProfile(G.name).quests.active === "",
+const afterRepeat = getProfile(G.name);
+log(afterRepeat.quests.repeat.ore === 1 && afterRepeat.quests.active === "",
   "выполненное задание сдано и снято",
-  "выполнено раз: " + getProfile(G.name).quests.repeat.ore);
+  "выполнено раз: " + afterRepeat.quests.repeat.ore);
+// Регрессия: payQuest сохранял награду в одной копии профиля, а claimRepeat
+// затем записывал старую копию и затирал выплату. Тост обещал награду,
+// которой не было.
+log(afterRepeat.wallet.gold > beforeRepeatGold,
+  "награда повторяемого задания дошла до банка деревни",
+  beforeRepeatGold + " -> " + afterRepeat.wallet.gold);
+log((afterRepeat.loot.wood || 0) > beforeRepeatWood,
+  "и материалы дошли до склада",
+  beforeRepeatWood + " -> " + (afterRepeat.loot.wood || 0));
+
+// «Без единой ошибки» не должно начисляться за повторный спуск на уже
+// посещённый этаж: подъём наверх и обратно давал бесконечные награды.
+const nomissBefore = getProfile(G.name).quests.repeat.nomiss || 0;
+API.takeRepeatQuest("nomiss");
+freshRun(1);
+G.floorIndex = 1;
+G.visited = new Set([1, 2]);
+G.stats.wrong = 0;
+G.questFloorWrong = 0;
+G.questProgress = { n: 0 };
+API.descend();
+log((getProfile(G.name).quests.repeat.nomiss || 0) === nomissBefore &&
+  (G.questProgress.n || 0) === 0,
+  "повторный спуск на посещённый этаж не двигает «без единой ошибки»",
+  "сдано: " + (getProfile(G.name).quests.repeat.nomiss || 0) +
+  ", прогресс: " + (G.questProgress.n || 0));
 API.takeRepeatQuest("guard");
 log(/Задание:/.test(API.questLine()), "цель задания видна строкой в панели", API.questLine());
 
@@ -6107,10 +6316,203 @@ profW.wallet.gold = 0;
 putProfile(G.name, profW);
 G.player.gold = 300;
 API.victory();
+log(getProfile(G.name).wallet.gold === 300 + API.balanceSnapshot()["econ.bossGold"] &&
+  G.player.gold === 0,
+  "победа банкует золото сразу, ещё до кнопки «В деревню»",
+  String(getProfile(G.name).wallet.gold));
 API.victoryToHub();
 log(getProfile(G.name).wallet.gold === 300 + API.balanceSnapshot()["econ.bossGold"],
-  "победа переносит всё золото похода и награду за дракона",
+  "победа переносит всё золото похода и награду за дракона без повторного банка",
   String(getProfile(G.name).wallet.gold));
+
+// ==== Развилка на входе не должна запирать выход из подземелья ====
+// Ученик, который проскочил развилку (окно висит поверх карты, ходить и
+// драться под ним можно), оставался без кнопки действия: она спрятана, пока
+// открыто любое окно из overlayOpen(), — и на десятом этаже это тупик.
+// Дракон повержен, выход открыт, а «Спуститься ниже» нажать нечем.
+// Вдобавок окно развилки стоит в разметке последним и при общем z-index: 60
+// перекрывало бой и экран победы: кнопка «В деревню» была под карточками.
+// Заглушка вёрстку и порядок слоёв не видит, поэтому проверка читает файлы.
+const overlaySrc = fs.readFileSync(path.join(dir, "game.js"), "utf8");
+const overlayList = overlaySrc.match(/function overlayOpen\(\)[\s\S]*?\]\.some/);
+log(!!overlayList && overlayList[0].indexOf("blessing-overlay") < 0,
+  "развилка не глушит кнопку действия и клавишу E",
+  overlayList ? overlayList[0].replace(/\s+/g, " ") : "overlayOpen не найден");
+
+const blessCss = fs.readFileSync(path.join(dir, "game.css"), "utf8");
+const blessZ = blessCss.match(/#blessing-overlay\s*\{[^}]*z-index:\s*(\d+)/);
+const overlayZ = blessCss.match(/\.overlay\s*\{[^}]*z-index:\s*(\d+)/);
+log(!!blessZ && !!overlayZ && Number(blessZ[1]) < Number(overlayZ[1]),
+  "развилка ниже остальных окон: не перекрывает бой и победу",
+  (blessZ ? blessZ[1] : "нет слоя") + " против " + (overlayZ ? overlayZ[1] : "нет слоя"));
+
+// ==== Проверка генерации этажа ====
+// Между этажами игра генерирует карту и проверяет её на этом компьютере.
+// Инвариант простой: от входа обязан существовать путь к спуску, к подъёму и
+// к стражу, который держит лестницу. Иначе игрок запирается на этаже.
+// Проверяем и сам валидатор на сломанных картах, и генератор на живых.
+
+const fillGrid = (w, h, v) => Array.from({ length: h }, () => Array(w).fill(v));
+const mkFloor = (grid, extra) => Object.assign({
+  map: { w: grid[0].length, h: grid.length, grid },
+  playerPos: { x: 1, y: 1 },
+  stairsDown: { x: grid[0].length - 2, y: grid.length - 2, active: true },
+  stairsUp: null,
+  enemies: [], treasures: [], traders: []
+}, extra || {});
+const problemsOf = (state) => API.validateFloorState(state);
+
+// Открытая карта 20x20 с рамкой стен: годна без замечаний.
+const openGrid = fillGrid(20, 20, 1);
+for (let x = 0; x < 20; x++) { openGrid[0][x] = 0; openGrid[19][x] = 0; }
+for (let y = 0; y < 20; y++) { openGrid[y][0] = 0; openGrid[y][19] = 0; }
+const openProblems = problemsOf(mkFloor(openGrid));
+log(openProblems.length === 0, "проверка генерации: годная карта проходит",
+  openProblems.join("; "));
+
+// Стена на всю высоту отрезает спуск от входа.
+const walledGrid = fillGrid(20, 20, 1);
+for (let y = 0; y < 20; y++) { walledGrid[y][10] = 0; }
+for (let x = 0; x < 20; x++) { walledGrid[0][x] = 0; walledGrid[19][x] = 0; }
+for (let y = 0; y < 20; y++) { walledGrid[y][0] = 0; walledGrid[y][19] = 0; }
+const walledProblems = problemsOf(mkFloor(walledGrid));
+log(walledProblems.some((p) => p.indexOf("спуск недостижим") >= 0),
+  "проверка генерации: отрезанный спуск замечен", walledProblems.join("; "));
+
+// Спуск закрыт, а стража на этаже нет.
+log(problemsOf(mkFloor(openGrid, { stairsDown: { x: 18, y: 18, active: false } }))
+  .some((p) => p.indexOf("стража") >= 0),
+  "проверка генерации: закрытая лестница без стража замечена");
+
+// Страж в изолированной клетке: до него не дойти, значит этаж не пройти.
+const pocketGrid = fillGrid(7, 5, 0);
+[[1, 1], [2, 1], [3, 1]].forEach(([x, y]) => { pocketGrid[y][x] = 1; });
+[[1, 2], [2, 2], [3, 2], [4, 2]].forEach(([x, y]) => { pocketGrid[y][x] = 1; });
+pocketGrid[3][5] = 1;
+log(problemsOf({
+  map: { w: 7, h: 5, grid: pocketGrid },
+  playerPos: { x: 1, y: 1 },
+  stairsDown: { x: 4, y: 2, active: false },
+  stairsUp: null,
+  enemies: [{ guard: true, x: 5, y: 3 }],
+  treasures: [], traders: []
+}).some((p) => p.indexOf("страж") >= 0),
+  "проверка генерации: недостижимый страж лестницы замечен");
+
+// Спуск стоит на клетке входа.
+log(problemsOf(mkFloor(openGrid, { stairsDown: { x: 1, y: 1, active: true } }))
+  .some((p) => p.indexOf("клетке входа") >= 0),
+  "проверка генерации: спуск на клетке входа замечен");
+
+// Вход оказался в стене.
+log(problemsOf(mkFloor(openGrid, { playerPos: { x: 0, y: 0 } }))
+  .some((p) => p.indexOf("вход") >= 0),
+  "проверка генерации: вход в стене замечен");
+
+// Генератор с проверкой: обычные этажи и бесконечный спуск всегда годны.
+freshRun(0);
+const badFloors = [];
+for (let i = 0; i < 14; i++) {
+  const state = API.buildCheckedFloor(i);
+  const left = problemsOf(state);
+  if (left.length) badFloors.push((i + 1) + ": " + left.join("; "));
+  if (!state.checked || !(state.checked.attempts >= 1)) badFloors.push((i + 1) + ": нет итога проверки");
+}
+log(!badFloors.length, "проверка генерации: 14 этажей подряд годны",
+  badFloors.slice(0, 3).join(" | "));
+
+// Слой объектов нельзя пересоздавать: так старые узлы остаются в DOM без
+// ссылок, и спрайты деревни висят поверх подземелья, а в деревне копятся
+// двойники игрока и НПС. Именно это ломал loadGame.
+log(overlaySrc.indexOf("G.entityEls = new Map()") < 0,
+  "слой объектов чистится, а не пересоздаётся (нет G.entityEls = new Map())");
+
+// ==== Тайники, комнаты и рычаги ====
+// Дверь тайника обязана быть проходом. Раньше комната 3×3 вырубалась в
+// монолите, а дверь оставалась стеной: ключ и рычаг открывали несуществующий
+// проход, и девять клеток с добычей были недостижимы навсегда.
+let vaultFloor = -1;
+let vault = null;
+for (let f = 3; f < 12 && !vault; f++) {
+  freshRun(f);
+  vault = (G.vaults || [])[0] || null;
+  if (vault) vaultFloor = f;
+}
+log(!!vault, "тайник генерируется на глубоких этажах",
+  vault ? ("этаж " + (vaultFloor + 1)) : "не найден");
+
+if (vault) {
+  const door = vault.door;
+  const from = vault.from;
+  const dir = { x: door.x - from.x, y: door.y - from.y };
+  const insideCell = G.map.grid[door.y + dir.y] && G.map.grid[door.y + dir.y][door.x + dir.x];
+  log(G.map.grid[door.y][door.x] === 1, "дверь тайника — проход, а не стена",
+    "grid[" + door.y + "][" + door.x + "] = " + G.map.grid[door.y][door.x]);
+  log(insideCell === 1, "за дверью есть проходимая комната");
+
+  log(API.cellBlocked(door.x, door.y) === true,
+    "запертая дверь тайника не пропускает героя");
+
+  G.vaultKeys = 1;
+  API.openVault(vault);
+  log(vault.locked === false, "ключ открывает тайник");
+  log(API.cellBlocked(door.x, door.y) === false,
+    "открытая дверь тайника пропускает героя");
+
+  const target = { x: door.x + dir.x, y: door.y + dir.y };
+  const path = API.findPath(G.playerPos, target);
+  log(!!path && path.length > 0, "после открытия к комнате есть путь",
+    path ? path.length + " шагов" : "пути нет");
+
+  // На клетке перед дверью ничего не должно стоять: иначе E открывает жилу
+  // или табличку вместо тайника, и кажется, что ключ не работает.
+  const busy = (G.nodes || []).some((n) => n.x === from.x && n.y === from.y && !n.taken) ||
+    (G.signs || []).some((s2) => s2.x === from.x && s2.y === from.y) ||
+    (G.camps || []).some((c) => c.x === from.x && c.y === from.y) ||
+    (G.levers || []).some((l) => l.x === from.x && l.y === from.y) ||
+    (G.treasures || []).some((t) => t.x === from.x && t.y === from.y);
+  log(!busy, "перед дверью тайника ничего не мешает нажать E",
+    "клетка " + from.x + "," + from.y);
+
+  const lever = (G.levers || [])[0];
+  log(!!lever && !!API.findPath(G.playerPos, lever),
+    "рычаг тайника достижим и связан с комнатой");
+  if (lever) {
+    log(lever.vault === vault.uid, "рычаг ссылается на тайник этажа",
+      lever.vault + " / " + vault.uid);
+  }
+}
+
+// Автосейв (и спуск) идут через snapshotCurrent(): интерактив этажа обязан
+// его пережить. Раньше автосейв стирал тайники, рычаги, жилы, костры и
+// таблички — комната с добычей исчезала через полсекунды после находки.
+{
+  const beforeSnap = {
+    vaults: (G.vaults || []).length,
+    levers: (G.levers || []).length,
+    nodes: (G.nodes || []).length,
+    camps: (G.camps || []).length,
+    signs: (G.signs || []).length
+  };
+  API.snapshotCurrent();
+  const snap = G.cache[G.floorIndex] || {};
+  log((snap.vaults || []).length === beforeSnap.vaults &&
+      (snap.levers || []).length === beforeSnap.levers &&
+      (snap.nodes || []).length === beforeSnap.nodes &&
+      (snap.camps || []).length === beforeSnap.camps &&
+      (snap.signs || []).length === beforeSnap.signs,
+    "автосейв сохраняет тайники, рычаги, жилы, костры и таблички",
+    JSON.stringify(beforeSnap));
+
+  // И в деревню интерактив подземелья не протекает: иначе на карте деревни
+  // рисуются чужие объекты, а их координаты перехватывают нажатие E.
+  API.enterVillage(null);
+  log((G.vaults || []).length === 0 && (G.levers || []).length === 0 &&
+      (G.nodes || []).length === 0 && (G.camps || []).length === 0 &&
+      (G.signs || []).length === 0,
+    "в деревне нет объектов подземелья",
+    "vaults=" + (G.vaults || []).length + " levers=" + (G.levers || []).length);
+}
 
 freshRun(0);
 

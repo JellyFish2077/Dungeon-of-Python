@@ -6,6 +6,7 @@
     python3 server.py --local        # только этот компьютер (127.0.0.1)
     python3 server.py --port 8080    # другой начальный порт
     python3 server.py --no-code      # без выполнения кода студентов (безопаснее)
+    python3 server.py --dev          # панель разработчика в подземелье
 
 Если порт занят, сервер автоматически берёт следующий.
 Не требует сторонних библиотек — только стандартная библиотека Python.
@@ -14,6 +15,7 @@
 import argparse
 import base64
 import contextlib
+import copy
 import csv
 import hashlib
 import hmac
@@ -22,6 +24,8 @@ import json
 import os
 import re
 import secrets
+import shlex
+import shutil
 import socket
 import sqlite3
 import subprocess
@@ -34,10 +38,124 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, unquote
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Каталог изменяемых данных: users.json, results.json, social.db, настройки
+# учителя, секреты и _backup. В обычном запуске это папка проекта. Проверки
+# (verify_admin.py) подставляют сюда временный каталог через PYQUIZ_DATA_DIR,
+# чтобы не читать и не переписывать настоящие данные класса.
+DATA_DIR = os.path.abspath(os.environ.get("PYQUIZ_DATA_DIR") or BASE_DIR)
+
+# Версия приложения: одна на сервер и на страницы. Показывается в шапке игры,
+# на главной и в панелях учителя, печатается при запуске и отдаётся
+# /api/version. Поднимаем её только вместе с записью в CHANGELOG.md: номер,
+# за которым нет записи, ничего не сообщает. Правило:
+#   PATCH — исправления, не меняющие правила игры;
+#   MINOR — новые возможности и изменения поведения/баланса;
+#   MAJOR — несовместимые изменения (формат сохранения, API).
+# Формат сохранения G (data.v = 1) версией приложения не является.
+VERSION = "1.4.0"
+VERSION_DATE = "2026-10-20"
+
+VERSION_CLIENT_JS = """
+(function () {
+  var info = window.__PYQUIZ_VERSION || {};
+  var text = "v" + (info.version || "?") + (info.commit ? " · " + info.commit : "");
+  function fill() {
+    var nodes = document.querySelectorAll("[data-app-version]");
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].textContent = text;
+      nodes[i].title = "Версия " + (info.version || "?") +
+        (info.date ? " от " + info.date : "") +
+        (info.commit ? ", коммит " + info.commit : "");
+    }
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fill);
+  } else {
+    fill();
+  }
+  try {
+    console.info("PyDungeon " + text + (info.date ? " (" + info.date + ")" : ""));
+  } catch (e) {}
+})();
+"""
+
+_VERSION_COMMIT = None
+
+
+def version_commit():
+    """Короткий хеш коммита, если рядом есть git. Без git — пустая строка."""
+    global _VERSION_COMMIT
+    if _VERSION_COMMIT is None:
+        _VERSION_COMMIT = ""
+        try:
+            proc = subprocess.run(
+                ["git", "rev-parse", "--short", "HEAD"],
+                cwd=BASE_DIR, capture_output=True, text=True, timeout=2,
+            )
+            if proc.returncode == 0:
+                _VERSION_COMMIT = proc.stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return _VERSION_COMMIT
+
+
+def version_payload():
+    return {"version": VERSION, "date": VERSION_DATE, "commit": version_commit()}
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-RESULTS_FILE = os.path.join(BASE_DIR, "results.json")
-USERS_FILE = os.path.join(BASE_DIR, "users.json")
-_lock = threading.Lock()
+RESULTS_FILE = os.path.join(DATA_DIR, "results.json")
+USERS_FILE = os.path.join(DATA_DIR, "users.json")
+# RLock, а не Lock: обновление пользователя читает и пишет файл одним же
+# замком, а save_users внутри него тоже берёт замок.
+_lock = threading.RLock()
+
+# Копии перед занятием. Ученик может испортить вопрос через админ-панель,
+# а код — и подавно: раньше ученический код мог переписать server.py.
+# Снимок делается при старте сервера, откат — копированием файла обратно.
+BACKUP_DIR = os.path.join(DATA_DIR, "_backup")
+BACKUP_KEEP = 5
+BACKUP_FILES = ("server.py", "questions.js", "code-tasks.js", "code-tasks-tests.json",
+                "practice-variants.js", "variants.js", "users.json", "results.json",
+                "game-config.json", "game-config.backup.json", "items.js",
+                "dungeon-content.js", "village-content.js")
+
+
+def make_backup():
+    """Снимок файлов проекта и данных в _backup/<дата-время>/, с ротацией.
+
+    Молча переживает ошибку: занятие не должно падать из-за бэкапа.
+    Возвращает путь к свежему снимку или None.
+    """
+    stamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    target = os.path.join(BACKUP_DIR, stamp)
+    try:
+        os.makedirs(target, exist_ok=True)
+        saved = 0
+        for name in BACKUP_FILES:
+            # Данные класса лежат в DATA_DIR, код и банки — в папке проекта.
+            # При подменённом DATA_DIR снимок не должен утаскивать настоящие
+            # users.json/results.json учителя во временный каталог.
+            src = os.path.join(DATA_DIR, name)
+            if not os.path.isfile(src):
+                src = os.path.join(BASE_DIR, name)
+            if not os.path.isfile(src) and (name.endswith(".js") or
+                                            name == "code-tasks-tests.json"):
+                # Банк вопросов, заданий и серверные тесты лежат в static/.
+                src = os.path.join(STATIC_DIR, name)
+            if not os.path.isfile(src):
+                continue
+            shutil.copyfile(src, os.path.join(target, name))
+            saved += 1
+        if not saved:
+            shutil.rmtree(target, ignore_errors=True)
+            return None
+        olds = sorted(d for d in os.listdir(BACKUP_DIR)
+                      if os.path.isdir(os.path.join(BACKUP_DIR, d)))
+        for old in olds[:-BACKUP_KEEP]:
+            shutil.rmtree(os.path.join(BACKUP_DIR, old), ignore_errors=True)
+        return target
+    except OSError:
+        return None
 
 
 def _hash_pin(pin, salt=None):
@@ -68,9 +186,26 @@ def save_users(users):
         os.replace(tmp, USERS_FILE)
 
 
+def update_user(key, change):
+    """Читает список пользователей, правит запись и сохраняет — под одним замком.
+
+    Раньше файл читался вне замка, а замок брался только внутри save_users.
+    Пара «прочитал → поправил → сохранил» не была атомарной, и два
+    одновременных входа учеников теряли один из профилей: второй перезаписывал
+    файл своей копией. change(users) возвращает текст ошибки, если запись
+    трогать нельзя, и None, если всё прошло.
+    """
+    with _lock:
+        users = load_users()
+        error = change(users)
+        if error is None:
+            save_users(users)
+        return users, error
+
+
 AVATAR_COLORS = ["#2563eb", "#16a34a", "#db2777", "#f59e0b", "#7c3aed", "#0891b2", "#dc2626"]
 
-SECRET_FILE = os.path.join(BASE_DIR, ".secret")
+SECRET_FILE = os.path.join(DATA_DIR, ".secret")
 TOKEN_TTL = 60 * 60 * 24 * 30  # 30 дней
 
 
@@ -121,9 +256,9 @@ def token_key(token):
 # Учитель открывает /admin, вводит пароль и правит числа игры. Значения
 # ложатся в game-config.json рядом с server.py, поэтому их видят все ученики
 # сразу после обновления страницы, а код остаётся нетронутым.
-ADMIN_SECRET_FILE = os.path.join(BASE_DIR, ".admin-secret")
-CONFIG_FILE = os.path.join(BASE_DIR, "game-config.json")
-CONFIG_BACKUP_FILE = os.path.join(BASE_DIR, "game-config.backup.json")
+ADMIN_SECRET_FILE = os.path.join(DATA_DIR, ".admin-secret")
+CONFIG_FILE = os.path.join(DATA_DIR, "game-config.json")
+CONFIG_BACKUP_FILE = os.path.join(DATA_DIR, "game-config.backup.json")
 
 
 def load_admin_pin():
@@ -800,7 +935,7 @@ def reset_balance_overrides():
 
 
 # --- SQLite для социальных данных (друзья, сообщения, приглашения) ---
-DB_FILE = os.path.join(BASE_DIR, "social.db")
+DB_FILE = os.path.join(DATA_DIR, "social.db")
 
 
 @contextlib.contextmanager
@@ -878,13 +1013,203 @@ def public_user(acc, key):
 
 
 ALLOW_CODE = True
+# Панель разработчика в подземелье: прыжок по этажам, пропуск боёв, выдача
+# предметов. Включается только ключом --dev, то есть решением преподавателя:
+# из адресной строки ученик её не включит.
+DEV_TOOLS = False
 TEACHER_PIN = os.environ.get("PYQUIZ_TEACHER_PIN", "").strip()
 MAX_CODE_LEN = 20000
 MAX_TESTS = 50
 CODE_TIMEOUT = 5
 MAX_MEMORY = 512 * 1024 * 1024
 
-RUNNER_PRELUDE = """import json, sys, os
+# Тесты заданий банка лежат на сервере, а не приходят от клиента. JSON
+# собран из static/code-tasks.js (tools/art/... не нужен): клиент по-прежнему
+# получает банк для показа, но проверять себя сам не может.
+CODE_TESTS_FILE = os.path.join(STATIC_DIR, "code-tasks-tests.json")
+_CODE_TASK_TESTS = None
+
+
+def code_task_tests():
+    """Проверки банка «напиши функцию», загруженные один раз."""
+    global _CODE_TASK_TESTS
+    if _CODE_TASK_TESTS is None:
+        out = {}
+        try:
+            with open(CODE_TESTS_FILE, encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                for task_id, raw in data.items():
+                    if not isinstance(task_id, str) or not isinstance(raw, list):
+                        continue
+                    tests = []
+                    for t in raw[:MAX_TESTS]:
+                        if not isinstance(t, dict):
+                            continue
+                        call, expected = t.get("call"), t.get("expected")
+                        if isinstance(call, str) and isinstance(expected, str) and call and expected:
+                            tests.append({"call": call[:500], "expected": expected[:500]})
+                    if tests:
+                        out[task_id] = tests
+        except (OSError, json.JSONDecodeError):
+            out = {}
+        _CODE_TASK_TESTS = out
+    return _CODE_TASK_TESTS
+
+
+def resolve_code_tests(task_id):
+    """Проверки по номеру задания. None и причина — если номера нет в банке.
+
+    Задания генератора (gen.*) сюда не входят: их тесты рождаются на клиенте
+    вместе с заданием, и доверять им нельзя. Пока серверного генератора нет,
+    такие задания игре не выдаются (features.generatedCode = false).
+    """
+    if not isinstance(task_id, str) or not task_id.strip():
+        return None, "Нет номера задания"
+    task_id = task_id.strip()[:120]
+    tests = code_task_tests().get(task_id)
+    if tests:
+        return tests, None
+    if task_id.startswith("gen."):
+        return None, "Задание генератора больше не проверяется — выдано другое"
+    return None, "Неизвестное задание"
+
+# Изоляция кода на уровне ОС. Внутри процесса Python обойти белый список
+# модулей можно цепочкой классов, поэтому на Windows по умолчанию берём WSL:
+# пользовательские пространства имён (unshare -Urmpf -n) дают отдельные
+# mount/pid/net, а /mnt с проектом и секретами маскируется tmpfs. Если WSL
+# недоступен, остаётся старый процесс — и это честно пишется при старте.
+SANDBOX_MODE = (os.environ.get("PYQUIZ_SANDBOX") or "auto").strip().lower()
+if SANDBOX_MODE not in ("auto", "process", "wsl"):
+    SANDBOX_MODE = "auto"
+WSL_EXE = shutil.which("wsl.exe") if os.name == "nt" else None
+if os.name == "nt" and not WSL_EXE:
+    _system_wsl = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"),
+                               "System32", "wsl.exe")
+    if os.path.isfile(_system_wsl):
+        WSL_EXE = _system_wsl
+_WSL_READY = None
+_LOCAL_NS_READY = None
+
+
+def local_ns_ready():
+    """Есть ли на этой Linux-машине unprivileged namespaces (локальный аналог WSL).
+
+    Нужно, чтобы сервер на Linux не оставался без изоляции, а полный набор
+    проверок можно было прогнать из WSL: снаружи wsl.exe недоступен, и режим
+    auto честно падал в process.
+    """
+    global _LOCAL_NS_READY
+    if _LOCAL_NS_READY is None:
+        _LOCAL_NS_READY = False
+        if os.name != "nt" and shutil.which("bash") and shutil.which("unshare"):
+            try:
+                probe = subprocess.run(
+                    ["bash", "-lc", "unshare -Urmpf --mount-proc -n true"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    timeout=10,
+                )
+                _LOCAL_NS_READY = probe.returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                _LOCAL_NS_READY = False
+    return _LOCAL_NS_READY
+
+
+def wsl_ready():
+    """Есть ли WSL с python3 и unprivileged namespaces. Ответ кэшируется."""
+    global _WSL_READY
+    if _WSL_READY is None:
+        _WSL_READY = False
+        if WSL_EXE:
+            try:
+                probe = subprocess.run(
+                    [WSL_EXE, "-e", "bash", "-lc",
+                     "command -v python3 >/dev/null 2>&1 && "
+                     "command -v unshare >/dev/null 2>&1 && "
+                     "unshare -Urmpf --mount-proc -n true"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                    # Первый запуск после простоя WSL может быть холодным:
+                    # восьми секунд не хватало, и сервер навсегда оставался
+                    # на небезопасном backend.
+                    timeout=30,
+                )
+                _WSL_READY = probe.returncode == 0
+            except (OSError, subprocess.SubprocessError):
+                _WSL_READY = False
+    return _WSL_READY
+
+
+def sandbox_backend():
+    """Куда запускать код: wsl (изоляция), process (старый режим) или нет.
+
+    «wsl» — это namespaces: на Windows через wsl.exe, на Linux локально.
+    Скрипт изоляции один и тот же (_wsl_script).
+    """
+    if SANDBOX_MODE == "process":
+        return "process"
+    if SANDBOX_MODE == "wsl":
+        if os.name == "nt":
+            return "wsl" if wsl_ready() else "unavailable"
+        return "wsl" if local_ns_ready() else "unavailable"
+    if os.name == "nt":
+        return "wsl" if wsl_ready() else "process"
+    return "wsl" if local_ns_ready() else "process"
+
+
+def wsl_path(path):
+    """C:\\Users\\... → /mnt/c/Users/... для аргументов WSL."""
+    path = os.path.abspath(path)
+    drive, rest = os.path.splitdrive(path)
+    if not drive:
+        raise ValueError("WSL понимает только пути с буквой диска")
+    return "/mnt/" + drive[0].lower() + rest.replace("\\", "/")
+
+
+def _wsl_script(src):
+    """Скрипт для WSL: task во временном каталоге, /mnt и /home скрыты.
+
+    Код запускается в отдельных user/mount/pid/net namespaces. Внутри
+    виден только каталог задачи (bind-mount), Python из /usr и пустые
+    заглушки вместо /mnt, /home, /tmp и /root. Секреты проекта лежат на
+    /mnt/c и после маскирования недоступны.
+    """
+    return r'''set -eu
+TASK=$(mktemp -d "${XDG_RUNTIME_DIR:-/dev/shm}/pyquiz.XXXXXX" 2>/dev/null || mktemp -d /dev/shm/pyquiz.XXXXXX)
+trap 'rm -rf "$TASK"' EXIT
+SRC=%s
+export TASK SRC
+/usr/bin/env -i PATH=/usr/bin:/bin HOME=/tmp LANG=C.UTF-8 PYTHONIOENCODING=utf-8 \
+  PYTHONDONTWRITEBYTECODE=1 TASK="$TASK" SRC="$SRC" \
+  unshare -Urmpf --mount-proc -n --kill-child bash -c '
+    set -eu
+    mount --bind "$SRC" "$TASK"
+    mount -t tmpfs tmpfs /mnt
+    mount -t tmpfs tmpfs /home 2>/dev/null || true
+    mount -t tmpfs tmpfs /tmp 2>/dev/null || true
+    mount -t tmpfs tmpfs /root 2>/dev/null || true
+    case "$TASK" in
+      /run/*) mount -t tmpfs tmpfs /dev/shm 2>/dev/null || true ;;
+    esac
+    ulimit -t 3
+    ulimit -v 524288
+    ulimit -f 4096
+    ulimit -n 64
+    ulimit -u 64
+    timeout -k 1 5 python3 -I "$TASK/runner.py" "$TASK/student.py" "$TASK/tests.json" "$TASK/results.json"
+  '
+''' % shlex.quote(src)
+
+
+SANDBOX_RUNNER = r"""
+# Этот файл пишет сервер, ученик его не видит и не редактирует.
+# Код ученика НЕ исполняется в этом файле: он лежит отдельно, в student.py,
+# и выполняется в отдельном пространстве имён без доступа к глобалам отсюда.
+# Старый вариант склеивал прелюдию, код ученика и эпилог в один файл, поэтому
+# код выполнялся в глобалах серверной прелюдии и доставал сохранённую
+# ссылку на настоящий open — то есть читал .secret сервера и переписывал
+# server.py. Теперь файлов три, и ученический код видит только белый список.
+import builtins, json, os, sys
+
 try:
     import resource
     resource.setrlimit(resource.RLIMIT_CPU, (3, 3))
@@ -892,63 +1217,155 @@ try:
     resource.setrlimit(resource.RLIMIT_FSIZE, (2097152, 2097152))
 except Exception:
     pass
-_out_path = sys.argv[2]
-_TMPROOT = os.path.realpath(sys.argv[0].rsplit(os.sep, 1)[0])
-_orig_open = open
 
-def _safe_open(file, mode="r", *a, **kw):
-    # студентский код открывает только файлы своей временной папки:
-    # так он не прочитает server.py, результаты класса и другие чужие файлы
-    try:
-        rp = os.path.realpath(os.fspath(file))
-        inside = rp == _TMPROOT or rp.startswith(_TMPROOT + os.sep)
-    except Exception:
-        inside = False
-    if "r" in mode and "+" not in mode and not inside:
-        raise PermissionError("Доступ к файлам вне папки задачи запрещён")
-    return _orig_open(file, mode, *a, **kw)
+_student_path, _tests_path, _out_path = sys.argv[1], sys.argv[2], sys.argv[3]
+_tmproot = os.path.realpath(os.path.dirname(os.path.abspath(_student_path)))
+
+# Модули, которые встречаются в учебных заданиях и которые не дают доступа
+# к файлам, сети и процессам. Всё остальное — в том числе os, sys,
+# subprocess, socket, ctypes — ученику недоступно.
+ALLOWED_MODULES = frozenset((
+    "math", "cmath", "random", "statistics", "decimal", "fractions", "numbers",
+    "string", "textwrap", "unicodedata", "re", "datetime", "time", "calendar",
+    "collections", "itertools", "functools", "operator", "bisect", "heapq",
+    "array", "copy", "json", "enum", "dataclasses", "typing", "abc",
+))
+
+# Встроенные функции, нужные для решения заданий. Намеренно отсутствуют
+# open (заменён на _safe_open), __import__ (заменён на _safe_import), eval,
+# exec, compile, globals, locals, vars, getattr, input, breakpoint, help, exit.
+SAFE_BUILTINS = (
+    "abs", "all", "any", "ascii", "bin", "bool", "bytearray", "bytes",
+    "callable", "chr", "classmethod", "complex", "dict", "divmod", "enumerate",
+    "filter", "float", "format", "frozenset", "hash", "hex", "id", "int",
+    "isinstance", "issubclass", "iter", "len", "list", "map", "max", "min",
+    "next", "object", "oct", "ord", "pow", "print", "property", "range", "repr",
+    "reversed", "round", "set", "slice", "sorted", "staticmethod", "str",
+    "sum", "super", "tuple", "type", "zip",
+    "ArithmeticError", "AssertionError", "AttributeError", "EOFError",
+    "Exception", "IndexError", "KeyError", "LookupError", "MemoryError",
+    "NameError", "NotImplementedError", "OverflowError", "RecursionError",
+    "RuntimeError", "StopIteration", "TypeError", "ValueError",
+    "ZeroDivisionError", "__build_class__",
+)
+
 
 def _inside_tmp(path):
     try:
         rp = os.path.realpath(os.fspath(path))
     except Exception:
         return False
-    return rp == _TMPROOT or rp.startswith(_TMPROOT + os.sep)
+    return rp == _tmproot or rp.startswith(_tmproot + os.sep)
 
-_orig_os_open = os.open
 
-def _safe_os_open(path, flags, *a, **kw):
-    # чтение за пределами своей папки запрещено и через низкоуровневый os.open
-    if not (flags & (os.O_WRONLY | os.O_RDWR | os.O_APPEND | os.O_CREAT)) and not _inside_tmp(path):
+def _safe_open(file, mode="r", *a, **kw):
+    # Читать можно только свою папку задачи, писать запрещено полностью.
+    # Раньше проверялся только режим чистого чтения, поэтому open(path, "w")
+    # писал куда угодно, включая server.py и users.json.
+    if not _inside_tmp(file):
         raise PermissionError("Доступ к файлам вне папки задачи запрещён")
-    return _orig_os_open(path, flags, *a, **kw)
+    if any(ch in mode for ch in "wax+"):
+        raise PermissionError("Запись файлов в задаче не нужна и запрещена")
+    return open(file, mode, *a, **kw)
 
-builtins_open = open
-import builtins
-import io as _io
-builtins.open = _safe_open
-_io.open = _safe_open
-os.open = _safe_os_open
-with _orig_open(sys.argv[1], encoding="utf-8") as _f:
+
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    root = name.split(".")[0]
+    if root not in ALLOWED_MODULES:
+        raise ImportError("Модуль «%s» в заданиях не используется" % root)
+    return __import__(name, globals, locals, fromlist, level)
+
+
+_safe = {}
+for _name in SAFE_BUILTINS:
+    _safe[_name] = getattr(builtins, _name, None)
+_safe["open"] = _safe_open
+_safe["__import__"] = _safe_import
+# Ожидаемые значения проверок считаются в отдельной копии builtins: иначе
+# ученик мог переопределить имя в своём пространстве и подменить ожидание.
+_expect_safe = dict(_safe)
+
+with open(_student_path, encoding="utf-8") as _f:
+    _source = _f.read()
+with open(_tests_path, encoding="utf-8") as _f:
     _tests = json.load(_f)
-"""
 
-RUNNER_EPILOGUE = """
-def _finish(_tests=_tests, _open=builtins_open, _dump=json.dump, _path=_out_path,
-            _ns=globals()):
-    _results = []
-    for _t in _tests:
-        try:
-            _actual = eval(_t["call"], _ns)
-            _expected = eval(_t["expected"], _ns)
-            _results.append({"ok": _actual == _expected, "actual": repr(_actual), "expected": repr(_expected)})
-        except Exception as _e:
-            _results.append({"ok": False, "actual": "\\u041e\\u0448\\u0438\\u0431\\u043a\\u0430: " + str(_e), "expected": _t["expected"]})
-    # Пишем через ссылки, захваченные как аргументы по умолчанию:
-    # код ученика не сможет перебить их переприсваиванием print/open/json
-    with _open(_path, "w", encoding="utf-8") as _f:
-        _dump(_results, _f, ensure_ascii=False)
-_finish()
+# Пространство имён ученика пустое, без __builtins__ по умолчанию.
+# Синтаксическая ошибка и любое исключение на верхнем уровне уходят в stderr,
+# и сервер показывает ученику последнюю строку трейсбека — как раньше.
+_ns = {"__name__": "задание", "__builtins__": _safe}
+exec(compile(_source, "<задание>", "exec"), _ns)
+
+# Сравнение без пользовательского __eq__: результат сначала приводится к
+# каноническому JSON из точных типов (bool, int, float, str, list, tuple,
+# dict), а потом сравниваются строки. Иначе класс ученика с __eq__ == True
+# проходил любую проверку, а repr() мог выполнить его код.
+def _short(_v):
+    _r = repr(_v)
+    return _r if len(_r) <= 1000 else _r[:1000] + "…"
+
+
+def _canon_key(_k):
+    _tk = type(_k)
+    if _tk is str:
+        return ["s", _k]
+    if _tk is bool:
+        return ["b", _k]
+    if _tk is int:
+        return ["n", _k]
+    if _tk is float:
+        if _k != _k or _k in (float("inf"), float("-inf")):
+            raise ValueError("нечисловое значение в ключе")
+        return ["n", int(_k)] if _k.is_integer() else ["n", _k]
+    raise TypeError("неподдерживаемый ключ")
+
+
+def _canon(_v):
+    _tv = type(_v)
+    if _v is None:
+        return ["z"]
+    if _tv is bool:
+        return ["b", _v]
+    if _tv is int:
+        return ["n", _v]
+    if _tv is float:
+        if _v != _v or _v in (float("inf"), float("-inf")):
+            raise ValueError("нечисловое значение")
+        # 15.0 и 15 в Python равны — канонизируем к одному виду.
+        return ["n", int(_v)] if _v.is_integer() else ["n", _v]
+    if _tv is str:
+        return ["s", _v]
+    if _tv is list:
+        return ["l", [_canon(_x) for _x in _v]]
+    if _tv is tuple:
+        return ["t", [_canon(_x) for _x in _v]]
+    if _tv is dict:
+        return ["d", sorted([_canon_key(_k), _canon(_val)] for _k, _val in _v.items())]
+    raise TypeError("неподдерживаемый тип результата")
+
+
+_results = []
+for _t in _tests:
+    try:
+        _actual = eval(_t["call"], _ns)
+        # Ожидание — в своей копии builtins, а не в пространстве ученика.
+        _expected = eval(_t["expected"], {"__builtins__": _expect_safe})
+        _ok = (json.dumps(_canon(_actual), ensure_ascii=False, sort_keys=True) ==
+               json.dumps(_canon(_expected), ensure_ascii=False, sort_keys=True))
+        _results.append({
+            "ok": _ok,
+            "actual": _short(_actual),
+            "expected": _short(_expected),
+        })
+    except Exception as _e:
+        _results.append({
+            "ok": False,
+            "actual": "Ошибка: " + str(_e),
+            "expected": _t["expected"],
+        })
+
+with open(_out_path, "w", encoding="utf-8") as _f:
+    json.dump(_results, _f, ensure_ascii=False)
 """
 
 
@@ -1017,12 +1434,80 @@ def _limit_windows_process(proc):
         return False
 
 
+def _env_number(name, default, cast):
+    """Число из переменной окружения, с запасным значением при мусоре.
+
+    Нужно, чтобы размер класса подгонялся без правки кода: PYQUIZ_CODE_WORKERS
+    и PYQUIZ_CODE_WAIT.
+    """
+    raw = os.environ.get(name, "").strip()
+    if not raw:
+        return default
+    try:
+        value = cast(raw)
+    except ValueError:
+        print("Значение %s=%s не число, беру %s" % (name, raw, default))
+        return default
+    return value if value > 0 else default
+
+
 # Сколько программ учеников проверяется одновременно. Каждая — отдельный
-# процесс Python до 512 МБ: класс, нажавший «Проверить» разом, иначе мог занять
-# всю память сервера. Остальные ждут свою очередь до CODE_QUEUE_WAIT секунд.
-CODE_WORKERS = 4
-CODE_QUEUE_WAIT = 10
+# процесс Python с потолком в 512 МБ, но обычная задача съедает десятки
+# мегабайт, так что шесть процессов — это не 3 ГБ, а примерно 250 МБ.
+# Остальные ждут очередь CODE_QUEUE_WAIT секунд: при 25 учениках и
+# 5-секундных задачах очередь на 10 секунд заканчивалась очень быстро.
+CODE_WORKERS = _env_number("PYQUIZ_CODE_WORKERS", 6, int)
+CODE_QUEUE_WAIT = _env_number("PYQUIZ_CODE_WAIT", 30, float)
 _CODE_SLOTS = threading.BoundedSemaphore(CODE_WORKERS)
+# Очередь ожидающих ограничена: иначе сотня запросов занимает сотню потоков
+# на 30 секунд. Лишние сразу получают «сервер занят», а не копятся.
+_CODE_WAITERS = threading.BoundedSemaphore(max(CODE_WORKERS, CODE_WORKERS * 4))
+
+# Кэш результатов проверки. В классе двадцать пять человек решают одно и то
+# же задание, и верное решение у них совпадает до пробела: раньше каждый
+# запускал свой процесс, и очередь росла в разы. Ключ — код и тесты вместе,
+# поэтому чужим кодом из чужого задания результат не подменить.
+CODE_CACHE_TTL = 300
+CODE_CACHE_MAX = 256
+# Одна запись не должна весить мегабайты: иначе 256 «удачных» ответов с
+# огромным repr забирают сотни мегабайт памяти сервера.
+CODE_CACHE_MAX_BYTES = 128 * 1024
+_code_cache = {}
+_code_cache_lock = threading.Lock()
+
+
+def _cache_key(code, tests):
+    payload = code + "\n" + json.dumps(tests, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _cache_get(key):
+    with _code_cache_lock:
+        item = _code_cache.get(key)
+        if item is None:
+            return None
+        stamp, value = item
+        if time.time() - stamp > CODE_CACHE_TTL:
+            _code_cache.pop(key, None)
+            return None
+        return copy.deepcopy(value)
+
+
+def _cache_put(key, value):
+    try:
+        size = len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
+    except (TypeError, ValueError):
+        return
+    if size > CODE_CACHE_MAX_BYTES:
+        # Большой результат не кэшируем: память дороже повторного запуска.
+        return
+    with _code_cache_lock:
+        if len(_code_cache) >= CODE_CACHE_MAX:
+            # Словарь хранит ключи в порядке добавления, поэтому сносим
+            # самые старые записи, а не ищем самые старые по времени.
+            for old in list(_code_cache)[:len(_code_cache) - CODE_CACHE_MAX + 1]:
+                _code_cache.pop(old, None)
+        _code_cache[key] = (time.time(), copy.deepcopy(value))
 
 
 def _unavailable(error, **extra):
@@ -1042,48 +1527,182 @@ def run_code(code, tests):
     if len(code) > MAX_CODE_LEN:
         return {"ok": False, "error": "Код слишком длинный", "results": []}
     if not isinstance(tests, list) or not tests:
-        # Задание без тестов — ошибка в банке заданий, а не у ученика.
+        # Задание без тестов — ошибка в банке заданий, а не ученика.
         return _unavailable("Нет тестов")
-    if not _CODE_SLOTS.acquire(timeout=CODE_QUEUE_WAIT):
+    # Повтор с тем же решением отвечает из кэша и не занимает слот: ради
+    # этого кэш и сделан, ведь весь класс решает одно задание.
+    key = _cache_key(code, tests)
+    cached = _cache_get(key)
+    if cached is not None:
+        cached["cached"] = True
+        return cached
+    if not _CODE_WAITERS.acquire(timeout=1):
         return _unavailable("Сервер проверки занят — нажми «Проверить» ещё раз", busy=True)
     try:
-        return _run_tests(code, tests[:MAX_TESTS])
+        if not _CODE_SLOTS.acquire(timeout=CODE_QUEUE_WAIT):
+            return _unavailable("Сервер проверки занят — нажми «Проверить» ещё раз", busy=True)
+        try:
+            result = _run_tests(code, tests[:MAX_TESTS])
+            # В кэш идёт только завершённая проверка. Ошибка ученика тоже
+            # попадает (упавшая программа детерминирована), а вот таймаут и
+            # «сервер не смог выполнить» зависят от загрузки машины — их
+            # повторять надо заново, иначе ученик так и не увидит успех.
+            if result.get("ok"):
+                _cache_put(key, result)
+            return result
+        finally:
+            _CODE_SLOTS.release()
     finally:
-        _CODE_SLOTS.release()
+        _CODE_WAITERS.release()
+
+
+def _child_env(tmpdir):
+    """Минимальное окружение для проверки кода.
+
+    Раньше процесс наследовал всё окружение сервера, то есть ученический код
+    мог читать PYQUIZ_TEACHER_PIN и прочие переменные. Оставляем только
+    то, без чего Python на Windows не стартует.
+    """
+    env = {
+        "PATH": "",
+        "TEMP": tmpdir,
+        "TMP": tmpdir,
+        "TMPDIR": tmpdir,
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONDONTWRITEBYTECODE": "1",
+    }
+    for name in ("SYSTEMROOT", "WINDIR", "SystemRoot", "COMSPEC"):
+        value = os.environ.get(name)
+        if value:
+            env[name] = value
+    return env
+
+
+def _drain_limited(stream, limit):
+    """Читает поток, оставляя только последние limit байт.
+
+    Последние, а не первые: у stderr нужна последняя строка с ошибкой.
+    Хвост ограничен, поэтому print в миллион строк не съедает память.
+    """
+    buf = bytearray()
+    while True:
+        chunk = stream.read(8192)
+        if not chunk:
+            break
+        if len(chunk) >= limit:
+            buf = bytearray(chunk[-limit:])
+        else:
+            buf.extend(chunk)
+            if len(buf) > limit:
+                del buf[:len(buf) - limit]
+    return bytes(buf)
+
+
+def _communicate_limited(proc, timeout, limit=65536):
+    """wait + чтение stdout/stderr с потолком вместо communicate().
+
+    communicate() сначала собирает весь вывод в память: ученик мог напечатать
+    гигабайты и уронить сервер ещё до проверки. Потоки читаются параллельно,
+    иначе полный pipe останавливает процесс.
+    """
+    captured = {}
+
+    def drain(name, stream):
+        try:
+            captured[name] = _drain_limited(stream, limit)
+        except (OSError, ValueError):
+            captured[name] = b""
+
+    threads = [
+        threading.Thread(target=drain, args=("stdout", proc.stdout), daemon=True),
+        threading.Thread(target=drain, args=("stderr", proc.stderr), daemon=True),
+    ]
+    for t in threads:
+        t.start()
+    timed_out = False
+    try:
+        proc.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        proc.kill()
+        proc.wait()
+    for t in threads:
+        t.join(timeout=2)
+    return captured.get("stdout", b""), captured.get("stderr", b""), timed_out
 
 
 def _run_tests(code, tests):
-    script = RUNNER_PRELUDE + "\n" + code + "\n" + RUNNER_EPILOGUE
     try:
         tmpdir = tempfile.mkdtemp(prefix="pyquiz-")
     except OSError as exc:
         return _unavailable(str(exc))
     try:
+        runner_path = os.path.join(tmpdir, "runner.py")
         code_path = os.path.join(tmpdir, "student.py")
         tests_path = os.path.join(tmpdir, "tests.json")
         out_path = os.path.join(tmpdir, "results.json")
+        # Код ученика пишется отдельным файлом и запускается не как
+        # __main__, а через exec из runner.py — поэтому он не видит
+        # ни глобалов runner, ни его настоящего open.
+        with open(runner_path, "w", encoding="utf-8") as f:
+            f.write(SANDBOX_RUNNER)
         with open(code_path, "w", encoding="utf-8") as f:
-            f.write(script)
+            f.write(code)
         with open(tests_path, "w", encoding="utf-8") as f:
             json.dump(tests, f, ensure_ascii=False)
 
+        backend = sandbox_backend()
+        if backend == "unavailable":
+            return _unavailable(
+                "WSL включён в PYQUIZ_SANDBOX, но недоступен. "
+                "Запустите сервер с --no-code или установите WSL."
+            )
         try:
+            if backend == "wsl":
+                script_path = os.path.join(tmpdir, "run.sh")
+                # На Windows путь переводится в /mnt/..., на Linux он уже свой.
+                src_path = wsl_path(tmpdir) if os.name == "nt" else os.path.abspath(tmpdir)
+                with open(script_path, "w", encoding="utf-8", newline="\n") as f:
+                    f.write(_wsl_script(src_path))
+                if os.name == "nt":
+                    command = [WSL_EXE, "-e", "bash", wsl_path(script_path)]
+                else:
+                    # Абсолютный путь: у процесса проверки PATH пустой.
+                    command = [shutil.which("bash") or "/bin/bash", script_path]
+            else:
+                command = [sys.executable, "-I", runner_path, code_path, tests_path, out_path]
+            run_env = _child_env(tmpdir)
+            if backend == "wsl" and os.name != "nt":
+                # Внешнему скрипту нужны mktemp/unshare/mount из PATH. Это
+                # доверенный код сервера; ученик запускается внутри него
+                # через `env -i`, и его окружение остаётся пустым.
+                run_env["PATH"] = "/usr/bin:/bin"
             proc = subprocess.Popen(
-                [sys.executable, "-I", code_path, tests_path, out_path],
+                command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 cwd=tmpdir,
+                env=run_env,
             )
-        except OSError as exc:
-            # Сервер не смог запустить Python — ученик тут ни при чём.
+        except (OSError, ValueError) as exc:
+            # Сервер не смог запустить Python/WSL — ученик тут ни при чём.
             return _unavailable(str(exc))
 
-        limited = _limit_windows_process(proc)
-        try:
-            stdout, stderr = proc.communicate(timeout=CODE_TIMEOUT)
-        except subprocess.TimeoutExpired:
+        # WSL уже ограничивает память через ulimit и RLIMIT_AS; Job Object
+        # на wsl.exe мог бы убить саму оболочку WSL, а не код ученика.
+        limited = _limit_windows_process(proc) if backend == "process" else False
+        if backend == "process" and os.name == "nt" and not limited:
+            # Job Object не применился — лимита памяти нет. Молча выполнять
+            # код в таком режиме нельзя: bytearray на пару гигабайт кладёт
+            # сервер. Честно говорим «недоступно», как при занятой очереди.
             proc.kill()
-            proc.communicate()
+            proc.wait()
+            return _unavailable(
+                "Не удалось включить ограничение памяти Windows. "
+                "Установите WSL или запустите сервер с --no-code."
+            )
+        stdout, stderr, timed_out = _communicate_limited(proc, CODE_TIMEOUT)
+        if timed_out:
             return {
                 "ok": False,
                 "error": "Превышено время выполнения (возможно, бесконечный цикл)",
@@ -1133,12 +1752,15 @@ def _run_tests(code, tests):
         # Файл результатов испорчен — его пишет программа ученика.
         return {"ok": False, "error": str(exc), "results": []}
     finally:
-        try:
-            for name in os.listdir(tmpdir):
-                os.remove(os.path.join(tmpdir, name))
-            os.rmdir(tmpdir)
-        except OSError:
-            pass
+        # WSL иногда отпускает cwd/хендлы на миллисекунды позже выхода
+        # процесса: один os.rmdir оставлял пустой pyquiz-* навсегда.
+        for _ in range(5):
+            if not os.path.exists(tmpdir):
+                break
+            shutil.rmtree(tmpdir, ignore_errors=True)
+            if not os.path.exists(tmpdir):
+                break
+            time.sleep(0.1)
 
 def _cell(value):
     """Приводит значение к строке для CSV и гасит формулы Excel."""
@@ -1177,6 +1799,10 @@ def load_results():
 
 
 RESULT_MODES = ("dungeon", "practice", "test")
+# Потолки файла результатов: без них гость мог прислать тысячи строк и
+# раздуть results.json, который учитель потом читает и выгружает целиком.
+RESULTS_MAX = 10000
+RESULTS_MAX_BYTES = 8 * 1024 * 1024
 DUNGEON_INTS = ("floorsCleared", "kills", "codePassed", "codeTried", "copyPassed",
                 "copyTried", "hintsUsed", "goldEarned")
 ANSWER_TEXTS = ("kind", "topic", "chosenLetter", "answerLetter", "chosenText", "answerText")
@@ -1485,6 +2111,39 @@ def clean_result(data):
     return out
 
 
+def result_problem(result):
+    """Серверные инварианты результата: что клиент не мог получить честно.
+
+    Это не доказательство, что ученик ответил сам (для этого нужна сессия
+    вопросов на сервере), а защита от заведомо поддельных строк: 100% при
+    нулевом числе вопросов, верных больше, чем всего, процент, не сходящийся
+    с weighted/maxWeighted, бесконечное время.
+    """
+    total = result.get("total", 0)
+    correct = result.get("correctCount", 0)
+    if total > 1000:
+        return "слишком много вопросов в одном результате"
+    if correct > total:
+        return "верных ответов больше, чем вопросов"
+    percent = result.get("percent", 0)
+    weighted = result.get("weighted")
+    max_weighted = result.get("maxWeighted")
+    if isinstance(max_weighted, int) and max_weighted > 0:
+        if not isinstance(weighted, int) or weighted > max_weighted:
+            return "вес верных ответов больше максимального"
+        if max_weighted > max(1, total) * 3:
+            return "максимальный вес не сходится с числом вопросов"
+        expected = round(weighted / max_weighted * 100)
+    else:
+        expected = round(correct / total * 100) if total else 0
+    # Один процент — запас на округление в разных браузерах.
+    if abs(percent - expected) > 1:
+        return "процент не сходится с числом верных ответов"
+    if result.get("seconds", 0) > max(3600, total * 600):
+        return "слишком долгий результат"
+    return None
+
+
 def mark_account(result, token):
     """Отметка аккаунта на результате из /api/submit.
 
@@ -1525,18 +2184,31 @@ def save_result(result):
                             and r.get("name") == result.get("name")
                             and (result.get("verified") or not r.get("verified")))]
         data.append(result)
+        if len(data) > RESULTS_MAX:
+            return None
+        payload = json.dumps(data, ensure_ascii=False, indent=2)
+        if len(payload.encode("utf-8")) > RESULTS_MAX_BYTES:
+            return None
         tmp = RESULTS_FILE + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
+            f.write(payload)
         os.replace(tmp, RESULTS_FILE)
         return len(data)
 
 
 class Handler(BaseHTTPRequestHandler):
     server_version = "PythonQuiz/1.0"
+    # Клиент, который открыл соединение и молчит, не должен держать поток
+    # вечно: BaseHTTPRequestHandler ставит этот таймаут на сокет.
+    timeout = 15
 
     def log_message(self, fmt, *args):
-        print("[%s] %s" % (self.log_date_time_string(), fmt % args))
+        # Пароль учителя и токены приходят в строке запроса (?pin=, ?token=),
+        # и раньше целиком попадали в консоль и в файл лога. Путь печатаем,
+        # значения — нет.
+        message = fmt % args
+        message = re.sub(r"(?i)([?&](?:pin|token|secret|admin)=)[^\s&\"']*", r"\1…", message)
+        print("[%s] %s" % (self.log_date_time_string(), message))
 
     def _client_ip(self):
         # сервер локальный, за прокси нет: X-Forwarded-For игнорируем,
@@ -1560,7 +2232,15 @@ class Handler(BaseHTTPRequestHandler):
         self._send(status, body, "application/json; charset=utf-8")
 
     def _serve_file(self, path):
-        if not os.path.abspath(path).startswith(os.path.abspath(STATIC_DIR)):
+        # startswith пропускал /static-соседа: «C:\...\static_evil» тоже
+        # начинается с «C:\...\static». Сравниваем каталоги, а не строки.
+        root = os.path.normcase(os.path.realpath(STATIC_DIR))
+        target = os.path.normcase(os.path.realpath(path))
+        try:
+            inside = os.path.commonpath([root, target]) == root
+        except ValueError:
+            inside = False
+        if not inside:
             self._send(403, b"403 Forbidden")
             return
         if not os.path.isfile(path):
@@ -1622,6 +2302,26 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_file(os.path.join(STATIC_DIR, "results.html"))
         elif path in ("/admin", "/admin.html"):
             self._serve_file(os.path.join(STATIC_DIR, "admin.html"))
+        elif path == "/api/version":
+            self._send_json(200, dict({"ok": True}, **version_payload()))
+        elif path == "/api/version.js":
+            # Тем же способом, что и /api/features.js: обычный скрипт
+            # выполняется до остальных и заполняет [data-app-version] на
+            # странице, поэтому отдельный запрос из каждого раздела не нужен.
+            payload = json.dumps(version_payload(), ensure_ascii=False)
+            body = ("window.__PYQUIZ_VERSION = " + payload + ";\n" +
+                    VERSION_CLIENT_JS).encode("utf-8")
+            self._send(200, body, "application/javascript; charset=utf-8")
+        elif path == "/api/features.js":
+            # Настройки одним скриптом, а не JSON: обычный <script src="...">
+            # выполняется до остальных скриптов страницы, поэтому флаг вроде
+            # «проверка кода выключена» известен к моменту сборки заданий.
+            # С fetch это была бы гонка: банк успевал собраться до ответа.
+            body = ("window.__PYQUIZ_FEATURES = " +
+                    json.dumps({"code": ALLOW_CODE, "dev": DEV_TOOLS,
+                                "generatedCode": False}) +
+                    ";\n").encode("utf-8")
+            self._send(200, body, "application/javascript; charset=utf-8")
         elif path == "/api/game-config":
             # Публичный: игре нужно знать баланс, но не пароль админа.
             # features.code: при запуске с --no-code игра не даёт задач на
@@ -1629,7 +2329,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(200, {
                 "ok": True,
                 "values": load_balance_overrides(),
-                "features": {"code": ALLOW_CODE},
+                "features": {"code": ALLOW_CODE, "dev": DEV_TOOLS,
+                             "generatedCode": False},
             })
         elif path == "/api/admin/schema":
             self._api_admin_schema(parsed.query)
@@ -1652,6 +2353,42 @@ class Handler(BaseHTTPRequestHandler):
     def do_HEAD(self):
         self.do_GET()
 
+    def _read_body(self, max_len=300000):
+        """Читает JSON-тело запроса. Возвращает (данные, ошибка).
+
+        Content-Type обязателен: без него любой сайт мог отправить серверу
+        POST с текстом text/plain — такой запрос браузер делает без
+        предварительного согласования, то есть подделать его могла чужая
+        страница, открытая у ученика. С application/json браузер сначала
+        спрашивает разрешение, а CORS-серверов здесь нет.
+        """
+        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if ctype != "application/json":
+            self._send_json(415, {"ok": False,
+                                  "error": "Ожидается application/json"})
+            return None, True
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except ValueError:
+            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+            return None, True
+        # Content-Length: -1 раньше проходил проверку и превращался в
+        # read(-1) — чтение до закрытия соединения, то есть вечное ожидание.
+        if length < 0 or length > max_len:
+            self._send_json(413, {"ok": False, "error": "Слишком большой запрос"})
+            return None, True
+        try:
+            data = json.loads(self.rfile.read(length).decode("utf-8"))
+        except (ValueError, json.JSONDecodeError):
+            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+            return None, True
+        # Список или строка вместо объекта роняли обработчик на data.get():
+        # браузер получал оборванное соединение вместо ответа.
+        if not isinstance(data, dict):
+            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+            return None, True
+        return data, False
+
     def do_POST(self):
         path = urlparse(self.path).path
         if path == "/api/check":
@@ -1661,53 +2398,58 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_account(path)
             return
         if path in ("/api/profile/update", "/api/profile/save"):
-            try:
-                length = int(self.headers.get("Content-Length", 0))
-                data = json.loads(self.rfile.read(length).decode("utf-8"))
-            except (ValueError, json.JSONDecodeError):
-                data = {}
+            data, failed = self._read_body()
+            if failed:
+                return
             self._handle_profile(path, data)
             return
         if path in ("/api/friends/request", "/api/friends/accept", "/api/friends/remove",
                     "/api/messages", "/api/invites", "/api/invites/clear"):
-            try:
-                length = int(self.headers.get("Content-Length", 0))
-                data = json.loads(self.rfile.read(length).decode("utf-8"))
-            except (ValueError, json.JSONDecodeError):
-                data = {}
+            data, failed = self._read_body()
+            if failed:
+                return
             self._social_post(path, data)
             return
         if path in ("/api/admin/login", "/api/admin/save", "/api/admin/reset",
                     "/api/admin/restore"):
-            try:
-                length = int(self.headers.get("Content-Length", 0))
-                data = json.loads(self.rfile.read(length).decode("utf-8"))
-            except (ValueError, json.JSONDecodeError):
-                data = {}
+            data, failed = self._read_body()
+            if failed:
+                return
             self._handle_admin(path, data)
             return
         if path != "/api/submit":
             self._send(404, b"404 Not Found")
             return
 
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            if length > 300000:
-                self._send_json(413, {"ok": False, "error": "Слишком большой запрос"})
-                return
-            raw = self.rfile.read(length)
-            data = json.loads(raw.decode("utf-8"))
-        except (ValueError, json.JSONDecodeError):
-            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+        data, failed = self._read_body()
+        if failed:
+            return
+
+        # Один ученик за урок отправляет единицы результатов; шестьдесят
+        # в минуту с адреса — уже не урок, а попытка забить файл.
+        if not rate_ok(self._client_ip(), limit=60, window=60):
+            self._send_json(429, {"ok": False, "error": "Слишком много результатов подряд"})
             return
 
         result = clean_result(data)
         if result is None:
             self._send_json(400, {"ok": False, "error": "Нет имени"})
             return
+        problem = result_problem(result)
+        if problem:
+            self._send_json(400, {"ok": False, "error": problem})
+            return
+        # В подземелье без входа не начать, поэтому итог похода без токена —
+        # не гость, а подделка. Тест и тренажёр по-прежнему открыты гостям.
+        if result["mode"] == "dungeon" and not token_key(data.get("token")):
+            self._send_json(401, {"ok": False, "error": "Для итога похода нужен вход"})
+            return
 
         mark_account(result, data.get("token"))
         total = save_result(result)
+        if total is None:
+            self._send_json(413, {"ok": False, "error": "Файл результатов переполнен"})
+            return
         self._send_json(200, {"ok": True, "saved": total})
 
     def _api_admin_schema(self, query):
@@ -1782,16 +2524,8 @@ class Handler(BaseHTTPRequestHandler):
                               "backup": os.path.basename(CONFIG_BACKUP_FILE)})
 
     def _handle_account(self, path):
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            data = json.loads(self.rfile.read(length).decode("utf-8"))
-        except (ValueError, json.JSONDecodeError):
-            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
-            return
-        # Список или строка вместо объекта роняли обработчик на data.get():
-        # браузер получал оборванное соединение вместо ответа.
-        if not isinstance(data, dict):
-            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+        data, failed = self._read_body()
+        if failed:
             return
         ip = self._client_ip()
         name = str(data.get("name", "")).strip()
@@ -1803,23 +2537,33 @@ class Handler(BaseHTTPRequestHandler):
         users = load_users()
 
         if path == "/api/register":
-            if key in users:
-                self._send_json(409, {"ok": False, "error": "Имя уже занято"})
-                return
             salt, h = _hash_pin(pin)
-            import secrets
-            users[key] = {
-                "name": name,
-                "salt": salt,
-                "hash": h,
-                "role": "student",
-                "about": "",
-                "avatar": AVATAR_COLORS[secrets.randbelow(len(AVATAR_COLORS))],
-                "profile": clean_profile(data.get("profile")),
-                "created": datetime.now().isoformat(timespec="seconds"),
-                "updated": datetime.now().isoformat(timespec="seconds"),
-            }
-            save_users(users)
+            avatar = AVATAR_COLORS[secrets.randbelow(len(AVATAR_COLORS))]
+            profile = clean_profile(data.get("profile"))
+            now = datetime.now().isoformat(timespec="seconds")
+
+            def register(all_users):
+                if key in all_users:
+                    return "Имя уже занято"
+                all_users[key] = {
+                    "name": name,
+                    "salt": salt,
+                    "hash": h,
+                    "role": "student",
+                    "about": "",
+                    "avatar": avatar,
+                    "profile": profile,
+                    "created": now,
+                    "updated": now,
+                }
+                return None
+
+            # Проверка «занято» и запись идут под одним замком: раньше
+            # между ними мог вклиниться второй регистрирующийся.
+            users, error = update_user(key, register)
+            if error:
+                self._send_json(409, {"ok": False, "error": error})
+                return
             tok = new_token(key)
             self._send_json(200, {
                 "ok": True,
@@ -1837,7 +2581,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(404, {"ok": False, "error": "Аккаунт не найден"})
             return
         _, h = _hash_pin(pin, users[key]["salt"])
-        if h != users[key]["hash"]:
+        # Раньше здесь было обычное !=, единственное непостоянное сравнение
+        # в проекте: соседние четыре места уже сравнивают через compare_digest.
+        if not hmac.compare_digest(h.encode("utf-8"), users[key]["hash"].encode("utf-8")):
             if not rate_ok(ip, limit=20, window=60):
                 self._send_json(429, {"ok": False, "error": "Слишком много попыток, подождите"})
                 return
@@ -1854,9 +2600,20 @@ class Handler(BaseHTTPRequestHandler):
             })
             return
 
-        users[key]["profile"] = clean_profile(data.get("profile"))
-        users[key]["updated"] = datetime.now().isoformat(timespec="seconds")
-        save_users(users)
+        profile = clean_profile(data.get("profile"))
+        now = datetime.now().isoformat(timespec="seconds")
+
+        def save_profile(all_users):
+            if key not in all_users:
+                return "Аккаунт не найден"
+            all_users[key]["profile"] = profile
+            all_users[key]["updated"] = now
+            return None
+
+        _, error = update_user(key, save_profile)
+        if error:
+            self._send_json(404, {"ok": False, "error": error})
+            return
         self._send_json(200, {"ok": True})
 
     def _query(self, query):
@@ -1893,35 +2650,61 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_profile(self, path, data):
         if not isinstance(data, dict):
             data = {}
-        users = load_users()
         # Только по токену сессии. Прежний запасной вход «имя + PIN» обходил
         # лимит попыток /api/login: PIN можно было перебирать здесь без счёта.
         key = token_key(data.get("token"))
-        if not key or key not in users:
+        if not key:
             self._send_json(401, {"ok": False, "error": "Нужен вход"})
             return
-        acc = users[key]
+        now = datetime.now().isoformat(timespec="seconds")
         if path == "/api/profile/update":
-            if "about" in data:
-                acc["about"] = str(data.get("about", ""))[:300]
+            _avatar = None
             if "avatar" in data:
                 _avatar = str(data.get("avatar") or "").strip()
-                if _avatar and _avatar in AVATAR_COLORS:
-                    acc["avatar"] = _avatar
-                elif _avatar:
+                if _avatar and _avatar not in AVATAR_COLORS:
                     self._send_json(
                         400,
                         {"ok": False, "error": "Такого цвета аватарки нет"},
                     )
                     return
-            acc["updated"] = datetime.now().isoformat(timespec="seconds")
-            save_users(users)
-            self._send_json(200, {"ok": True, "user": public_user(acc, key)})
+            about = data.get("about") if "about" in data else None
+
+            def change(users):
+                # Чтение, правка и запись — под одним замком update_user.
+                # Иначе два одновременных сохранения читали один файл и
+                # второе затирало правку первого: профили терялись молча.
+                acc = users.get(key)
+                if not acc:
+                    return "Нужен вход"
+                if about is not None:
+                    acc["about"] = str(about)[:300]
+                if _avatar:
+                    acc["avatar"] = _avatar
+                acc["updated"] = now
+                return None
+
+            users, error = update_user(key, change)
+            if error:
+                self._send_json(401, {"ok": False, "error": error})
+                return
+            self._send_json(200, {"ok": True, "user": public_user(users[key], key)})
             return
-        acc["profile"] = clean_profile(data.get("profile")) if data.get("profile") is not None \
-            else acc.get("profile", {})
-        acc["updated"] = datetime.now().isoformat(timespec="seconds")
-        save_users(users)
+
+        profile = clean_profile(data.get("profile")) if data.get("profile") is not None else None
+
+        def save_profile(users):
+            acc = users.get(key)
+            if not acc:
+                return "Нужен вход"
+            if profile is not None:
+                acc["profile"] = profile
+            acc["updated"] = now
+            return None
+
+        _, error = update_user(key, save_profile)
+        if error:
+            self._send_json(401, {"ok": False, "error": error})
+            return
         self._send_json(200, {"ok": True})
 
     def _key_or_401(self, token):
@@ -2067,22 +2850,32 @@ class Handler(BaseHTTPRequestHandler):
         conn.execute("INSERT OR IGNORE INTO friends (a,b,created) VALUES (?,?,?)", (b, a, now))
 
     def _handle_check(self):
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            if length > 200000:
-                self._send_json(413, {"ok": False, "error": "Слишком большой запрос"})
-                return
-            raw = self.rfile.read(length)
-            data = json.loads(raw.decode("utf-8"))
-        except (ValueError, json.JSONDecodeError):
-            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+        # Проверка кода — самая дорогая ручка: без лимита ею можно забить
+        # очередь и потоки. Уроку хватает сотни проверок в минуту с адреса.
+        if not rate_ok(self._client_ip(), limit=120, window=60):
+            self._send_json(429, {"ok": False, "error": "Слишком много проверок подряд"})
             return
-
-        if not isinstance(data, dict):
-            self._send_json(400, {"ok": False, "error": "Некорректные данные"})
+        data, failed = self._read_body(max_len=200000)
+        if failed:
             return
         code = data.get("code", "")
-        tests = data.get("tests", [])
+        # Выключенная проверка отвечает раньше разбора задания: иначе старый
+        # клиент без taskId получил бы «неизвестное задание» вместо disabled.
+        if not ALLOW_CODE:
+            self._send_json(200, run_code(code, []))
+            return
+        tests, problem = resolve_code_tests(data.get("taskId"))
+        if problem:
+            # Не ошибка ученика: ход не засчитывать. staleTask говорит игре,
+            # что задание надо заменить, а не показывать «сервер недоступен».
+            self._send_json(200, {
+                "ok": False,
+                "unavailable": True,
+                "staleTask": str(data.get("taskId", "")).startswith("gen."),
+                "error": problem,
+                "results": [],
+            })
+            return
         self._send_json(200, run_code(code, tests))
 
     def _export_csv(self):
@@ -2176,7 +2969,7 @@ def bind_server(host, port, tries=25):
 
 
 def main():
-    global ALLOW_CODE
+    global ALLOW_CODE, DEV_TOOLS
     parser = argparse.ArgumentParser(description="Сервер игры-теста по Python")
     parser.add_argument(
         "--host", default=None, help="адрес привязки (по умолчанию 0.0.0.0 — локальная сеть)"
@@ -2188,9 +2981,17 @@ def main():
     parser.add_argument(
         "--no-code", action="store_true", help="отключить проверку написанного кода"
     )
+    parser.add_argument(
+        "--dev", action="store_true",
+        help="панель разработчика в подземелье (прыжки по этажам, пропуск боёв)"
+    )
     args = parser.parse_args()
     ALLOW_CODE = not args.no_code
+    DEV_TOOLS = args.dev
     init_db()
+    # Проверки поднимают сервер на временных данных: снимок _backup им не
+    # нужен, а на рабочей папке он ротирует настоящие снимки учителя.
+    snapshot = None if os.environ.get("PYQUIZ_NO_BACKUP", "").strip() else make_backup()
 
     host = "127.0.0.1" if args.local else (args.host or "0.0.0.0")
     try:
@@ -2206,6 +3007,9 @@ def main():
 
     print("=" * 62)
     print("  Подземелье Python — сервер запущен")
+    print("  Версия %s от %s%s" % (
+        VERSION, VERSION_DATE,
+        (", коммит " + version_commit()) if version_commit() else ""))
     print()
     if lan:
         ips = local_ips()
@@ -2233,9 +3037,25 @@ def main():
         print("  Для доступа по сети просто запустите:  python3 server.py")
     print()
     print("  Проверка кода: %s" % ("включена" if ALLOW_CODE else "выключена"))
+    if ALLOW_CODE:
+        backend = sandbox_backend()
+        if backend == "wsl":
+            where = "WSL" if os.name == "nt" else "локальные namespaces"
+            print("  Изоляция кода: %s (отдельные mount/pid/net namespaces, файлы проекта скрыты)" % where)
+        elif backend == "unavailable":
+            print("  ВНИМАНИЕ: PYQUIZ_SANDBOX=wsl, но WSL недоступен — проверка кода не работает.")
+        else:
+            print("  ВНИМАНИЕ: песочница без изоляции ОС. Для занятий с кодом")
+            print("            установите WSL или запускайте с --no-code.")
+    if DEV_TOOLS:
+        print("  Инструменты разработчика: ВКЛЮЧЕНЫ (панель DEV в подземелье, F2)")
+        print("            Результаты такого запуска не стоит считать учебными.")
     if lan and ALLOW_CODE:
         print("  ВНИМАНИЕ: код студентов выполняется на этом компьютере.")
         print("            Запускайте только в доверенной сети или с --no-code.")
+    if snapshot:
+        print("  Снимок перед занятием: %s" % os.path.relpath(snapshot, BASE_DIR))
+        print("  Откат: скопировать оттуда файлы обратно в папку проекта.")
     if TEACHER_PIN:
         print("  Панель преподавателя закрыта паролем (открывайте /results?pin=...)")
     else:

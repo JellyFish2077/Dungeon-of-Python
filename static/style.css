@@ -98,6 +98,21 @@ body {
   border-radius: 2px;
 }
 
+/* Версия приложения: подпись в шапке, а не действие. Стоит после навигации,
+   приглушена, чтобы не спорить с пунктами меню. Значение подставляет
+   /api/version.js во все [data-app-version]. */
+.app-version {
+  align-self: center;
+  margin-left: auto;
+  padding: 2px 0;
+  color: #5b6b82;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  user-select: text;
+}
+
 /* Текущий раздел: тот же текст, только акцентный и с волосяной чертой снизу. */
 .nav-btn.active {
   color: #f6c453;

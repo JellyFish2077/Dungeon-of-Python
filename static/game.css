@@ -14,6 +14,19 @@ body.game-page {
   padding: 14px 16px;
 }
 
+/* В настоящем полноэкранном режиме убираем внешние поля и ограничение
+   ширины: карта занимает всё окно, а не центрированную колонку 1200 px. */
+html:fullscreen body.game-page {
+  padding: 0;
+  gap: 0;
+}
+html:fullscreen body.game-page .game-wrap {
+  max-width: none;
+}
+html:fullscreen body.game-page .site-head {
+  padding: 8px 14px;
+}
+
 body.game-page .site-head {
   width: 100%;
   /* Отступ до сцены даёт gap у body.game-page. */
@@ -894,6 +907,14 @@ body.game-page:has(.stage.village) .tile.unseen {
 }
 
 /* Герой */
+@keyframes firstGoalPulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(246, 196, 83, 0)); }
+  50% { filter: drop-shadow(0 0 9px rgba(246, 196, 83, 0.95)); }
+}
+.ent-npc.first-goal {
+  animation: firstGoalPulse 1.5s ease-in-out infinite;
+}
+
 .ent-player {
   width: calc(var(--cell) * 0.72);
   height: calc(var(--cell) * 0.72);
@@ -2801,6 +2822,15 @@ pre.code {
 }
 
 /* ---------- Развилка на входе: сделка ---------- */
+/* Развилка на входе — окно уровня карты, а не модальное: в разметке она стоит
+   последней среди .overlay, и при общем z-index: 60 перекрывала бой, лавку и
+   экран победы. Ученик, не ответивший на развилку, видел её карточки поверх
+   всего и не мог ни драться, ни нажать «В деревню» после дракона. Ниже 60 —
+   значит выше карты и панели (их z-index максимум 20), но ниже любого окна. */
+#blessing-overlay {
+  z-index: 55;
+}
+
 .bless-box {
   max-width: 640px;
 }
@@ -3558,6 +3588,12 @@ kbd {
 }
 
 @media (max-width: 700px) {
+  /* ?? ???????? ????????????? ????? ???????? ?????? ???, ? ? ?????
+     ?????? ?????? ???????? ????? ? ????????. */
+  #fullscreen-btn {
+    display: none;
+  }
+
   /* Узко: пояснение уезжает под название, маркер остаётся слева. */
   .mode {
     grid-template-columns: 16px minmax(0, 1fr);
@@ -4535,4 +4571,382 @@ body.game-page .side-panel .effect-title {
 .inv-count {
   color: #f6c453;
   font-weight: 700;
+}
+
+/* ---------- Загрузка этажа ----------
+   Оверлей висит, пока на компьютере игрока генерируется карта и проверяется
+   проходимость. Генерация занимает миллисекунды, поэтому минимум времени
+   показа держит play-код (LEVEL_MIN_LOAD_MS), иначе экран мигал бы кадром. */
+.loading-box {
+  width: min(440px, 92vw);
+  padding: 26px 26px 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(246, 196, 83, 0.28);
+  background: linear-gradient(180deg, #101f3a 0%, #0b1428 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: center;
+  color: #e2e8f0;
+}
+
+.loading-box h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #f6c453;
+  letter-spacing: 0.01em;
+}
+
+.loading-text {
+  margin: 0 0 14px;
+  min-height: 20px;
+  color: #93a3ba;
+  font-size: 14px;
+}
+
+.loading-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.loading-fill {
+  width: 12%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #b07a2c, #f6c453);
+  box-shadow: 0 0 12px rgba(246, 196, 83, 0.5);
+  transition: width 0.22s ease;
+}
+
+.loading-note {
+  margin: 14px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid rgba(246, 196, 83, 0.22);
+  border-top-color: #f6c453;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+    border-top-color: rgba(246, 196, 83, 0.22);
+  }
+  .loading-fill {
+    transition: none;
+  }
+}
+
+/* ---------- Инструменты разработчика ----------
+   Появляются только при запуске сервера с --dev. Панель выше оверлеев,
+   чтобы можно было пропустить бой, не закрывая его вручную. */
+.dev-toggle {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 90;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 196, 83, 0.5);
+  background: rgba(11, 20, 40, 0.92);
+  color: #f6c453;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dev-toggle:hover {
+  background: rgba(20, 34, 62, 0.96);
+}
+
+.dev-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 95;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(246, 196, 83, 0.35);
+  background: linear-gradient(180deg, #101f3a 0%, #0a1226 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.dev-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #f6c453;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.dev-close {
+  border: 0;
+  background: none;
+  color: #93a3ba;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.dev-close:hover {
+  color: #fff;
+}
+
+.dev-state {
+  margin-bottom: 10px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #9fb0c8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dev-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.dev-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dev-group > span {
+  color: #93a3ba;
+  font-size: 12px;
+}
+
+.dev-panel input[type="number"] {
+  width: 62px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  border: 1px solid #334155;
+  background: #0b1428;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+}
+
+.dev-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.08);
+  color: #dbe6f5;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dev-btn:hover {
+  border-color: rgba(246, 196, 83, 0.55);
+  background: rgba(246, 196, 83, 0.1);
+}
+
+.dev-btn.dev-on {
+  border-color: #f6c453;
+  background: rgba(246, 196, 83, 0.2);
+  color: #ffe08a;
+}
+
+.dev-btn.dev-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+}
+
+.dev-btn.dev-danger:hover {
+  background: rgba(248, 113, 113, 0.14);
+}
+
+/* ==========================================================================
+   ????????????? ??????? ????: ????? ????? ?????, ????????? ? ??????.
+   ========================================================================== */
+body.game-page {
+  position: relative;
+  padding: 0;
+  gap: 0;
+}
+
+body.game-page .site-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(6, 12, 24, 0.94) 0%,
+    rgba(6, 12, 24, 0.58) 68%, transparent 100%);
+  pointer-events: none;
+}
+
+body.game-page .site-head .brand,
+body.game-page .site-head .head-actions {
+  pointer-events: auto;
+}
+
+body.game-page .site-head .head-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+body.game-page .stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+body.game-page .game-wrap,
+body.game-page .stage .game-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  z-index: 1;
+}
+
+body.game-page .game-wrap > #screen-game.panel {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+body.game-page #screen-game .map-scroll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+body.game-page #screen-game .map-scroll .map {
+  border-radius: 0;
+}
+
+body.game-page #screen-game .game-msg {
+  top: 64px;
+}
+
+body.game-page #screen-game .minimap {
+  top: 68px;
+  left: 12px;
+  right: auto;
+}
+
+body.game-page .side-panel {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  bottom: 92px;
+  width: clamp(264px, 20vw, 330px);
+  max-width: none;
+  z-index: 30;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 162, 217, 0.26);
+  border-radius: 14px;
+  background: rgba(7, 13, 24, 0.84);
+  backdrop-filter: blur(9px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  overflow-y: auto;
+}
+
+body.game-page .side-panel.hud-collapsed {
+  display: none;
+}
+
+body.game-page .side-panel .side-card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+body.game-page .side-panel .side-card + .side-card {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(125, 162, 217, 0.16);
+}
+
+body.game-page #hud-btn.active {
+  color: #f6c453;
+  border-color: rgba(246, 196, 83, 0.45);
+}
+
+@media (max-width: 980px) {
+  body.game-page .site-head {
+    padding: 6px 10px;
+  }
+
+  body.game-page .side-panel {
+    top: 58px;
+    left: auto;
+    right: 8px;
+    bottom: auto;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 46vh;
+  }
+
+  body.game-page #screen-game .minimap {
+    display: none;
+  }
+
+  body.game-page #screen-game .game-msg {
+    top: 58px;
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+    text-align: center;
+  }
+
+  body.game-page #screen-game .log {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 70px;
+    width: auto;
+    max-height: 30%;
+  }
 }

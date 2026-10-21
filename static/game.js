@@ -205,6 +205,9 @@
     forgeAtk: 3, forgeDef: 2, forgeHp: 15
   };
   const SAVE_KEY = "pyquiz_save_v1";
+  // Где игрок был в прошлый раз — в деревне или в подземелье. Нужно, чтобы
+  // обновление страницы в деревне не выбрасывало обратно в поход.
+  const PLACE_KEY = "pyquiz_place_v1";
 
   // Деревня — хаб между походами. Поход одноразовый: смерть стирает
   // снаряжение, уровни и кузницу. Но найденное не отбирается: золото целиком
@@ -328,6 +331,11 @@
     stats: null,
     running: false,
     finishedVictory: false,
+    victoryBanked: false,
+    victoryBankedAmount: 0,
+    // Идёт загрузка этажа: генерация и проверка карты. Пока флаг поднят,
+    // ввод и действие у объекта молчат — иначе ход пришёлся бы на старую карту.
+    loading: false,
     // Партия проиграна. Нужен отдельно от running: на экране смерти
     // running уже false, но именно этот флаг запрещает автосейв и
     // запрещает «Продолжить» поднимать мёртвую партию.
@@ -377,9 +385,11 @@
     villageSeen: null
   };
 
-  // Скрытый хук для автотестов: ?debug=1 открывает состояние игры.
+  // Скрытый хук для автотестов: ?debug=1 открывает состояние игры. Только
+  // вместе с --dev: иначе любой ученик получал __setFloor, __validateFloor и
+  // всё состояние G из адресной строки — это дефект, а не отладка.
   try {
-    if (typeof window !== "undefined" &&
+    if (typeof window !== "undefined" && devEnabled() &&
         new URLSearchParams(window.location.search).get("debug") === "1") {
       window.__pyquiz = G;
       window.__floors = FLOORS;
@@ -392,6 +402,10 @@
         activateFloor(i);
         render();
       };
+      // Проверка генерации — чтобы автопроверки могли прогнать её на
+      // заведомо сломанных картах, а не только на удачной генерации.
+      window.__validateFloor = validateFloorState;
+      window.__buildFloor = buildCheckedFloor;
     }
   } catch (e) {
     // ignore
@@ -1125,7 +1139,10 @@
       for (let d = 0; d < dirs.length; d += 1) {
         const dx = dirs[d][0], dy = dirs[d][1];
         const door = { x: spot.x + dx, y: spot.y + dy };
-        if (!inside(door.x, door.y, w, h) || grid[door.y][door.x] !== 0) continue;
+        // Внешнюю стену карты не режем: иначе через тайник можно выйти
+        // за край поля. Дверь должна быть монолитом, а не полом.
+        if (door.x <= 0 || door.y <= 0 || door.x >= w - 1 || door.y >= h - 1) continue;
+        if (grid[door.y][door.x] !== 0) continue;
         // Комната за дверью: три клетки вглубь и три поперёк.
         const room = [];
         let fits = true;
@@ -1133,11 +1150,15 @@
           for (let side = -1; side <= 1; side += 1) {
             const x = door.x + dx * deep + (dx === 0 ? side : 0);
             const y = door.y + dy * deep + (dy === 0 ? side : 0);
-            if (!inside(x, y, w, h) || grid[y][x] !== 0) { fits = false; break; }
+            if (x <= 0 || y <= 0 || x >= w - 1 || y >= h - 1) { fits = false; break; }
+            if (grid[y][x] !== 0) { fits = false; break; }
             room.push({ x: x, y: y });
           }
         }
         if (!fits || room.length !== 9) continue;
+        // Дверь тоже проход: раньше она оставалась стеной, и комната была
+        // запечатана навсегда — ключ и рычаг открывали несуществующий проход.
+        grid[door.y][door.x] = 1;
         room.forEach((c) => { grid[c.y][c.x] = 1; });
         const fill = room.filter((c) => !(c.x === door.x && c.y === door.y));
         // Сокровища и материалы внутри: два предмета и пара жил.
@@ -1156,6 +1177,10 @@
         // открывает сундук, а потом не понимает, почему дверь не открылась.
         state.treasures = (state.treasures || []).filter((t) =>
           Math.abs(t.x - spot.x) + Math.abs(t.y - spot.y) > 0);
+        // Клетка перед дверью тоже занята: иначе жила или табличка,
+        // поставленная позже, перехватывает нажатие E — и тайник
+        // «не открывается», хотя ключ есть.
+        used.add(key(spot.x, spot.y));
         used.add(key(door.x, door.y));
         loot.forEach((c) => used.add(key(c.x, c.y)));
         mats.forEach((c) => used.add(key(c.x, c.y)));
@@ -1499,7 +1524,7 @@
   // Лава обжигает в конце каждого хода, пока герой стоит на ней.
   function hazardTick() {
     if (hazardAt(G.playerPos.x, G.playerPos.y) !== "lava") return 0;
-    const dmg = armorDamage(HAZARD_DMG_BASE + G.floorIndex);
+    const dmg = devGod() ? 0 : armorDamage(HAZARD_DMG_BASE + G.floorIndex);
     G.player.hp = Math.max(0, G.player.hp - dmg);
     setMsg("Лава обжигает: −" + dmg + " здоровья.");
     log("Лавовый разлом обжёг тебя на " + dmg + ".", "hurt");
@@ -1535,6 +1560,7 @@
   }
 
   function snapshotCurrent() {
+    const prev = G.cache[G.floorIndex];
     G.cache[G.floorIndex] = {
       index: G.floorIndex,
       map: G.map,
@@ -1546,20 +1572,261 @@
       traders: G.traders,
       traps: G.traps,
       hazard: G.hazard,
-      discovered: G.discovered
+      discovered: G.discovered,
+      // Интерактив этажа. Без этих полей каждый автосейв (а он идёт через
+      // snapshotCurrent) стирал тайники, рычаги, жилы, таблички и костры:
+      // комната с добычей исчезала уже через полсекунды после находки.
+      camps: G.camps || [],
+      vaults: G.vaults || [],
+      nodes: G.nodes || [],
+      levers: G.levers || [],
+      signs: G.signs || [],
+      vaultNeedsKey: !!G.vaultNeedsKey,
+      // Итог проверки генерации: сколько попыток понадобилось и что чинили.
+      // Нужен только для диагностики, на игру не влияет.
+      checked: prev && prev.checked || null
     };
+  }
+
+  // ---------- Загрузка и проверка этажа ----------
+
+  // Сколько раз пересоздаём этаж, прежде чем чинить его принудительно.
+  const FLOOR_MAX_ATTEMPTS = 8;
+  // Минимальное время показа загрузки: сама генерация занимает миллисекунды,
+  // и без этого оверлей мигал бы одним кадром.
+  const LEVEL_MIN_LOAD_MS = 450;
+  let levelLoadingAt = 0;
+
+  function levelNow() {
+    return typeof performance !== "undefined" && performance.now
+      ? performance.now() : Date.now();
+  }
+
+  function nextFrame() {
+    return new Promise((resolve) => {
+      if (typeof requestAnimationFrame === "function") {
+        requestAnimationFrame(() => setTimeout(resolve, 0));
+      } else {
+        setTimeout(resolve, 16);
+      }
+    });
+  }
+
+  function setLevelLoading(text, pct) {
+    const node = el("loading-text");
+    if (node) node.textContent = text;
+    const fill = el("loading-fill");
+    if (fill) fill.style.width = Math.max(0, Math.min(100, pct)) + "%";
+  }
+
+  function showLevelLoading(index) {
+    levelLoadingAt = levelNow();
+    const title = el("loading-title");
+    if (title) title.textContent = "Этаж " + (index + 1) + ": " + floorNameAt(index);
+    setLevelLoading("Генерация и проверка карты…", 18);
+    const box = el("level-loading");
+    if (box) box.classList.remove("hidden");
+  }
+
+  function hideLevelLoading() {
+    const box = el("level-loading");
+    if (box) box.classList.add("hidden");
+  }
+
+  // Проверка «правильной» генерации на компьютере игрока. Критично только то,
+  // что может запереть игрока: путь от входа к спуску, путь к стражу, который
+  // этот спуск держит, и достаточная площадь карты. Недостижимый сундук —
+  // потеря содержания, но не тупик, поэтому этаж из-за него не пересоздаём.
+  function validateFloorState(state) {
+    const problems = [];
+    const map = state.map;
+    const w = map.w;
+    const h = map.h;
+    const grid = map.grid;
+    const walkable = (x, y) =>
+      x >= 0 && y >= 0 && x < w && y < h && grid[y][x] === 1;
+    const start = state.playerPos;
+    if (!walkable(start.x, start.y)) {
+      return ["вход на непроходимой клетке"];
+    }
+    // Заливка от входа: всё, до чего герой реально дойдёт.
+    const seen = new Uint8Array(w * h);
+    const queue = new Int32Array(w * h);
+    let head = 0;
+    let tail = 0;
+    const first = start.y * w + start.x;
+    seen[first] = 1;
+    queue[tail++] = first;
+    while (head < tail) {
+      const cur = queue[head++];
+      const cx = cur % w;
+      const cy = (cur - cx) / w;
+      for (const d of STEP_DIRS) {
+        const nx = cx + d[0];
+        const ny = cy + d[1];
+        if (!walkable(nx, ny)) continue;
+        const ni = ny * w + nx;
+        if (seen[ni]) continue;
+        seen[ni] = 1;
+        queue[tail++] = ni;
+      }
+    }
+    const reach = (p) => !!p && walkable(p.x, p.y) && seen[p.y * w + p.x] === 1;
+    if (!reach(state.stairsDown)) problems.push("спуск недостижим от входа");
+    if (state.stairsUp && !reach(state.stairsUp)) {
+      problems.push("подъём недостижим от входа");
+    }
+    if (state.stairsDown && start.x === state.stairsDown.x && start.y === state.stairsDown.y) {
+      problems.push("спуск стоит на клетке входа");
+    }
+    // Лестница закрыта стражем: если до стража не дойти, этаж не пройти
+    // никогда. Это и есть главный сценарий «заперло». На этаже дракона
+    // лестницу держит сам дракон, отдельного стража там нет.
+    if (state.stairsDown && !state.stairsDown.active) {
+      const keeper = state.enemies.find((e) => e.guard || e.boss);
+      if (!keeper) problems.push("спуск закрыт, но стража на этаже нет");
+      else if (!reach(keeper)) problems.push("страж спуска недостижим");
+    }
+    // Тайник: дверь должна быть проходом, а площадка перед ней — достижима.
+    // Иначе комната вырублена, но попасть в неё нельзя (именно так дверь
+    // раньше оставалась стеной).
+    (state.vaults || []).forEach((v) => {
+      if (!v || !v.door) return;
+      if (!walkable(v.door.x, v.door.y)) problems.push("дверь тайника в стене");
+      if (!reach(v.from)) problems.push("к тайнику нет подхода");
+    });
+    // Рычаг открывает тайник: до него обязан быть путь.
+    (state.levers || []).forEach((l) => {
+      if (!reach(l)) problems.push("рычаг недостижим");
+    });
+    const minArea = Math.max(48, Math.floor(w * h * 0.12));
+    if (tail < minArea) problems.push("доступно слишком мало клеток: " + tail);
+    return problems;
+  }
+
+  // Последний рубеж: прорубаем коридор от входа к спуску и к стражу.
+  // Лучше некрасивый прямой проход, чем этаж, который нельзя пройти.
+  function repairFloorState(state) {
+    const grid = state.map.grid;
+    const carve = (a, b) => {
+      const x1 = Math.min(a.x, b.x);
+      const x2 = Math.max(a.x, b.x);
+      for (let x = x1; x <= x2; x++) grid[a.y][x] = 1;
+      const y1 = Math.min(a.y, b.y);
+      const y2 = Math.max(a.y, b.y);
+      for (let y = y1; y <= y2; y++) grid[y][b.x] = 1;
+    };
+    carve(state.playerPos, state.stairsDown);
+    const guard = state.enemies.find((e) => e.guard);
+    if (guard) carve(state.playerPos, guard);
+    return state;
+  }
+
+  // Генерация с проверкой: брак пересоздаём, после исчерпания попыток чиним.
+  // Очередь «призраков ошибок» откатываем: createFloorState разбирает её, и
+  // неудачная попытка иначе съедала задания, которые ещё предстояло закрыть.
+  function buildCheckedFloor(index) {
+    const missedBackup = (G.missed || []).slice();
+    for (let attempt = 1; attempt <= FLOOR_MAX_ATTEMPTS; attempt++) {
+      const state = createFloorState(index);
+      const problems = validateFloorState(state);
+      if (!problems.length) {
+        state.checked = { attempts: attempt, problems: [], repaired: false };
+        return state;
+      }
+      G.missed = missedBackup.slice();
+      if (attempt === FLOOR_MAX_ATTEMPTS) {
+        repairFloorState(state);
+        state.checked = {
+          attempts: attempt,
+          problems: problems,
+          repaired: true,
+          left: validateFloorState(state)
+        };
+        return state;
+      }
+    }
+    // Сюда не попадаем: последняя попытка всегда возвращает состояние.
+    const fallback = createFloorState(index);
+    fallback.checked = { attempts: FLOOR_MAX_ATTEMPTS, problems: ["нет попыток"], repaired: false };
+    return fallback;
+  }
+
+  // Вход на этаж с загрузкой. Генерация и проверка идут здесь же, на
+  // компьютере игрока; оверлей показывает, что это не зависание.
+  async function activateFloorLoaded(index, done) {
+    // Автопроверки (node) не могут ждать кадр: они вызывают restartFloor или
+    // спуск и сразу читают состояние. Флаг ставит tools/game_harness.js;
+    // сама проверка генерации при этом выполняется так же.
+    if (globalThis.__PYQUIZ_SYNC_FLOORS) {
+      const state = G.cache[index] || buildCheckedFloor(index);
+      G.cache[index] = state;
+      activateFloor(index);
+      if (done) done();
+      return;
+    }
+    if (G.cache[index]) {
+      // Уже пройденный этаж лежит готовым и проверенным при входе.
+      activateFloor(index);
+      if (done) done();
+      return;
+    }
+    G.loading = true;
+    showLevelLoading(index);
+    try {
+      await nextFrame();
+      let state;
+      try {
+        state = buildCheckedFloor(index);
+      } catch (err) {
+        // Сбой генератора: лучше простой рабочий этаж, чем вечная загрузка.
+        console.error("Генерация этажа упала", err);
+        state = createFloorState(index);
+        state.checked = { attempts: 0, problems: ["сбой генерации"], repaired: false };
+      }
+      G.cache[index] = state;
+      const checked = state.checked || {};
+      setLevelLoading(
+        checked.repaired
+          ? "Карта исправлена: путь к спуску прорублен"
+          : "Проверено: всё проходимо (попыток: " + (checked.attempts || 1) + ")",
+        100
+      );
+      await nextFrame();
+      activateFloor(index);
+      if (done) done();
+    } finally {
+      // Оверлей снимаем в любом случае, иначе ошибка оставила бы игрока
+      // навечно на экране загрузки. Ввод разблокируем вместе с оверлеем:
+      // иначе герой ходил бы под ещё висящим занавесом.
+      const left = LEVEL_MIN_LOAD_MS - (levelNow() - levelLoadingAt);
+      setTimeout(() => {
+        hideLevelLoading();
+        G.loading = false;
+      }, Math.max(0, left));
+    }
   }
 
   function activateFloor(index) {
     let state = G.cache[index];
     if (!state) {
-      state = createFloorState(index);
+      // Страховка: если этаж активируют напрямую, он всё равно проходит
+      // проверку. Основной путь — activateFloorLoaded с оверлеем загрузки.
+      state = buildCheckedFloor(index);
       G.cache[index] = state;
     }
     G.floorIndex = index;
+    // Развилка принадлежит тому этажу, на котором её показали. При смене
+    // этажа старый оверлей закрывается: иначе он перехватывал мышь, а дар
+    // применялся к уже другому этажу.
+    G.blessingOffer = null;
+    const oldBlessing = el("blessing-overlay");
+    if (oldBlessing) oldBlessing.classList.add("hidden");
     // Подземелье — это место "dungeon": деревня и дома живут в тех же
     // полях, поэтому каждый вход обязан сбросить их за собой.
     G.place = "dungeon";
+    setPlaceMarker("dungeon");
+    syncPlaceButtons();
     G.houseKey = null;
     G.blocked = null;
     G.npcs = [];
@@ -1636,6 +1903,10 @@
   // проверяются отдельно по grid — они ещё и тень отбрасывают, а объекты нет.
   function cellBlocked(x, y) {
     if (x < 0 || y < 0 || !G.map || x >= G.map.w || y >= G.map.h) return true;
+    // Запертая дверь тайника не пропускает: клетка проходима, но комната
+    // должна быть закрыта, пока нет ключа или рычаг не опущен.
+    const vault = vaultAt(x, y);
+    if (vault && vault.locked) return true;
     return !!(G.blocked && G.blocked[y] && G.blocked[y][x]);
   }
 
@@ -1665,6 +1936,16 @@
   // пустую панель после каждого похода. Надетого в деревне нет: снаряжение
   // надевают в подземелье.
   function villageKitFromProfile() {
+    // Поход на паузе: показываем то, что герой несёт с собой. Раньше сумка
+    // и снаряжение безусловно подменялись деревенским набором из кошелька,
+    // и собранный в подземелье лут выглядел пропавшим, хотя лежал в сейве.
+    const paused = pausedRun();
+    if (paused) {
+      G.inventory = (paused.inventory || []).slice();
+      G.equipment = paused.equipment
+        || { weapon: null, armor: null, accessory: null };
+      return;
+    }
     G.inventory = [];
     G.equipment = { weapon: null, armor: null, accessory: null };
     const prof = hubProfile();
@@ -1799,12 +2080,22 @@
     }
   }
 
+  // Снять слой объектов целиком. Убирать именно узлы, а не пересоздавать
+  // карту G.entityEls: при пересоздании старые узлы остаются в DOM без ссылок,
+  // и спрайты деревни висят поверх подземелья, а в деревне копятся двойники.
+  function clearEntityLayer() {
+    G.entityEls.forEach((node) => node.remove());
+    G.entityEls.clear();
+  }
+
   // Вход в место. at — куда поставить героя; без него — точка появления.
   function enterPlace(kind, key, at) {
     const st = kind === "village" ? villageState()
       : kind === "house" ? houseState(key) : null;
     if (!st) return false;
     G.place = kind;
+    setPlaceMarker(kind);
+    syncPlaceButtons();
     G.houseKey = kind === "house" ? key : null;
     show("game");
     G.map = st.map;
@@ -1821,6 +2112,15 @@
     G.traders = [];
     G.traps = [];
     G.hazard = null;
+    // Интерактив подземелья не переносится в деревню и дома. Иначе тайники,
+    // рычаги, жилы, костры и таблички с координатами этажа остаются на карте
+    // деревни: рисуются, перехватывают E и блокируют проход.
+    G.vaults = [];
+    G.nodes = [];
+    G.levers = [];
+    G.camps = [];
+    G.signs = [];
+    G.vaultNeedsKey = false;
     G.stairsDown = null;
     G.stairsUp = null;
     G.battle = null;
@@ -1830,8 +2130,7 @@
     G.visible = new Set();
     G.discovered = (kind === "village" && G.villageSeen)
       ? new Set(G.villageSeen) : new Set();
-    G.entityEls.forEach((node) => node.remove());
-    G.entityEls.clear();
+    clearEntityLayer();
     // Пустой список плиток заставляет renderTiles собрать сетку заново:
     // две комнаты одного размера иначе оставили бы чужие стены и пол.
     G.tileEls = [];
@@ -1842,6 +2141,13 @@
     G.running = true;
     G.dead = false;
     G.startedAt = Date.now();
+    // Ловушки и цепи — принадлежность подземелья. Если герой поднялся в
+    // деревню, оставшись в цепи, она больше не держит: иначе move() запрещал
+    // шаг, а skipTurn() в деревне отключён, и игрок застревал навсегда.
+    if (kind !== "dungeon" && G.player) {
+      G.player.snared = false;
+      G.player.snareWaits = 0;
+    }
     ensureVillagePlayer();
     const stage = el("stage");
     if (stage) stage.classList.toggle("village", kind !== "dungeon");
@@ -1851,12 +2157,11 @@
     el("map").classList.add("no-cam-anim");
     hideFloorArrival();
     measureViewport();
+    // Сначала собираем сумку, потом рисуем панель: renderVillageInfo читает
+    // G.inventory, и раньше он показывал пустую сумку вперёд неё.
+    villageKitFromProfile();
     render();
     renderVillageInfo();
-    // Сумка и характеристики рисуются и в деревне: между походами у героя
-    // есть зелья из кошелька и купленное снаряжение, и он должен их видеть,
-    // а не пустую панель. Раньше панель заполнялась только при спуске.
-    villageKitFromProfile();
     renderInventory();
     updateEquipBar();
     requestAnimationFrame(() => el("map").classList.remove("no-cam-anim"));
@@ -2287,7 +2592,24 @@
     }
     const rev = prof.hub.revive;
     let html =
-      "<p class='lead'><b>Банк:</b> " + walletText(prof.wallet) + "</p>" +
+      "<p class='lead'><b>Банк:</b> " + walletText(prof.wallet) + "</p>";
+    // Куда идти дальше. Без этой строки после затвора игрок видел материалы,
+    // постройки и «Продолжить поход», но не понимал, что именно чинить.
+    const step = storyStep();
+    if (step) {
+      const ready = goalDone(step.goal);
+      html += "<p class='lead'><b>Следующий шаг:</b> " + escText(step.title) + " — " +
+        (ready ? "награда ждёт у старосты" :
+          (goalProgressText(step.goal) || "поговори со старостой")) + ".</p>";
+    } else {
+      html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён — можно " +
+        "спускаться в бездну.</p>";
+    }
+    if (!prof.dungeonBest && !pausedRun()) {
+      html += "<p class='lead'><b>Первый поход:</b> найди стража у входа, " +
+        "спустись до пятого этажа и вернись к затвору — поход сохранится.</p>";
+    }
+    html +=
       "<p class='lead'><b>Амулеты:</b> " +
       "●".repeat(rev) + "○".repeat(Math.max(0, HUB_AMULET_MAX - rev)) +
       " (" + rev + " из " + HUB_AMULET_MAX + ")</p>";
@@ -2314,6 +2636,21 @@
       html += "<p class='lead'><b>Улучшения героя:</b> " + (up.length
         ? up.map((u) => u.name + " " + heroLevel(u.kind) + "/" + heroCap(u.kind)).join(", ")
         : "куплены ещё не были") + "</p>";
+    }
+    // Поход на паузе: без этой строки возврат в деревню выглядел как сброс —
+    // золото и вещи просто исчезали с глаз, хотя лежали в сохранении.
+    const paused = pausedRun();
+    if (paused) {
+      const carried = paused.inventory || [];
+      const carriedGold = (paused.player && paused.player.gold) || 0;
+      const carriedGear = carried.filter((i) => i && i.slot !== "potion");
+      html += "<p class='lead'><b>Поход на паузе:</b> этаж " +
+        ((paused.floorIndex || 0) + 1) + ", золото " + carriedGold +
+        (carriedGear.length
+          ? ", снаряжение: " + carriedGear.map((i) => escText(i.name)).join(", ")
+          : "") +
+        ". Всё это вернётся, когда продолжишь.</p>" +
+        "<button class='btn' id='village-resume-btn' type='button'>Продолжить поход</button>";
     }
     box.innerHTML = html;
   }
@@ -2836,6 +3173,9 @@
     healPlaceState();
     setZoomCell();
     computeVisibility();
+    // DEV: «Открыть карту» — после расчёта видимости (иначе он затрёт набор)
+    // и до отрисовки плиток, чтобы они сразу были видны.
+    if (G.dev && G.dev.reveal) devRevealAll();
     renderTiles();
     // Слой объектов чиним отдельно. Плитки перерисовываются первыми, и если
     // слой объектов падает на середине, на карте остаются узлы прошлого места:
@@ -2846,8 +3186,7 @@
       renderEntities();
     } catch (err) {
       console.error("Сбой отрисовки объектов", { место: G.place, этаж: G.floorIndex }, err);
-      G.entityEls.forEach((node) => node.remove());
-      G.entityEls.clear();
+      clearEntityLayer();
       try {
         renderEntities();
       } catch (err2) {
@@ -2859,6 +3198,7 @@
     if (G.place === "dungeon") updateVignette();
     drawMinimap();
     updateHud();
+    if (G.dev && G.dev.panel) devRender();
   }
 
   // Плитки трогаем только там, где что-то могло измениться: вокруг прежней и
@@ -3126,7 +3466,10 @@
       const vis = G.visible.has(key(n.x, n.y));
       const own = "npc_" + n.key;
       const sprite = (typeof SPRITES !== "undefined" && SPRITES[own]) ? own : "trader";
-      place("npc-" + n.uid, n.x, n.y, vis, sprite, "ent-npc", null, n.name, 4);
+      // Первому игроку подсвечиваем стража: именно с него начинается спуск,
+      // но в деревне его легко потерять среди жителей.
+      const cls = "ent-npc" + (n.key === "guard" && isFirstRun() ? " first-goal" : "");
+      place("npc-" + n.uid, n.x, n.y, vis, sprite, cls, null, n.name, 4);
     });
 
     // Двор деревни: деревья, забор, колодец и костёр.
@@ -3224,9 +3567,17 @@
     G.entityEls.forEach((node, id) => {
       if (!alive.has(id)) {
         G.entityEls.delete(id);
+        node.__fading = true;
         node.style.opacity = "0";
         setTimeout(() => node.remove(), 260);
       }
+    });
+
+    // Страховка: если слой и карта всё-таки разошлись, лишние узлы иначе
+    // копились бы навсегда. Гаснущие узлы не трогаем — у них свой таймер.
+    const tracked = new Set(G.entityEls.values());
+    Array.from(layer.children).forEach((child) => {
+      if (!tracked.has(child) && !child.__fading) child.remove();
     });
 
     // Кнопка действия следует за героем: подошёл к сундуку или лестнице —
@@ -4420,7 +4771,7 @@
   let walkPath = null;
 
   function onMapClick(ev) {
-    if (!G.running || G.battle) return;
+    if (!G.running || G.battle || G.loading) return;
     if (!el("end-overlay").classList.contains("hidden")) return;
     if (!el("shop-overlay").classList.contains("hidden")) return;
     if (!el("entrance-overlay").classList.contains("hidden")) return;
@@ -4643,7 +4994,7 @@
         if (!G.stairsDown.active) {
           return { kind: "locked", label: floorDef(G.floorIndex).boss ? "Выход охраняет дракон" : "Лестницу охраняет страж", icon: "▲" };
         }
-        if (!canDescend()) return { kind: "locked", label: "Спуск запечатан", icon: "▼" };
+        if (!canDescend()) return { kind: "sealed", label: "Спуск запечатан", icon: "▼" };
         return chained ? held("▼") : { kind: "down", label: "Спуститься ниже", icon: "▼" };
       }
       if (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) {
@@ -4685,16 +5036,22 @@
     }
     btn.classList.remove("hidden");
     btn.classList.toggle("locked",
-      target.kind === "locked" || target.kind === "chained" || target.kind === "locked-door");
+      target.kind === "locked" || target.kind === "sealed" ||
+      target.kind === "chained" || target.kind === "locked-door");
     el("action-icon").textContent = target.icon;
     el("action-label").textContent = target.label;
   }
 
   // Любое модальное окно поверх карты: пока оно открыто, кнопка действия
   // и клавиша E молчат, иначе можно открыть сундук «сквозь» лавку.
+  // Развилки на входе (blessing-overlay) здесь нет намеренно: она не модальная,
+  // герой ходит и дерётся, пока ученик не ответил. В списке она глушила кнопку
+  // действия вместе с клавишей E — а через них работают лестница, сундуки и
+  // жители. Ученик, который проскочил развилку, застревал: дракон повержен,
+  // выход открыт, а «Спуститься ниже» нажать нечем.
   function overlayOpen() {
-    return ["end-overlay", "shop-overlay", "blessing-overlay", "battle-overlay", "forge-overlay",
-      "entrance-overlay", "dialog-overlay"].some((id) => {
+    return ["end-overlay", "shop-overlay", "battle-overlay", "forge-overlay",
+      "level-loading", "entrance-overlay", "dialog-overlay"].some((id) => {
       const node = el(id);
       return node && !node.classList.contains("hidden");
     });
@@ -4750,6 +5107,15 @@
     }
     if (target.kind === "up") {
       ascend();
+      return;
+    }
+    if (target.kind === "sealed") {
+      // Раньше этот случай сваливался в "locked" и на нажатие E отвечал
+      // «Выход охраняет дракон», хотя страж уже побеждён, а спуск держит
+      // оберег глубины из деревни.
+      const message = sealMessage();
+      setMsg(message);
+      log(message, "floor");
       return;
     }
     if (target.kind === "locked") {
@@ -4816,7 +5182,17 @@
     if (!G.running || G.battle) return;
     if (overlayOpen()) return;
     // В деревне пропускать нечего: монстры ходят только в подземелье.
-    if (G.place !== "dungeon") return;
+    // Но если цепь всё-таки осталась (старый сейв или переход), ожидание
+    // должно её снять, а не молча ничего не делать.
+    if (G.place !== "dungeon") {
+      if (G.player && G.player.snared) {
+        G.player.snared = false;
+        G.player.snareWaits = 0;
+        setMsg("Цепь спала: в деревне ей не за что держаться.");
+        render();
+      }
+      return;
+    }
     hideFloorArrival();
     // Ожидание отменяет набранный кликом маршрут: иначе герой пошёл бы
     // дальше сам, и «пропуск» превратился бы в обычный шаг.
@@ -4990,6 +5366,10 @@
   function tileBlockedForEnemy(x, y, mover) {
     if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) return true;
     if (G.map.grid[y][x] !== 1) return true;
+    // Запертая дверь тайника держит и монстров: иначе они забредали бы
+    // в комнату, которую герой ещё не открыл.
+    const vault = vaultAt(x, y);
+    if (vault && vault.locked) return true;
     if (x === G.playerPos.x && y === G.playerPos.y) return false;
     if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) return true;
     if (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) return true;
@@ -5080,7 +5460,7 @@
       return true;
     }
 
-    const dmg = armorDamage(type.damage);
+    const dmg = devGod() ? 0 : armorDamage(type.damage);
     p.hp = Math.max(0, p.hp - dmg);
     setMsg(type.text + " −" + dmg + " здоровья.");
     log(type.text + " Ты теряешь " + dmg + " здоровья.", "hurt");
@@ -5151,7 +5531,7 @@
       return 0;
     }
     G.player.poison -= 1;
-    const dmg = Math.max(2, 3 + G.floorIndex);
+    const dmg = devGod() ? 0 : Math.max(2, 3 + G.floorIndex);
     G.player.hp = Math.max(0, G.player.hp - dmg);
     if (G.player.hp === 0) G.battle.playerDead = true;
     return dmg;
@@ -5351,16 +5731,21 @@
     }
     snapshotCurrent();
     const next = G.floorIndex + 1;
-    // visited пополняет activateFloor — там же показывается эпиграф этажа
+    // visited пополняет activateFloor — там же показывается эпиграф этажа.
+    // Чистый этаж засчитывается только один раз: подъём наверх и повторный
+    // спуск не должны бесконечно кормить задание «без единой ошибки».
     if (!G.visited.has(next)) {
       G.stats.floorsCleared += 1;
+      // Отметку ошибок ведёт activateFloor, здесь только сверка.
+      if (G.stats.wrong === (G.questFloorWrong || 0)) bumpQuest("nomiss", 1);
     }
-    // Задание «без единой ошибки»: этаж засчитывается, если ошибок на нём не
-    // прибавилось. Отметку ошибок ведёт activateFloor, здесь только сверка.
-    if (G.stats.wrong === (G.questFloorWrong || 0)) bumpQuest("nomiss", 1);
-    activateFloor(next);
-    log("Ты спускаешься на этаж " + (next + 1) + ": " + floorNameAt(next) + ".", "floor");
-    setMsg("Этаж " + (next + 1) + ". Монстров: " + G.enemies.length);
+    // Этаж генерируется и проверяется на компьютере игрока под оверлеем:
+    // сообщения пишем после того, как карта готова, иначе они относятся
+    // ещё к прошлому этажу.
+    activateFloorLoaded(next, () => {
+      log("Ты спускаешься на этаж " + (next + 1) + ": " + floorNameAt(next) + ".", "floor");
+      setMsg("Этаж " + (next + 1) + ". Монстров: " + G.enemies.length);
+    });
   }
 
   function ascend() {
@@ -5369,9 +5754,10 @@
     if (G.floorIndex === 0) return;
     snapshotCurrent();
     const prev = G.floorIndex - 1;
-    activateFloor(prev);
-    log("Ты поднимаешься на этаж " + (prev + 1) + ": " + floorNameAt(prev) + ".", "floor");
-    setMsg("Возвращение на этаж " + (prev + 1) + ".");
+    activateFloorLoaded(prev, () => {
+      log("Ты поднимаешься на этаж " + (prev + 1) + ": " + floorNameAt(prev) + ".", "floor");
+      setMsg("Возвращение на этаж " + (prev + 1) + ".");
+    });
   }
 
   // ---------- Бой ----------
@@ -5670,8 +6056,15 @@
       p.key = p.t.id;
     });
     if (gen && gen.list) {
+      // Тесты задания генератора рождаются на клиенте, поэтому сервер не
+      // может отличить настоящую проверку от подделки. Пока серверного
+      // генератора нет, такие задания на код не выдаются (флаг с сервера).
+      const genCode = !(typeof window !== "undefined" && window.__PYQUIZ_FEATURES &&
+        window.__PYQUIZ_FEATURES.generatedCode === false);
       gen.list.forEach((g) => {
-        if (g.kind === kind) list.push({ t: null, gen: g.key, key: "gen:" + g.key, topic: g.topic, level: g.level });
+        if (g.kind === kind && (g.kind !== "code" || genCode)) {
+          list.push({ t: null, gen: g.key, key: "gen:" + g.key, topic: g.topic, level: g.level });
+        }
       });
     }
     return list;
@@ -6014,6 +6407,7 @@
         effectFlash("Блок · осталось " + G.battle.blockLeft);
       }
     }
+    if (devGod()) dmg = 0;
     G.player.hp = Math.max(0, G.player.hp - dmg);
     if (G.player.hp === 0) G.battle.playerDead = true;
     // Пункт 3: шипы больше НЕ ранят врага в ответ на твой промах. Раньше
@@ -6842,7 +7236,7 @@
     }
     const item = c.question || c.task;
     const topic = item.topic || "syntax";
-    G.player.hp -= cost;
+    if (!devGod()) G.player.hp -= cost;
     G.stats.wrong += 1;
     G.stats.streak = 0;
     G.stats.topicStats[topic] = G.stats.topicStats[topic] || { correct: 0, total: 0 };
@@ -7095,7 +7489,7 @@
       toast("Мало здоровья для подсказки");
       return;
     }
-    if (!isFree) G.player.hp -= 10;
+    if (!isFree && !devGod()) G.player.hp -= 10;
     G.stats.hintsUsed = (G.stats.hintsUsed || 0) + 1;
     c.hintUsed = true;
     // Подсказка уменьшает удар по врагу: ответ больше не считается точным,
@@ -7218,6 +7612,21 @@
     }
   }
 
+  // В серверной версии проверка идёт на Python-сервере. В веб-сборке
+  // web-boot подставляет Pyodide в Web Worker — контракт тот же.
+  function requestCodeCheck(code, taskId) {
+    if (typeof window !== "undefined" && typeof window.__PYQUIZ_CHECK_CODE === "function") {
+      return window.__PYQUIZ_CHECK_CODE(code, taskId);
+    }
+    return fetch("/api/check", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      // Тесты заданий банка живут на сервере: клиент присылает только номер
+      // задания. Иначе можно было прислать свои проверки и пройти любую.
+      body: JSON.stringify({ code: code, taskId: taskId })
+    }).then((r) => r.json());
+  }
+
   function checkCode() {
     const b = G.battle;
     if (b.phase !== "question" || b.busy) return;
@@ -7226,18 +7635,13 @@
     btn.disabled = true;
     btn.textContent = "Проверяем...";
 
-    fetch("/api/check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: b.challenge.code, tests: b.challenge.task.tests })
-    })
-      .then((r) => r.json())
+    requestCodeCheck(b.challenge.code, b.challenge.task.id)
       .then(
         (data) => applyCodeResult(data, b),
         () => applyCodeResult({
           ok: false,
           unavailable: true,
-          error: "Сервер проверки кода не отвечает."
+          error: "Проверка кода не отвечает."
         }, b)
       );
   }
@@ -7258,6 +7662,14 @@
     // Страховка от неполного ответа сервера: раньше `undefined === undefined`
     // проходило проверку и полный удар начислялся за пустой результат.
     const broken = !!data && !!data.ok && (typeof total !== "number" || typeof passed !== "number");
+    // Задание с клиентскими тестами (генератор) сервер проверить не может:
+    // заменяем его, но не отключаем проверку кода для всего похода.
+    if (data && data.staleTask) {
+      nextChallenge();
+      b.challenge.notice = "Это задание больше не проверяется — выдано другое. Ход не потерян.";
+      renderBattle();
+      return;
+    }
     if (!data || data.unavailable || broken) {
       if (data && data.disabled) {
         // Сервер запущен с --no-code: эту задачу меняем, новых не будет.
@@ -7383,6 +7795,8 @@
   }
 
   function submitResult(victoryFlag) {
+    // В публичной веб-сборке нет /api/submit: результат остаётся локальным.
+    if (typeof window !== "undefined" && window.__PYQUIZ_WEB) return;
     if (!/^https?:$/.test(window.location.protocol)) return;
     // Токен сессии подписывает итог: у учителя строка отмечена как присланная
     // из аккаунта, и чужой итог без входа её не перезапишет.
@@ -7464,7 +7878,9 @@ function topicName(key) {
   // Общая часть экрана смерти: до какого этажа дошёл, сколько убил и разбор тем.
   function deathStatsHtml() {
     return "<p class='lead'>Ты дошёл до этажа " + (G.floorIndex + 1) + " и победил " +
-      G.stats.kills + " монстров.</p>" + topicReportHtml();
+      G.stats.kills + " монстров.</p>" +
+      "<p class='lead'>Найденные материалы и ключи остаются в деревне: " +
+      "следующий поход начнётся с ними.</p>" + topicReportHtml();
   }
 
   // Смерть с амулетом: спрашиваем игрока. Возрождение оставляет поход целым
@@ -7480,7 +7896,9 @@ function topicName(key) {
       "<button class='btn' id='revive-btn'>Использовать амулет</button>" +
       "<button class='btn ghost' id='to-hub-btn'>Вернуться в деревню</button>" +
       "</div>";
-    el("revive-btn").addEventListener("click", useRevive);
+    // Обёртка, а не useRevive напрямую: обработчик передаёт MouseEvent,
+    // а useRevive принимает необязательный callback окончания загрузки этажа.
+    el("revive-btn").addEventListener("click", () => useRevive());
     el("to-hub-btn").addEventListener("click", deathToHub);
   }
 
@@ -7513,6 +7931,13 @@ function topicName(key) {
     const name = hubName();
     if (!name) return null;
     return typeof getProfile === "function" ? getProfile(name) : null;
+  }
+
+  // Первый поход: ещё нет рекорда и нет сохранённого похода. Нужен для
+  // подсказки «иди к стражу», пока игрок не понял цикл.
+  function isFirstRun() {
+    const prof = hubProfile();
+    return !!prof && !prof.dungeonBest && !pausedRun();
   }
 
   // --- Постоянная прогрессия в походе ---
@@ -7798,7 +8223,8 @@ function topicName(key) {
     const s = seal || sealFor(G.floorIndex + 1);
     if (!s) return "";
     return "Спуск запечатан: нужен " + s.what + ". Его дают в деревне за " +
-      s.from + " — значит, пора вернуться и собрать материалы.";
+      s.from + " — вернись в деревню кнопкой «В деревню» в шапке. " +
+      "Поход сохранится, продолжишь у стража у входа.";
   }
 
   function questsOf() {
@@ -7932,12 +8358,18 @@ function topicName(key) {
   }
 
   function claimRepeat() {
-    const prof = hubProfile();
-    if (!prof) return false;
-    const key = prof.quests.active;
+    // Профиль до выплаты нужен только чтобы узнать задание. Сохранять его
+    // после payQuest нельзя: payQuest пишет отдельную копию профиля, и
+    // putProfile старой копией затирал награду — тост обещал золото,
+    // которого не было.
+    const current = hubProfile();
+    if (!current) return false;
+    const key = current.quests.active;
     const def = REPEAT_QUESTS[key];
     if (!def || questProgress() < def.need) return false;
     const parts = payQuest(def.reward);
+    const prof = hubProfile();
+    if (!prof) return false;
     prof.quests.repeat[key] = (prof.quests.repeat[key] || 0) + 1;
     prof.quests.active = "";
     putProfile(hubName(), prof);
@@ -8002,7 +8434,7 @@ function topicName(key) {
   // Тратит один амулет и поднимает героя на этом же этаже. Поведение этажа
   // то же, что у обычного перезапуска (карта и монстры новые, полное HP), но
   // поход продолжается: золото, снаряжение и пройденные этажи остаются.
-  function useRevive() {
+  function useRevive(done) {
     const prof = hubProfile();
     if (!prof || !prof.hub || prof.hub.revive <= 0) return false;
     prof.hub.revive -= 1;
@@ -8011,7 +8443,7 @@ function topicName(key) {
     log("Амулет возврата рассыпался в пыль — герой снова в строю. " +
       "Осталось амулетов: " + prof.hub.revive + ".", "floor");
     toast("Амулет возврата: герой поднимается");
-    restartFloor();
+    restartFloor(done);
     return true;
   }
 
@@ -8032,16 +8464,28 @@ function topicName(key) {
   }
 
   // Победа: всё золото похода плюс награда за дракона едут в деревню.
-  function victoryToHub() {
+  // Банк победы срабатывает сразу, а не по кнопке «В деревню»: иначе
+  // закрытая вкладка на экране победы теряла всё золото похода. Повторный
+  // вызов ничего не добавляет — сумма запоминается.
+  function bankVictoryGold() {
+    if (G.victoryBanked) return 0;
     const prof = hubProfile();
-    let banked = 0;
-    if (prof && G.player) {
-      banked = (G.player.gold || 0) + ECON.bossGold;
-      prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
-      prof.wallet.gold = (prof.wallet.gold || 0) + banked;
-      putProfile(hubName(), prof);
-      syncProfile(hubName());
-    }
+    if (!prof || !G.player) return 0;
+    const amount = (G.player.gold || 0) + ECON.bossGold;
+    prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+    prof.wallet.gold = (prof.wallet.gold || 0) + amount;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    // В походе этих денег больше нет: они уже в банке. Так смерть в бездне
+    // не может банковать ту же сумму второй раз.
+    G.player.gold = 0;
+    G.victoryBanked = true;
+    G.victoryBankedAmount = amount;
+    return amount;
+  }
+
+  function victoryToHub() {
+    const banked = G.victoryBankedAmount || bankVictoryGold();
     el("end-overlay").classList.add("hidden");
     reset();
     if (banked > 0) toast("Из похода в деревню перенесено " + banked + " золота");
@@ -8159,7 +8603,7 @@ function topicName(key) {
   // Пункт 7: смерть откатывает текущий этаж. Карта, монстры, ловушки и
   // находки создаются заново, здоровье восстанавливается полностью,
   // золото и снаряжение остаются, опыт этажа теряется до снимка входа.
-  function restartFloor() {
+  function restartFloor(done) {
     const index = G.floorIndex;
     endWalk();
     G.battle = null;
@@ -8202,13 +8646,16 @@ function topicName(key) {
     // Этаж считается непройденным: покажем планку входа заново.
     G.visited.delete(index);
     G.running = true;
-    activateFloor(index);
-    log("Этаж " + (index + 1) + " начинается заново. Здоровье восстановлено, " +
-      "опыт этого этажа потерян.", "floor");
-    setMsg("Ты очнулся у входа. Всё, что было на этаже, вернулось на место.");
-    renderInventory();
-    updateHud();
-    scheduleSave();
+    // Этаж пересоздаётся, значит его надо снова сгенерировать и проверить.
+    activateFloorLoaded(index, () => {
+      log("Этаж " + (index + 1) + " начинается заново. Здоровье восстановлено, " +
+        "опыт этого этажа потерян.", "floor");
+      setMsg("Ты очнулся у входа. Всё, что было на этаже, вернулось на место.");
+      renderInventory();
+      updateHud();
+      scheduleSave();
+      if (done) done();
+    });
   }
 
   // Пункт 5: из экрана победы можно уйти в бесконечный спуск. Дракон
@@ -8222,18 +8669,22 @@ function topicName(key) {
     G.dead = false;
     G.running = true;
     snapshotCurrent();
-    activateFloor(G.floorIndex + 1);
-    log("Дракон мёртв, но подземелье не кончилось. Бездна ждёт.", "floor");
-    setMsg("Бесконечный спуск: этажей больше нет, есть только глубина.");
-    renderInventory();
-    updateHud();
-    scheduleSave();
+    activateFloorLoaded(G.floorIndex + 1, () => {
+      log("Дракон мёртв, но подземелье не кончилось. Бездна ждёт.", "floor");
+      setMsg("Бесконечный спуск: этажей больше нет, есть только глубина.");
+      renderInventory();
+      updateHud();
+      scheduleSave();
+    });
   }
 
   function victory() {
     if (G.finishedVictory) return;
     G.finishedVictory = true;
     G.running = false;
+    // Сначала банк, потом сейв: закрытая вкладка на экране победы не должна
+    // стоить игроку всего золота похода.
+    bankVictoryGold();
     // Победа — конец обычного похода: старый сейв с живым драконом не должен
     // возвращать игрока на десятый этаж. Уход в бездну пишет новый сейв сам.
     clearSave();
@@ -8248,9 +8699,9 @@ function topicName(key) {
       ", ошибок: " + G.stats.wrong + ". Написано функций: " + G.stats.codePassed +
       " из " + G.stats.codeTried + ". Повторено кода: " + G.stats.copyPassed +
       " из " + G.stats.copyTried + ".</p>" +
-      "<p class='lead'>Победу можно развить: спустись в бездну — этажи там не " +
-      "кончаются, а враги становятся злее с каждым кругом. Или вернись в деревню: " +
-      "всё золото похода и награда за дракона достанутся тебе.</p>" +
+      "<p class='lead'>Золото похода и награда за дракона уже в банке деревни. " +
+      "Победу можно развить: спустись в бездну — этажи там не кончаются, а враги " +
+      "становятся злее с каждым кругом. Или вернись в деревню.</p>" +
       topicReportHtml() +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='to-hub-btn'>В деревню</button>" +
@@ -8289,6 +8740,17 @@ function topicName(key) {
       toast("Войди в аккаунт на главной странице");
       return;
     }
+    // Незаконченный поход затирается при старте нового: startRun делает
+    // clearSave(). Раньше это происходило молча, и собранный лут исчезал.
+    const paused = pausedRun();
+    if (paused && !window.confirm(
+      "У тебя есть незаконченный поход: этаж " + ((paused.floorIndex || 0) + 1) +
+      ", золото " + ((paused.player && paused.player.gold) || 0) +
+      ". Начать новый поход? Незаконченный будет потерян — " +
+      "продолжить его можно кнопкой «Продолжить поход» в деревне."
+    )) {
+      return;
+    }
     G.name = name;
     G.nick = dungeonNick(name);
     setLastName(name);
@@ -8313,6 +8775,9 @@ function topicName(key) {
     G.equipment = { weapon: null, armor: null, accessory: null };
     G.forge = { weapon: 0, armor: 0, vitality: 0 };
     G.inventory = [{ ...itemById("small_potion") }];
+    // Ключи от тайников — ресурс похода: новый поход не наследует их
+    // от предыдущего.
+    G.vaultKeys = 0;
     // Постоянная прогрессия: уровни улучшений из кузницы и постройки деревни.
     // Прибавляем к базе до recalcStats, а здоровье выставляем после — иначе
     // расчёт снаряжения затрёт прибавку колодца.
@@ -8364,6 +8829,7 @@ function topicName(key) {
       eliteKills: 0
     };
     G.lastQId = null;
+    G.questProgress = { n: 0 };
     G.codeQueue = [];
     G.copyQueue = [];
     G.fillQueue = [];
@@ -8374,6 +8840,8 @@ function topicName(key) {
     G.blessingOffer = null;
     G.hazard = null;
     G.finishedVictory = false;
+    G.victoryBanked = false;
+    G.victoryBankedAmount = 0;
     G.running = true;
     // Режим берём с переключателя в меню: обычный спуск или бесконечность.
     const modeBtn = el("game-mode").querySelector(".mode.active");
@@ -8397,16 +8865,17 @@ function topicName(key) {
     measureViewport();
     log("В подземелье входит " + (G.nick || "герой") + ": " + floorNameAt(0) + ".", "floor");
     log("Сложность: " + DIFFICULTY[G.difficulty].name + ".", "floor");
-    activateFloor(0);
-    claimWallet();
-    // Кошелёк пополняет золото уже после первой отрисовки панели: без этого
-    // в «Золото» до первого шага висел ноль, хотя в лавке было чем платить.
-    updateHud();
-    renderInventory();
-    log("Монстры двигаются навстречу каждый твой ход.", "floor");
-    log("Лестницу можно найти и спуститься, даже не убивая всех монстров.", "floor");
-    log("Лестница вверх возвращает на прошлый этаж с его монстрами и добычей.", "floor");
-    setMsg("Найди лестницу — спуститься можно, даже если монстры ещё живы.");
+    activateFloorLoaded(0, () => {
+      claimWallet();
+      // Кошелёк пополняет золото уже после первой отрисовки панели: без этого
+      // в «Золото» до первого шага висел ноль, хотя в лавке было чем платить.
+      updateHud();
+      renderInventory();
+      log("Монстры двигаются навстречу каждый твой ход.", "floor");
+      log("Лестницу можно найти и спуститься, даже не убивая всех монстров.", "floor");
+      log("Лестница вверх возвращает на прошлый этаж с его монстрами и добычей.", "floor");
+      setMsg("Найди лестницу — спуститься можно, даже если монстры ещё живы.");
+    });
   }
 
   function updateWalletLine() {
@@ -8522,7 +8991,8 @@ function topicName(key) {
     if (!window.confirm("Выйти в главное меню? Поход сохранится, его можно будет продолжить.")) return;
     // Сохраняем только поход: в деревне сохранять нечего, там сейв не пишется.
     if (G.running) saveGame();
-    window.location.href = "/";
+    window.location.href = (typeof window !== "undefined" && window.__PYQUIZ_WEB)
+      ? "index.html" : "/";
   }
 
   // ---------- Сохранение / загрузка ----------
@@ -8550,9 +9020,19 @@ function topicName(key) {
     saveTimer = setTimeout(saveGame, 400);
   }
 
+  // Обновление страницы или закрытие вкладки: отложенная запись в 400 мс
+  // не успевает сработать, и последний ход терялся. На pagehide пишем сразу.
+  if (typeof window !== "undefined") {
+    window.addEventListener("pagehide", () => {
+      clearTimeout(saveTimer);
+      saveGame();
+    });
+  }
+
   function serializeFloor(st) {
     return {
       index: st.index,
+      checked: st.checked || null,
       map: st.map,
       playerPos: st.playerPos,
       stairsDown: st.stairsDown,
@@ -8620,6 +9100,7 @@ function topicName(key) {
   function deserializeFloor(o) {
     return {
       index: o.index,
+      checked: o.checked || null,
       map: o.map,
       playerPos: o.playerPos,
       stairsDown: o.stairsDown,
@@ -8656,6 +9137,57 @@ function topicName(key) {
     return name ? SAVE_KEY + ":" + name : SAVE_KEY;
   }
 
+  function placeSlot(name) {
+    const me = name != null ? name : accountName();
+    return me ? PLACE_KEY + ":" + me : PLACE_KEY;
+  }
+
+  function setPlaceMarker(place) {
+    try {
+      localStorage.setItem(placeSlot(), place === "dungeon" ? "dungeon" : "village");
+    } catch (e) {
+      // localStorage может быть недоступен — просто пропускаем
+    }
+  }
+
+  function placeMarker() {
+    try {
+      return localStorage.getItem(placeSlot()) || "";
+    } catch (e) {
+      return "";
+    }
+  }
+
+  // Кнопка «В деревню» нужна только в подземелье: в деревне она бессмысленна.
+  function syncPlaceButtons() {
+    const btn = el("village-btn");
+    if (btn) btn.classList.toggle("hidden", G.place !== "dungeon");
+  }
+
+  function updateFullscreenButton() {
+    const btn = el("fullscreen-btn");
+    if (!btn) return;
+    const on = !!document.fullscreenElement;
+    btn.textContent = on ? "⤢" : "⛶";
+    btn.title = on ? "Выйти из полноэкранного режима (F11)" : "На весь экран (F11)";
+    btn.setAttribute("aria-label", on ? "Выйти из полноэкранного режима" : "На весь экран");
+  }
+
+  function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) {
+        const p = document.exitFullscreen();
+        if (p && p.catch) p.catch(() => {});
+      } else {
+        const p = document.documentElement.requestFullscreen({ navigationUI: "hide" });
+        if (p && p.catch) p.catch(() => {});
+      }
+    } catch (e) {
+      // Некоторые встроенные браузеры запрещают Fullscreen API; игра
+      // остаётся в обычном окне, ничего не ломается.
+    }
+  }
+
   function saveGame() {
     // Пока партия не начата — сохранять нечего. Помеченную смерть пишем
     // намеренно: по ней главное меню предложит начать этаж заново.
@@ -8687,6 +9219,9 @@ function topicName(key) {
         visited: Array.from(G.visited),
         uid: G.uid,
         missed: G.missed || [],
+        // Прогресс повторяемого задания живёт в походе; без него после
+        // перезагрузки цель обнулялась, хотя задание оставалось взятым.
+        questProgress: G.questProgress || null,
         learn: G.learn || null,
         blessings: G.blessings || {},
         cameraZoom: G.camera.zoomIndex,
@@ -8742,6 +9277,18 @@ function topicName(key) {
     }
   }
 
+  // Незаконченный поход, к которому можно вернуться. null — если продолжать
+  // нечего. Деревне нужно это знать, чтобы показать, что вещи и золото
+  // не пропали, а ждут продолжения.
+  function pausedRun() {
+    const me = accountName();
+    if (!me) return null;
+    const data = readSave();
+    if (!data || data.v !== 1 || data.over) return null;
+    if ((data.name || "") !== me) return null;
+    return data;
+  }
+
   function updateResumeButton() {
     const btn = el("resume-btn");
     if (!btn) return;
@@ -8751,12 +9298,19 @@ function topicName(key) {
     const me = accountName();
     if (data && data.v === 1 && me && (data.name || "") === me) {
       btn.style.display = "";
-      // После смерти «Продолжить» не поднимает партию, а честно
-      // предлагает начать этаж заново — это и есть пункт 7.
+      // Мёртвый сейв не воскрешает бесплатно. Перезагрузка страницы не
+      // должна обходить экран смерти: продолжить можно только за амулет,
+      // иначе поход считается оконченным и кнопка ведёт в деревню.
       // Имя в подписи не повторяем: оно и так стоит строкой выше.
-      btn.textContent = data.over
-        ? "Этаж " + ((data.floorIndex || 0) + 1) + " заново"
-        : "Продолжить: этаж " + (data.floorIndex + 1);
+      if (data.over) {
+        const prof = typeof getProfile === "function" ? getProfile(data.name || me) : null;
+        const amulets = prof && prof.hub ? prof.hub.revive : 0;
+        btn.textContent = amulets > 0
+          ? "Возродиться за амулет: этаж " + ((data.floorIndex || 0) + 1)
+          : "Поход окончен — в деревню";
+      } else {
+        btn.textContent = "Продолжить: этаж " + (data.floorIndex + 1);
+      }
     } else {
       btn.style.display = "none";
     }
@@ -8804,15 +9358,22 @@ function topicName(key) {
 
   function loadGame() {
     const data = readSave();
-    if (!data || data.v !== 1) return;
+    if (!data || data.v !== 1) return false;
     // Сейв другого ученика (за компьютером сменился игрок) не поднимаем.
     // Пока никто не вошёл, ограничивать нечем: партию поднимаем как раньше.
     const me = accountName();
-    if (me && (data.name || "") !== me) return;
+    if (me && (data.name || "") !== me) return false;
     G.name = data.name || "Герой";
     G.nick = dungeonNick(G.name);
     G.difficulty = data.difficulty || "easy";
     G.startedAt = data.startedAt || Date.now();
+    // Битый сейв с player:null раньше ронял загрузку на первом же обращении
+    // к G.player.poison. Такой поход продолжать нечем — убираем его.
+    if (!data.player || typeof data.player !== "object") {
+      clearSave();
+      updateResumeButton();
+      return false;
+    }
     G.player = data.player;
     G.player.poison = data.player.poison || 0;
     G.player.freeHints = data.player.freeHints || 0;
@@ -8824,11 +9385,42 @@ function topicName(key) {
     G.forge = Object.assign({ weapon: 0, armor: 0, vitality: 0 }, data.forge || {});
     // Сейв без прогрессии (старая версия) — берём её из профиля, а не нулями:
     // иначе после перезагрузки страницы «Добыча» и «Броня» обнулились бы.
-    G.prog = data.prog || progressBonus();
+    const savedProg = data.prog || null;
+    G.prog = savedProg || progressBonus();
     G.ability = data.ability || { key: chosenAbility(), left: abilityCharges() };
-    if (typeof G.restsLeft !== "number") G.restsLeft = data.restsLeft || 0;
+    // Раньше условие проверяло G.restsLeft, который всегда число (0 из
+    // начального состояния), поэтому число привалов после перезагрузки
+    // оставалось нулевым. Читаем именно поле сейва; старый сейв без него
+    // получает обычный запас на поход.
+    G.restsLeft = typeof data.restsLeft === "number"
+      ? data.restsLeft
+      : REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0);
     G.vaultKeys = data.vaultKeys || 0;
     G.inventory = data.inventory || [];
+    // Если поход был на паузе, а игрок за это время купил улучшения героя в
+    // деревне, они должны примениться к текущему походу. Иначе покупка
+    // выглядит работающей (уровни в панели выросли), а в бою ничего не меняет.
+    let upgradeHp = 0;
+    let upgradeDmg = 0;
+    let upgradePotions = 0;
+    if (!data.over && savedProg && G.player.hp > 0) {
+      const fresh = progressBonus();
+      const num = (value) => Math.max(0, Math.floor(Number(value) || 0));
+      upgradeHp = Math.max(0, num(fresh.hp) - num(savedProg.hp));
+      upgradeDmg = Math.max(0, num(fresh.dmg) - num(savedProg.dmg));
+      upgradePotions = Math.max(0, num(fresh.potions) - num(savedProg.potions));
+      const upgradeLoot = Math.max(0, num(fresh.loot) - num(savedProg.loot));
+      const upgradeArmor = Math.max(0, num(fresh.armor) - num(savedProg.armor));
+      if (upgradeHp || upgradeDmg || upgradePotions || upgradeLoot || upgradeArmor) {
+        G.player.baseMaxHp = num(G.player.baseMaxHp) + upgradeHp;
+        G.player.dmgBase = num(G.player.dmgBase) + upgradeDmg;
+        for (let i = 0; i < upgradePotions; i += 1) {
+          const potion = itemById("small_potion");
+          if (potion) G.inventory.push(Object.assign({}, potion));
+        }
+        G.prog = fresh;
+      }
+    }
     G.stats = Object.assign(
       { streak: 0, bestStreak: 0, perfectHits: 0, eliteKills: 0 },
       data.stats || {}
@@ -8836,6 +9428,9 @@ function topicName(key) {
     G.visited = new Set(data.visited || [0]);
     G.uid = data.uid || 0;
     G.missed = data.missed || [];
+    G.questProgress = data.questProgress && typeof data.questProgress === "object"
+      ? { n: Math.max(0, Math.floor(Number(data.questProgress.n) || 0)) }
+      : { n: 0 };
     G.learn = data.learn || null;
     learnState();
     G.blessings = data.blessings || {};
@@ -8847,7 +9442,10 @@ function topicName(key) {
     (data.floors || []).forEach((f) => {
       G.cache[f.index] = deserializeFloor(f);
     });
-    G.entityEls = new Map();
+    // Слой объектов чистим, а не пересоздаём карту: иначе узлы деревни,
+    // отрисованные до «Продолжить», остаются в DOM без ссылок — они и висели
+    // поверх подземелья, а при каждом возврате в деревню копились двойники.
+    clearEntityLayer();
     G.battle = null;
     G.codeQueue = [];
     G.copyQueue = [];
@@ -8864,38 +9462,111 @@ function topicName(key) {
     });
     syncPickState();
     recalcStats();
+    if (upgradeHp) {
+      G.player.hp = Math.min(G.player.maxHp, G.player.hp + upgradeHp);
+    }
     el("log").innerHTML = "";
     toggleLog(false);
     show("game");
+    if (upgradeHp || upgradeDmg || upgradePotions) {
+      log("Улучшения из деревни применены к походу: +" + upgradeHp +
+        " здоровья, +" + upgradeDmg + " урона, +" + upgradePotions + " зелий.", "floor");
+    }
     measureViewport();
-    if (data.over) {
-      // Партия была проиграна. «Продолжить» не воскрешает героя с нулевым
-      // здоровьем, а поднимает последний этаж заново — как на экране смерти.
-      G.floorIndex = data.floorIndex || 0;
-      restartFloor();
-      log("Партия была проиграна. Этаж " + (G.floorIndex + 1) + " начат заново.", "floor");
-    } else {
-      activateFloor(data.floorIndex || 0);
-      // activateFloor делает снимок «на входе» по нынешнему герою, а опыт на
-      // этаже он набрал ещё до перезагрузки. Возвращаем настоящий снимок:
-      // иначе смерть после «Продолжить» не отнимала бы опыт этого этажа.
-      if (data.floorCheckpoint && data.floorCheckpoint.index === G.floorIndex) {
-        G.floorCheckpoint = data.floorCheckpoint;
+    // Хвост, общий для обоих случаев: он ждёт, пока этаж реально загрузится.
+    const afterFloor = () => {
+      renderInventory();
+      // Старое сохранение хранит номер ступени прежней шкалы (16…96 px), новое —
+      // размер клетки; в обоих случаях берём ближайшую из нынешних ступеней.
+      const savedCell = data.cameraCell != null ? data.cameraCell
+        : (data.cameraZoom != null ? LEGACY_CAM_LEVELS[data.cameraZoom] : null);
+      if (savedCell) {
+        G.camera.zoomIndex = nearestZoomIndex(savedCell);
+        // Не updateCamera(): тот двигает только плитки и камеру, а существа
+        // остались бы на клетках прежнего масштаба — герой стоял в пустоте.
+        render();
       }
-      log("Продолжение игры. Этаж " + (G.floorIndex + 1) + ": " + floorNameAt(G.floorIndex) + ".", "floor");
-      setMsg("Игра восстановлена из сохранения.");
+    };
+    if (data.over) {
+      // Партия была проиграна. Бесплатно поднять её нельзя: перезагрузка
+      // страницы обходила экран смерти и давала бесконечный фарм — золото,
+      // снаряжение и этаж оставались, амулет не тратился. Теперь «продолжить»
+      // стоит амулета, а без амулета поход окончен: доля золота уходит в
+      // деревню, сейв стирается, этаж заново не начинается.
+      G.floorIndex = data.floorIndex || 0;
+      const prof = hubProfile();
+      const amulets = prof && prof.hub ? prof.hub.revive : 0;
+      if (amulets > 0) {
+        useRevive(afterFloor);
+      } else {
+        const banked = bankRunGold(HUB_DEATH_SHARE);
+        clearSave();
+        reset();
+        if (banked > 0) toast("В деревню перенесено " + banked + " золота");
+      }
+    } else {
+      activateFloorLoaded(data.floorIndex || 0, () => {
+        // activateFloor делает снимок «на входе» по нынешнему герою, а опыт на
+        // этаже он набрал ещё до перезагрузки. Возвращаем настоящий снимок:
+        // иначе смерть после «Продолжить» не отнимала бы опыт этого этажа.
+        if (data.floorCheckpoint && data.floorCheckpoint.index === G.floorIndex) {
+          G.floorCheckpoint = data.floorCheckpoint;
+        }
+        log("Продолжение игры. Этаж " + (G.floorIndex + 1) + ": " +
+          floorNameAt(G.floorIndex) + ".", "floor");
+        setMsg("Игра восстановлена из сохранения.");
+        afterFloor();
+      });
     }
-    renderInventory();
-    // Старое сохранение хранит номер ступени прежней шкалы (16…96 px), новое —
-    // размер клетки; в обоих случаях берём ближайшую из нынешних ступеней.
-    const savedCell = data.cameraCell != null ? data.cameraCell
-      : (data.cameraZoom != null ? LEGACY_CAM_LEVELS[data.cameraZoom] : null);
-    if (savedCell) {
-      G.camera.zoomIndex = nearestZoomIndex(savedCell);
-      // Не updateCamera(): тот двигает только плитки и камеру, а существа
-      // остались бы на клетках прежнего масштаба — герой стоял в пустоте.
-      render();
-    }
+    return true;
+  }
+
+  // Обновление страницы не должно выбрасывать из похода в деревню.
+  // Сейв существует только у незаконченного похода: победа и уход в деревню
+  // его удаляют. Поэтому если сейв есть — продолжаем с того же этажа, а
+  // деревня открывается, когда продолжать нечего (или вошёл другой ученик).
+  // Без входа не поднимаем: чужая партия на общем компьютере всплывать
+  // не должна, и начать поход без аккаунта всё равно нельзя.
+  function resumeOnLoad() {
+    if (!accountName()) return false;
+    // Игрок сам ушёл в деревню кнопкой «В деревню»: обновление страницы
+    // не должно утаскивать его обратно в подземелье.
+    if (placeMarker() === "village") return false;
+    // Проигранную партию поднимаем только по кнопке: на экране смерти был
+    // выбор «амулет или в деревню», и обновление страницы не должно решать
+    // за ученика. В деревне кнопка предложит начать этаж заново.
+    if (!pausedRun()) return false;
+    return loadGame();
+  }
+
+  // Вернуться в деревню, не заканчивая поход. Без этого игрок запирался:
+  // с шестого этажа спуск запечатан, оберег глубины выдаёт староста в
+  // деревне, а пути наверх к деревне из подземелья не было вовсе.
+  // Поход при этом не сбрасывается: этаж, золото и снаряжение ждут в
+  // сохранении, а продолжить можно у стража у входа.
+  function returnToVillage() {
+    if (G.place !== "dungeon" || G.dead) return false;
+    // Из боя не уходят: кнопка в шапке доступна с Tab/Enter даже под
+    // оверлеем, и раньше это был бесплатный побег от дракона.
+    if (G.battle) return false;
+    // snapshotCurrent() вызовет saveGame() сам: он сохраняет текущий этаж
+    // в кэш и пишет сейв целиком.
+    G.battle = null;
+    G.blessingOffer = null;
+    const battleOverlay = el("battle-overlay");
+    if (battleOverlay) battleOverlay.classList.add("hidden");
+    const blessOverlay = el("blessing-overlay");
+    if (blessOverlay) blessOverlay.classList.add("hidden");
+    document.body.classList.remove("battling");
+    const floorLeft = G.floorIndex + 1;
+    saveGame();
+    enterVillage(null);
+    updateResumeButton();
+    setMsg("Поход приостановлен. Продолжить — у стража у входа в подземелье.");
+    log("Ты поднялся на поверхность. Поход сохранён: этаж " +
+      floorLeft + " ждёт у стража.", "floor");
+    toast("Поход сохранён");
+    return true;
   }
 
   // ---------- Ввод ----------
@@ -8920,6 +9591,7 @@ function topicName(key) {
     el("resume-btn").addEventListener("click", loadGame);
     el("entrance-close").addEventListener("click", closeEntrance);
     el("leave-btn").addEventListener("click", leave);
+    el("village-btn").addEventListener("click", returnToVillage);
     el("shop-btn").addEventListener("click", () => openShop(false));
     el("action-btn").addEventListener("click", doInteract);
     el("skip-btn").addEventListener("click", skipTurn);
@@ -8933,6 +9605,38 @@ function topicName(key) {
       if (node && !node.disabled) unequipItem(node.dataset.unequip);
     });
     initTips();
+    // Полноэкранный режим. На обычном сервере кнопка тоже работает, а если
+    // браузер не умеет Fullscreen API — просто не показываем её.
+    const fullscreenBtn = el("fullscreen-btn");
+    if (fullscreenBtn) {
+      if (!document.fullscreenEnabled) {
+        fullscreenBtn.classList.add("hidden");
+      } else {
+        fullscreenBtn.addEventListener("click", toggleFullscreen);
+        document.addEventListener("fullscreenchange", updateFullscreenButton);
+        updateFullscreenButton();
+      }
+    }
+    // Панель героя теперь плавает поверх карты. На узком экране её можно
+    // убрать кнопкой HUD, чтобы поле не было перекрыто.
+    const hudBtn = el("hud-btn");
+    const sidePanel = document.querySelector(".side-panel");
+    if (hudBtn && sidePanel) {
+      let hudCollapsed = false;
+      try { hudCollapsed = localStorage.getItem("pyquiz_hud_collapsed") === "1"; } catch (e) {}
+      const applyHud = () => {
+        sidePanel.classList.toggle("hud-collapsed", hudCollapsed);
+        hudBtn.classList.toggle("active", !hudCollapsed);
+        hudBtn.textContent = hudCollapsed ? "HUD+" : "HUD";
+      };
+      applyHud();
+      hudBtn.addEventListener("click", () => {
+        hudCollapsed = !hudCollapsed;
+        try { localStorage.setItem("pyquiz_hud_collapsed", hudCollapsed ? "1" : "0"); } catch (e) {}
+        applyHud();
+        if (G.running) measureViewport();
+      });
+    }
     updateResumeButton();
     updateWalletLine();
     renderVillageInfo();
@@ -8963,6 +9667,13 @@ function topicName(key) {
         else claimRepeat();
         refreshDialog();
       }
+    });
+
+    // «Продолжить поход» из панели деревни: та же кнопка, что у стража,
+    // но на виду — иначе ученик начинал новый поход и затирал сохранённый.
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest("#village-resume-btn") : null;
+      if (btn) loadGame();
     });
 
     // Ответ на вопрос рычага: клик по варианту в окне.
@@ -9047,6 +9758,14 @@ function topicName(key) {
     );
 
     document.addEventListener("keydown", (e) => {
+      // F2 открывает панель разработчика, если сервер запущен с --dev.
+      if (e.key === "F2" && devEnabled()) {
+        e.preventDefault();
+        devToggle();
+        return;
+      }
+      // Пока этаж грузится, клавиши не должны ходить по старой карте.
+      if (G.loading) return;
       const typing = isTypingTarget(e.target);
       // E (и та же клавиша в русской раскладке) — действие у объекта.
       if (!typing && (e.key === "e" || e.key === "E" || e.key === "у" || e.key === "У")) {
@@ -9176,11 +9895,247 @@ function topicName(key) {
     // отдельно от страницы, чтобы правка не требовала пересборки файлов.
     loadServerBalance();
 
-    // Игра открывается в деревне: это хаб между походами, и спуск начинается
-    // из неё. Сохранённый поход при этом не трогаем — его поднимет кнопка
-    // «Продолжить» в окне стража у входа в подземелье.
-    enterVillage(null);
+    // Игра открывается в деревне, только если продолжать нечего: иначе
+    // обновление страницы посреди похода выбрасывало в деревню, а «Продолжить»
+    // пряталось в окне стража — со стороны это выглядело как сброс прогресса.
+    if (!resumeOnLoad()) enterVillage(null);
+    devInit();
   });
+
+  // ---------- Инструменты разработчика ----------
+  // Включаются только ключом --dev на сервере: window.__PYQUIZ_FEATURES.dev.
+  // Это важно для занятия: ученик не может включить панель из адресной
+  // строки — решение принимает преподаватель при запуске сервера.
+
+  function devEnabled() {
+    return !!(typeof window !== "undefined" && window.__PYQUIZ_FEATURES &&
+      window.__PYQUIZ_FEATURES.dev === true);
+  }
+
+  // Неуязвимость проверяется в местах, где герой теряет здоровье.
+  function devGod() {
+    return !!(G.dev && G.dev.god);
+  }
+
+  function devRevealAll() {
+    if (!G.map) return;
+    const all = new Set();
+    for (let y = 0; y < G.map.h; y++) {
+      for (let x = 0; x < G.map.w; x++) {
+        if (G.map.grid[y][x] === 1) all.add(key(x, y));
+      }
+    }
+    G.visible = all;
+    G.discovered = new Set(all);
+  }
+
+  function devInit() {
+    if (!devEnabled()) return;
+    if (!G.dev) G.dev = { god: false, reveal: false, panel: false };
+
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "dev-toggle";
+    btn.className = "dev-toggle";
+    btn.textContent = "DEV";
+    btn.title = "Инструменты разработчика. Клавиша F2.";
+    btn.addEventListener("click", devToggle);
+    document.body.appendChild(btn);
+
+    const panel = document.createElement("section");
+    panel.id = "dev-panel";
+    panel.className = "dev-panel hidden";
+    panel.innerHTML =
+      "<div class='dev-head'><b>Инструменты разработчика</b>" +
+      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (F2)'>×</button></div>" +
+      "<div class='dev-state' id='dev-state'></div>" +
+      "<div class='dev-group'><span>Этаж</span>" +
+      "<input type='number' id='dev-floor' min='1' max='99' step='1'>" +
+      "<button type='button' class='dev-btn' data-dev='jump'>Перейти</button>" +
+      "<button type='button' class='dev-btn' data-dev='next'>Следующий</button>" +
+      "<button type='button' class='dev-btn' data-dev='regen'>Пересоздать</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='heal'>Лечить</button>" +
+      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
+      "<button type='button' class='dev-btn' data-dev='reveal'>Открыть карту</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='kill'>Убить всех</button>" +
+      "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
+      "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='gold'>+1000 золота</button>" +
+      "<button type='button' class='dev-btn' data-dev='items'>Выдать снаряжение</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='mats'>Материалы +10</button>" +
+      "<button type='button' class='dev-btn' data-dev='keys'>Все ключи</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn dev-danger' data-dev='wipe'>Удалить сейв</button></div>";
+    document.body.appendChild(panel);
+    panel.addEventListener("click", devClick);
+    devRender();
+  }
+
+  function devToggle() {
+    if (!G.dev) return;
+    G.dev.panel = !G.dev.panel;
+    const panel = el("dev-panel");
+    if (panel) panel.classList.toggle("hidden", !G.dev.panel);
+    devRender();
+  }
+
+  function devJump(index) {
+    const i = Math.max(0, Math.min(99, Number(index) || 0));
+    snapshotCurrent();
+    activateFloorLoaded(i, () => {
+      if (!G.visited) G.visited = new Set();
+      G.visited.add(i);
+      log("DEV: переход на этаж " + (i + 1) + ".", "floor");
+      render();
+      updateHud();
+    });
+  }
+
+  function devKillAll() {
+    (G.enemies || []).forEach((e) => { e.hp = 0; });
+    G.enemies = [];
+    if (G.stairsDown) G.stairsDown.active = true;
+    if (G.battle) {
+      G.battle = null;
+      el("battle-overlay").classList.add("hidden");
+      document.body.classList.remove("battling");
+    }
+    render();
+    updateHud();
+    updateActionButton();
+    toast("Этаж очищен: врагов нет, лестница открыта");
+  }
+
+  function devToStairs() {
+    if (!G.stairsDown) return;
+    G.playerPos = { x: G.stairsDown.x, y: G.stairsDown.y };
+    G.walkTarget = null;
+    render();
+    updateActionButton();
+  }
+
+  function devClick(ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("[data-dev]") : null;
+    if (!btn) return;
+    devAction(btn.dataset.dev);
+    devRender();
+  }
+
+  function devAction(action) {
+    if (!G.dev) return;
+    if (action === "panel") { devToggle(); return; }
+    if (action === "jump") {
+      const input = el("dev-floor");
+      const n = Number(input && input.value) || (G.floorIndex + 1);
+      devJump(n - 1);
+      return;
+    }
+    if (action === "next") { devJump(G.floorIndex + 1); return; }
+    if (action === "regen") {
+      delete G.cache[G.floorIndex];
+      activateFloorLoaded(G.floorIndex);
+      return;
+    }
+    if (action === "heal") {
+      G.player.hp = G.player.maxHp;
+      G.player.poison = 0;
+      G.player.cursedNext = false;
+      updateHud();
+      render();
+      return;
+    }
+    if (action === "god") {
+      G.dev.god = !G.dev.god;
+      toast("Неуязвимость: " + (G.dev.god ? "включена" : "выключена"));
+      return;
+    }
+    if (action === "reveal") {
+      G.dev.reveal = !G.dev.reveal;
+      if (G.dev.reveal) devRevealAll();
+      render();
+      toast("Карта: " + (G.dev.reveal ? "открыта" : "обычная видимость"));
+      return;
+    }
+    if (action === "kill") { devKillAll(); return; }
+    if (action === "stairs") { devToStairs(); return; }
+    if (action === "skip") { devKillAll(); devJump(G.floorIndex + 1); return; }
+    if (action === "gold") {
+      G.player.gold += 1000;
+      updateHud();
+      toast("+1000 золота");
+      return;
+    }
+    if (action === "items") {
+      ["steel_sword", "iron_armor", "small_potion", "small_potion", "big_potion"]
+        .forEach((id) => {
+          const it = itemById(id);
+          if (it) addItem(Object.assign({}, it));
+        });
+      renderInventory();
+      updateHud();
+      toast("Выдано снаряжение и зелья");
+      return;
+    }
+    if (action === "mats") {
+      const prof = hubProfile();
+      if (!prof) return;
+      LOOT_KINDS.forEach((k) => { prof.loot[k] = (prof.loot[k] || 0) + 10; });
+      putProfile(hubName(), prof);
+      syncProfile(hubName());
+      renderVillageInfo();
+      toast("Материалы: +10 каждого");
+      return;
+    }
+    if (action === "keys") {
+      const prof = hubProfile();
+      if (!prof) return;
+      Object.keys(KEY_DEFS).forEach((k) => {
+        if (prof.loot.keys.indexOf(k) < 0) prof.loot.keys.push(k);
+      });
+      putProfile(hubName(), prof);
+      syncProfile(hubName());
+      renderVillageInfo();
+      toast("Выданы все ключи");
+      return;
+    }
+    if (action === "wipe") {
+      if (!window.confirm("Удалить сохранение похода и вернуться в деревню?")) return;
+      clearSave();
+      G.dead = false;
+      G.running = false;
+      enterVillage(null);
+      updateResumeButton();
+      toast("Сохранение похода удалено");
+    }
+  }
+
+  function devRender() {
+    if (!devEnabled()) return;
+    const state = el("dev-state");
+    if (!state) return;
+    const cached = G.cache && G.cache[G.floorIndex];
+    const checked = cached && cached.checked;
+    state.textContent =
+      "Место: " + (G.place || "—") +
+      " · этаж " + (G.floorIndex + 1) +
+      " · HP " + (G.player ? G.player.hp + "/" + G.player.maxHp : "—") +
+      " · золото " + (G.player ? G.player.gold : 0) +
+      " · врагов " + ((G.enemies || []).length) +
+      (checked ? " · проверка: попыток " + checked.attempts +
+        (checked.repaired ? ", чинена" : "") : "");
+    ["god", "reveal"].forEach((name) => {
+      const node = document.querySelector("[data-dev='" + name + "']");
+      if (node) node.classList.toggle("dev-on", !!(G.dev && G.dev[name]));
+    });
+    const input = el("dev-floor");
+    if (input && document.activeElement !== input) {
+      input.value = String(G.floorIndex + 1);
+    }
+  }
 
   // ===================== АДМИН-ПАНЕЛЬ: ЧИСЛА БАЛАНСА =====================
   // Учитель меняет эти числа на странице /admin и не трогает код. Сервер
@@ -9701,6 +10656,8 @@ function topicName(key) {
   }
 
   function loadServerBalance() {
+    // Публичная сборка живёт на своих числах: сервера баланса нет.
+    if (typeof window !== "undefined" && window.__PYQUIZ_WEB) return Promise.resolve(0);
     if (typeof fetch !== "function") return Promise.resolve(0);
     try {
       return fetch("/api/game-config", { cache: "no-store" })
@@ -9714,5 +10671,11 @@ function topicName(key) {
       // Игра открыта без сервера (файлом) — играем на своих числах.
       return Promise.resolve(0);
     }
+  }
+
+  // Публичной сборке нужен только вход из стартового экрана; серверная
+  // версия этот объект не создаёт.
+  if (typeof window !== "undefined" && window.__PYQUIZ_WEB) {
+    window.__PYQUIZ_WEB_API = { resume: loadGame, begin: enterDungeon };
   }
 })();

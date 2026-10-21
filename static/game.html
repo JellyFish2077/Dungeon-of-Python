@@ -23,12 +23,27 @@
       <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад. У торговца на этаже дешевле.">Лавка</button>
       <button class="head-link" id="forge-btn" type="button" data-tip="Кузница: вложить золото в урон, защиту или здоровье. Клавиша F.">Кузница</button>
       <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
+      <button class="head-link" id="hud-btn" type="button" data-tip="Показать или скрыть панель героя: здоровье, снаряжение, сумка.">HUD</button>
+      <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню, не заканчивая поход: этаж, золото и снаряжение сохранятся. Продолжить можно у стража у входа.">В деревню</button>
       <a class="head-link" id="menu-btn" href="/" data-tip="Главное меню сайта. Поход сохранится, его можно будет продолжить.">Меню</a>
+      <button class="head-link" id="fullscreen-btn" type="button" data-tip="На весь экран (F11)">⛶</button>
       <button class="head-link" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
+      <span class="app-version" data-app-version></span>
     </div>
   </header>
 
   <div class="stage" id="stage">
+  <!-- Загрузка этажа: карта генерируется и проверяется на компьютере игрока,
+       поэтому оверлей висит до активации карты, а не после. -->
+  <div class="overlay hidden" id="level-loading" role="status" aria-live="polite">
+    <div class="loading-box">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <h2 id="loading-title">Загрузка этажа…</h2>
+      <p class="loading-text" id="loading-text">Готовим карту…</p>
+      <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+      <p class="loading-note">Генерация и проверка проходимости идут на этом компьютере.</p>
+    </div>
+  </div>
   <!-- Всплывающее уведомление о сработавшем эффекте предмета.
        Один элемент: показываем по одному событию, перезапуская анимацию. -->
   <div class="effect-flash" id="effect-flash" role="status" aria-live="polite"></div>
@@ -82,6 +97,11 @@
         <div class="side-title">Деревня</div>
         <div id="village-bank" class="village-bank"></div>
         <p class="lead" id="village-hint">Дома отмечены дверьми: подойди и нажми E. У стража у входа — спуск в подземелье.</p>
+      </div>
+      <div class="side-card" id="wallet-block">
+        <div class="side-title">Кошелёк и награды</div>
+        <p class="lead" id="wallet-line"></p>
+        <p class="lead" id="game-badges"></p>
       </div>
       <div class="side-card">
         <div class="hud">
@@ -224,6 +244,7 @@
 
   <div class="toast" id="toast"></div>
 
+  <script src="/api/features.js"></script>
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>
@@ -238,5 +259,6 @@
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/game.js"></script>
+  <script src="/api/version.js"></script>
 </body>
 </html>

@@ -72,6 +72,11 @@
     return arr;
   };
 
+  // Сервер запущен с --no-code: задачу «напиши код» проверить некому, и
+  // раньше в тесте она всё равно выпадала, а на «Проверить» приходило
+  // «отключено на сервере». Флаг приходит скриптом /api/features.js до app.js.
+  const codeAllowed = !(window.__PYQUIZ_FEATURES && window.__PYQUIZ_FEATURES.code === false);
+
   // Весь банк страницы: вопросы (в том числе сгенерированные варианты) и задания.
   const bankPool = () => {
     const pool = [];
@@ -79,7 +84,7 @@
     FILL_TASKS.forEach((t) => pool.push({ kind: "fill", level: t.level, ref: t }));
     ERROR_TASKS.forEach((t) => pool.push({ kind: "error", level: t.level, ref: t }));
     COPY_TASKS.forEach((t, i) => pool.push({ kind: "copy", level: copyLevel(i), ref: t }));
-    CODE_TASKS.forEach((t) => pool.push({ kind: "code", level: 3, ref: t }));
+    if (codeAllowed) CODE_TASKS.forEach((t) => pool.push({ kind: "code", level: 3, ref: t }));
     return pool;
   };
 
@@ -110,6 +115,9 @@
   const buildOrder = (opts) => {
     const o = opts || {};
     let pool = o.source === "wrong" ? wrongItems(o.name) : bankPool();
+    // Ошибки из профиля тоже могут быть заданиями на код: их не показываем,
+    // если сервер их не проверит.
+    if (!codeAllowed) pool = pool.filter((item) => item.kind !== "code");
     if (o.source !== "wrong" && o.topic) {
       pool = pool.filter((item) => itemTopic(item) === o.topic);
     }

@@ -7,6 +7,7 @@
 """
 
 import ast
+import json
 import os
 import re
 import sys
@@ -256,7 +257,27 @@ def main():
         res = run_code(ref, t["tests"])
         if not res.get("ok") or res.get("passed") != res.get("total"):
             err(f"{tag}: эталон не проходит тесты: {res}")
-    print(f"CODE: {len(CODE)}, все проходимы эталонами")
+    # Сервер проверяет банк по taskId, а не по тестам клиента. Копия тестов
+    # для сервера должна совпадать с банком; иначе задание «напиши функцию»
+    # либо не проверяется, либо проверяется не тем.
+    try:
+        with open(os.path.join(BASE, "static", "code-tasks-tests.json"),
+                  encoding="utf-8") as f:
+            SERVER_TESTS = json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        err(f"static/code-tasks-tests.json не читается: {e}")
+        SERVER_TESTS = {}
+    bank_ids = {t["id"] for t in CODE}
+    if set(SERVER_TESTS) != bank_ids:
+        err("code-tasks-tests.json: набор заданий не совпадает с CODE_TASKS "
+            f"(лишние: {sorted(set(SERVER_TESTS) - bank_ids)}, "
+            f"нет: {sorted(bank_ids - set(SERVER_TESTS))})")
+    for t in CODE:
+        want = [{"call": x["call"], "expected": x["expected"]}
+                for x in t.get("tests", [])]
+        if SERVER_TESTS.get(t["id"]) != want:
+            err(f"code-tasks-tests.json: тесты {t['id']} разошлись с банком")
+    print(f"CODE: {len(CODE)}, все проходимы эталонами, серверные тесты синхронны")
 
     for t in COPY:
         try:

@@ -14,18 +14,26 @@ game-config.json в UTF-8, отказ на мусор и выход за гра�
 """
 import json
 import os
+import secrets
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
 import urllib.request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(BASE_DIR, "game-config.json")
-BACKUP_FILE = os.path.join(BASE_DIR, "game-config.backup.json")
-SECRET_FILE = os.path.join(BASE_DIR, ".admin-secret")
+# Все изменяемые данные проверки (настройки, резервная копия, секрет, users,
+# results, social.db, _backup) живут во временном каталоге. Раньше проверка
+# работала в корне проекта: удаляла game-config.backup.json учителя и ротировала
+# настоящие снимки _backup. Теперь рабочая папка только читается.
+DATA_DIR = ""
+CONFIG_FILE = ""
+BACKUP_FILE = ""
+SECRET_FILE = ""
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -67,10 +75,11 @@ def call(root, path, data=None, method=None):
         return {}, raw
 
 
-def start_server(port):
+def start_server(port, env):
     proc = subprocess.Popen(
         [sys.executable, "server.py", "--port", str(port), "--local"],
-        cwd=BASE_DIR, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        cwd=BASE_DIR, env=env,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     root = "http://127.0.0.1:%d" % port
     deadline = time.time() + 20
     while time.time() < deadline:
@@ -87,28 +96,30 @@ def start_server(port):
 
 
 def main():
-    if not os.path.exists(SECRET_FILE) and not os.environ.get("PYQUIZ_ADMIN_PIN", "").strip():
-        print("нет .admin-secret и нет PYQUIZ_ADMIN_PIN — админ-панель закрыта, "
-              "проверять нечего")
-        return 1
+    global DATA_DIR, CONFIG_FILE, BACKUP_FILE, SECRET_FILE
+    # Временный каталог на весь прогон: рабочая папка проекта не меняется.
+    DATA_DIR = tempfile.mkdtemp(prefix="pyquiz-admin-")
+    CONFIG_FILE = os.path.join(DATA_DIR, "game-config.json")
+    BACKUP_FILE = os.path.join(DATA_DIR, "game-config.backup.json")
+    SECRET_FILE = os.path.join(DATA_DIR, ".admin-secret")
 
-    # Настройки учителя трогать нельзя: уносим их в память и вернём в конце.
-    saved_config = None
-    if os.path.exists(CONFIG_FILE):
-        with open(CONFIG_FILE, "rb") as fh:
-            saved_config = fh.read()
-        os.remove(CONFIG_FILE)
+    # Свой PIN в своём файле: проверяется именно путь «пароль из
+    # .admin-secret», а не переменная окружения с машины разработчика.
+    pin = "verify-%06d" % secrets.randbelow(1000000)
+    with open(SECRET_FILE, "w", encoding="utf-8") as fh:
+        fh.write(pin + "\n")
+
+    env = os.environ.copy()
+    env["PYQUIZ_DATA_DIR"] = DATA_DIR
+    env["PYQUIZ_NO_BACKUP"] = "1"
+    env.pop("PYQUIZ_ADMIN_PIN", None)
+    env.pop("PYQUIZ_SECRET", None)
 
     port = free_port()
     proc = None
     try:
-        proc, root = start_server(port)
-        print("сервер проверки: %s (порт %d)" % (root, port))
-
-        pin = os.environ.get("PYQUIZ_ADMIN_PIN", "").strip()
-        if not pin:
-            with open(SECRET_FILE, encoding="utf-8") as fh:
-                pin = fh.read().strip()
+        proc, root = start_server(port, env)
+        print("сервер проверки: %s (порт %d, данные: %s)" % (root, port, DATA_DIR))
 
         login, _ = call(root, "/api/admin/login", {"pin": pin})
         check(login.get("ok") is True, "вход по паролю из .admin-secret или окружения")
@@ -275,14 +286,8 @@ def main():
                 proc.wait(timeout=10)
             except subprocess.TimeoutExpired:
                 proc.kill()
-        # Возвращаем настройки учителя на место.
-        for path in (CONFIG_FILE, BACKUP_FILE):
-            if os.path.exists(path):
-                os.remove(path)
-        if saved_config is not None:
-            with open(CONFIG_FILE, "wb") as fh:
-                fh.write(saved_config)
-            print("настройки учителя возвращены на место")
+        # Временные данные проверки никому не нужны; рабочая папка не тронута.
+        shutil.rmtree(DATA_DIR, ignore_errors=True)
 
     if STATE["bad"]:
         print("\nРАСХОЖДЕНИЙ: %d" % STATE["bad"])

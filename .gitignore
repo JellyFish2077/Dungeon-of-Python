@@ -22,6 +22,17 @@ _verify_dungeon.js
 _probe_*.js
 _probe_*.txt
 
+# Снимки перед занятием: их делает make_backup() при старте сервера.
+_backup/
+
+# Одиночная веб-сборка для Itch.io: генерируется tools/build_web.py.
+standalone/build/
+public/
+# Готовые архивы релиза.
+dist/
+# Ярлыки Windows содержат абсолютные пути этой машины.
+*.lnk
+
 # Рабочие планы и логи агента: не часть проекта.
 .zcode/
 *.log.err

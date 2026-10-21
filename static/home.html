@@ -46,6 +46,7 @@
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
+        <span class="app-version" data-app-version></span>
       </nav>
     </header>
 
@@ -96,6 +97,9 @@
   <script src="/static/auth.js"></script>
   <script>
     const NEWS = [
+      { date: "2026-10-19", text: "Версия 1.2.1: исправлены чужие спрайты на карте — деревня больше не проступает поверх подземелья, а в деревне не копятся двойники игрока и НПС." },
+      { date: "2026-10-19", text: "Версия 1.2.0: экран загрузки между этажами и проверка генерации на компьютере игрока — запереть неудачной картой больше нельзя." },
+      { date: "2026-10-19", text: "Версия 1.1.0: возврат в деревню без потери лута, продолжение похода после обновления страницы, безопасная проверка кода." },
       { date: "2026-02-01", text: "Добавлены достижения и повтор ошибок в самоподготовке." },
       { date: "2026-01-20", text: "В подземелье появились торговец на этаже и призраки ошибок." },
       { date: "2026-01-10", text: "Проверка «запусти код»: написанный код выполняется на сервере." },
@@ -219,5 +223,6 @@
     renderBoard();
     renderAuth();
   </script>
+  <script src="/api/version.js"></script>
 </body>
 </html>
