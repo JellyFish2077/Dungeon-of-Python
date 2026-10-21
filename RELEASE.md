@@ -40,6 +40,16 @@ python -m http.server 8080 --directory public
 
 ## 3. Smoke-тесты перед загрузкой
 
+Автоматически (нужен Playwright, `python -m pip install playwright`):
+
+```bash
+python verify_web.py                 # Chromium от Playwright
+python verify_web.py --browser msedge  # системный Edge, без скачивания
+```
+
+Проверяет старт, карту, Pyodide (3/3 и провал), локальный сейв и
+«Продолжить», отсутствие запросов к `/api/*` и ошибок в консоли.
+
 Минимум вручную в Chromium/Edge и Firefox:
 
 - [ ] Стартовый экран: имя, «Новая игра», переход в `game.html`.

@@ -74,8 +74,8 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
 Pyodide 14 МБ), но:
 
 - **все изменения 1.4.0 не закоммичены** (этот файл — часть того же коммита);
-- **нет автотеста web-сборки** в репозитории: Playwright-прогон в Edge был
-  разовый, в `run_all_checks.py` его нет;
+- **автотест web-сборки добавлен** (`verify_web.py`), в `run_all_checks.py`
+  он необязательный; здесь не запускался — в WSL нет Playwright;
 - в `RELEASE.md` **22 пункта не отмечены** (0 checked): Firefox, офлайн,
   битый сейв, мобилка, Itch-iframe;
 - из M1 не сделаны: touch-управление, туториал (бой/сундук/костёр),
@@ -88,9 +88,8 @@ Pyodide 14 МБ), но:
 Следующий спринт — **M0 + M1**. Балансные числа до M1–M2 не менять.
 
 **M0:**
-1. `verify_web.py` (Playwright): стартовый экран → новая игра → сейв и
-   продолжение → код 3/3 → ноль запросов к `/api/*` → чистая консоль.
-   Подключить в `run_all_checks.py`.
+1. Прогнать `verify_web.py` на Windows (`pip install playwright`, затем
+   `--browser msedge`) и отметить результат в `RELEASE.md`.
 2. Пройти `RELEASE.md` руками: Edge, Firefox, офлайн (заблокировать CDN),
    `localStorage.clear()`, битый сейв, 390×844, fullscreen, Itch-iframe.
 3. Проверить, что zip воспроизводится одной командой и печатает sha256.

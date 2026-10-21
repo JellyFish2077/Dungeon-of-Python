@@ -13,6 +13,9 @@
 verify_dungeon), без него пропускаются с явной пометкой, а прогон получает
 ненулевой код: пропуск — не то же самое, что успех. Опечатка в --only тоже
 ошибка, а не «ноль проверок, всё хорошо».
+
+Проверка веб-сборки (verify_web.py) необязательная: без Playwright или
+браузера она печатает причину и не валит прогон. В --quick не входит.
 """
 import argparse
 import os
@@ -32,13 +35,16 @@ for _stream in (sys.stdout, sys.stderr):
         pass
 
 # Порядок важен: сперва быстрые и не поднимающие сервер, потом тяжёлые.
+# needs: None — чистый Python (входит в --quick), "node" — нужен Node.js,
+# "browser" — нужен Playwright (необязательная проверка).
 ALL_CHECKS = [
-    ("check.py", "банк контента и синхронность схемы админки", False),
-    ("verify_server.py", "сервер, профили, песочница", False),
-    ("verify_variants.py", "генератор вариантов вопросов", True),
-    ("verify_practice.py", "генератор практики, прогон кода на Python", True),
-    ("verify_dungeon.py", "подземелье: 900+ проверок в node", True),
-    ("verify_admin.py", "админ-панель: вход, правка, откат", False),
+    ("check.py", "банк контента и синхронность схемы админки", None),
+    ("verify_server.py", "сервер, профили, песочница", None),
+    ("verify_variants.py", "генератор вариантов вопросов", "node"),
+    ("verify_practice.py", "генератор практики, прогон кода на Python", "node"),
+    ("verify_dungeon.py", "подземелье: 900+ проверок в node", "node"),
+    ("verify_admin.py", "админ-панель: вход, правка, откат", None),
+    ("verify_web.py", "публичная веб-сборка (Playwright)", "browser"),
 ]
 
 
@@ -59,16 +65,22 @@ def run(script, quiet=False):
     )
     elapsed = time.time() - started
     out = proc.stdout or ""
-    if proc.returncode != 0 or not quiet:
-        tail = out.strip().splitlines()
-        summary = [ln for ln in tail if "Итог" in ln or "хорошо" in ln or "СБОЙ" in ln]
-        if proc.returncode != 0:
-            print(out.rstrip())
-            if not summary:
-                print("(скрипт завершился с кодом %d)" % proc.returncode)
-        else:
+    tail = out.strip().splitlines()
+    summary = [ln for ln in tail if "Итог" in ln or "хорошо" in ln or "СБОЙ" in ln]
+    if proc.returncode == 0:
+        if not quiet:
             for line in summary[-1:]:
                 print("      " + line.strip())
+    elif proc.returncode == 3:
+        # Необязательная проверка не выполнена (нет Playwright/браузера).
+        # Печатаем только причину, без «скрипт упал».
+        reason = next((ln.strip() for ln in tail if "Пропуск" in ln), tail[0] if tail else "")
+        if reason:
+            print("      " + reason)
+    else:
+        print(out.rstrip())
+        if not summary:
+            print("(скрипт завершился с кодом %d)" % proc.returncode)
     return proc.returncode, elapsed
 
 
@@ -82,7 +94,7 @@ def main():
 
     checks = ALL_CHECKS
     if args.quick:
-        checks = [c for c in checks if not c[2]]
+        checks = [c for c in checks if c[2] is None]
     if args.only is not None:
         # nargs="*" разрешает `--only` без имён. Раньше пустой список был
         # ложным и молча запускал ВСЕ проверки, а опечатка в имени давала
@@ -111,9 +123,9 @@ def main():
         print("  будут пропущены (это не считается успехом)")
     print("=" * 62)
 
-    failed, skipped, done = [], [], 0
-    for script, what, needs_node in checks:
-        if needs_node and not node:
+    failed, skipped, optional_skipped, done = [], [], [], 0
+    for script, what, needs in checks:
+        if needs == "node" and not node:
             skipped.append(script)
             print("  пропущен  %-20s нужен node" % script)
             continue
@@ -122,6 +134,12 @@ def main():
         done += 1
         if code == 0:
             print("  зелёный   %-20s %.1f с" % (script, elapsed))
+        elif code == 3 and needs == "browser":
+            # Необязательная проверка: нет Playwright/браузера. Это не провал,
+            # но и не «зелено» — печатаем отдельно и не считаем в done.
+            optional_skipped.append(script)
+            done -= 1
+            print("  пропущен  %-20s необязательная" % script)
         else:
             failed.append(script)
             print("  УПАЛ      %-20s %.1f с (код %d)" % (script, elapsed, code))
@@ -129,9 +147,11 @@ def main():
     print()
     print("=" * 62)
     print("  Прогнано: %d, зелёных: %d, упало: %d, пропущено: %d"
-          % (done, done - len(failed), len(failed), len(skipped)))
+          % (done, done - len(failed), len(failed), len(skipped) + len(optional_skipped)))
     if skipped:
-        print("  Пропущены: %s" % ", ".join(skipped))
+        print("  Пропущены (нужен node): %s" % ", ".join(skipped))
+    if optional_skipped:
+        print("  Пропущены (необязательные): %s" % ", ".join(optional_skipped))
     if failed:
         print("  УПАЛИ: %s" % ", ".join(failed))
         return 1
