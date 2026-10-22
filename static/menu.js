@@ -667,6 +667,12 @@
     }
     const screen = $("menu-screen");
     if (screen) screen.dataset.mode = mode;
+    if (window.PyMenuBackground) {
+      try {
+        if (mode === "main" && isOpen) window.PyMenuBackground.show();
+        else window.PyMenuBackground.hide();
+      } catch (e) {}
+    }
     const hint = $("menu-hint");
     if (hint) {
       hint.textContent = mode === "pause"
@@ -726,6 +732,9 @@
     editingName = false;
     box.classList.add("hidden");
     box.classList.remove("menu-main", "menu-pause");
+    if (window.PyMenuBackground) {
+      try { window.PyMenuBackground.hide(); } catch (e) {}
+    }
     document.body.classList.remove("menu-open");
     const stage = $("stage");
     if (stage) stage.removeAttribute("aria-hidden");
@@ -751,6 +760,12 @@
 
   function onKey(e) {
     if (!isOpen) return;
+    // Меню сохранений — отдельный модальный слой: его Esc/Tab не должны
+    // закрывать паузу или главное меню под ним.
+    if (window.PySaves && typeof window.PySaves.isOpen === "function" &&
+        window.PySaves.isOpen()) {
+      return;
+    }
 
     if (e.key === "Tab") {
       const list = focusables();
