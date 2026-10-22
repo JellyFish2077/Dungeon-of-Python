@@ -54,6 +54,9 @@
   `.github/workflows/pages.yml` остаётся в истории, но убран из `main`: PAT без
   scope `workflow` не может его обновлять. Пошаговая инструкция — `HOSTING.md`;
   классный сервер на Pages не работает.
+- **Кэш GitHub Pages.** `tools/build_web.py` добавляет `?v=<время сборки>` к
+  ссылкам на JS/CSS и к загрузчику Pyodide-воркера. После деплоя браузер не
+  запускает старый `game.js` из кэша Pages.
 - **VPS для класса.** Шаблоны `deploy/pyquiz.service`, `deploy/Caddyfile` и
   `deploy/pyquiz.env.example`; в `HOSTING.md` — установка, проверка
   `unshare`, HTTPS, бэкапы и запрет `process`-песочницы на публичном сервере.

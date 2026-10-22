@@ -69,7 +69,8 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
   `.github/workflows/pages.yml` остаётся в истории. Для VPS —
   `deploy/pyquiz.service`, `deploy/Caddyfile`, `deploy/pyquiz.env.example`.
   Смоук-сервер `verify_web.py` держит очередь 128 соединений, поэтому Chromium
-  не получает `ERR_CONNECTION_REFUSED`.
+  не получает `ERR_CONNECTION_REFUSED`. `build_web.py` добавляет к JS/CSS
+  `?v=<время сборки>`, чтобы GitHub Pages не отдавал старый `game.js`.
 - **Итог похода:** на смерти и победе общий блок — этаж, золото за поход и в
   банке, монстры, ответы, код, повторение; подсказка следующего шага. Проверки
   в `tools/checks.js`.
@@ -145,7 +146,7 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
 изменения 1.6.1 — в последнем коммите. В дереве остаются только локальные
 `PILOT.md` (черновик пилота, не коммитился) и `.claude/`.
 `dist/pydungeon-standalone-1.6.1.zip` — 6,0 МБ, `index.html` в корне,
-sha256 `05e7b53a4e1e63707955e97b0a2e35e1caa922453561edd9897bb48536e737fe`
+sha256 `43f80355483f9a1b9b50c432439049253a4d34cd2a6cc26f8fc607b2d828d5a5`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages`, сайт —

@@ -14,15 +14,17 @@
 Pyodide берётся с CDN, пока не запущен tools/fetch_pyodide.py.
 """
 import pathlib
+import re
 import shutil
 import sys
+import time
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 STATIC = ROOT / "static"
 PUBLIC = ROOT / "standalone" / "build"
 
 
-def rewrite_html(text):
+def rewrite_html(text, stamp):
     text = text.replace('href="/static/', 'href="static/')
     text = text.replace('src="/static/', 'src="static/')
     text = text.replace('<script src="/api/features.js"></script>\n', '')
@@ -40,10 +42,32 @@ def rewrite_html(text):
         '  <script src="static/web-boot.js"></script>\n'
         '  <script src="static/pyodide-check.js"></script>',
     )
+    # GitHub Pages кэширует JS/CSS на 10 минут. Ссылка с версией сборки — это
+    # новый URL, поэтому после деплоя браузер не запускает старый game.js.
+    text = re.sub(
+        r'((?:href|src)=")(static/[^"?#]+\.(?:css|js))(")',
+        lambda m: m.group(1) + m.group(2) + "?v=" + stamp + m.group(3),
+        text,
+    )
     return text
 
 
+def rewrite_worker_loader(text, stamp):
+    return text.replace(
+        'static/pyodide-worker.js',
+        'static/pyodide-worker.js?v=' + stamp,
+    )
+
+
+def rewrite_landing(text, stamp):
+    return text.replace(
+        'game.html?menu=1',
+        'game.html?menu=1&v=' + stamp,
+    )
+
+
 def main():
+    stamp = time.strftime("%Y%m%d%H%M%S", time.gmtime())
     if not STATIC.is_dir():
         print("нет папки static/", file=sys.stderr)
         return 1
@@ -60,7 +84,7 @@ def main():
             continue
         if name.endswith(".html"):
             (PUBLIC / name).write_text(
-                rewrite_html(src.read_text(encoding="utf-8")), encoding="utf-8")
+                rewrite_html(src.read_text(encoding="utf-8"), stamp), encoding="utf-8")
         else:
             # CSS лежит рядом с game.html в static/; HTML ссылается на static/.
             shutil.copy2(src, PUBLIC / "static" / name)
@@ -76,7 +100,13 @@ def main():
         if not src.exists():
             print("нет static/" + name, file=sys.stderr)
             return 1
-        shutil.copy2(src, PUBLIC / "static" / name)
+        if name == "pyodide-check.js":
+            (PUBLIC / "static" / name).write_text(
+                rewrite_worker_loader(src.read_text(encoding="utf-8"), stamp),
+                encoding="utf-8",
+            )
+        else:
+            shutil.copy2(src, PUBLIC / "static" / name)
 
     # Itch.io открывает index.html: это стартовый экран с именем и выбором
     # «новая игра / продолжить». Сама игра — game.html.
@@ -84,7 +114,10 @@ def main():
     if not landing.exists():
         print("нет standalone/index.html", file=sys.stderr)
         return 1
-    (PUBLIC / "index.html").write_text(landing.read_text(encoding="utf-8"), encoding="utf-8")
+    (PUBLIC / "index.html").write_text(
+        rewrite_landing(landing.read_text(encoding="utf-8"), stamp),
+        encoding="utf-8",
+    )
 
     (PUBLIC / "ITCH.txt").write_text(
         "PyDungeon — веб-сборка.\n"

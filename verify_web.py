@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """Smoke-проверка публичной веб-сборки PyDungeon в настоящем браузере.
 
 Проверяется то, чего не видят node-проверки и серверные тесты:
@@ -188,7 +188,7 @@ def run_checks(browser, base):
 
     # 1. Корень сайта сразу ведёт в главное меню: отдельного landing больше нет.
     page.goto(base + "/", wait_until="domcontentloaded")
-    page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
+    page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
     check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
@@ -263,7 +263,7 @@ def run_checks(browser, base):
     check(True, "поход создаёт локальный сейв")
 
     page.goto(base + "/", wait_until="domcontentloaded")
-    page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
+    page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",

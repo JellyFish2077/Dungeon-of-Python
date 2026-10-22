@@ -271,8 +271,8 @@ play.example.ru {
 
 - **404 после деплоя** — Pages Source не «GitHub Actions», workflow упал или
   деплой ещё идёт. Проверьте вкладку Actions и Settings → Pages.
-- **Старая версия** — кэш Pages/браузера; сделайте hard refresh или добавьте
-  `?v=2` к URL.
+- **Старая версия** — сборка добавляет `?v=<время>` к JS/CSS, но HTML может
+  закэшироваться; сделайте hard refresh или добавьте `?v=2` к URL.
 - **Пустая страница** — откройте artifact `github-pages` в Actions и проверьте,
   что в корне есть `index.html`, а не папка `build/`.
 - **Pyodide не загружается** — workflow должен скачать его локально
