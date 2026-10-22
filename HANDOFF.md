@@ -143,7 +143,7 @@ sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages` (коммит
-  `b2620b9`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
+  `55ca317`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
   Корень сайта сразу открывает главное меню; имя меняется в аккаунте. Исходники
   1.6.1 запушены в `main`, но без `.github/workflows/pages.yml`: PAT не имеет
   scope `workflow`. Публикация идёт из `gh-pages`; чтобы вернуть Actions, нужно
