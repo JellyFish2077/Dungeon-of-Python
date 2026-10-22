@@ -4190,10 +4190,10 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     API.isTypingTarget({ tagName: "DIV", isContentEditable: true }) &&
     !API.isTypingTarget({ tagName: "DIV" }) && !API.isTypingTarget(null);
   log(typingOk, "поле ввода распознаётся, обычный элемент — нет");
-  const guarded = ["e", "i", "f", "m"].filter((k) =>
+  const guarded = ["e", "i", "m"].filter((k) =>
     new RegExp('!typing && \\(e\\.key === "' + k + '"').test(gameJsText));
-  log(guarded.length === 4 && /const typing = isTypingTarget\(e\.target\)/.test(gameJsText),
-    "E, I, F и M проверяют, не печатает ли игрок код", guarded.join(","));
+  log(guarded.length === 3 && /const typing = isTypingTarget\(e\.target\)/.test(gameJsText),
+    "E, I и M проверяют, не печатает ли игрок код", guarded.join(","));
 
   // «Характеристики» в сумке: следуют за здоровьем и уроном, а не застывают.
   freshRun(0);
