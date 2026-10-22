@@ -5478,3 +5478,23 @@ body.game-page .side-panel .equip-value {
 .tutorial-skip {
   border-radius: 2px;
 }
+
+/* Верхняя плашка сообщений убрана из вида: она перекрывала мини-карту и
+   дублировала журнал/обучение. Текст остаётся в DOM для aria-live и проверок. */
+#game-msg {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0 0 0 0) !important;
+  clip-path: inset(50%) !important;
+  white-space: nowrap !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  pointer-events: none !important;
+}
