@@ -6644,6 +6644,34 @@ if (vault) {
   log(!busy.ok, "профиль: переименование не затирает занятое имя");
 }
 
+// Итог похода: на смерти и победе один блок с этажом, золотом, ответами и
+// кодом. Проверяем, что цифры не теряются и экран смерти показывает банк.
+{
+  freshRun(0);
+  G.floorIndex = 2;
+  G.stats.correct = 4;
+  G.stats.wrong = 1;
+  G.stats.kills = 3;
+  G.stats.codePassed = 1;
+  G.stats.codeTried = 2;
+  G.stats.copyPassed = 0;
+  G.stats.copyTried = 0;
+  G.stats.goldEarned = 42;
+  G.stats.topicStats = {};
+  const html = API.runSummaryHtml({ banked: 30, victory: false });
+  log(html.includes("Этаж") && html.includes("42") && html.includes("30") &&
+      html.includes("4 / 5") && html.includes("1 / 2"),
+    "итог: этаж, золото, ответы и код");
+  const death = API.deathStatsHtml(30, false);
+  log(death.includes("run-summary") && death.includes("В банк") &&
+      death.includes("30"),
+    "итог: экран смерти показывает банк");
+  G.player.gold = 17;
+  const alive = API.runSummaryHtml({ keepGold: true });
+  log(alive.includes("Золото сейчас") && alive.includes("17"),
+    "итог: амулет показывает золото в походе");
+}
+
 freshRun(0);
 
 console.log("__JSON__" + JSON.stringify(out));

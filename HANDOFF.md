@@ -61,12 +61,14 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
   перед дверью и требуют `kind === "vault"`; ледяная проверка принимает лишнее
   действие монстра — шаг или атаку. Сундук/рычаг/табличка и атака вместо шага
   больше не дают ложный сбой.
-- **Публикация:** `.github/workflows/pages.yml` собирает статическую сборку,
-  скачивает Pyodide, прогоняет `verify_web.py` и публикует на GitHub Pages;
-  инструкция — `HOSTING.md`. Для VPS — `deploy/pyquiz.service`,
-  `deploy/Caddyfile`, `deploy/pyquiz.env.example`. Смоук-сервер `verify_web.py`
-  держит очередь 128 соединений, поэтому Chromium не получает
-  `ERR_CONNECTION_REFUSED`.
+- **Публикация:** статическая сборка публикуется из `gh-pages`; workflow
+  `.github/workflows/pages.yml` остаётся в истории. Для VPS —
+  `deploy/pyquiz.service`, `deploy/Caddyfile`, `deploy/pyquiz.env.example`.
+  Смоук-сервер `verify_web.py` держит очередь 128 соединений, поэтому Chromium
+  не получает `ERR_CONNECTION_REFUSED`.
+- **Итог похода:** на смерти и победе общий блок — этаж, золото за поход и в
+  банке, монстры, ответы, код, повторение; подсказка следующего шага. Проверки
+  в `tools/checks.js`.
 - Проверки: полный прогон 7/7, `verify_server` 85/85, `verify_web` 16/16.
 
 ## Что сделано в 1.6.0
@@ -139,11 +141,11 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
 изменения 1.6.1 — в последнем коммите. В дереве остаются только локальные
 `PILOT.md` (черновик пилота, не коммитился) и `.claude/`.
 `dist/pydungeon-standalone-1.6.1.zip` — 6,0 МБ, `index.html` в корне,
-sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
+sha256 `ce75b665f3f8dbb79bf379b0ce7b65f40e0c8219e75c25ac77a6080dc34e1bc7`
 (изменится после следующей пересборки).
 
-- **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages` (коммит
-  `55ca317`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
+- **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages`, сайт —
+  `https://jellyfish2077.github.io/Dungeon-of-Python/`.
   Корень сайта сразу открывает главное меню; имя меняется в аккаунте. Исходники
   1.6.1 запушены в `main`, но без `.github/workflows/pages.yml`: PAT не имеет
   scope `workflow`. Публикация идёт из `gh-pages`; чтобы вернуть Actions, нужно
@@ -203,6 +205,6 @@ sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
 - `.claude/` (только `launch.json`) не коммитится — локальный конфиг.
 - `_backup/` может содержать снимки от автотестов; перед коммитом не мешает
   удалить свежие, но настоящий снимок перед занятием не трогать.
-- Число проверок подземелья зависит от случайной генерации (в 1.6.1 — 964–981);
+- Число проверок подземелья зависит от случайной генерации (в 1.6.1 — 964–984);
   управляемого seed пока нет.
 - `SECURITY.md` описывает границы песочницы; для 1.6.1 они не менялись.

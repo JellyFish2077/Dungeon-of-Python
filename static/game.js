@@ -8197,12 +8197,54 @@ function topicName(key) {
     el("end-overlay").classList.remove("hidden");
   }
 
+  // Короткий итог похода: этаж, золото, ответы, код и следующий шаг.
+  // Один и тот же блок на смерти и победе, чтобы не расходились формулировки.
+  function runSummaryHtml(opts) {
+    const o = opts || {};
+    const s = G.stats || {};
+    const total = (s.correct || 0) + (s.wrong || 0);
+    const percent = total ? Math.round(((s.correct || 0) / total) * 100) : 0;
+    const floor = Math.min(10, (G.floorIndex || 0) + 1);
+    const goldEarned = s.goldEarned || 0;
+    const currentGold = G.player ? (G.player.gold || 0) : 0;
+    const banked = o.banked == null ? null : o.banked;
+    const code = s.codeTried
+      ? (s.codePassed || 0) + " / " + s.codeTried : "—";
+    const copy = s.copyTried
+      ? (s.copyPassed || 0) + " / " + s.copyTried : "—";
+    const goldValue = o.keepGold
+      ? currentGold
+      : (banked == null ? goldEarned : banked);
+    const rows = [
+      ["Этаж", floor + (o.victory ? " из 10" : "")],
+      ["Золото за поход", goldEarned],
+      [o.keepGold ? "Золото сейчас" : "В банк", goldValue],
+      ["Монстры", s.kills || 0],
+      ["Ответы", (s.correct || 0) + " / " + total +
+        (total ? " (" + percent + "%)" : "")],
+      ["Код", code],
+      ["Повторение кода", copy],
+    ];
+    let html = "<div class='run-summary'>";
+    rows.forEach((row) => {
+      html += "<div><span>" + row[0] + "</span><b>" + row[1] + "</b></div>";
+    });
+    html += "</div>";
+    const next = o.victory
+      ? "Дракон повержен. Можно спуститься в бездну или вернуться в деревню."
+      : o.keepGold
+        ? "Амулет вернёт героя на этот этаж. Материалы и ключи уже в деревне."
+        : "Вернись в деревню: золото в банке, материалы и ключи сохранены. " +
+          "Купи улучшение или повтори слабую тему.";
+    html += "<p class='lead run-next'>" + next + "</p>";
+    return html;
+  }
+
   // Общая часть экрана смерти: до какого этажа дошёл, сколько убил и разбор тем.
-  function deathStatsHtml() {
-    return "<p class='lead'>Ты дошёл до этажа " + (G.floorIndex + 1) + " и победил " +
-      G.stats.kills + " монстров.</p>" +
-      "<p class='lead'>Найденные материалы и ключи остаются в деревне: " +
-      "следующий поход начнётся с ними.</p>" + topicReportHtml();
+  function deathStatsHtml(banked, keepGold) {
+    return runSummaryHtml({ banked: banked, keepGold: !!keepGold }) +
+      "<p class='lead'>Материалы и ключи остаются в деревне: следующий поход " +
+      "начнётся с ними.</p>" + topicReportHtml();
   }
 
   // Смерть с амулетом: спрашиваем игрока. Возрождение оставляет поход целым
@@ -8211,7 +8253,7 @@ function topicName(key) {
     el("end-box").innerHTML =
       "<div class='big-emoji-free game-over'>Поражение</div>" +
       "<h2 class='game-over'>Ты пал в бою</h2>" +
-      deathStatsHtml() +
+      deathStatsHtml(null, true) +
       "<p class='lead'>У тебя " + amulets + " " + amuletWord(amulets) + " возврата. " +
       "Использовать — герой встанет на этом же этаже, поход продолжится.</p>" +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
@@ -8229,7 +8271,7 @@ function topicName(key) {
     el("end-box").innerHTML =
       "<div class='big-emoji-free game-over'>Поражение</div>" +
       "<h2 class='game-over'>Поход окончен</h2>" +
-      deathStatsHtml() +
+      deathStatsHtml(banked, false) +
       "<p class='lead'>Снаряжение, зелья, уровни и кузница этого похода потеряны. " +
       (banked > 0
         ? "В деревню перенесено " + banked + " золота — там его можно потратить."
@@ -9018,13 +9060,7 @@ function topicName(key) {
     el("end-box").innerHTML =
       "<div class='big-emoji-free victory'>Победа</div>" +
       "<h2 class='victory'>Дракон повержен!</h2>" +
-      "<p class='lead'>Ты прошёл подземелье. Правильных ответов: " + G.stats.correct +
-      ", ошибок: " + G.stats.wrong + ". Написано функций: " + G.stats.codePassed +
-      " из " + G.stats.codeTried + ". Повторено кода: " + G.stats.copyPassed +
-      " из " + G.stats.copyTried + ".</p>" +
-      "<p class='lead'>Золото похода и награда за дракона уже в банке деревни. " +
-      "Победу можно развить: спустись в бездну — этажи там не кончаются, а враги " +
-      "становятся злее с каждым кругом. Или вернись в деревню.</p>" +
+      runSummaryHtml({ banked: G.victoryBankedAmount, victory: true }) +
       topicReportHtml() +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='to-hub-btn'>В деревню</button>" +
