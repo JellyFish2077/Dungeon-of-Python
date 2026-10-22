@@ -673,12 +673,6 @@
         else window.PyMenuBackground.hide();
       } catch (e) {}
     }
-    const hint = $("menu-hint");
-    if (hint) {
-      hint.textContent = mode === "pause"
-        ? "↑↓ — выбор · Enter — ок · Esc — продолжить"
-        : "↑↓ — выбор · Enter — ок · Esc — закрыть";
-    }
     if (mode === "pause") {
       const note = $("pause-note");
       if (note) note.textContent = "Поход сохраняется автоматически.";
