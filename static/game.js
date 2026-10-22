@@ -205,6 +205,9 @@
     forgeAtk: 3, forgeDef: 2, forgeHp: 15
   };
   const SAVE_KEY = "pyquiz_save_v1";
+  // Ручное сохранение деревни: позиция героя. Профиль, материалы и постройки
+  // и так пишутся в профиль, поэтому здесь только точка возврата.
+  const VILLAGE_SAVE_KEY = "pyquiz_village_v1";
   // Где игрок был в прошлый раз — в деревне или в подземелье. Нужно, чтобы
   // обновление страницы в деревне не выбрасывало обратно в поход.
   const PLACE_KEY = "pyquiz_place_v1";
@@ -9514,6 +9517,54 @@ function topicName(key) {
     return me ? PLACE_KEY + ":" + me : PLACE_KEY;
   }
 
+  function villageSlot(name) {
+    const me = name != null ? name : accountName();
+    return me ? VILLAGE_SAVE_KEY + ":" + me : VILLAGE_SAVE_KEY;
+  }
+
+  function readVillageSave() {
+    const me = accountName();
+    if (!me) return null;
+    try {
+      const data = JSON.parse(localStorage.getItem(villageSlot(me)) || "null");
+      if (!data || data.v !== 1 || data.name !== me) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveVillage() {
+    const me = accountName();
+    if (!me || G.place !== "village" || !G.playerPos) return false;
+    try {
+      localStorage.setItem(villageSlot(me), JSON.stringify({
+        v: 1,
+        name: me,
+        x: G.playerPos.x,
+        y: G.playerPos.y,
+        updated: new Date().toISOString(),
+      }));
+      setPlaceMarker("village");
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function loadVillage() {
+    const data = readVillageSave();
+    if (!data || G.place === "dungeon") return false;
+    const st = villageState();
+    const x = Number(data.x);
+    const y = Number(data.y);
+    const valid = st && Number.isInteger(x) && Number.isInteger(y) &&
+      st.map.grid[y] && st.map.grid[y][x] === 1 &&
+      !(st.blocked && st.blocked[y] && st.blocked[y][x]);
+    enterVillage(valid ? { x: x, y: y } : null);
+    return true;
+  }
+
   function setPlaceMarker(place) {
     try {
       localStorage.setItem(placeSlot(), place === "dungeon" ? "dungeon" : "village");
@@ -11128,12 +11179,16 @@ function topicName(key) {
           battle: !!G.battle,
           place: place,
           floor: floor,
-          gold: gold
+          gold: gold,
+          villageSave: !!readVillageSave()
         };
       },
       resume: loadGame,
+      loadVillage: loadVillage,
       save: function () {
-        if (G.battle || !G.running) return false;
+        if (G.battle) return false;
+        if (G.place === "village") return saveVillage();
+        if (G.place !== "dungeon" || !G.running) return false;
         saveGame();
         return true;
       },
