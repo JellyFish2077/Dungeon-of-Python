@@ -200,6 +200,13 @@ def run_checks(browser, base):
           "главное меню — один вертикальный список", labels)
     check(page.locator("#menu-dungeon-bg").is_visible(),
           "фон главного меню — подземелье")
+    menu_box = page.locator("#menu-list").bounding_box()
+    menu_notes = page.evaluate(
+        "() => Array.from(document.querySelectorAll('#menu-list .menu-item-note'))"
+        ".filter((n) => n.offsetParent !== null).length")
+    check(menu_box and menu_box["x"] < 240 and menu_notes == 0,
+          "кнопки главного меню без подписей, меню слева",
+          menu_box and menu_box["x"])
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
           "«Загрузить» открывает меню сохранений")
     page.click("#menu-load")
@@ -266,6 +273,10 @@ def run_checks(browser, base):
           "ESC открывает паузу", pause_labels)
     check(not page.locator("#menu-dungeon-bg").is_visible(),
           "в паузе фон подземелья скрыт")
+    pause_notes = page.evaluate(
+        "() => Array.from(document.querySelectorAll('#pause-list .menu-item-note'))"
+        ".filter((n) => n.offsetParent !== null).length")
+    check(pause_notes == 0, "кнопки паузы без подписей")
     check(pause_labels == ["Продолжить", "Сохранить", "Загрузить",
                            "Настройки", "Выход в Меню"],
           "меню паузы — пять пунктов", pause_labels)
