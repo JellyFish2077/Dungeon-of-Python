@@ -419,3 +419,58 @@
     padding: 10px 16px;
   }
 }
+
+/* ---------- Визуальный проход A: сохранения как журнал ---------- */
+
+.saves-screen {
+  border: 2px solid var(--gold-dim, rgba(214, 168, 75, 0.32));
+  border-left: 4px solid var(--gold, #d6a84b);
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(32, 44, 58, 0.98), rgba(11, 17, 26, 0.99));
+  box-shadow:
+    8px 8px 0 rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.saves-head {
+  border-bottom-color: rgba(214, 168, 75, 0.22);
+  background: rgba(7, 11, 18, 0.28);
+}
+
+.saves-head h2 {
+  color: var(--parchment, #eee4cf);
+}
+
+.saves-list,
+.saves-detail {
+  background: rgba(7, 11, 18, 0.16);
+}
+
+.save-slot {
+  border-radius: 2px;
+  border-color: rgba(214, 168, 75, 0.2);
+  background: rgba(7, 11, 18, 0.35);
+}
+
+.save-slot.is-empty {
+  border-style: dashed;
+}
+
+.save-slot-shot {
+  border-radius: 0;
+  border-color: rgba(214, 168, 75, 0.36);
+}
+
+.saves-btn {
+  border-radius: 2px;
+}
+
+.saves-btn.primary {
+  background: var(--gold, #d6a84b);
+}
+
+.saves-foot {
+  border-top-color: rgba(214, 168, 75, 0.22);
+  background: rgba(7, 11, 18, 0.28);
+}
