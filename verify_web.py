@@ -217,13 +217,20 @@ def run_checks(browser, base):
           "«Настройки» открывают настройки")
     page.click("#menu-back-settings")
 
-    # Дожидаемся крупных ассетов, прежде чем уходить в поход.
+    # Дожидаемся крупных ассетов, прежде чем уходить в деревню.
     page.wait_for_load_state("load", timeout=15000)
     page.click("#menu-new")
     page.wait_for_timeout(400)
     check(not page.locator("#menu-overlay").is_visible(), "«Новая игра» закрывает меню")
-    check(page.locator("#entrance-overlay").is_visible(),
-          "«Новая игра» открывает окно стража")
+    check(not page.locator("#entrance-overlay").is_visible(),
+          "«Новая игра» не открывает стража автоматически")
+
+    page.wait_for_function(
+        "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
+    opened = page.evaluate("() => window.PyGameMenuAPI.openGuard()")
+    page.wait_for_timeout(350)
+    check(opened and page.locator("#entrance-overlay").is_visible(),
+          "страж открывается отдельным действием")
     focused = page.evaluate("() => document.activeElement && document.activeElement.id")
     check(focused in ("begin-btn", "resume-btn"), "фокус в окне стража", focused)
     page.click("#entrance-close")

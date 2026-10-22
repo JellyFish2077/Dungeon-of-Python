@@ -275,7 +275,7 @@
     if (note) {
       if (!hasUser()) note.textContent = "сначала войди";
       else if (battle) note.textContent = "сначала заверши бой";
-      else note.textContent = "поход и сложность";
+      else note.textContent = "стража у входа";
     }
   }
 
