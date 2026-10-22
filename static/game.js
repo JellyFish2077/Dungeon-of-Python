@@ -8225,7 +8225,8 @@ function topicName(key) {
       ["Код", code],
       ["Повторение кода", copy],
     ];
-    let html = "<div class='run-summary'>";
+    let html = "<h3 class='run-title'>Итог похода</h3>" +
+      "<div class='run-summary'>";
     rows.forEach((row) => {
       html += "<div><span>" + row[0] + "</span><b>" + row[1] + "</b></div>";
     });

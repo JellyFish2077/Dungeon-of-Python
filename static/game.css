@@ -3070,6 +3070,13 @@ pre.code {
 }
 
 /* Итог похода: компактная сетка, читаемая и на телефоне. */
+.run-title {
+  margin: 18px 0 4px;
+  color: #f4f0e6;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+}
+
 .run-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
