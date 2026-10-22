@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Smoke-проверка публичной веб-сборки PyDungeon в настоящем браузере.
 
 Проверяется то, чего не видят node-проверки и серверные тесты:
@@ -243,6 +243,42 @@ def run_checks(browser, base):
     check(page.evaluate("() => window.__PYQUIZ_WEB === true"),
           "сборка запущена в веб-режиме (без сервера)")
 
+    # 3. Пауза: ESC, пять пунктов, сохранение и возврат в игру.
+    page.evaluate(
+        "() => { const l = document.getElementById('log');"
+        " if (l) l.classList.add('collapsed'); }")
+    page.keyboard.press("Escape")
+    page.wait_for_function(
+        "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
+    pause_labels = page.locator("#pause-list .menu-item-label").all_inner_texts()
+    check(page.locator("#menu-view-pause").is_visible(),
+          "ESC открывает паузу", pause_labels)
+    check(pause_labels == ["Продолжить", "Сохранить", "Загрузить",
+                           "Настройки", "Выход в Меню"],
+          "меню паузы — пять пунктов", pause_labels)
+    page.click("#pause-save")
+    page.wait_for_timeout(200)
+    check("сохранён" in page.locator("#pause-note").inner_text().lower(),
+          "«Сохранить» пишет поход")
+    page.click("#pause-settings")
+    page.wait_for_timeout(200)
+    check(page.locator("#menu-settings-title").inner_text() == "Настройки",
+          "настройки из паузы открываются")
+    page.click("#menu-back-settings")
+    page.wait_for_timeout(200)
+    check(page.locator("#menu-view-pause").is_visible(),
+          "из настроек возвращаемся в паузу")
+    page.click("#pause-resume")
+    page.wait_for_timeout(250)
+    check(not page.locator("#menu-overlay").is_visible(),
+          "«Продолжить» возвращает в игру")
+    page.click("#menu-btn")
+    page.wait_for_timeout(250)
+    check(page.locator("#menu-view-pause").is_visible(),
+          "кнопка «Пауза» открывает паузу")
+    page.click("#pause-resume")
+    page.wait_for_timeout(200)
+
     # 4. Python-код через Pyodide. Первый вызов грузит runtime (несколько секунд).
     good = page.evaluate(
         "async ({code, task}) => await window.__PYQUIZ_CHECK_CODE(code, task)",
@@ -274,10 +310,16 @@ def run_checks(browser, base):
         ".includes('Продолжение игры')", timeout=15000)
     check(True, "«Загрузить» поднимает сохранённый поход")
 
-    # 6. «Выход» не возвращает в меню по кругу, а показывает страницу завершения.
+    # 6. «Выход в Меню» из паузы и «Выход» из главного меню.
     page.click("#menu-btn")
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
+    check(page.locator("#menu-view-pause").is_visible(),
+          "из игры открывается пауза")
+    page.click("#pause-exit")
+    page.wait_for_timeout(250)
+    check(page.locator("#menu-view-main").is_visible(),
+          "«Выход в Меню» возвращает главное меню")
     page.click("#menu-exit")
     page.wait_for_url(re.compile(r".*/index\.html\?exit=1$"), timeout=10000)
     check("Вы вышли" in page.locator("#exit-text").inner_text(),

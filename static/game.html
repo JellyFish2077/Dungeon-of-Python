@@ -26,9 +26,9 @@
       <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
       <button class="head-link" id="hud-btn" type="button" data-tip="Показать или скрыть панель героя: здоровье, снаряжение, сумка.">HUD</button>
       <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню, не заканчивая поход: этаж, золото и снаряжение сохранятся. Продолжить можно у стража у входа.">В деревню</button>
-      <button class="head-link" id="menu-btn" type="button" data-tip="Главное меню игры: вход, настройки и продолжение похода.">Меню</button>
+      <button class="head-link" id="menu-btn" type="button" data-tip="Пауза: продолжить, сохранить, загрузить, настройки, выйти в меню.">Пауза</button>
       <button class="head-link" id="fullscreen-btn" type="button" data-tip="На весь экран (F11)">⛶</button>
-      <button class="head-link" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
+      <button class="head-link hidden" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
       <span class="app-version" data-app-version></span>
     </div>
   </header>
@@ -254,9 +254,9 @@
   <!-- Стартовое меню: один вертикальный список. Настройки, профиль и «Об игре» —
        такие же пункты, как «Новая игра» и «Загрузить». Лежит поверх игры,
        поэтому деревня успевает отрисоваться за ним. -->
-  <div class="overlay menu-overlay hidden" id="menu-overlay">
+  <div class="overlay menu-overlay menu-main hidden" id="menu-overlay">
     <main class="menu-screen" id="menu-screen" role="dialog" aria-modal="true"
-          aria-labelledby="menu-title" data-view="main">
+          aria-labelledby="menu-title" data-view="main" data-mode="main">
       <section class="menu-view menu-view-main" id="menu-view-main">
         <header class="menu-title">
           <div class="menu-logo" aria-hidden="true">Py</div>
@@ -297,9 +297,44 @@
         </nav>
       </section>
 
+      <section class="menu-view menu-view-pause hidden" id="menu-view-pause"
+               aria-labelledby="menu-pause-title">
+        <header class="menu-pause-head">
+          <h2 id="menu-pause-title">Пауза</h2>
+          <p class="menu-tagline">Поход приостановлен</p>
+        </header>
+        <nav class="menu-list" id="pause-list" aria-label="Меню паузы">
+          <button class="menu-item is-active" id="pause-resume" type="button" data-pause="resume">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Продолжить</span>
+            <span class="menu-item-note">вернуться в игру</span>
+          </button>
+          <button class="menu-item" id="pause-save" type="button" data-pause="save">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Сохранить</span>
+            <span class="menu-item-note">записать поход</span>
+          </button>
+          <button class="menu-item" id="pause-load" type="button" data-pause="load">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Загрузить</span>
+            <span class="menu-item-note" id="pause-load-note">нет сохранения</span>
+          </button>
+          <button class="menu-item" id="pause-settings" type="button" data-pause="settings">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Настройки</span>
+            <span class="menu-item-note">звук и экран</span>
+          </button>
+          <button class="menu-item menu-item-quiet" id="pause-exit" type="button" data-pause="exit">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Выход в Меню</span>
+          </button>
+        </nav>
+        <p class="menu-note" id="pause-note">Поход сохраняется автоматически.</p>
+      </section>
+
       <footer class="menu-statusbar">
         <div></div>
-        <div class="menu-keys-hint">↑↓ — выбор · Enter — ок · Esc — закрыть</div>
+        <div class="menu-keys-hint" id="menu-hint">↑↓ — выбор · Enter — ок · Esc — закрыть</div>
         <span class="menu-version" data-app-version></span>
       </footer>
 

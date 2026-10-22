@@ -9981,8 +9981,8 @@ function topicName(key) {
     const menuBtn = el("menu-btn");
     if (menuBtn) {
       menuBtn.addEventListener("click", () => {
-        if (window.PyMenu && typeof window.PyMenu.open === "function") {
-          window.PyMenu.open();
+        if (window.PyMenu && typeof window.PyMenu.openPause === "function") {
+          window.PyMenu.openPause();
         }
       });
     }
@@ -10237,6 +10237,15 @@ function topicName(key) {
       // той же кнопкой, а панель занимала четверть карты.
       if (e.key === "Escape" && !el("log").classList.contains("collapsed")) {
         toggleLog(false);
+        return;
+      }
+      // Escape в игре открывает паузу, а не главное меню. В бою и под
+      // модальными окнами пауза не открывается: сначала закрываем их.
+      if (e.key === "Escape" && G.running && !G.battle && !overlayOpen()) {
+        e.preventDefault();
+        if (window.PyMenu && typeof window.PyMenu.openPause === "function") {
+          window.PyMenu.openPause();
+        }
         return;
       }
       // В бою с вариантами ответа можно отвечать с клавиатуры: на кнопках
@@ -11123,6 +11132,11 @@ function topicName(key) {
         };
       },
       resume: loadGame,
+      save: function () {
+        if (G.battle || !G.running) return false;
+        saveGame();
+        return true;
+      },
       village: function () {
         if (G.place !== "dungeon" || G.battle) return false;
         return returnToVillage();
