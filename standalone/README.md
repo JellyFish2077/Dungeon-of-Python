@@ -22,7 +22,7 @@ python -m http.server 8080 --directory standalone/build
 
 ## Что где
 
-- `standalone/index.html` — стартовый экран (имя, новая игра, продолжение).
+- `standalone/index.html` — редирект в главное меню `game.html?menu=1`.
 - `standalone/build/` — генерируемая сборка; в git не входит.
 - `static/` — общий игровой движок и контент; его же использует классный
   серверный режим.

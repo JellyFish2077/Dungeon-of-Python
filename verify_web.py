@@ -185,24 +185,18 @@ def run_checks(browser, base):
             lambda m: console_errors.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: console_errors.append(str(e)))
 
-    # 1. Стартовый экран.
+    # 1. Корень сайта сразу ведёт в главное меню: отдельного landing больше нет.
     page.goto(base + "/", wait_until="domcontentloaded")
-    check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
-    check(page.locator("#new-game").is_visible(), "на старте есть «Новая игра»")
-
-    # 2. «Новая игра» открывает главное меню: стартовый экран уже собрал имя,
-    #    а меню показывает поход, деревню и настройки.
-    page.fill("#player-name", "Смоук")
-    page.click("#new-game")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
+    check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
     check(page.locator("#menu-overlay").is_visible(),
-          "«Новая игра» открывает главное меню")
+          "корень открывает главное меню")
     check(page.locator("#menu-play .menu-item-label").inner_text() == "Начать поход",
           "в главном меню есть «Начать поход»")
     account = page.locator("#menu-account").inner_text()
-    check("Смоук" in account, "меню видит имя игрока", account)
+    check("Игрок" in account, "меню видит игрока", account)
     # Дожидаемся крупных ассетов, прежде чем уходить в поход.
     page.wait_for_load_state("load", timeout=15000)
     page.click("#menu-play")
@@ -242,10 +236,13 @@ def run_checks(browser, base):
     check(True, "поход создаёт локальный сейв")
 
     page.goto(base + "/", wait_until="domcontentloaded")
-    page.wait_for_selector("#continue-game:not(.hidden)", timeout=10000)
-    check(page.locator("#continue-game").is_visible(), "появилась «Продолжить поход»")
-    page.click("#continue-game")
-    page.wait_for_url(re.compile(r".*/game\.html\?resume=1.*"), timeout=10000)
+    page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
+    page.wait_for_function(
+        "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
+    label = page.locator("#menu-play .menu-item-label").inner_text()
+    check(label in ("Продолжить поход", "Вернуться в игру"),
+          "в меню есть продолжение", label)
+    page.click("#menu-play")
     page.wait_for_function(
         "() => ((document.getElementById('log') || {}).textContent || '')"
         ".includes('Продолжение игры')", timeout=15000)

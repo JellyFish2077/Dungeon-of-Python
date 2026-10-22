@@ -1,185 +1,33 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>PyDungeon — Python-рогалик</title>
-  <meta name="description" content="Python-рогалик: спускайся по этажам, отвечай на вопросы и пиши код, поднимай деревню и доберись до дракона." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="refresh" content="0; url=game.html?menu=1">
+  <title>PyDungeon</title>
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
     body {
-      margin: 0; min-height: 100vh; display: grid; place-items: center;
-      padding: 24px; font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-      color: #e2e8f0; background:
-        radial-gradient(1200px 600px at 50% -10%, #1e3a8a 0%, transparent 60%),
-        radial-gradient(900px 500px at 90% 110%, #312e81 0%, transparent 55%),
-        #0b1120;
+      display: grid;
+      place-items: center;
+      background: #0d1424;
+      color: #f4f0e6;
+      font: 16px/1.5 Georgia, "Times New Roman", serif;
+      text-align: center;
     }
-    .card {
-      width: min(720px, 100%); padding: clamp(20px, 4vw, 38px);
-      border: 1px solid #334155; border-radius: 20px;
-      background: rgba(15, 23, 42, .86); box-shadow: 0 24px 80px rgba(0,0,0,.45);
-      backdrop-filter: blur(8px);
-    }
-    .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
-    .logo {
-      width: 54px; height: 54px; display: grid; place-items: center; flex: 0 0 auto;
-      border-radius: 14px; background: #2563eb; color: #fff;
-      font-weight: 800; font-size: 24px; letter-spacing: -.5px;
-    }
-    h1 { margin: 0; font-size: clamp(26px, 5vw, 40px); line-height: 1.05; }
-    .sub { margin: 6px 0 0; color: #94a3b8; font-size: 14px; }
-    .lead { color: #cbd5e1; line-height: 1.55; margin: 18px 0; }
-    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
-    label { display: block; color: #cbd5e1; font-size: 13px; margin: 16px 0 6px; }
-    input {
-      width: 100%; padding: 12px 14px; border-radius: 10px;
-      border: 1px solid #475569; background: #0f172a; color: #f8fafc;
-      font-size: 16px; outline: none;
-    }
-    input:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,.2); }
-    button, .btn {
-      display: inline-block; padding: 12px 18px; border-radius: 10px;
-      border: 1px solid #334155; background: #1e293b; color: #e2e8f0;
-      font-size: 15px; font-weight: 650; cursor: pointer; text-decoration: none;
-    }
-    button.primary { background: #2563eb; border-color: #2563eb; color: #fff; }
-    button.primary:hover { background: #1d4ed8; }
-    .btn:hover, button:hover { border-color: #64748b; }
-    .btn.ghost { background: transparent; }
-    .controls {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-      gap: 8px; margin-top: 20px; color: #94a3b8; font-size: 13px;
-    }
-    .controls b { color: #e2e8f0; }
-    .note { margin-top: 14px; color: #94a3b8; font-size: 13px; line-height: 1.5; }
-    .version { margin-top: 22px; color: #64748b; font-size: 12px; }
-    .hidden { display: none !important; }
-    @media (max-width: 520px) {
-      body { padding: 12px; align-items: start; }
-      .card { margin-top: 8vh; }
-      .row .btn, .row button { flex: 1 1 100%; text-align: center; }
-    }
+    h1 { margin: 0 0 12px; font-size: 42px; letter-spacing: .02em; }
+    p { margin: 8px 0; color: #93a8c8; }
+    a { color: #f6c453; }
   </style>
 </head>
 <body>
-  <main class="card">
-    <div class="brand">
-      <div class="logo">Py</div>
-      <div>
-        <h1>PyDungeon</h1>
-        <p class="sub">Python-рогалик: вопросы, код, деревня и дракон</p>
-      </div>
-    </div>
-
-    <p class="lead">
-      Спускайся по этажам, отвечай на вопросы и пиши функции. Собранное золото
-      и материалы остаются в деревне даже после поражения — усиливай героя,
-      открывай затворы и доберись до дракона.
-    </p>
-
-    <label for="player-name">Как тебя зовут?</label>
-    <input id="player-name" maxlength="60" autocomplete="nickname" placeholder="Игрок" />
-
-    <div class="row">
-      <button class="primary" id="new-game" type="button">Новая игра</button>
-      <a class="btn ghost hidden" id="continue-game" href="game.html?resume=1&amp;play=1">Продолжить поход</a>
-      <button class="btn ghost" id="fullscreen-start" type="button">На весь экран</button>
-      <button class="btn ghost" id="settings-start" type="button">Настройки</button>
-    </div>
-
-    <div class="controls">
-      <div><b>Стрелки / WASD</b> — ходить</div>
-      <div><b>E</b> — действие</div>
-      <div><b>Пробел</b> — пропустить ход</div>
-      <div><b>Тап по клетке</b> — идти (телефон)</div>
-    </div>
-
-    <p class="note">
-      После «Новой игры» откроется главное меню: «Начать поход», «В деревню»
-      и настройки. Первый поход лучше начать с разговора со стражем у входа в
-      подземелье. На пятом этаже спуск запечатан: вернись в деревню, подними
-      кузницу и продолжишь с того же этажа.
-    </p>
-    <div class="version">v1.6.1-web · локальные сохранения · без сервера</div>
+  <main>
+    <h1>PyDungeon</h1>
+    <p>Открываю главное меню…</p>
+    <p><a href="game.html?menu=1">Открыть меню</a></p>
   </main>
-
   <script>
-    (function () {
-      "use strict";
-      const nameInput = document.getElementById("player-name");
-      const continueLink = document.getElementById("continue-game");
-      let lastName = "";
-      try { lastName = localStorage.getItem("pyquiz_last_name") || ""; } catch (e) {}
-      if (lastName) nameInput.value = lastName;
-
-      let hasSave = false;
-      let saveOwner = "";
-      try {
-        for (let i = 0; i < localStorage.length; i += 1) {
-          if (String(localStorage.key(i) || "").indexOf("pyquiz_save_v1:") === 0) {
-            hasSave = true;
-            saveOwner = String(localStorage.key(i)).slice("pyquiz_save_v1:".length);
-            break;
-          }
-        }
-      } catch (e) {}
-      if (hasSave) {
-        // «Продолжить» должно открыть именно владельца сохранения, даже если
-        // в поле имени успели вписать другое.
-        if (saveOwner) nameInput.value = saveOwner;
-        continueLink.classList.remove("hidden");
-      }
-
-      function saveName() {
-        const name = String(nameInput.value || "").trim().slice(0, 60) || "Игрок";
-        try {
-          localStorage.setItem("pyquiz_last_name", name);
-          localStorage.setItem("pyquiz_session_v1", JSON.stringify({
-            name: name, role: "student", token: ""
-          }));
-        } catch (e) {}
-        return name;
-      }
-
-      document.getElementById("new-game").addEventListener("click", function () {
-        saveName();
-        // Не прыгаем сразу в деревню: сначала показываем главное меню, из
-        // которого игрок сам выбирает поход или деревню.
-        window.location.href = "game.html?menu=1";
-      });
-      document.getElementById("settings-start").addEventListener("click", function () {
-        // Настройки живут в игровом меню: имя сохраняем, чтобы меню сразу
-        // знало игрока, а не просило его заново.
-        saveName();
-        window.location.href = "game.html?menu=1";
-      });
-      const fullscreenStart = document.getElementById("fullscreen-start");
-      if (!document.fullscreenEnabled) {
-        fullscreenStart.classList.add("hidden");
-      } else {
-        fullscreenStart.addEventListener("click", function () {
-          if (document.fullscreenElement) {
-            document.exitFullscreen().catch(function () {});
-          } else {
-            document.documentElement.requestFullscreen({ navigationUI: "hide" })
-              .catch(function () {});
-          }
-        });
-        document.addEventListener("fullscreenchange", function () {
-          fullscreenStart.textContent = document.fullscreenElement
-            ? "Выйти из полного экрана" : "На весь экран";
-        });
-      }
-      continueLink.addEventListener("click", function () {
-        saveName();
-      });
-      nameInput.addEventListener("keydown", function (event) {
-        if (event.key === "Enter") document.getElementById("new-game").click();
-      });
-    })();
+    window.location.replace("game.html?menu=1");
   </script>
 </body>
 </html>
