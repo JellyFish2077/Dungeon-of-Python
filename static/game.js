@@ -9552,9 +9552,8 @@ function topicName(key) {
     }
   }
 
-  function loadVillage() {
-    const data = readVillageSave();
-    if (!data || G.place === "dungeon") return false;
+  function loadVillageData(data) {
+    if (!data) return false;
     const st = villageState();
     const x = Number(data.x);
     const y = Number(data.y);
@@ -9563,6 +9562,131 @@ function topicName(key) {
       !(st.blocked && st.blocked[y] && st.blocked[y][x]);
     enterVillage(valid ? { x: x, y: y } : null);
     return true;
+  }
+
+  function loadVillage() {
+    return loadVillageData(readVillageSave());
+  }
+
+  function saveThumbnail(kind) {
+    try {
+      if (kind === "dungeon") {
+        const mini = el("minimap");
+        if (mini && mini.width && mini.height && mini.toDataURL) {
+          const url = mini.toDataURL("image/png");
+          if (url && url.length > 200) return url;
+        }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = 320;
+      canvas.height = 180;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return "";
+      const st = villageState();
+      const grid = st && st.map ? st.map.grid : null;
+      const cx = G.playerPos ? G.playerPos.x : 10;
+      const cy = G.playerPos ? G.playerPos.y : 10;
+      const cell = 16;
+      const cols = 20;
+      const rows = 11;
+      ctx.fillStyle = "#101a16";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      for (let row = 0; row < rows; row += 1) {
+        for (let col = 0; col < cols; col += 1) {
+          const x = cx - Math.floor(cols / 2) + col;
+          const y = cy - Math.floor(rows / 2) + row;
+          const walkable = !!(grid && grid[y] && grid[y][x] === 1);
+          ctx.fillStyle = walkable
+            ? ((x + y) % 2 ? "#3f6438" : "#466d3d")
+            : "#1b2620";
+          ctx.fillRect(col * cell, row * cell, cell, cell);
+        }
+      }
+      // Двери и постройки — коричневые прямоугольники, герой — синий круг.
+      (st && st.doors ? st.doors : []).forEach((door) => {
+        const px = (door.x - cx + Math.floor(cols / 2)) * cell;
+        const py = (door.y - cy + Math.floor(rows / 2)) * cell;
+        if (px >= 0 && px < canvas.width && py >= 0 && py < canvas.height) {
+          ctx.fillStyle = door.locked ? "#5b3f26" : "#9a6a35";
+          ctx.fillRect(px + 2, py + 1, cell - 4, cell - 2);
+        }
+      });
+      const hx = Math.floor(cols / 2) * cell + cell / 2;
+      const hy = Math.floor(rows / 2) * cell + cell / 2;
+      ctx.fillStyle = "#2f6fe4";
+      ctx.beginPath();
+      ctx.arc(hx, hy, cell * 0.36, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#f6c453";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      return canvas.toDataURL("image/png");
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function snapshotMeta(data, kind) {
+    const player = data && data.player ? data.player : null;
+    return {
+      kind: kind,
+      floor: kind === "dungeon" ? (Number(data && data.floorIndex) || 0) + 1 : null,
+      gold: player ? (Number(player.gold) || 0) : (Number(data && data.gold) || 0),
+      mode: (data && data.mode) || ""
+    };
+  }
+
+  function snapshotFromData(data, kind) {
+    return {
+      v: 1,
+      kind: kind,
+      name: accountName() || "",
+      createdAt: Date.now(),
+      meta: snapshotMeta(data, kind),
+      thumb: saveThumbnail(kind),
+      data: data
+    };
+  }
+
+  function captureSnapshot() {
+    const me = accountName();
+    if (!me) return null;
+    if (G.place === "dungeon" && G.running && !G.dead) {
+      const data = buildSaveData();
+      if (!data) return null;
+      return snapshotFromData(data, "dungeon");
+    }
+    if (G.place === "village" && G.playerPos) {
+      return snapshotFromData({
+        v: 1,
+        name: me,
+        x: G.playerPos.x,
+        y: G.playerPos.y,
+        gold: G.player ? (G.player.gold || 0) : 0
+      }, "village");
+    }
+    return null;
+  }
+
+  function exportLegacy() {
+    const data = readSave();
+    if (data && data.v === 1 && !data.over) {
+      return snapshotFromData(data, "dungeon");
+    }
+    const village = readVillageSave();
+    if (village) return snapshotFromData(village, "village");
+    return null;
+  }
+
+  function loadSnapshot(snapshot) {
+    if (!snapshot || snapshot.v !== 1) return false;
+    if (snapshot.kind === "village") return loadVillageData(snapshot.data);
+    if (snapshot.kind === "dungeon") {
+      const ok = loadGame(snapshot.data);
+      if (ok) setPlaceMarker("dungeon");
+      return ok;
+    }
+    return false;
   }
 
   function setPlaceMarker(place) {
@@ -9611,14 +9735,14 @@ function topicName(key) {
     }
   }
 
-  function saveGame() {
+  function buildSaveData() {
     // Пока партия не начата — сохранять нечего. Помеченную смерть пишем
     // намеренно: по ней главное меню предложит начать этаж заново.
-    if (!G.stats) return;
-    if (!G.running && !G.dead) return;
-    // Деревня и дома не поход: сохранять там нечего, а запись деревни
-    // затёрла бы сохранённый спуск (он живёт до входа в подземелье).
-    if (G.place !== "dungeon") return;
+    if (!G.stats) return null;
+    if (!G.running && !G.dead) return null;
+    // Деревня и дома не поход: запись деревни затёрла бы сохранённый спуск
+    // (он живёт до входа в подземелье).
+    if (G.place !== "dungeon") return null;
     try {
       snapshotCurrent();
       const data = {
@@ -9657,13 +9781,27 @@ function topicName(key) {
         floorCheckpoint: G.floorCheckpoint,
         floors: Object.keys(G.cache).map((k) => serializeFloor(G.cache[k]))
       };
+      const me = accountName();
+      if (me && me !== G.name) return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveGame() {
+    const data = buildSaveData();
+    if (!data) return false;
+    try {
       // Пока шла партия, в другой вкладке мог войти другой ученик: его
       // ячейку чужим походом не затираем.
       const me = accountName();
-      if (me && me !== G.name) return;
+      if (me && me !== G.name) return false;
       localStorage.setItem(saveSlot(me), JSON.stringify(data));
+      return true;
     } catch (e) {
       // localStorage может быть недоступен — просто пропускаем
+      return false;
     }
   }
 
@@ -9779,8 +9917,8 @@ function topicName(key) {
     items[next].focus();
   }
 
-  function loadGame() {
-    const data = readSave();
+  function loadGame(source) {
+    const data = source || readSave();
     if (!data || data.v !== 1) return false;
     // Сейв другого ученика (за компьютером сменился игрок) не поднимаем.
     // Пока никто не вошёл, ограничивать нечем: партию поднимаем как раньше.
@@ -11185,6 +11323,9 @@ function topicName(key) {
       },
       resume: loadGame,
       loadVillage: loadVillage,
+      captureSnapshot: captureSnapshot,
+      exportLegacy: exportLegacy,
+      loadSnapshot: loadSnapshot,
       save: function () {
         if (G.battle) return false;
         if (G.place === "village") return saveVillage();
