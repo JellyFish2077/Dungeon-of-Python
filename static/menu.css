@@ -265,23 +265,6 @@ body.menu-open #web-controls-hint {
   margin-bottom: clamp(18px, 3.2vh, 34px);
 }
 
-.menu-logo {
-  width: clamp(58px, 6vw, 78px);
-  height: clamp(58px, 6vw, 78px);
-  display: grid;
-  place-items: center;
-  border-radius: 17px;
-  border: 1px solid #7aa9ff;
-  background: linear-gradient(180deg, #3d7ee0, #1d4ed8);
-  box-shadow:
-    0 12px 34px rgba(37, 99, 235, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.35);
-  color: #fff;
-  font-size: clamp(26px, 3vw, 34px);
-  font-weight: 800;
-  letter-spacing: -0.5px;
-}
-
 .menu-title h1 {
   margin: 16px 0 0;
   font-family: var(--display, Georgia, "Times New Roman", serif);

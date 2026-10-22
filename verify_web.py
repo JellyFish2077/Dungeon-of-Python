@@ -200,6 +200,8 @@ def run_checks(browser, base):
           "главное меню — один вертикальный список", labels)
     check(page.locator("#menu-dungeon-bg").is_visible(),
           "фон главного меню — подземелье")
+    check(page.locator("#menu-view-main .menu-logo").count() == 0,
+          "логотип в главном меню убран")
     menu_box = page.locator("#menu-list").bounding_box()
     menu_notes = page.evaluate(
         "() => Array.from(document.querySelectorAll('#menu-list .menu-item-note'))"
