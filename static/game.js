@@ -1449,6 +1449,7 @@
     toast("Привал: +" + (G.player.hp - was) + " HP");
     updateHud();
     render();
+    if (G.tutorial && G.tutorial.active) tutorialEvent("camp");
     return true;
   }
 
@@ -1827,6 +1828,7 @@
   }
 
   function activateFloor(index) {
+    if (G.tutorial && G.tutorial.active && index !== 0) tutorialHide();
     let state = G.cache[index];
     if (!state) {
       // Страховка: если этаж активируют напрямую, он всё равно проходит
@@ -2188,6 +2190,7 @@
   }
 
   function enterVillage(at) {
+    tutorialHide();
     return enterPlace("village", null, at);
   }
 
@@ -5417,6 +5420,7 @@
       const mat = rollChestLoot(G.floorIndex);
       if (mat) gainLoot(mat.kind, mat.n);
       render();
+      if (G.tutorial && G.tutorial.active) tutorialEvent("chest");
     }
   }
 
@@ -5540,6 +5544,7 @@
       return;
     }
 
+    if (G.tutorial && G.tutorial.active) tutorialEvent("move");
     const enemy = G.enemies.find((e) => e.x === nx && e.y === ny);
     if (enemy) {
       render();
@@ -7014,6 +7019,7 @@
     const idx = G.enemies.indexOf(e);
     if (idx >= 0) G.enemies.splice(idx, 1);
     G.stats.kills += 1;
+    if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
     // Стражи лестницы держат ключи от построек деревни: ключ от амбара лежит
     // с третьего этажа, ключ от дома мастера — с шестого. Так деревня растёт
     // не только за материалы, но и за спуск: ключ нельзя выпросить в деревне.
@@ -8308,6 +8314,230 @@ function topicName(key) {
     return !!prof && !prof.dungeonBest && !pausedRun();
   }
 
+  // ---------- Первый спуск ----------
+  // Короткое обучение на первом этаже: шаг, сундук, бой и костёр. Это не
+  // модальное окно — игра остаётся играбельной, а подсказка висит сбоку.
+  const TUTORIAL_ORDER = ["move", "chest", "battle", "camp"];
+
+  function tutorialPanelEl() {
+    return typeof document !== "undefined" ? el("tutorial-panel") : null;
+  }
+
+  function tutorialEligible() {
+    const prof = hubProfile();
+    return !!(prof && !prof.tutorialDone && !prof.dungeonBest &&
+      G.place === "dungeon" && G.floorIndex === 0 && G.running && !G.dead);
+  }
+
+  function tutorialNearest(kind) {
+    const list = kind === "chest" ? (G.treasures || [])
+      : kind === "camp" ? (G.camps || []).filter((c) => !c.used)
+      : (G.enemies || []).filter((e) => !e.boss);
+    let best = null;
+    let bestDist = Infinity;
+    list.forEach((o) => {
+      if (!o || typeof o.x !== "number" || typeof o.y !== "number") return;
+      const d = Math.abs(o.x - G.playerPos.x) + Math.abs(o.y - G.playerPos.y);
+      if (d < bestDist) {
+        best = o;
+        bestDist = d;
+      }
+    });
+    return best;
+  }
+
+  function tutorialDirection(dx, dy) {
+    const ns = dy < 0 ? "север" : dy > 0 ? "юг" : "";
+    const ew = dx < 0 ? "запад" : dx > 0 ? "восток" : "";
+    if (ns && ew) return ns + "о-" + ew;
+    return ns || ew;
+  }
+
+  function tutorialHint() {
+    const state = G.tutorial;
+    if (!state) return "";
+    const current = TUTORIAL_ORDER.find((key) => !state[key] &&
+      (key !== "move" || state.moves < 1));
+    if (current === "move") return "WASD или стрелки — сделай первый шаг.";
+    const target = tutorialNearest(current);
+    if (!target) return "Цель ищи рядом.";
+    const dx = target.x - G.playerPos.x;
+    const dy = target.y - G.playerPos.y;
+    const dist = Math.abs(dx) + Math.abs(dy);
+    const where = dist <= 1 ? "рядом" : "в " + dist + " кл. " + tutorialDirection(dx, dy);
+    if (current === "chest") return "Сундук " + where + ". Подойди и нажми E.";
+    if (current === "battle") return "Монстр " + where + ". Войди в него и ответь на вопрос.";
+    return "Костёр " + where + ". Подойди и нажми E, чтобы отдохнуть.";
+  }
+
+  function tutorialRender() {
+    const panel = tutorialPanelEl();
+    const state = G.tutorial;
+    if (!panel || !state) return;
+    const done = {
+      move: state.moves >= 1,
+      chest: !!state.chest,
+      battle: !!state.battle,
+      camp: !!state.camp
+    };
+    const count = TUTORIAL_ORDER.filter((key) => done[key]).length;
+    panel.classList.remove("hidden");
+    const progress = el("tutorial-progress");
+    if (progress) progress.textContent = count + " / " + TUTORIAL_ORDER.length;
+    const current = TUTORIAL_ORDER.find((key) => !done[key]) || "";
+    panel.querySelectorAll("#tutorial-steps [data-step]").forEach((node) => {
+      const key = node.dataset.step;
+      node.classList.toggle("is-done", !!done[key]);
+      node.classList.toggle("is-current", key === current);
+    });
+    const hint = el("tutorial-hint");
+    if (hint) hint.textContent = tutorialHint();
+    if (!current) tutorialFinish(false);
+  }
+
+  function tutorialUsedCells() {
+    const used = new Set();
+    const mark = (o) => {
+      if (o && typeof o.x === "number" && typeof o.y === "number") {
+        used.add(o.x + "," + o.y);
+      }
+    };
+    mark(G.playerPos);
+    mark(G.stairsDown);
+    mark(G.stairsUp);
+    [G.treasures, G.camps, G.enemies, G.traders, G.nodes, G.levers, G.signs]
+      .forEach((list) => (list || []).forEach(mark));
+    return used;
+  }
+
+  function tutorialFreeSpot(minDist, maxDist, used) {
+    const cells = [];
+    if (!G.map || !G.map.grid) return null;
+    // Считаем именно путь, а не манхэттенское расстояние: иначе сундук мог
+    // оказаться за стеной в соседней комнате.
+    const distances = new Map();
+    const start = G.playerPos.x + "," + G.playerPos.y;
+    const queue = [{ x: G.playerPos.x, y: G.playerPos.y, d: 0 }];
+    distances.set(start, 0);
+    for (let head = 0; head < queue.length; head += 1) {
+      const cur = queue[head];
+      for (const [dx, dy] of [[0, -1], [0, 1], [-1, 0], [1, 0]]) {
+        const x = cur.x + dx;
+        const y = cur.y + dy;
+        if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) continue;
+        if (G.map.grid[y][x] !== 1 || cellBlocked(x, y)) continue;
+        const key = x + "," + y;
+        if (distances.has(key)) continue;
+        distances.set(key, cur.d + 1);
+        queue.push({ x: x, y: y, d: cur.d + 1 });
+      }
+    }
+    for (let y = 0; y < G.map.h; y += 1) {
+      for (let x = 0; x < G.map.w; x += 1) {
+        if (G.map.grid[y][x] !== 1 || cellBlocked(x, y)) continue;
+        if (used.has(x + "," + y)) continue;
+        const d = distances.get(x + "," + y);
+        if (d == null || d < minDist || d > maxDist) continue;
+        cells.push({ x: x, y: y, d: d });
+      }
+    }
+    cells.sort((a, b) => a.d - b.d);
+    return cells[0] || null;
+  }
+
+  function tutorialEnsureObjects() {
+    if (!G.map || !G.playerPos) return;
+    const used = tutorialUsedCells();
+
+    const chestNear = (G.treasures || []).some((t) =>
+      Math.abs(t.x - G.playerPos.x) + Math.abs(t.y - G.playerPos.y) <= 6);
+    if (!chestNear) {
+      const spot = tutorialFreeSpot(2, 6, used) || tutorialFreeSpot(1, 9, used);
+      if (spot) {
+        const item = (typeof randomItemForFloor === "function" && randomItemForFloor(0)) ||
+          itemById("small_potion");
+        if (item) {
+          G.treasures.push({ uid: ++G.uid, x: spot.x, y: spot.y, item: item });
+          used.add(spot.x + "," + spot.y);
+        }
+      }
+    }
+
+    const campNear = (G.camps || []).some((c) =>
+      !c.used && Math.abs(c.x - G.playerPos.x) + Math.abs(c.y - G.playerPos.y) <= 8);
+    if (!campNear) {
+      const spot = tutorialFreeSpot(2, 6, used) || tutorialFreeSpot(1, 9, used);
+      if (spot) {
+        G.camps.push({ uid: ++G.uid, x: spot.x, y: spot.y, used: false });
+        used.add(spot.x + "," + spot.y);
+      }
+    }
+
+    const enemyNear = (G.enemies || []).some((e) =>
+      !e.boss && Math.abs(e.x - G.playerPos.x) + Math.abs(e.y - G.playerPos.y) <= 7);
+    if (!enemyNear) {
+      const spot = tutorialFreeSpot(3, 7, used) || tutorialFreeSpot(2, 9, used);
+      if (spot) {
+        const enemy = makeEnemy("slime", 0);
+        enemy.x = spot.x;
+        enemy.y = spot.y;
+        G.enemies.push(enemy);
+      }
+    }
+    render();
+  }
+
+  function tutorialFinish(skipped) {
+    const panel = tutorialPanelEl();
+    if (panel) panel.classList.add("hidden");
+    if (!G.tutorial) return;
+    G.tutorial.active = false;
+    const prof = hubProfile();
+    if (prof && !prof.tutorialDone) {
+      prof.tutorialDone = true;
+      try { putProfile(G.name, prof); } catch (e) {}
+    }
+    if (skipped) {
+      setMsg("Обучение пропущено. Дальше — лестница вниз.");
+      toast("Обучение пропущено");
+    } else {
+      setMsg("Обучение пройдено. Дальше — лестница вниз.");
+      toast("Обучение пройдено!");
+    }
+  }
+
+  function tutorialHide() {
+    const panel = tutorialPanelEl();
+    if (panel) panel.classList.add("hidden");
+    if (G.tutorial) G.tutorial.active = false;
+  }
+
+  function tutorialStart() {
+    if (G.tutorial && G.tutorial.active) return;
+    if (!tutorialEligible() || !tutorialPanelEl()) return;
+    G.tutorial = { active: true, moves: 0, chest: false, battle: false, camp: false };
+    tutorialEnsureObjects();
+    hideFloorArrival();
+    tutorialRender();
+    setMsg("Первый спуск: выполни четыре подсказки слева.");
+  }
+
+  function tutorialEvent(kind) {
+    if (!G.tutorial || !G.tutorial.active) return;
+    if (kind === "move") {
+      G.tutorial.moves += 1;
+    } else if (kind === "chest" || kind === "battle" || kind === "camp") {
+      G.tutorial[kind] = true;
+    }
+    tutorialRender();
+  }
+
+  function tutorialSkip() {
+    if (!G.tutorial || !G.tutorial.active) return;
+    tutorialFinish(true);
+  }
+
+
   // --- Постоянная прогрессия в походе ---
   // Что герой приносит из деревни в подземелье: уровни улучшений и постройки.
   // Считается один раз при входе в поход и лежит в G.prog, чтобы бой, HUD и
@@ -9208,6 +9438,8 @@ function topicName(key) {
     G.victoryBanked = false;
     G.victoryBankedAmount = 0;
     G.running = true;
+    tutorialHide();
+    G.tutorial = null;
     // Режим берём с переключателя в меню: обычный спуск или бесконечность.
     const modeBtn = el("game-mode").querySelector(".mode.active");
     G.mode = modeBtn && modeBtn.dataset.mode === "endless" ? "endless" : "dungeon";
@@ -9243,6 +9475,7 @@ function topicName(key) {
       log("Лестницу можно найти и спуститься, даже не убивая всех монстров.", "floor");
       log("Лестница вверх возвращает на прошлый этаж с его монстрами и добычей.", "floor");
       setMsg("Найди лестницу — спуститься можно, даже если монстры ещё живы.");
+      tutorialStart();
     });
   }
 
@@ -9920,6 +10153,8 @@ function topicName(key) {
   function loadGame(source) {
     const data = source || readSave();
     if (!data || data.v !== 1) return false;
+    tutorialHide();
+    G.tutorial = null;
     // Сейв другого ученика (за компьютером сменился игрок) не поднимаем.
     // Пока никто не вошёл, ограничивать нечем: партию поднимаем как раньше.
     const me = accountName();
@@ -10151,6 +10386,8 @@ function topicName(key) {
 
     el("begin-btn").addEventListener("click", beginFromEntrance);
     el("resume-btn").addEventListener("click", loadGame);
+    const tutorialSkipBtn = el("tutorial-skip");
+    if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", tutorialSkip);
     el("calibration-btn").addEventListener("click", () => openCalibration(null));
     el("entrance-close").addEventListener("click", closeEntrance);
     // Окно калибровки перерисовывается после каждого ответа, поэтому клики

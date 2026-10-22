@@ -5131,3 +5131,156 @@ body.game-page #hud-btn.active {
     max-height: 30%;
   }
 }
+
+/* Первый спуск: небольшая памятка поверх карты, не перекрывает управление. */
+.tutorial-panel {
+  position: fixed;
+  z-index: 45;
+  left: clamp(12px, 2vw, 28px);
+  top: clamp(78px, 9vh, 110px);
+  width: min(360px, calc(100vw - 32px));
+  max-height: calc(100vh - 120px);
+  overflow: auto;
+  padding: 12px 14px 11px;
+  pointer-events: none;
+  color: #dfe7f1;
+  background: rgba(8, 18, 34, 0.94);
+  border: 1px solid rgba(246, 196, 83, 0.28);
+  border-left: 3px solid #f6c453;
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(5px);
+}
+
+.tutorial-panel.hidden {
+  display: none;
+}
+
+.tutorial-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.tutorial-kicker {
+  color: #f6c453;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.tutorial-progress {
+  margin-left: 6px;
+  color: #7f8b9d;
+  font-size: 11px;
+}
+
+.tutorial-skip {
+  pointer-events: auto;
+  padding: 4px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: transparent;
+  color: #9da9ba;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.tutorial-skip:hover,
+.tutorial-skip:focus-visible {
+  border-color: rgba(246, 196, 83, 0.6);
+  color: #f6c453;
+  outline: none;
+}
+
+.tutorial-steps {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tutorial-steps li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  color: #8fa3bf;
+  font-size: 12px;
+  line-height: 1.25;
+  opacity: 0.65;
+}
+
+.tutorial-steps li::before {
+  content: "○";
+  color: #66758b;
+  line-height: 1.15;
+}
+
+.tutorial-steps li b {
+  grid-column: 2;
+  color: #dfe7f1;
+  font-weight: 600;
+}
+
+.tutorial-steps li span {
+  grid-column: 2;
+  grid-row: 2;
+  display: block;
+  margin-top: 1px;
+  color: #7f8b9d;
+  font-size: 10px;
+}
+
+.tutorial-steps li.is-current {
+  color: #f4f0e6;
+  opacity: 1;
+}
+
+.tutorial-steps li.is-current::before {
+  content: "▶";
+  color: #f6c453;
+}
+
+.tutorial-steps li.is-current b {
+  color: #f6c453;
+}
+
+.tutorial-steps li.is-done {
+  opacity: 0.85;
+}
+
+.tutorial-steps li.is-done::before {
+  content: "✓";
+  color: #91c98b;
+}
+
+.tutorial-steps li.is-done b {
+  color: #b9d6b0;
+}
+
+.tutorial-hint {
+  margin: 9px 0 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(125, 162, 217, 0.16);
+  color: #b9c9dc;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+@media (max-width: 760px) {
+  .tutorial-panel {
+    top: auto;
+    right: 12px;
+    bottom: 72px;
+    left: 12px;
+    width: auto;
+    max-height: 42vh;
+    overflow: auto;
+  }
+}
