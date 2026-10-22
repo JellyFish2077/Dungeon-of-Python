@@ -4397,10 +4397,10 @@
       depthMul(ECON.forgeDepth));
   }
 
-  // Кузница — главная трата золота, но ссылка в шапке легко теряется: бот,
-  // по которому мерили баланс, туда не ходил вовсе и копил к концу похода
-  // тысячи. Когда золота хватает на улучшение, у ссылки загорается значок,
-  // а в первый раз за поход об этом пишет журнал.
+  // Кузница — главная трата золота, но вход по F или у кузнеца в деревне
+  // легко теряется: бот, по которому мерили баланс, туда не ходил вовсе и
+  // копил к концу похода тысячи. Когда золота хватает на улучшение, об этом
+  // один раз за поход пишет журнал.
   const FORGE_TIP = "Кузница: вложить золото в урон, защиту или здоровье. Клавиша F.";
 
   function forgeReady() {
@@ -4418,7 +4418,7 @@
     btn.setAttribute("data-tip", ready ? FORGE_TIP + " Золота хватает на улучшение." : FORGE_TIP);
     if (ready && G.stats && !G.stats.forgeHinted) {
       G.stats.forgeHinted = true;
-      log("Золота хватает на улучшение в кузнице: ссылка «Кузница» вверху или клавиша F.", "loot");
+      log("Золота хватает на улучшение в кузнице: клавиша F.", "loot");
     }
   }
 
@@ -10438,26 +10438,9 @@ function topicName(key) {
         updateFullscreenButton();
       }
     }
-    // Панель героя теперь плавает поверх карты. На узком экране её можно
-    // убрать кнопкой HUD, чтобы поле не было перекрыто.
-    const hudBtn = el("hud-btn");
+    // Панель героя всегда видна: отдельной кнопки HUD больше нет.
     const sidePanel = document.querySelector(".side-panel");
-    if (hudBtn && sidePanel) {
-      let hudCollapsed = false;
-      try { hudCollapsed = localStorage.getItem("pyquiz_hud_collapsed") === "1"; } catch (e) {}
-      const applyHud = () => {
-        sidePanel.classList.toggle("hud-collapsed", hudCollapsed);
-        hudBtn.classList.toggle("active", !hudCollapsed);
-        hudBtn.textContent = hudCollapsed ? "HUD+" : "HUD";
-      };
-      applyHud();
-      hudBtn.addEventListener("click", () => {
-        hudCollapsed = !hudCollapsed;
-        try { localStorage.setItem("pyquiz_hud_collapsed", hudCollapsed ? "1" : "0"); } catch (e) {}
-        applyHud();
-        if (G.running) measureViewport();
-      });
-    }
+    if (sidePanel) sidePanel.classList.remove("hud-collapsed");
     updateResumeButton();
     updateWalletLine();
     updateKnowledgeLine();
