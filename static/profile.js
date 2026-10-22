@@ -7,6 +7,7 @@ const LAST_NAME_KEY = "pyquiz_last_name";
 // с профилем. Это строки формата localStorage, а не игровая логика.
 const SAVE_STORAGE_PREFIX = "pyquiz_save_v1";
 const PLACE_STORAGE_PREFIX = "pyquiz_place_v1";
+const VILLAGE_STORAGE_PREFIX = "pyquiz_village_v1";
 // Потолок амулетов возврата. Значение по умолчанию: точное число задаёт
 // админка (hub.amuletMax в game.js), но профиль хранит счётчик сам и должен
 // уметь зажать его и без загруженной игры. Держим эти два числа в согласии.
@@ -259,6 +260,8 @@ function renameProfile(oldName, newName) {
   const saveTo = SAVE_STORAGE_PREFIX + ":" + to;
   const placeFrom = PLACE_STORAGE_PREFIX + ":" + from;
   const placeTo = PLACE_STORAGE_PREFIX + ":" + to;
+  const villageFrom = VILLAGE_STORAGE_PREFIX + ":" + from;
+  const villageTo = VILLAGE_STORAGE_PREFIX + ":" + to;
 
   try {
     // Не затираем чужое сохранение, даже если профиля с таким именем нет.
@@ -266,6 +269,9 @@ function renameProfile(oldName, newName) {
       return { ok: false, error: "У этого имени уже есть сохранение" };
     }
     if (placeFrom !== placeTo && localStorage.getItem(placeTo) != null) {
+      return { ok: false, error: "У этого имени уже есть сохранение" };
+    }
+    if (villageFrom !== villageTo && localStorage.getItem(villageTo) != null) {
       return { ok: false, error: "У этого имени уже есть сохранение" };
     }
 
@@ -294,6 +300,20 @@ function renameProfile(oldName, newName) {
       if (place != null) {
         localStorage.setItem(placeTo, place);
         localStorage.removeItem(placeFrom);
+      }
+    }
+    if (villageFrom !== villageTo) {
+      const village = localStorage.getItem(villageFrom);
+      if (village != null) {
+        let data = null;
+        try { data = JSON.parse(village); } catch (e) {}
+        if (data && typeof data === "object") {
+          data.name = to;
+          localStorage.setItem(villageTo, JSON.stringify(data));
+        } else {
+          localStorage.setItem(villageTo, village);
+        }
+        localStorage.removeItem(villageFrom);
       }
     }
   } catch (e) {

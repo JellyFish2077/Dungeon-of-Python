@@ -139,6 +139,13 @@ if ((G.vaults || []).length) {
     G.camps = (G.camps || []).filter(keep);
     G.npcs = (G.npcs || []).filter(keep);
   };
+  // interactTarget смотрит не только на клетку героя, но и на соседние. Если
+  // рядом с дверью лежит жила/сундук, он может стать целью раньше тайника.
+  const clearAround = (x, y) => {
+    [[0, 0], [0, -1], [0, 1], [-1, 0], [1, 0]].forEach(([dx, dy]) => {
+      clearAt(x + dx, y + dy);
+    });
+  };
   // Дверь — проход: раньше она оставалась монолитом, и комната была
   // запечатана навсегда, хотя ключ и рычаг «открывали» её.
   log(grid[vault.door.y][vault.door.x] === 1, "дверь тайника — проход, а не стена");
@@ -157,7 +164,7 @@ if ((G.vaults || []).length) {
   // На клетке перед дверью мог оказаться сундук: тогда первой целью будет он.
   // Убираем все объекты — в игре игрок просто нажмёт «Е» ещё раз, а проверка
   // одноразовая.
-  clearAt(vault.from.x, vault.from.y);
+  clearAround(vault.from.x, vault.from.y);
   const lockedTarget = API.interactTarget();
   log(!!lockedTarget && lockedTarget.kind === "vault" && /заперт/i.test(lockedTarget.label),
     "тайник заперт", lockedTarget && lockedTarget.label);
@@ -175,7 +182,7 @@ if ((G.vaults || []).length) {
     log(G.vaultKeys > 0, "ключ от тайника снимают со стража этажа", "ключей: " + G.vaultKeys);
     G.playerPos = { x: v2.from.x, y: v2.from.y };
     // На клетке перед дверью мог оказаться другой интерактивный объект.
-    clearAt(v2.from.x, v2.from.y);
+    clearAround(v2.from.x, v2.from.y);
     const openTarget = API.interactTarget();
     API.doInteract();
     log(!!openTarget && openTarget.kind === "vault" && v2.locked === false,
@@ -6626,18 +6633,25 @@ if (vault) {
     v: 1, name: oldName, floorIndex: 2
   }));
   localStorage.setItem("pyquiz_place_v1:" + oldName, "dungeon");
+  localStorage.setItem("pyquiz_village_v1:" + oldName, JSON.stringify({
+    v: 1, name: oldName, x: 3, y: 4
+  }));
   const moved = globalThis.renameProfile(oldName, newName);
   const after = globalThis.getProfile(newName);
   let movedSave = null;
+  let movedVillage = null;
   try {
     movedSave = JSON.parse(localStorage.getItem("pyquiz_save_v1:" + newName) || "null");
+    movedVillage = JSON.parse(localStorage.getItem("pyquiz_village_v1:" + newName) || "null");
   } catch (e) {}
   log(!!moved && moved.ok && after && after.wallet.gold === 77 &&
       movedSave && movedSave.name === newName &&
+      movedVillage && movedVillage.name === newName && movedVillage.x === 3 &&
       localStorage.getItem("pyquiz_save_v1:" + oldName) === null &&
       localStorage.getItem("pyquiz_save_v1:" + newName) !== null &&
+      localStorage.getItem("pyquiz_village_v1:" + oldName) === null &&
       localStorage.getItem("pyquiz_place_v1:" + newName) === "dungeon",
-    "профиль: переименование переносит сейв и метку места",
+    "профиль: переименование переносит сейв, деревню и метку места",
     JSON.stringify(moved));
   globalThis.putProfile("__rename_busy__", { name: "__rename_busy__" });
   const busy = globalThis.renameProfile(newName, "__rename_busy__");

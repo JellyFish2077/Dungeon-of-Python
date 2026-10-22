@@ -307,18 +307,22 @@
     if (!item) return;
     const state = gameStatus();
     const note = $("menu-load-note");
-    const can = hasUser() && state && (state.paused || state.place === "dungeon");
+    const can = hasUser() && state &&
+      (state.paused || state.place === "dungeon" || state.villageSave);
     item.classList.toggle("is-disabled", !can);
     item.setAttribute("aria-disabled", can ? "false" : "true");
     if (!note) return;
     if (!hasUser()) {
       note.textContent = "сначала войди";
-    } else if (!state || (!state.paused && state.place !== "dungeon")) {
+    } else if (!state ||
+               (!state.paused && state.place !== "dungeon" && !state.villageSave)) {
       note.textContent = "нет сохранения";
     } else if (state.place === "dungeon") {
       note.textContent = "поход идёт · этаж " + state.floor;
-    } else {
+    } else if (state.paused) {
       note.textContent = "этаж " + state.floor + " · " + state.gold + " зол.";
+    } else {
+      note.textContent = "деревня";
     }
   }
 
@@ -343,15 +347,17 @@
     const state = gameStatus();
     const load = $("pause-load");
     const note = $("pause-load-note");
-    const can = !!(state && state.paused);
+    const can = !!(state && (state.paused || state.villageSave));
     if (load) {
       load.classList.toggle("is-disabled", !can);
       load.setAttribute("aria-disabled", can ? "false" : "true");
     }
     if (note) {
-      note.textContent = can
-        ? "этаж " + state.floor + " · " + state.gold + " зол."
-        : "нет сохранения";
+      if (state && state.paused) {
+        note.textContent = "этаж " + state.floor + " · " + state.gold + " зол.";
+      } else {
+        note.textContent = can ? "деревня" : "нет сохранения";
+      }
     }
   }
 
@@ -589,7 +595,8 @@
       return;
     }
     const state = gameStatus();
-    if (!state || (!state.paused && state.place !== "dungeon")) {
+    if (!state ||
+        (!state.paused && state.place !== "dungeon" && !state.villageSave)) {
       sound("wrong");
       return;
     }
@@ -598,17 +605,23 @@
       close();
       return;
     }
-    if (api() && typeof api().resume === "function") {
-      let ok = true;
+    let ok = true;
+    if (state.paused && api() && typeof api().resume === "function") {
       try {
         ok = api().resume();
       } catch (e) {
         ok = false;
       }
-      if (ok === false) {
-        sound("wrong");
-        return;
+    } else if (!state.paused && api() && typeof api().loadVillage === "function") {
+      try {
+        ok = api().loadVillage();
+      } catch (e) {
+        ok = false;
       }
+    }
+    if (ok === false) {
+      sound("wrong");
+      return;
     }
     close();
   }
@@ -630,13 +643,18 @@
 
   function onPauseSave() {
     sound("click");
+    const state = gameStatus();
     const game = api();
     let ok = false;
     if (game && typeof game.save === "function") {
       try { ok = game.save(); } catch (e) { ok = false; }
     }
     const note = $("pause-note");
-    if (note) note.textContent = ok ? "Поход сохранён." : "Сохранить не удалось.";
+    if (note) {
+      note.textContent = ok
+        ? (state && state.place === "dungeon" ? "Поход сохранён." : "Деревня сохранена.")
+        : "Сохранить не удалось.";
+    }
     sound(ok ? "correct" : "wrong");
     renderPause();
   }
@@ -644,14 +662,16 @@
   function onPauseLoad() {
     sound("click");
     const state = gameStatus();
-    if (!state || !state.paused) {
+    if (!state || (!state.paused && !state.villageSave)) {
       sound("wrong");
       return;
     }
     const game = api();
     let ok = false;
-    if (game && typeof game.resume === "function") {
+    if (state.paused && game && typeof game.resume === "function") {
       try { ok = game.resume(); } catch (e) { ok = false; }
+    } else if (!state.paused && game && typeof game.loadVillage === "function") {
+      try { ok = game.loadVillage(); } catch (e) { ok = false; }
     }
     if (ok === false) {
       sound("wrong");

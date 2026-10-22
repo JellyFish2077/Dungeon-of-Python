@@ -258,8 +258,16 @@ def run_checks(browser, base):
           "меню паузы — пять пунктов", pause_labels)
     page.click("#pause-save")
     page.wait_for_timeout(200)
-    check("сохранён" in page.locator("#pause-note").inner_text().lower(),
-          "«Сохранить» пишет поход")
+    check("сохран" in page.locator("#pause-note").inner_text().lower(),
+          "«Сохранить» пишет деревню")
+    check(page.locator("#pause-load").get_attribute("aria-disabled") == "false",
+          "сохранение деревни доступно для загрузки")
+    page.click("#pause-load")
+    page.wait_for_timeout(300)
+    check(not page.locator("#menu-overlay").is_visible(),
+          "«Загрузить» возвращает в сохранённую деревню")
+    page.click("#menu-btn")
+    page.wait_for_timeout(300)
     page.click("#pause-settings")
     page.wait_for_timeout(200)
     check(page.locator("#menu-settings-title").inner_text() == "Настройки",
