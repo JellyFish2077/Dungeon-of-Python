@@ -32,6 +32,25 @@ GitHub Pages публикует только `standalone/build`. Там нет `
 `users.json`, `.secret`, `_backup/`, `dist/` и `standalone/build/` в
 `.gitignore`. Но исходники при публикации репозитория станут видны.
 
+### Если токен не может обновлять workflow
+
+GitHub не разрешает PAT без scope `workflow` создавать или менять
+`.github/workflows/pages.yml`. Тогда есть два пути.
+
+1. Выдать токену scope `workflow` (Settings → Developer settings → Personal
+   access tokens) и запушить workflow.
+2. Опубликовать готовую сборку из ветки `gh-pages`:
+   - соберите локально `python tools/build_web.py` и
+     `python tools/fetch_pyodide.py`;
+   - положите содержимое `standalone/build/` в корень ветки `gh-pages`
+     (там уже должен быть `index.html` и `.nojekyll`);
+   - в **Settings → Pages → Deploy from a branch** выберите
+     `gh-pages` / `/ (root)`.
+
+Ветка `gh-pages` — только собранная статика, без исходников и workflow. Если
+токен снова не даёт пушить workflow, этот путь работает и обновляется
+повторной сборкой ветки.
+
 ## Как проверять
 
 После деплоя откройте адрес и пройдите короткий сценарий:
