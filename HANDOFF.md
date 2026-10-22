@@ -63,8 +63,10 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
   больше не дают ложный сбой.
 - **Публикация:** `.github/workflows/pages.yml` собирает статическую сборку,
   скачивает Pyodide, прогоняет `verify_web.py` и публикует на GitHub Pages;
-  инструкция — `HOSTING.md`. Смоук-сервер `verify_web.py` держит очередь 128
-  соединений, поэтому Chromium не получает `ERR_CONNECTION_REFUSED`.
+  инструкция — `HOSTING.md`. Для VPS — `deploy/pyquiz.service`,
+  `deploy/Caddyfile`, `deploy/pyquiz.env.example`. Смоук-сервер `verify_web.py`
+  держит очередь 128 соединений, поэтому Chromium не получает
+  `ERR_CONNECTION_REFUSED`.
 - Проверки: полный прогон 7/7, `verify_server` 85/85, `verify_web` 17/17.
 
 ## Что сделано в 1.6.0

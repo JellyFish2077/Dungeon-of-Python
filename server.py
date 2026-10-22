@@ -1653,10 +1653,14 @@ def _run_tests(code, tests):
 
         backend = sandbox_backend()
         if backend == "unavailable":
-            return _unavailable(
-                "WSL включён в PYQUIZ_SANDBOX, но недоступен. "
-                "Запустите сервер с --no-code или установите WSL."
-            )
+            if os.name == "nt":
+                message = ("WSL включён в PYQUIZ_SANDBOX, но недоступен. "
+                           "Запустите сервер с --no-code или установите WSL.")
+            else:
+                message = ("PYQUIZ_SANDBOX требует unshare, но локальные namespaces "
+                           "недоступны. Запустите с --no-code или разрешите "
+                           "unprivileged user namespaces.")
+            return _unavailable(message)
         try:
             if backend == "wsl":
                 script_path = os.path.join(tmpdir, "run.sh")
@@ -3058,10 +3062,15 @@ def main():
             where = "WSL" if os.name == "nt" else "локальные namespaces"
             print("  Изоляция кода: %s (отдельные mount/pid/net namespaces, файлы проекта скрыты)" % where)
         elif backend == "unavailable":
-            print("  ВНИМАНИЕ: PYQUIZ_SANDBOX=wsl, но WSL недоступен — проверка кода не работает.")
+            if os.name == "nt":
+                need = "WSL"
+            else:
+                need = "unprivileged user namespaces (unshare)"
+            print("  ВНИМАНИЕ: PYQUIZ_SANDBOX требует изоляцию, но %s "
+                  "недоступны — проверка кода не работает." % need)
         else:
             print("  ВНИМАНИЕ: песочница без изоляции ОС. Для занятий с кодом")
-            print("            установите WSL или запускайте с --no-code.")
+            print("            включите WSL/namespaces или запускайте с --no-code.")
     if DEV_TOOLS:
         print("  Инструменты разработчика: ВКЛЮЧЕНЫ (панель DEV в подземелье, F2)")
         print("            Результаты такого запуска не стоит считать учебными.")

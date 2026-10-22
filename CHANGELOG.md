@@ -45,6 +45,9 @@
   `standalone/build`, скачивает Pyodide, прогоняет `verify_web.py` и публикует
   статическую сборку. Пошаговая инструкция — `HOSTING.md`; классный сервер на
   Pages не работает.
+- **VPS для класса.** Шаблоны `deploy/pyquiz.service`, `deploy/Caddyfile` и
+  `deploy/pyquiz.env.example`; в `HOSTING.md` — установка, проверка
+  `unshare`, HTTPS, бэкапы и запрет `process`-песочницы на публичном сервере.
 
 ## 1.6.0 — 2026-10-21
 
