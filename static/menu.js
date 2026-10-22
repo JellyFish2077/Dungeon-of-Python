@@ -838,10 +838,10 @@
         e.preventDefault();
         activateAction(item.dataset.action);
       });
-      list.addEventListener("mouseover", (e) => {
+      list.addEventListener("mousemove", (e) => {
         const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
         if (!item || item.classList.contains("hidden") || item.classList.contains("is-disabled")) return;
-        setActive(item, false);
+        if (item !== activeItem) setActive(item, false);
       });
     }
 
@@ -853,10 +853,10 @@
         e.preventDefault();
         activatePause(item.dataset.pause);
       });
-      pauseList.addEventListener("mouseover", (e) => {
+      pauseList.addEventListener("mousemove", (e) => {
         const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
         if (!item || item.classList.contains("hidden") || item.classList.contains("is-disabled")) return;
-        setActive(item, false);
+        if (item !== activeItem) setActive(item, false);
       });
     }
 
