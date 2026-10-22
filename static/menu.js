@@ -525,15 +525,21 @@
     }
     const state = gameStatus();
     if (state && state.battle) return;
-    // Закрываем меню до открытия стража: иначе close() вернёт фокус в меню
-    // уже после того, как окно стража попытается забрать его себе.
-    close();
     const game = api();
     if (game && typeof game.newRun === "function") {
+      let ok = true;
       try {
-        game.newRun();
-      } catch (e) {}
+        ok = game.newRun();
+      } catch (e) {
+        ok = false;
+      }
+      // Не закрываем меню, если игра не смогла открыть стража: иначе игрок
+      // остался бы в пустой деревне без окна спуска.
+      if (ok === false) return;
     }
+    // Стража открывает newRun(); меню закрываем после, чтобы close() не успел
+    // вернуть фокус раньше окна стража.
+    close();
   }
 
   function onLoad() {
