@@ -254,11 +254,12 @@ viewport, а шапка, HUD, журнал и кнопки действия пл
 
 ### GitHub Pages
 
-Публичную сборку можно хостить на GitHub Pages: workflow
-`.github/workflows/pages.yml` собирает `standalone/build`, скачивает Pyodide,
-прогоняет `verify_web.py` и публикует папку. Классный сервер (`server.py`,
-аккаунты, `/results`) на Pages не работает — для него нужен Python-сервер.
-Пошаговая инструкция и ограничения: [HOSTING.md](HOSTING.md).
+Публичная сборка 1.6.1 опубликована из ветки `gh-pages`:
+`https://jellyfish2077.github.io/Dungeon-of-Python/`. Ветка содержит только
+собранную статику, без сервера и данных. Автоматический workflow
+`.github/workflows/pages.yml` остаётся в истории, но убран из `main`: PAT без
+scope `workflow` не может его обновлять. Пошаговая инструкция и ограничения:
+[HOSTING.md](HOSTING.md).
 
 ### Вход
 

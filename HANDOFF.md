@@ -143,11 +143,11 @@ sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages` (коммит
-  `d5a087b`), но в настройках Pages её ещё нужно выбрать: **Settings → Pages →
-  Deploy from a branch → gh-pages / root**. Исходники в удалённый `main` не
-  запушены: токен не имеет scope `workflow` и не может обновить
-  `.github/workflows/pages.yml`. Либо выдать scope, либо пользоваться
-  `gh-pages`.
+  `d5a087b`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
+  Исходники 1.6.1 запушены в `main` (коммит `92adb90`), но без
+  `.github/workflows/pages.yml`: PAT не имеет scope `workflow`. Публикация идёт
+  из `gh-pages`; чтобы вернуть Actions, нужно выдать scope и восстановить
+  workflow из истории.
 
 - **`verify_web.py` пройден на Windows в Edge: 17/17**
   (`python verify_web.py --browser msedge`); в `run_all_checks.py` проверка

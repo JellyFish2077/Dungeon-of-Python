@@ -11,45 +11,43 @@ GitHub Pages публикует только `standalone/build`. Там нет `
 `/results` и проверки кода на сервере: код выполняется в браузере через Pyodide,
 профиль и сейв лежат в `localStorage`.
 
-## Один раз настроить Pages
+## Как опубликовано сейчас
 
-1. Перенесите свежий код в ветку `main`. Сейчас удалённая `main` старая, а
-   работа лежит в `progression-and-battle-ui`; запушьте её и влейте через PR
-   или смержите локально.
-2. На GitHub: **Settings → Pages → Build and deployment → Source: GitHub
-   Actions**. Не выбирайте «Deploy from a branch»: сборку делает workflow.
-3. Запушьте `.github/workflows/pages.yml` в `main`. Workflow сам:
-   - собирает `standalone/build`;
-   - скачивает Pyodide в `standalone/build/static/pyodide`;
-   - прогоняет `verify_web.py` в Chromium;
-   - загружает папку как Pages artifact и публикует.
-4. Дождитесь зелёного workflow во вкладке **Actions**. Адрес будет:
-   `https://<username>.github.io/<repo>/`
-   для этого репозитория — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
+Публичная сборка 1.6.1 лежит в ветке `gh-pages`. В настройках Pages выбран
+источник **Deploy from a branch** → `gh-pages` / `/ (root)`; workflow для этого
+не нужен.
+
+Обновление:
+
+```bash
+python tools/build_web.py
+python tools/fetch_pyodide.py
+```
+
+Затем содержимое `standalone/build/` кладётся в корень `gh-pages` (там должны
+быть `index.html`, `game.html` и `.nojekyll`) и ветка пушится. Адрес:
+
+`https://<username>.github.io/<repo>/`
+
+для этого репозитория — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
 
 Если репозиторий **приватный**, GitHub Pages требует платный план (Pro/Team)
 или публичный репозиторий. Данные учеников в git не попадают: `results.json`,
 `users.json`, `.secret`, `_backup/`, `dist/` и `standalone/build/` в
 `.gitignore`. Но исходники при публикации репозитория станут видны.
 
-### Если токен не может обновлять workflow
+### Вариант с GitHub Actions (на будущее)
 
-GitHub не разрешает PAT без scope `workflow` создавать или менять
-`.github/workflows/pages.yml`. Тогда есть два пути.
+PAT без scope `workflow` не может создавать или менять
+`.github/workflows/pages.yml`, поэтому сейчас workflow из `main` убран, а
+публикация идёт из `gh-pages`. Если понадобится автоматическая сборка:
 
-1. Выдать токену scope `workflow` (Settings → Developer settings → Personal
-   access tokens) и запушить workflow.
-2. Опубликовать готовую сборку из ветки `gh-pages`:
-   - соберите локально `python tools/build_web.py` и
-     `python tools/fetch_pyodide.py`;
-   - положите содержимое `standalone/build/` в корень ветки `gh-pages`
-     (там уже должен быть `index.html` и `.nojekyll`);
-   - в **Settings → Pages → Deploy from a branch** выберите
-     `gh-pages` / `/ (root)`.
-
-Ветка `gh-pages` — только собранная статика, без исходников и workflow. Если
-токен снова не даёт пушить workflow, этот путь работает и обновляется
-повторной сборкой ветки.
+1. Выдайте токену scope `workflow` (Settings → Developer settings → Personal
+   access tokens).
+2. Верните `.github/workflows/pages.yml` из истории git.
+3. Переключите Pages Source на **GitHub Actions**.
+4. Workflow соберёт `standalone/build`, скачает Pyodide, прогонит
+   `verify_web.py` и опубликует artifact.
 
 ## Как проверять
 
