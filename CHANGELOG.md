@@ -36,6 +36,15 @@
 
 - Полный прогон 7/7, `verify_server` 85/85, `verify_web` 17/17;
   `verify_dungeon` — 964–981 проверок в зависимости от генерации.
+- `verify_web.py` держит очередь смоук-сервера 128 соединений: Chromium больше
+  не получает `ERR_CONNECTION_REFUSED` при параллельной загрузке скриптов.
+
+### Инфраструктура
+
+- **GitHub Pages.** Workflow `.github/workflows/pages.yml` собирает
+  `standalone/build`, скачивает Pyodide, прогоняет `verify_web.py` и публикует
+  статическую сборку. Пошаговая инструкция — `HOSTING.md`; классный сервер на
+  Pages не работает.
 
 ## 1.6.0 — 2026-10-21
 

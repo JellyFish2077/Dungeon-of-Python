@@ -252,6 +252,14 @@ viewport, а шапка, HUD, журнал и кнопки действия пл
 генерируется и в git не входит. Перед релизом пройдите `RELEASE.md`;
 готовый архив — `dist/pydungeon-standalone-<версия>.zip`.
 
+### GitHub Pages
+
+Публичную сборку можно хостить на GitHub Pages: workflow
+`.github/workflows/pages.yml` собирает `standalone/build`, скачивает Pyodide,
+прогоняет `verify_web.py` и публикует папку. Классный сервер (`server.py`,
+аккаунты, `/results`) на Pages не работает — для него нужен Python-сервер.
+Пошаговая инструкция и ограничения: [HOSTING.md](HOSTING.md).
+
 ### Вход
 
 Аккаунт ученика — имя и PIN, он хранится на сервере, вход выдаёт подписанный

@@ -88,10 +88,22 @@ def ensure_build(rebuild):
     return os.path.isfile(os.path.join(BUILD, "index.html"))
 
 
+class QuietServer(socketserver.ThreadingTCPServer):
+    """Сервер с запасом очереди: Chromium открывает много соединений сразу.
+
+    У ThreadingTCPServer по умолчанию request_queue_size = 5. При загрузке
+    восемнадцати скриптов и картинок часть запросов получала
+    ERR_CONNECTION_REFUSED, из-за чего падала то карта, то консоль.
+    """
+
+    allow_reuse_address = True
+    daemon_threads = True
+    request_queue_size = 128
+
+
 def serve():
     handler = functools.partial(QuietHandler, directory=BUILD)
-    server = socketserver.ThreadingTCPServer(("127.0.0.1", 0), handler)
-    server.daemon_threads = True
+    server = QuietServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server, "http://127.0.0.1:%d" % server.server_address[1]
