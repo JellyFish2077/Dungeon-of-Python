@@ -144,7 +144,7 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
 изменения 1.6.1 — в последнем коммите. В дереве остаются только локальные
 `PILOT.md` (черновик пилота, не коммитился) и `.claude/`.
 `dist/pydungeon-standalone-1.6.1.zip` — 6,0 МБ, `index.html` в корне,
-sha256 `99774de2b9d5af768b936e1b2d2a10dea2cce1f8a27d2928cfc6db26ba94fcdd`
+sha256 `112a49567c8de3f40beb8b9eee211279406111fac6e18fa40303aaf7cc101dde`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages`, сайт —
