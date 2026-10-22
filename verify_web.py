@@ -374,6 +374,20 @@ def run_checks(browser, base):
         "() => Object.keys(localStorage).some(k => k.startsWith('pyquiz_save_v1'))",
         timeout=15000)
     check(True, "поход создаёт локальный сейв")
+    page.wait_for_function(
+        "() => document.getElementById('tutorial-panel') &&"
+        " !document.getElementById('tutorial-panel').classList.contains('hidden')",
+        timeout=15000)
+    check(page.locator("#tutorial-steps [data-step]").count() == 4,
+          "первый спуск показывает обучение")
+    page.click("#tutorial-skip")
+    page.wait_for_timeout(250)
+    check(not page.locator("#tutorial-panel").is_visible(),
+          "обучение можно пропустить")
+    check(page.evaluate(
+        "() => { const u = currentUser();"
+        " return !!(u && getProfile(u.name).tutorialDone); }"),
+        "пропуск обучения запоминается")
 
     page.goto(base + "/", wait_until="domcontentloaded")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)

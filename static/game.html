@@ -442,6 +442,26 @@
 
   <div class="toast" id="toast"></div>
 
+  <!-- Первый спуск: ненавязчивые задачи поверх игры, не модальное окно. -->
+  <aside class="tutorial-panel hidden" id="tutorial-panel" aria-live="polite"
+         aria-label="Обучение первому спуску">
+    <header class="tutorial-head">
+      <div>
+        <span class="tutorial-kicker">Первый спуск</span>
+        <span class="tutorial-progress" id="tutorial-progress">0 / 4</span>
+      </div>
+      <button class="tutorial-skip" id="tutorial-skip" type="button">Пропустить</button>
+    </header>
+    <ol class="tutorial-steps" id="tutorial-steps">
+      <li data-step="move"><b>Шаг</b><span>WASD или стрелки</span></li>
+      <li data-step="chest"><b>Сундук</b><span>подойди и нажми E</span></li>
+      <li data-step="battle"><b>Бой</b><span>ответь на вопрос</span></li>
+      <li data-step="camp"><b>Костёр</b><span>подойди и нажми E</span></li>
+    </ol>
+    <p class="tutorial-hint" id="tutorial-hint">Сделай первый шаг.</p>
+  </aside>
+
+
   <script src="/api/features.js"></script>
   <script src="/static/questions.js"></script>
   <script src="/static/variants.js"></script>
