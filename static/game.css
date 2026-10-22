@@ -5584,3 +5584,10 @@ body.game-page .side-panel .equip-value {
     animation: none;
   }
 }
+
+/* Окно боя статично: декоративный туман выходит за края и раньше создавал
+   внешнюю прокрутку. Прокрутка остаётся только внутри карточки боя. */
+#battle-overlay {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
