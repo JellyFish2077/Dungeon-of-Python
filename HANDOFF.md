@@ -143,11 +143,11 @@ sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages` (коммит
-  `d5a087b`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
-  Исходники 1.6.1 запушены в `main` (коммит `8f914cb`), но без
-  `.github/workflows/pages.yml`: PAT не имеет scope `workflow`. Публикация идёт
-  из `gh-pages`; чтобы вернуть Actions, нужно выдать scope и восстановить
-  workflow из истории.
+  `b2620b9`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
+  «Новая игра» на стартовом экране открывает главное меню. Исходники 1.6.1
+  запушены в `main`, но без `.github/workflows/pages.yml`: PAT не имеет scope
+  `workflow`. Публикация идёт из `gh-pages`; чтобы вернуть Actions, нужно
+  выдать scope и восстановить workflow из истории.
 
 - **`verify_web.py` пройден на Windows в Edge: 17/17**
   (`python verify_web.py --browser msedge`); в `run_all_checks.py` проверка
