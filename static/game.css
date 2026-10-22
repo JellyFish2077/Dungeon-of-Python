@@ -5498,3 +5498,12 @@ body.game-page .side-panel .equip-value {
   font-size: 0 !important;
   pointer-events: none !important;
 }
+
+/* Верхние ярлыки убраны: лавка доступна у торговца, кузница — по F,
+   панель героя всегда видна. Журнал и пауза остаются в шапке. */
+#shop-btn,
+#forge-btn,
+#hud-btn,
+#village-btn {
+  display: none !important;
+}
