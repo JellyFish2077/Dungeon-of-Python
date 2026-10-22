@@ -8,6 +8,7 @@ const LAST_NAME_KEY = "pyquiz_last_name";
 const SAVE_STORAGE_PREFIX = "pyquiz_save_v1";
 const PLACE_STORAGE_PREFIX = "pyquiz_place_v1";
 const VILLAGE_STORAGE_PREFIX = "pyquiz_village_v1";
+const SAVE_SLOTS_STORAGE_PREFIX = "pyquiz_save_slots_v1";
 // Потолок амулетов возврата. Значение по умолчанию: точное число задаёт
 // админка (hub.amuletMax в game.js), но профиль хранит счётчик сам и должен
 // уметь зажать его и без загруженной игры. Держим эти два числа в согласии.
@@ -262,6 +263,8 @@ function renameProfile(oldName, newName) {
   const placeTo = PLACE_STORAGE_PREFIX + ":" + to;
   const villageFrom = VILLAGE_STORAGE_PREFIX + ":" + from;
   const villageTo = VILLAGE_STORAGE_PREFIX + ":" + to;
+  const slotsFrom = SAVE_SLOTS_STORAGE_PREFIX + ":" + from;
+  const slotsTo = SAVE_SLOTS_STORAGE_PREFIX + ":" + to;
 
   try {
     // Не затираем чужое сохранение, даже если профиля с таким именем нет.
@@ -272,6 +275,9 @@ function renameProfile(oldName, newName) {
       return { ok: false, error: "У этого имени уже есть сохранение" };
     }
     if (villageFrom !== villageTo && localStorage.getItem(villageTo) != null) {
+      return { ok: false, error: "У этого имени уже есть сохранение" };
+    }
+    if (slotsFrom !== slotsTo && localStorage.getItem(slotsTo) != null) {
       return { ok: false, error: "У этого имени уже есть сохранение" };
     }
 
@@ -314,6 +320,26 @@ function renameProfile(oldName, newName) {
           localStorage.setItem(villageTo, village);
         }
         localStorage.removeItem(villageFrom);
+      }
+    }
+    if (slotsFrom !== slotsTo) {
+      const rawSlots = localStorage.getItem(slotsFrom);
+      if (rawSlots != null) {
+        let data = null;
+        try { data = JSON.parse(rawSlots); } catch (e) {}
+        if (Array.isArray(data)) {
+          data.forEach((slot) => {
+            if (!slot || !slot.snapshot) return;
+            slot.snapshot.name = to;
+            if (slot.snapshot.data && typeof slot.snapshot.data === "object") {
+              slot.snapshot.data.name = to;
+            }
+          });
+          localStorage.setItem(slotsTo, JSON.stringify(data));
+        } else {
+          localStorage.setItem(slotsTo, rawSlots);
+        }
+        localStorage.removeItem(slotsFrom);
       }
     }
   } catch (e) {

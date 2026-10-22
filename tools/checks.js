@@ -6636,22 +6636,35 @@ if (vault) {
   localStorage.setItem("pyquiz_village_v1:" + oldName, JSON.stringify({
     v: 1, name: oldName, x: 3, y: 4
   }));
+  localStorage.setItem("pyquiz_save_slots_v1:" + oldName, JSON.stringify([{
+    id: "slot-1", name: "Мой поход", createdAt: 1, updatedAt: 1,
+    snapshot: {
+      v: 1, kind: "village", name: oldName,
+      data: { v: 1, name: oldName, x: 3, y: 4 }
+    }
+  }]));
   const moved = globalThis.renameProfile(oldName, newName);
   const after = globalThis.getProfile(newName);
   let movedSave = null;
   let movedVillage = null;
+  let movedSlots = null;
   try {
     movedSave = JSON.parse(localStorage.getItem("pyquiz_save_v1:" + newName) || "null");
     movedVillage = JSON.parse(localStorage.getItem("pyquiz_village_v1:" + newName) || "null");
+    movedSlots = JSON.parse(localStorage.getItem("pyquiz_save_slots_v1:" + newName) || "null");
   } catch (e) {}
   log(!!moved && moved.ok && after && after.wallet.gold === 77 &&
       movedSave && movedSave.name === newName &&
       movedVillage && movedVillage.name === newName && movedVillage.x === 3 &&
+      movedSlots && movedSlots[0] && movedSlots[0].name === "Мой поход" &&
+      movedSlots[0].snapshot.name === newName &&
+      movedSlots[0].snapshot.data.name === newName &&
       localStorage.getItem("pyquiz_save_v1:" + oldName) === null &&
       localStorage.getItem("pyquiz_save_v1:" + newName) !== null &&
       localStorage.getItem("pyquiz_village_v1:" + oldName) === null &&
+      localStorage.getItem("pyquiz_save_slots_v1:" + oldName) === null &&
       localStorage.getItem("pyquiz_place_v1:" + newName) === "dungeon",
-    "профиль: переименование переносит сейв, деревню и метку места",
+    "профиль: переименование переносит сейв, деревню, ячейки и метку места",
     JSON.stringify(moved));
   globalThis.putProfile("__rename_busy__", { name: "__rename_busy__" });
   const busy = globalThis.renameProfile(newName, "__rename_busy__");

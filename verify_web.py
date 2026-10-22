@@ -198,8 +198,17 @@ def run_checks(browser, base):
     check(labels == ["Новая игра", "Загрузить", "Настройки",
                      "Профиль", "Об игре", "Выход"],
           "главное меню — один вертикальный список", labels)
-    check(page.locator("#menu-load").get_attribute("aria-disabled") == "true",
-          "«Загрузить» без сохранения недоступна")
+    check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
+          "«Загрузить» открывает меню сохранений")
+    page.click("#menu-load")
+    page.wait_for_function(
+        "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
+    check(page.locator("#saves-title").inner_text() == "Сохранения",
+          "меню сохранений открывается из главного меню")
+    page.click("#saves-back")
+    page.wait_for_timeout(200)
+    check(page.locator("#menu-view-main").is_visible(),
+          "закрытие сохранений возвращает в меню")
 
     # Профиль, справка и настройки — пункты списка, а не отдельные кнопки.
     page.click("#menu-profile")
@@ -257,14 +266,54 @@ def run_checks(browser, base):
                            "Настройки", "Выход в Меню"],
           "меню паузы — пять пунктов", pause_labels)
     page.click("#pause-save")
+    page.wait_for_function(
+        "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
+    check("сохранить поход" in page.locator("#saves-subtitle").inner_text().lower(),
+          "«Сохранить» открывает меню сохранений")
+    empty_text = page.locator("#saves-list .save-slot.is-empty").first.inner_text()
+    check("Записать новое сохранение" in empty_text,
+          "пустая ячейка предлагает записать сохранение", empty_text)
+    page.locator("#saves-list .save-slot.is-empty").first.click()
+    page.wait_for_timeout(250)
+    filled = page.locator("#saves-list .save-slot:not(.is-empty)")
+    check(filled.count() == 1, "сохранение появляется в списке")
+    filled.first.click()
+    page.wait_for_timeout(150)
+    check(page.locator("#saves-detail .save-detail-shot").is_visible(),
+          "у сохранения есть скриншот")
+    check("Деревня" in page.locator("#saves-detail .save-detail-meta").inner_text(),
+          "у сохранения есть описание")
+    action_labels = page.locator("#saves-detail .saves-btn").all_inner_texts()
+    check(action_labels == ["Перезаписать", "Переименовать", "Удалить"],
+          "кнопки ячейки: перезаписать, переименовать, удалить", action_labels)
+    page.click("#saves-detail [data-do='rename']")
+    page.fill("#save-rename-input", "Тестовая ячейка")
+    page.click("#saves-detail [data-do='rename-save']")
     page.wait_for_timeout(200)
-    check("сохран" in page.locator("#pause-note").inner_text().lower(),
-          "«Сохранить» пишет деревню")
-    check(page.locator("#pause-load").get_attribute("aria-disabled") == "false",
-          "сохранение деревни доступно для загрузки")
+    check(page.locator("#saves-detail .save-detail-title").inner_text() == "Тестовая ячейка",
+          "сохранение переименовывается")
+    # Вторая ячейка: проверяем удаление, не теряя первую.
+    page.locator("#saves-list .save-slot.is-empty").first.click()
+    page.wait_for_timeout(200)
+    page.locator("#saves-list .save-slot:not(.is-empty)").nth(1).click()
+    page.click("#saves-detail [data-do='delete']")
+    page.wait_for_timeout(250)
+    check(page.locator("#saves-list .save-slot:not(.is-empty)").count() == 1,
+          "сохранение удаляется")
+    page.keyboard.press("Escape")
+    page.wait_for_timeout(200)
+    check(page.locator("#menu-view-pause").is_visible(),
+          "закрытие сохранений возвращает в паузу")
     page.click("#pause-load")
-    page.wait_for_timeout(300)
-    check(not page.locator("#menu-overlay").is_visible(),
+    page.wait_for_function(
+        "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
+    check("загрузить поход" in page.locator("#saves-subtitle").inner_text().lower(),
+          "«Загрузить» открывает меню сохранений")
+    page.locator("#saves-list .save-slot:not(.is-empty)").first.click()
+    page.click("#saves-detail [data-do='load']")
+    page.wait_for_timeout(400)
+    check(not page.locator("#saves-overlay").is_visible() and
+          not page.locator("#menu-overlay").is_visible(),
           "«Загрузить» возвращает в сохранённую деревню")
     page.click("#menu-btn")
     page.wait_for_timeout(300)
@@ -314,9 +363,12 @@ def run_checks(browser, base):
           "«Загрузить» доступна при сохранении")
     page.click("#menu-load")
     page.wait_for_function(
-        "() => ((document.getElementById('log') || {}).textContent || '')"
-        ".includes('Продолжение игры')", timeout=15000)
-    check(True, "«Загрузить» поднимает сохранённый поход")
+        "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
+    page.locator("#saves-list .save-slot:not(.is-empty)").first.click()
+    page.click("#saves-detail [data-do='load']")
+    page.wait_for_timeout(400)
+    check(not page.locator("#menu-overlay").is_visible(),
+          "«Загрузить» поднимает сохранение из списка")
 
     # 6. «Выход в Меню» из паузы и «Выход» из главного меню.
     page.click("#menu-btn")
