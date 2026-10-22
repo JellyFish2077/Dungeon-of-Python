@@ -1,7 +1,8 @@
 // Классическое главное меню PyDungeon.
 //
-// Один экран с крупным названием и вертикальным списком. Настройки, аккаунт
-// и управление — отдельные экраны, а не постоянные колонки. Меню живёт поверх
+// Один экран с крупным названием и вертикальным списком: «Новая игра»,
+// «Загрузить», «Настройки», «Профиль», «Об игре», «Выход». Настройки, профиль
+// и справка — такие же пункты списка, а не отдельные кнопки. Меню живёт поверх
 // уже загруженной игры, поэтому классная и публичная сборки используют один
 // экран; различается только способ входа (PIN или локальное имя).
 //
@@ -231,7 +232,8 @@
     const views = {
       main: $("menu-view-main"),
       settings: $("menu-view-settings"),
-      account: $("menu-view-account")
+      account: $("menu-view-account"),
+      about: $("menu-view-about")
     };
     Object.keys(views).forEach((key) => {
       if (views[key]) views[key].classList.toggle("hidden", key !== name);
@@ -254,93 +256,62 @@
       focusLater($("menu-back-settings") || $("set-sound"));
       return;
     }
+    if (name === "about") {
+      renderVersion();
+      focusLater($("menu-back-about"));
+    }
   }
 
   // ---------- Главный экран ----------
 
-  function renderPlay() {
-    const item = $("menu-play");
-    if (!item) return;
-    const label = item.querySelector(".menu-item-label");
-    const note = $("menu-play-note");
-    const state = gameStatus();
-    if (!hasUser()) {
-      if (label) label.textContent = "Начать поход";
-      if (note) note.textContent = "сначала войди";
-      return;
-    }
-    if (state && state.place === "dungeon") {
-      if (label) label.textContent = "Вернуться в игру";
-      if (note) note.textContent = "этаж " + state.floor;
-      return;
-    }
-    if (state && state.paused) {
-      if (label) label.textContent = "Продолжить поход";
-      if (note) {
-        note.textContent = "этаж " + state.floor + " · " + state.gold + " зол.";
-      }
-      return;
-    }
-    if (label) label.textContent = "Начать поход";
-    if (note) note.textContent = "сложность у стража";
-  }
-
-  function renderVillage() {
-    const item = $("menu-village");
-    if (!item) return;
-    const state = gameStatus();
-    const show = hasUser() && state && !state.battle;
-    item.classList.toggle("hidden", !show);
-    const note = $("menu-village-note");
-    if (note) {
-      note.textContent = state && state.place === "dungeon"
-        ? "поход сохранится" : "осмотреться";
-    }
-  }
-
   function renderNew() {
     const item = $("menu-new");
     if (!item) return;
+    const note = $("menu-new-note");
     const state = gameStatus();
-    const show = !!state && !state.battle && (state.paused || state.place === "dungeon");
-    item.classList.toggle("hidden", !show);
+    const battle = !!(state && state.battle);
+    item.classList.toggle("is-disabled", battle);
+    item.setAttribute("aria-disabled", battle ? "true" : "false");
+    if (note) {
+      if (!hasUser()) note.textContent = "сначала войди";
+      else if (battle) note.textContent = "сначала заверши бой";
+      else note.textContent = "поход и сложность";
+    }
   }
 
-  function renderAccountLine() {
-    const box = $("menu-account");
-    if (!box) return;
-    const user = current();
-    if (user) {
-      const initial = String(user.name || "?").slice(0, 1).toUpperCase();
-      const role = isWeb()
-        ? "профиль"
-        : user.role === "teacher" ? "преподаватель" : "ученик";
-      const changeText = isWeb() ? "Изменить" : "Сменить";
-      box.innerHTML =
-        "<span class='menu-account-avatar' aria-hidden='true'>" + esc(initial) + "</span>" +
-        "<span class='menu-account-name'><b>" + esc(user.name) + "</b> <span>" +
-        role + "</span></span>" +
-        "<button class='menu-change' id='menu-change' type='button'>" +
-        changeText + "</button>";
+  function renderLoad() {
+    const item = $("menu-load");
+    if (!item) return;
+    const state = gameStatus();
+    const note = $("menu-load-note");
+    const can = hasUser() && state && (state.paused || state.place === "dungeon");
+    item.classList.toggle("is-disabled", !can);
+    item.setAttribute("aria-disabled", can ? "false" : "true");
+    if (!note) return;
+    if (!hasUser()) {
+      note.textContent = "сначала войди";
+    } else if (!state || (!state.paused && state.place !== "dungeon")) {
+      note.textContent = "нет сохранения";
+    } else if (state.place === "dungeon") {
+      note.textContent = "поход идёт · этаж " + state.floor;
     } else {
-      box.innerHTML =
-        "<span class='menu-account-name'>Гость</span>" +
-        "<button class='menu-change' id='menu-change' type='button'>Войти</button>";
+      note.textContent = "этаж " + state.floor + " · " + state.gold + " зол.";
     }
-    const change = $("menu-change");
-    if (change) {
-      change.addEventListener("click", () => {
-        sound("click");
-        setView("account");
-      });
-    }
+  }
+
+  function renderProfile() {
+    const note = $("menu-profile-note");
+    if (!note) return;
+    const user = current();
+    if (!user) note.textContent = "гость";
+    else if (isWeb()) note.textContent = "локальный профиль";
+    else note.textContent = user.role === "teacher" ? "преподаватель" : "ученик";
   }
 
   function renderMain() {
-    renderPlay();
-    renderVillage();
     renderNew();
-    renderAccountLine();
+    renderLoad();
+    renderProfile();
     renderVersion();
     ensureActive();
   }
@@ -546,63 +517,14 @@
 
   // ---------- Действия меню ----------
 
-  function onPlay() {
-    sound("click");
-    if (!hasUser()) {
-      setView("account");
-      return;
-    }
-    const state = gameStatus();
-    if (state && state.place === "dungeon") {
-      close();
-      return;
-    }
-    if (state && state.paused) {
-      if (api() && typeof api().resume === "function") {
-        try {
-          api().resume();
-        } catch (e) {
-          // Продолжение не удалось — просто закроем меню и покажем деревню.
-        }
-      }
-      close();
-      return;
-    }
-    // Похода нет: открываем окно стража, а не просто закрываем меню.
-    // Сначала закрываем меню, чтобы возврат фокуса не сбил фокус стража.
-    close();
-    const game = api();
-    if (game && typeof game.newRun === "function") {
-      try {
-        game.newRun();
-      } catch (e) {}
-    }
-  }
-
-  function onVillage() {
-    sound("click");
-    if (!hasUser()) {
-      setView("account");
-      return;
-    }
-    const state = gameStatus();
-    if (state && state.place === "dungeon") {
-      const game = api();
-      if (game && typeof game.village === "function") {
-        let ok = true;
-        try { ok = game.village(); } catch (e) { ok = false; }
-        if (ok === false) return;
-      }
-    }
-    close();
-  }
-
   function onNew() {
     sound("click");
     if (!hasUser()) {
       setView("account");
       return;
     }
+    const state = gameStatus();
+    if (state && state.battle) return;
     // Закрываем меню до открытия стража: иначе close() вернёт фокус в меню
     // уже после того, как окно стража попытается забрать его себе.
     close();
@@ -614,6 +536,37 @@
     }
   }
 
+  function onLoad() {
+    sound("click");
+    if (!hasUser()) {
+      setView("account");
+      return;
+    }
+    const state = gameStatus();
+    if (!state || (!state.paused && state.place !== "dungeon")) {
+      sound("wrong");
+      return;
+    }
+    // В подземелье поход уже идёт: просто возвращаемся на карту.
+    if (state.place === "dungeon") {
+      close();
+      return;
+    }
+    if (api() && typeof api().resume === "function") {
+      let ok = true;
+      try {
+        ok = api().resume();
+      } catch (e) {
+        ok = false;
+      }
+      if (ok === false) {
+        sound("wrong");
+        return;
+      }
+    }
+    close();
+  }
+
   function onExit() {
     sound("click");
     const game = api();
@@ -621,14 +574,16 @@
       try { game.leave(); } catch (e) {}
       return;
     }
-    window.location.href = isWeb() ? "index.html" : "/";
+    window.location.href = isWeb() ? "index.html?exit=1" : "/";
   }
 
   function activateAction(action) {
     switch (action) {
-      case "play": onPlay(); break;
-      case "village": onVillage(); break;
       case "new": onNew(); break;
+      case "load": onLoad(); break;
+      case "settings": sound("click"); setView("settings"); break;
+      case "profile": sound("click"); setView("account"); break;
+      case "about": sound("click"); setView("about"); break;
       case "exit": onExit(); break;
       default: break;
     }
@@ -755,27 +710,19 @@
       });
     }
 
-    // Tab ходит и по шестерёнке, и по строке аккаунта. Когда фокус уходит
-    // туда, золотая строка списка снимается: иначе на экране два акцента.
+    // Tab ходит по списку, а когда фокус уходит в подэкран, золотая строка
+    // списка снимается: иначе на экране два акцента.
     const overlay = $("menu-overlay");
     if (overlay) {
       overlay.addEventListener("focusin", (e) => {
         const target = e.target;
         const item = target && target.closest
           ? target.closest("#menu-list .menu-item") : null;
-        if (item) {
-          setActive(item, false);
-          return;
-        }
-        if (target && target.closest &&
-            target.closest(".menu-gear, .menu-change")) {
-          mainItems().forEach((node) => node.classList.remove("is-active"));
-          activeItem = null;
-        }
+        if (item) setActive(item, false);
       });
     }
 
-    ["settings", "account"].forEach((name) => {
+    ["settings", "account", "about"].forEach((name) => {
       const back = $("menu-back-" + name);
       if (back) {
         back.addEventListener("click", () => {
@@ -785,16 +732,6 @@
         });
       }
     });
-
-    // Настройки — кнопка-шестерёнка, а не пункт списка: список остаётся
-    // только из действий игры.
-    const gear = $("menu-settings-btn");
-    if (gear) {
-      gear.addEventListener("click", () => {
-        sound("click");
-        setView("settings");
-      });
-    }
 
     const soundBox = $("set-sound");
     if (soundBox) {

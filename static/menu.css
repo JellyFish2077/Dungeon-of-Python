@@ -264,6 +264,17 @@ body.menu-open #web-controls-hint {
   cursor: not-allowed;
 }
 
+.menu-item.is-disabled:hover {
+  color: #c7d4e6;
+  border-left-color: transparent;
+  background: transparent;
+}
+
+.menu-item.is-disabled:hover .menu-item-mark {
+  opacity: 0;
+  transform: translateX(-4px);
+}
+
 /* ---------- Нижняя строка: аккаунт, подсказка, версия ---------- */
 
 .menu-statusbar {
