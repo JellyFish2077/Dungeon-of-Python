@@ -144,7 +144,7 @@ sha256 `455987e2f5d9af13d1cc10916e417b2afbd3ac8009d269cd37d58a6602602efa`
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages` (коммит
   `d5a087b`), сайт — `https://jellyfish2077.github.io/Dungeon-of-Python/`.
-  Исходники 1.6.1 запушены в `main` (коммит `92adb90`), но без
+  Исходники 1.6.1 запушены в `main` (коммит `8f914cb`), но без
   `.github/workflows/pages.yml`: PAT не имеет scope `workflow`. Публикация идёт
   из `gh-pages`; чтобы вернуть Actions, нужно выдать scope и восстановить
   workflow из истории.
