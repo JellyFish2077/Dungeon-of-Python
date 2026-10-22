@@ -1,0 +1,5082 @@
+html {
+  height: 100%;
+  overflow: hidden;
+}
+
+body.game-page {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+}
+
+/* В настоящем полноэкранном режиме убираем внешние поля и ограничение
+   ширины: карта занимает всё окно, а не центрированную колонку 1200 px. */
+html:fullscreen body.game-page {
+  padding: 0;
+  gap: 0;
+}
+html:fullscreen body.game-page .game-wrap {
+  max-width: none;
+}
+html:fullscreen body.game-page .site-head {
+  padding: 8px 14px;
+}
+
+body.game-page .site-head {
+  width: 100%;
+  /* Отступ до сцены даёт gap у body.game-page. */
+  margin-bottom: 0;
+}
+
+body.game-page .brand {
+  width: auto;
+  max-width: none;
+  margin: 0;
+  gap: 9px;
+  justify-content: flex-start;
+  text-decoration: none;
+}
+
+/* В подземелье меню сайта убрано — шапка стала одной невысокой строкой,
+   и освободившиеся пиксели уходят сцене. Название ведёт на главную. */
+body.game-page .brand .logo {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  font-size: 15px;
+}
+
+body.game-page .brand h1 {
+  font-size: 16px;
+}
+
+body.game-page .stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
+body.game-page .game-wrap {
+  align-self: stretch;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+body.game-page .game-wrap > .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.stage {
+  width: 100%;
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.stage.playing {
+  height: 100%;
+}
+
+/* Бой показывается настоящим оверлеем (position: fixed), поэтому колонка
+   больше не занимает четверть экрана: сама она из раскладки выпадает, а её
+   содержимое — модальное окно — позиционируется от вьюпорта. */
+.battle-col {
+  min-width: 0;
+  display: contents;
+}
+
+.stage.playing .game-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.side-panel {
+  flex: 0 0 20%;
+  max-width: 20%;
+}
+
+#screen-game .map-scroll {
+  height: auto;
+  flex: 1 1 auto;
+  min-height: 220px;
+}
+
+.map-scroll .game-msg {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  min-height: 0;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: rgba(4, 7, 15, 0.8);
+  border: 1px solid #1d2f4c;
+  z-index: 6;
+  white-space: nowrap;
+}
+
+.side-card {
+  background: #101d31;
+  border: 1px solid #263a5c;
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.side-panel .hud,
+.side-panel .equip-bar {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.side-panel .hud-block,
+.side-panel .equip-slot {
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+}
+
+.side-panel .inventory {
+  max-width: none;
+}
+
+.map-scroll .log {
+  position: absolute;
+  left: 10px;
+  bottom: 44px;
+  width: min(340px, 62%);
+  max-height: 30%;
+  margin: 0;
+  background: rgba(4, 7, 15, 0.85);
+  border: 1px solid #1d2f4c;
+  border-radius: 10px;
+  padding: 8px 10px;
+  z-index: 6;
+  animation: cardIn 0.18s ease;
+}
+
+.map-scroll .log.collapsed {
+  display: none;
+}
+
+.side-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.side-info {
+  background: #101d31;
+  border: 1px solid #263a5c;
+  border-radius: var(--radius);
+  padding: 18px;
+  color: #9fb3d1;
+}
+
+.side-info h3 {
+  margin: 0 0 8px;
+  color: #f1f5f9;
+  font-size: 16px;
+}
+
+.side-info p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.side-hint {
+  color: #7dd3fc;
+}
+
+.game-wrap {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 980px) {
+  .stage.playing {
+    flex-direction: column;
+  }
+  .side-panel,
+  .stage.playing .game-wrap {
+    flex: 1 1 auto;
+    max-width: none;
+    width: 100%;
+  }
+}
+
+/* ---------- Панель игры (тёмное фэнтези) ---------- */
+.panel {
+  background: #101d31;
+  border: 1px solid #263a5c;
+  border-radius: var(--radius);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 22px;
+  color: #e6edf7;
+}
+
+.panel h2 {
+  color: #f1f5f9;
+}
+
+.panel .lead,
+.panel .facts li {
+  color: #9fb3d1;
+}
+
+.panel .field {
+  color: #cbd5e1;
+}
+
+.panel input[type="text"] {
+  background: #0e1a2f;
+  border-color: #2a3b5a;
+  color: #e6edf7;
+}
+
+.panel input[type="text"]:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(246, 196, 83, 0.15);
+}
+
+.panel .mode {
+  background: #0e1a2f;
+  border-color: #2a3b5a;
+}
+
+.panel .mode b {
+  color: #e6edf7;
+}
+
+.panel .mode span {
+  color: #8ea3c0;
+}
+
+.panel .mode:hover {
+  border-color: #3b5175;
+}
+
+.panel .mode.active {
+  border-color: var(--gold);
+  background: rgba(246, 196, 83, 0.12);
+  box-shadow: 0 0 0 3px rgba(246, 196, 83, 0.12);
+}
+
+/* ---------- HUD ---------- */
+.hud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.hud-block {
+  min-width: 140px;
+  flex: 1 1 160px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #223451;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.hud-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #8296b5;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.hp-bar {
+  height: 15px;
+  border-radius: 999px;
+  background: #0a1425;
+  overflow: hidden;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
+}
+
+.hp-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #3aa06a;
+  box-shadow: 0 0 10px rgba(74, 222, 128, 0.55);
+  transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hp-bar.enemy > i {
+  background: #c9453f;
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.55);
+}
+
+.hp-bar.low > i {
+  animation: lowHp 1s ease-in-out infinite;
+}
+
+.hp-bar.hurt > i {
+  animation: hpFlashHurt 0.5s ease;
+}
+
+.hp-bar.heal > i {
+  animation: hpFlashHeal 0.5s ease;
+}
+
+@keyframes hpFlashHurt {
+  0%, 100% { filter: brightness(1); }
+  40% { filter: brightness(2.1) saturate(2) hue-rotate(-18deg); }
+}
+
+@keyframes hpFlashHeal {
+  0%, 100% { filter: brightness(1); }
+  40% { filter: brightness(1.7) saturate(1.7); }
+}
+
+@keyframes lowHp {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.6) saturate(1.4); }
+}
+
+.xp-bar {
+  height: 7px;
+  border-radius: 999px;
+  background: #0a1425;
+  overflow: hidden;
+  margin-top: 7px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.xp-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #8b5cf6;
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+  transition: width 0.35s ease;
+}
+
+.hud-num {
+  font-size: 13px;
+  color: #9fb3d1;
+  margin-top: 5px;
+  font-weight: 700;
+}
+
+.floor-name {
+  font-weight: 800;
+  font-size: 15px;
+  color: #f6c453;
+}
+
+/* ---------- Панель экипировки ---------- */
+.equip-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.equip-slot {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid #223451;
+  border-radius: 11px;
+  padding: 8px 13px;
+  min-width: 122px;
+  font-size: 13px;
+}
+
+.equip-label {
+  display: block;
+  color: #8296b5;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+
+.equip-value {
+  font-weight: 700;
+  color: #e6edf7;
+}
+
+/* ---------- Особые эффекты предметов ---------- */
+/* Список отвечает на вопрос «что вообще сейчас работает на герое»:
+   без него игрок видит только названия предметов и не понимает,
+   что вампиризм или шипы уже включены. */
+.effect-list:empty {
+  display: none;
+}
+
+.effect-list {
+  margin-top: 12px;
+  border-top: 1px solid #223451;
+  padding-top: 10px;
+}
+
+.effect-title {
+  color: #8296b5;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-weight: 800;
+  margin-bottom: 7px;
+}
+
+.effect-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #cdd9ea;
+  padding: 3px 0;
+}
+
+.effect-num {
+  margin-left: auto;
+  color: #8fa6c4;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+.effect-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+  align-self: center;
+  background: #60a5fa;
+}
+
+/* У каждого семейства эффектов свой цвет — так строку узнают боковым зрением. */
+.effect-dot.lifesteal { background: #f87171; }
+.effect-dot.crit { background: #fbbf24; }
+.effect-dot.block { background: #38bdf8; }
+.effect-dot.thorns { background: #a78bfa; }
+.effect-dot.hintFree { background: #34d399; }
+.effect-dot.poisonImmune { background: #4ade80; }
+.effect-dot.reveal { background: #e879f9; }
+.effect-dot.execute { background: #fb923c; }
+.effect-dot.goldBonus { background: #facc15; }
+.effect-dot.cleanse,
+.effect-dot.fullHeal,
+.effect-dot.antidote { background: #2dd4bf; }
+
+/* ---------- Всплывающее уведомление об эффекте ---------- */
+.effect-flash {
+  position: fixed;
+  left: 50%;
+  bottom: 88px;
+  transform: translate(-50%, 10px);
+  z-index: 90;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid #2f4a6d;
+  background: rgba(9, 16, 30, 0.94);
+  color: #e6edf7;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  pointer-events: none;
+  white-space: nowrap;
+  max-width: min(90vw, 460px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Текст пуст — показывать нечего, иначе останется висеть пустая капсула. */
+.effect-flash:empty {
+  display: none;
+}
+
+.effect-flash.show {
+  animation: effectFlash 2s ease forwards;
+}
+
+@keyframes effectFlash {
+  0% { opacity: 0; transform: translate(-50%, 12px) scale(0.96); }
+  12% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  75% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -14px) scale(0.98); }
+}
+
+/* Уважаем настройку «меньше движения»: показываем без подъёма и масштаба. */
+@media (prefers-reduced-motion: reduce) {
+  .effect-flash.show {
+    animation: effectFlashFade 1.6s ease forwards;
+  }
+  @keyframes effectFlashFade {
+    0% { opacity: 0; }
+    15% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+}
+
+/* ---------- Карта ---------- */
+.map-scroll {
+  width: 100%;
+  height: clamp(300px, 58vh, 640px);
+  overflow: hidden;
+  position: relative;
+  border-radius: 16px;
+  margin-bottom: 16px;
+  cursor: grab;
+  background: #04070f;
+}
+
+.map-scroll:active {
+  cursor: grabbing;
+}
+
+.map {
+  --pad: 10px;
+  /* Плитки идут встык. Зазор в 2 px и скруглённые «подушки» превращали
+     пещеру в кафельный пол — у тайлов DCSS края рассчитаны на стык. */
+  --gap: 0px;
+  --cell: 32px;
+  --floor-a: #1c2c47;
+  --floor-b: #101b31;
+  --wall-a: #2a3d5c;
+  --wall-b: #1b2841;
+  --glow: rgba(59, 130, 246, 0.12);
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  transition: transform 0.16s ease;
+  background: #060c18;
+  border: 1px solid #1d2f4c;
+  border-radius: 16px;
+  padding: var(--pad);
+  width: fit-content;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.7), 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* Темы этажей */
+.map[data-theme="0"] { --floor-a:#22345a; --floor-b:#14213c; --wall-a:#131a2e; --wall-b:#0b1220; --glow:rgba(59,130,246,.14); }
+.map[data-theme="1"] { --floor-a:#40341f; --floor-b:#251d0d; --wall-a:#1f170c; --wall-b:#120d06; --glow:rgba(212,169,90,.14); }
+.map[data-theme="2"] { --floor-a:#37411f; --floor-b:#20260f; --wall-a:#181d0b; --wall-b:#0e1106; --glow:rgba(132,204,22,.14); }
+.map[data-theme="3"] { --floor-a:#214536; --floor-b:#122a1f; --wall-a:#0e1c15; --wall-b:#070f0b; --glow:rgba(16,185,129,.16); }
+.map[data-theme="4"] { --floor-a:#2a4c6c; --floor-b:#16304a; --wall-a:#101e2c; --wall-b:#080f16; --glow:rgba(56,189,248,.18); }
+.map[data-theme="5"] { --floor-a:#46432a; --floor-b:#2b2813; --wall-a:#1c1a0c; --wall-b:#0f0d05; --glow:rgba(234,179,8,.14); }
+.map[data-theme="6"] { --floor-a:#4a2323; --floor-b:#2b1212; --wall-a:#1c0c0c; --wall-b:#0f0606; --glow:rgba(239,68,68,.18); }
+.map[data-theme="7"] { --floor-a:#36365c; --floor-b:#1d1d34; --wall-a:#141422; --wall-b:#0a0a14; --glow:rgba(148,163,184,.14); }
+.map[data-theme="8"] { --floor-a:#422a6e; --floor-b:#261747; --wall-a:#180f28; --wall-b:#0c0714; --glow:rgba(168,85,247,.18); }
+.map[data-theme="9"] { --floor-a:#572020; --floor-b:#330e0f; --wall-a:#1e0b0c; --wall-b:#100505; --glow:rgba(220,38,38,.2); }
+
+/* Деревня: светлая трава и каменные дома — мирный уровень, а не этаж.
+   Тона заданы отдельной темой, потому что тема этажа считается из номера
+   этажа, а у деревни номера нет. */
+.map[data-theme="village"] { --floor-a:#5a5340; --floor-b:#3a3527; --wall-a:#4a4436; --wall-b:#2b271e; --glow:rgba(250,204,21,.10); }
+
+/* В деревне нечего пропускать, нечего покупать в лавке подземелья и нечего
+   ковать: её собственные действия живут в окнах НПС. Шапка с этими кнопками
+   лежит ВНЕ .stage, поэтому цепляемся к ней через :has(.stage.village). */
+body.game-page:has(.stage.village) #skip-btn,
+body.game-page:has(.stage.village) #shop-btn,
+body.game-page:has(.stage.village) #forge-btn,
+.stage.village #map-vignette {
+  display: none;
+}
+
+/* В деревне неоткрытое — не чёрный провал, как в подземелье, а приглушённая
+   земля: уровень светлый, и резкий чёрный край читался бы дырой в карте. */
+body.game-page:has(.stage.village) .tile.unseen {
+  background-color: #101a2e;
+}
+
+/* Боковая панель деревни показывает банк и амулеты, а не здоровье похода:
+   в деревне герой ещё не в подземелье, и HP/снаряжение тут ни о чём. */#village-info { display: none; }
+.stage.village #village-info { display: block; }
+.stage.village .side-panel .hud,
+.stage.village .side-panel .equip-bar,
+.stage.village .side-panel #inventory-card,
+.stage.village .side-panel #effect-list { display: none; }
+.village-bank .lead { margin: 4px 0; }
+
+/* Памятка наставника — просто список, без карточек. */
+.mentor-list { margin: 8px 0 12px; padding-left: 18px; }
+.mentor-list li { margin: 6px 0; font-size: 14px; line-height: 1.4; color: #cbd5e1; }
+
+.map.no-cam-anim {
+  transition: none;
+}
+
+.minimap {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 184px;
+  height: 132px;
+  background: rgba(4, 7, 15, 0.85);
+  border: 1px solid #2a3b5a;
+  border-radius: 10px;
+  z-index: 6;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+
+.minimap.off {
+  display: none;
+}
+
+.cam-hint {
+  position: absolute;
+  right: 10px;
+  bottom: 8px;
+  font-size: 11px;
+  color: #9fb3d1;
+  background: rgba(6, 12, 24, 0.72);
+  border: 1px solid #1d2f4c;
+  border-radius: 999px;
+  padding: 3px 10px;
+  pointer-events: none;
+  z-index: 5;
+}
+
+/* Кнопка действия у объекта на карте: сундук, торговец, лестница.
+   Появляется, когда герой стоит на клетке объекта или рядом с ней. */
+.action-btn {
+  position: absolute;
+  left: 50%;
+  bottom: 64px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #08131f;
+  background: #f6c453;
+  border: 1px solid #ffdf9b;
+  border-radius: 999px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  z-index: 30;
+  animation: actionBob 1.9s ease-in-out infinite;
+}
+.action-btn:hover {
+  filter: brightness(1.08);
+}
+.action-btn .action-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+.action-btn .action-key {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: rgba(8, 19, 31, 0.22);
+}
+.action-btn.locked {
+  background: #3f4d63;
+  color: #cfe0f5;
+  border-color: #556b8c;
+  animation: none;
+}
+
+/* Пропуск хода. Стоит справа внизу и не перекрывает кнопку действия:
+   та появляется по центру только рядом с сундуком, торговцем, лестницей. */
+.skip-btn {
+  left: auto;
+  right: 18px;
+  bottom: 64px;
+  transform: none;
+  color: #cfe0f5;
+  /* Ожидание хода — тихая стальная кнопка, а не цветное пятно поверх карты. */
+  background: rgba(9, 18, 32, 0.88);
+  border-color: rgba(125, 162, 217, 0.32);
+  animation: none;
+}
+.skip-btn:hover {
+  color: #f6c453;
+  border-color: rgba(246, 196, 83, 0.5);
+  background: rgba(14, 26, 45, 0.94);
+}
+.skip-btn .action-icon {
+  font-size: 15px;
+}
+@keyframes actionBob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -4px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .action-btn { animation: none; }
+}
+
+.tiles {
+  display: grid;
+  gap: var(--gap);
+}
+.entities {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.entity {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  transition: transform 0.16s ease, opacity 0.25s ease;
+  will-change: transform;
+}
+
+.entity.no-anim {
+  transition: none !important;
+}
+
+/* Плитка, в которую герой идёт по клику. */
+.tile.walk-target {
+  box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.9);
+  animation: walk-target-pulse 0.9s ease-in-out infinite;
+}
+
+@keyframes walk-target-pulse {
+  0%, 100% {
+    box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.9);
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.35);
+  }
+}
+
+.tile {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 16px;
+  user-select: none;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  /* Тайлы нарисованы в 32 px, а клетка крупнее (48 px при обычном зуме):
+     растягиваем без сглаживания, иначе камень превращается в мыло. */
+  image-rendering: pixelated;
+  /* Раньше здесь были ещё background и transform: на 660 плиток браузер
+     держал 1980 переходов и пересчитывал их при каждой смене классов.
+     Плавность даёт только opacity — её и оставляем. */
+  transition: opacity 0.15s;
+}
+
+.tile.unseen {
+  background-color: #04070f;
+  box-shadow: none;
+}
+
+/* Раньше у каждой клетки пола была тень по краю — «подушка». Теперь тень
+   только там, где пол упирается в стену: классы edge-n/e/s/w ставит
+   renderTiles. Она же держит границу в темах, где пол и стена одного тона. */
+.tile.floor {
+  background-color: var(--floor-a);
+  --ed-n: 0 0 0 0 transparent;
+  --ed-e: 0 0 0 0 transparent;
+  --ed-s: 0 0 0 0 transparent;
+  --ed-w: 0 0 0 0 transparent;
+  box-shadow: var(--ed-n), var(--ed-e), var(--ed-s), var(--ed-w);
+}
+
+.tile.floor.edge-n { --ed-n: inset 0 calc(var(--cell) * 0.3) calc(var(--cell) * 0.22) calc(var(--cell) * -0.22) rgba(0, 0, 0, 0.62); }
+.tile.floor.edge-e { --ed-e: inset calc(var(--cell) * -0.3) 0 calc(var(--cell) * 0.22) calc(var(--cell) * -0.22) rgba(0, 0, 0, 0.62); }
+.tile.floor.edge-s { --ed-s: inset 0 calc(var(--cell) * -0.3) calc(var(--cell) * 0.22) calc(var(--cell) * -0.22) rgba(0, 0, 0, 0.62); }
+.tile.floor.edge-w { --ed-w: inset calc(var(--cell) * 0.3) 0 calc(var(--cell) * 0.22) calc(var(--cell) * -0.22) rgba(0, 0, 0, 0.62); }
+
+.tile.wall {
+  background-color: var(--wall-a);
+}
+
+/* Визуал уровней: свет от воды, лавы и фонарей.
+   Раньше здесь были цветные пятна поверх процедурных тайлов — теперь тайлы
+   готовые (terrain.js), а псевдоэлемент отвечает только за свет. */
+.tile.lit-water::after,
+.tile.lit-lava::after,
+.tile.lit-light::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.tile.lit-water::after {
+  background: radial-gradient(60% 60% at 50% 54%, rgba(125, 211, 252, 0.3), transparent 70%);
+}
+
+.tile.lit-lava::after {
+  background: radial-gradient(62% 62% at 50% 52%, rgba(255, 176, 64, 0.42), transparent 72%);
+  animation: lava-glow 2.8s ease-in-out infinite;
+}
+
+.tile.lit-light::after {
+  background: radial-gradient(58% 58% at 50% 50%, rgba(255, 214, 130, 0.5), transparent 70%);
+  animation: torch-flicker 2.3s ease-in-out infinite;
+}
+
+@keyframes torch-flicker {
+  0%, 100% { opacity: 0.75; }
+  38% { opacity: 1; }
+  62% { opacity: 0.62; }
+}
+
+@keyframes lava-glow {
+  0%, 100% { opacity: 0.62; }
+  50% { opacity: 0.95; }
+}
+
+/* Дымка по краю зрения: центр — герой, радиус считается в клетках, поэтому
+   на любом зуме фонарь светит одинаково. */
+.map-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+  background: radial-gradient(circle at var(--fx, 50%) var(--fy, 50%),
+    rgba(0, 0, 0, 0) 0,
+    rgba(0, 0, 0, 0) calc(var(--cell) * 5.5),
+    rgba(0, 0, 0, 0.3) calc(var(--cell) * 9),
+    rgba(0, 0, 0, 0.55) calc(var(--cell) * 14));
+}
+
+/* Вход на этаж: карта наплывает и на миг светлеет. */
+.tiles.floor-in {
+  animation: floor-in 0.6s ease-out;
+}
+
+@keyframes floor-in {
+  0% { opacity: 0.35; filter: brightness(1.5) saturate(1.15); }
+  100% { opacity: 1; filter: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile.lit-lava::after,
+  .tile.lit-light::after,
+  .tiles.floor-in {
+    animation: none;
+  }
+}
+
+.tile.unseen {
+  background-color: #04070f;
+  box-shadow: none;
+}
+
+.tile.seen {
+  /* filter: saturate(.6) снят: на открытом этаже фильтр висел на сотнях
+     плиток и стоил ~1.2 мс на кадр. Затемнения достаточно. */
+  opacity: 0.46;
+}
+
+.ent {
+  line-height: 1;
+  display: inline-block;
+}
+
+/* Герой */
+@keyframes firstGoalPulse {
+  0%, 100% { filter: drop-shadow(0 0 0 rgba(246, 196, 83, 0)); }
+  50% { filter: drop-shadow(0 0 9px rgba(246, 196, 83, 0.95)); }
+}
+.ent-npc.first-goal {
+  animation: firstGoalPulse 1.5s ease-in-out infinite;
+}
+
+.ent-player {
+  width: calc(var(--cell) * 0.72);
+  height: calc(var(--cell) * 0.72);
+  filter: drop-shadow(0 0 6px rgba(246, 196, 83, 0.85)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  animation: pop 0.2s ease;
+}
+
+.ent-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Герой и враги на карте — готовые спрайты 32×32 вместо SVG-иконок.
+   Размер задаёт сам .ent (доля клетки), картинка просто заполняет его. */
+.ent .sprite-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+
+@keyframes pop {
+  0% { transform: scale(0.7); }
+  60% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* Враги */
+.ent-enemy {
+  width: calc(var(--cell) * 0.78);
+  height: calc(var(--cell) * 0.78);
+  filter: drop-shadow(0 0 5px var(--c, #64748b)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  animation: enemyIdle 2.6s ease-in-out infinite;
+}
+
+/* Только сдвиг на целые пиксели: scale() давал дробный масштаб пиксель-арта,
+   и спрайт на каждом такте «дышал» неровными пикселями. */
+@keyframes enemyIdle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+.ent-enemy.boss {
+  width: calc(var(--cell) * 0.98);
+  height: calc(var(--cell) * 0.98);
+  filter: drop-shadow(0 0 11px var(--c, #dc2626)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Дракон на карте вдвое крупнее: раньше босс был размером с крысу.
+   scale — отдельное свойство, оно складывается с transform анимации покоя;
+   ×2 — целый масштаб, пиксели остаются чёткими. */
+.ent-enemy.boss.ent-px {
+  scale: 2;
+}
+
+.ent-enemy.elite {
+  width: calc(var(--cell) * 0.9);
+  height: calc(var(--cell) * 0.9);
+  filter: drop-shadow(0 0 8px rgba(250, 204, 21, 0.95)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Страж лестницы: голубое свечение — того же цвета, что лестница на
+   мини-карте, чтобы было видно, что он её и держит. Светлый контур плюс
+   широкий ореол: одного мягкого ореола на тёмном полу было не видно. */
+.ent-enemy.guard {
+  filter: drop-shadow(0 0 2px rgba(186, 230, 253, 1)) drop-shadow(0 0 9px rgba(56, 189, 248, 0.95))
+    drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Отряд: группа на одной клетке. Иконка чуть меньше, а по краю —
+   красная кайма, чтобы игрок видел: здесь не один монстр. */
+.ent-enemy.squad {
+  width: calc(var(--cell) * 0.82);
+  height: calc(var(--cell) * 0.82);
+  filter: drop-shadow(0 0 5px var(--c, #64748b)) drop-shadow(0 0 2px rgba(239, 68, 68, 0.9)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Пиксель-арт — герой, враги, лестницы и ловушки-тайлы — занимает клетку
+   целиком. Клетка 32/64/96 px, то есть ×1, ×2, ×3 от нарисованных 32 px:
+   пиксели остаются квадратными. Доли клетки выше (0.72, 0.9, 0.98) давали
+   дробный масштаб. Элиту, отряд и босса отличает свечение и метка, а не
+   размер. SVG-иконки (сундук, торговец) по-прежнему заданы долей клетки. */
+.ent.ent-px {
+  width: var(--cell);
+  height: var(--cell);
+}
+
+/* Метка дальнобойного: маленький прицел, сдвинутый в угол клетки. */
+.ent-marker {
+  width: calc(var(--cell) * 0.4);
+  height: calc(var(--cell) * 0.4);
+  opacity: 0.92;
+  filter: drop-shadow(0 0 4px rgba(244, 114, 182, 0.9));
+  animation: none;
+}
+
+.ent-marker.ranged {
+  margin-left: calc(var(--cell) * 0.52);
+  margin-top: calc(var(--cell) * -0.52);
+}
+
+/* Метка стража лестницы: щит в нижнем углу (прицел дальнобойного — в верхнем). */
+.ent-marker.guard {
+  margin-left: calc(var(--cell) * 0.52);
+  margin-top: calc(var(--cell) * 0.52);
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.95));
+}
+
+/* Сундук */
+.ent-treasure {
+  width: calc(var(--cell) * 0.66);
+  height: calc(var(--cell) * 0.66);
+  filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.9));
+  animation: treasurePulse 1.6s ease-in-out infinite;
+}
+
+/* Ловушка — тусклее сундука, чтобы не спутать с наградой */
+.ent-trap {
+  width: calc(var(--cell) * 0.62);
+  height: calc(var(--cell) * 0.62);
+  filter: drop-shadow(0 0 7px var(--c, #f87171)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+  animation: trapPulse 1.1s ease-in-out infinite;
+}
+
+.ent-trap.spent {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  animation: none;
+}
+
+/* Сундук и ловушки-тайлы мерцают свечением, а не размером: дробный scale
+   размывал пиксель-арт на каждом такте. */
+.ent-treasure.ent-px {
+  animation: treasureGlow 1.6s ease-in-out infinite;
+}
+
+.ent-trap.ent-px:not(.spent) {
+  animation: trapGlow 1.1s ease-in-out infinite;
+}
+
+@keyframes treasureGlow {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8)); }
+  50% { filter: drop-shadow(0 0 12px rgba(251, 191, 36, 1)) brightness(1.2); }
+}
+
+@keyframes trapGlow {
+  0%, 100% { filter: drop-shadow(0 0 3px var(--c, #f87171)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+  50% { filter: drop-shadow(0 0 9px var(--c, #f87171)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5)); }
+}
+
+@keyframes trapPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+/* Торговец */
+.ent-trader {
+  width: calc(var(--cell) * 0.8);
+  height: calc(var(--cell) * 0.8);
+  filter: drop-shadow(0 0 8px rgba(233, 213, 255, 0.8));
+  animation: traderBob 2.2s ease-in-out infinite;
+}
+
+@keyframes traderBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+
+@keyframes treasurePulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.8)); }
+  50% { transform: scale(1.16); filter: drop-shadow(0 0 12px rgba(251, 191, 36, 1)) brightness(1.2); }
+}
+
+/* Лестница */
+.ent-stairs {
+  width: calc(var(--cell) * 0.66);
+  height: calc(var(--cell) * 0.66);
+  filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.85));
+  animation: stairsPulse 1.4s ease-in-out infinite;
+}
+
+.ent-stairs.up {
+  filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.85));
+  animation: stairsUpPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes stairsUpPulse {
+  0%, 100% { transform: translateY(0); opacity: 0.85; }
+  50% { transform: translateY(-2px); opacity: 1; }
+}
+
+.ent-stairs.locked {
+  filter: grayscale(1) brightness(0.55);
+  animation: none;
+}
+
+@keyframes stairsPulse {
+  0%, 100% { transform: translateY(0); opacity: 0.85; }
+  50% { transform: translateY(2px); opacity: 1; }
+}
+
+/* Всплывающий урон */
+.dmg-float {
+  position: absolute;
+  font-weight: 900;
+  font-size: 21px;
+  pointer-events: none;
+  z-index: 20;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.85);
+  animation: floatUp 0.95s ease-out forwards;
+}
+
+.dmg-float.hurt { color: #fca5a5; }
+.dmg-float.hit { color: #fde68a; }
+.dmg-float.heal { color: #86efac; }
+
+@keyframes floatUp {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.6); }
+  25% { opacity: 1; transform: translate(-50%, -6px) scale(1.1); }
+  100% { opacity: 0; transform: translate(-50%, -52px) scale(1); }
+}
+
+/* Тряска */
+.shake {
+  animation: shake 0.4s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
+}
+
+/* ---------- Легенда ---------- */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  font-size: 13px;
+  color: #9fb3d1;
+  margin-bottom: 16px;
+}
+
+.legend b {
+  color: #f6c453;
+}
+
+.legend-icon {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.legend-icon .ent-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.legend-wall {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
+  border-radius: 4px;
+  background: #223048;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.game-msg {
+  text-align: center;
+  min-height: 22px;
+  margin-top: 14px;
+  font-weight: 700;
+  color: #7dd3fc;
+  font-size: 14px;
+}
+
+#screen-game {
+  display: flex;
+  flex-direction: column;
+}
+
+#screen-game > .hud,
+#screen-game > .equip-bar,
+#screen-game > .map,
+#screen-game > .legend,
+#screen-game > .game-msg {
+  flex-shrink: 0;
+}
+
+.log {
+  margin-top: 16px;
+  flex: 1 1 auto;
+  min-height: 44px;
+  overflow-y: auto;
+  font-size: 13px;
+  color: #9fb3d1;
+  border-top: 1px solid #223451;
+  padding-top: 10px;
+  line-height: 1.6;
+}
+
+/* Во время боя окно игры не прокручивается — скролл уходит в лог */
+body.game-page.battling .game-wrap > .panel {
+  overflow: hidden;
+}
+
+.log div {
+  padding: 1px 0;
+}
+
+/* ---------- Оверлеи и боевая карточка ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  /* Вместо прежнего backdrop-filter: blur(4px): браузер размывал всю карту
+     (до 2960x2176) на каждом кадре, и любой экран поверх неё шёл ровно
+     30 к/с. Тот же «глубокий затемняющий занавес» даётся плотным фоном. */
+  background:
+    radial-gradient(120% 90% at 50% 40%, rgba(15, 32, 60, 0.74) 0%, rgba(2, 6, 23, 0.9) 72%),
+    rgba(2, 6, 23, 0.86);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 60;
+  overflow-y: auto;
+}
+
+.battle {
+  position: relative;
+  background: #152340;
+  border: 1px solid #2f4468;
+  border-top: 3px solid #f6c453;
+  border-radius: var(--radius);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 0 24px rgba(246, 196, 83, 0.08);
+  width: 100%;
+  max-width: 580px;
+  padding: 24px;
+  margin: auto;
+  color: #e6edf7;
+  animation: cardIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  /* Три зоны: шапка с врагом, прокручиваемая середина с заданием и футер
+     с кнопками и эффектами. Карточка не выше окна, поэтому кнопка удара
+     видна всегда, каким бы длинным ни было задание. */
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* В проекте нет глобального box-sizing, а max-height считается по
+     content-box: без этой строки карточка вырастала на высоту отступов и
+     нижний край с эффектами уезжал за пределы экрана. */
+  box-sizing: border-box;
+  max-height: min(92vh, 880px);
+  overflow: hidden;
+}
+
+.battle-foot {
+  flex-shrink: 0;
+}
+
+/* Шапка коротка (имя врага и здоровье), но при очень длинном имени она
+   уступает место середине и прокручивается сама. */
+.battle-head {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.battle-mid {
+  flex: 1 1 auto;
+  min-height: 96px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+/* Вопрос в бою: слева задание, справа ответ. Колонки равные, потому что и
+   условие задачи, и поле решения бывают длинными. На узком экране они
+   складываются друг под друга — так же, как нижние категории кнопок. */
+.battle-ask,
+.battle-solve {
+  min-width: 0;
+}
+
+.battle-mid {
+  scrollbar-gutter: auto;
+}
+
+.battle-mid.split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 6px 20px;
+  align-items: start;
+}
+
+.battle-solve .solve-label {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7d92b4;
+  margin-bottom: 6px;
+}
+
+.battle-solve .code-editor {
+  width: 100%;
+}
+
+@media (max-width: 980px) {
+  .battle-mid.split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.battle-foot {
+  border-top: 1px solid #24365a;
+  margin-top: 14px;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.battle-foot .battle-actions,
+.battle-foot .potion-row {
+  margin: 0;
+}
+
+/* Полосы прокрутки в окнах игры скрыты. На проекторе и на планшете светлая
+   полоса поперёк тёмного окна читается как случайная деталь, а прокрутка
+   колесом, пальцем и клавишами работает и без неё. Скрываем только внутри
+   окон и панелей: у журнала своя кнопка сворачивания, а страница игры
+   пусть остаётся обычной. */
+.battle-mid,
+.battle-head,
+.battle-effects,
+.battle,
+.panel {
+  scrollbar-width: none;             /* Firefox */
+  -ms-overflow-style: none;          /* старый Edge */
+}
+
+.battle-mid::-webkit-scrollbar,
+.battle-head::-webkit-scrollbar,
+.battle-effects::-webkit-scrollbar,
+.battle::-webkit-scrollbar,
+.panel::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Задание не поместилось: внизу окна вопроса появляется мягкая тень.
+   Полосы прокрутки там больше нет, и без этой тени не видно, что ниже есть
+   ещё варианты. Тень снимается, как только докурили до конца. */
+.battle-mid.can-scroll {
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}
+
+.battle-scene {
+  padding: 10px 12px;
+}
+
+.battle-top .battle-mid {
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.battle-mid.split {
+  gap: 4px 16px;
+}
+
+/* Категории кнопок идут по своему содержимому, а не растягиваются на всю
+   карточку: между «Атакой» и «Побегом» больше не пустая полоса. */
+.battle-cat-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* Крупная кнопка категории: во всю ширину своей доли, текст как у остальных
+   кнопок игры. */
+.battle-cat {
+  width: 100%;
+  padding: 10px 12px;
+  min-height: 44px;
+}
+
+.battle-cat.open {
+  box-shadow: 0 0 0 2px rgba(246, 196, 83, 0.55) inset;
+}
+
+/* Всплывающий список действий: раскрывается вверх, потому что низ окна —
+   последняя строка карточки. */
+.battle-cat-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 6;
+  padding: 10px;
+  border-radius: 10px;
+  background: #101f38;
+  border: 1px solid #2a3b5a;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+}
+
+.battle-cat-list .battle-actions {
+  flex-direction: column;
+  gap: 6px;
+}
+
+.battle-cat-list .btn {
+  width: 100%;
+}
+
+.battle-cat-wide {
+  flex: 1 1 100%;
+}
+
+.battle-cat-wide .btn {
+  width: 100%;
+}
+
+.battle-foot {
+  gap: 8px 14px;
+}
+
+/* Варианты ответа: строки ниже, чтобы четыре варианта помещались без
+   прокрутки даже с заметкой о бое над вопросом. */
+.battle .options .option {
+  padding: 9px 12px;
+}
+
+.battle .options {
+  gap: 8px;
+}
+
+/* Порядок строк у обоих бойцов один и тот же: имя, подпись, полоса, число.
+   Реплика — просто строка под статами, без рамки: коробка с мелкой надписью
+   внутри читалась как пустой прямоугольник. */
+.battle .scene-quip {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin-top: 2px;
+  font-size: 11.5px;
+  line-height: 1.3;
+  max-width: 208px;
+  overflow-wrap: anywhere;
+}
+
+.battle {
+  padding: 16px;
+}
+
+.battle-inner {
+  gap: 10px;
+}
+
+.battle-scene {
+  padding: 8px 10px;
+}
+
+.battle-mid.split {
+  gap: 4px 14px;
+}
+
+.battle .options .option {
+  padding: 8px 10px;
+}
+
+.battle-group {
+  min-width: 138px;
+  max-width: 200px;
+}
+
+/* Эффекты снаряжения внизу боевого окна. */
+.battle-effects {
+  max-height: 108px;
+  overflow-y: auto;
+  /* У футера уже есть своя линия и отступ — второй рамки не надо. */
+  margin-top: 0;
+  border-top: none;
+  padding-top: 0;
+}
+
+.battle-effects:empty {
+  display: none;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.battle-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+/* Портрет бойца: крупная фигура без круга, без цветной плашки и без ореола.
+   Графика — готовые спрайты 32×32 (public domain, набор DCSS rltiles),
+   вшиты в sprites.js как data-URI; см. также spriteImg() в game.js. */
+.battle-portrait {
+  width: 52px;
+  height: 52px;
+  display: grid;
+  place-items: center;
+  animation: enemyIdle 2.6s ease-in-out infinite;
+}
+
+.battle-portrait.boss {
+  width: 60px;
+  height: 60px;
+}
+
+.enemy-tag.elite {
+  background: #facc15;
+  color: #1c1917;
+  box-shadow: 0 0 12px rgba(250, 204, 21, 0.6);
+  margin-left: 4px;
+}
+
+.streak-note {
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fde68a;
+  background: rgba(250, 204, 21, 0.12);
+  border: 1px solid rgba(250, 204, 21, 0.35);
+}
+
+/* Плашка ошибок подряд: каждая ошибка в этом бою бьёт сильнее, и об этом
+   надо сказать заранее. Темы боя в окне больше нет — она видна в вопросе. */
+.battle-topic {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 2px 12px;
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #bae6fd;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.battle-topic b {
+  color: #f0f9ff;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.battle-topic.review {
+  color: #ddd6fe;
+  background: rgba(167, 139, 250, 0.12);
+  border-color: rgba(167, 139, 250, 0.4);
+}
+
+/* Ошибки подряд: предупреждение, что следующий промах ударит сильнее. */
+.battle-topic .miss-tag {
+  color: #fdba74;
+  font-weight: 800;
+}
+
+/* Отряд в бою: пока монстры не все повержены, кнопка «Забрать добычу»
+   называет следующего противника — игрок видит, что выход из боя не свободен. */
+.squad-note {
+  margin-top: 8px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #fecaca;
+  background: rgba(220, 38, 38, 0.14);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+/* Спрайт 32×32 растягивается целым числом пикселей: pixelated держит пиксели
+   квадратными, иначе фигура мылится на 96 px. */
+.battle-portrait img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.enemy-name {
+  font-size: 21px;
+  font-weight: 900;
+  color: #f1f5f9;
+  overflow-wrap: anywhere;
+}
+
+.enemy-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #fff;
+  background: #ef4444;
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-top: 4px;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+
+.battle .hud-num {
+  color: #9fb3d1;
+}
+
+.battle .hud-label {
+  color: #8296b5;
+}
+
+/* Полосы боя чуть толще панельных: в карточке они главный ориентир. */
+body.game-page .battle .hp-bar {
+  height: 10px;
+  border-radius: 4px;
+}
+
+/* Полоса врага остаётся красной: правило темы `body.game-page .hp-bar > i`
+   перебивало старое `.hp-bar.enemy > i` по весу, и здоровье монстра
+   рисовалось тем же зелёным, что и здоровье героя. */
+body.game-page .hp-bar.enemy > i {
+  background: #c9453f;
+  box-shadow: none;
+}
+
+/* ---------- Две области боя: слева сцена, справа задание ---------- */
+/* Раньше враг, обе полосы и вопрос жили в одной колонке шириной 580 px,
+   и на картинку боя места не оставалось. Теперь слева сцена (кто с кем
+   бьётся, имена, полосы, фразы), справа — вопрос, свойства и кнопки.
+   Ширина задана именно `#battle-box`: лавка и кузница тоже носят класс
+   `.battle`, но у них своя ширина. */
+#battle-box {
+  /* Ширина подобрана под содержимое: окно на 980 пикселей оставляло по бокам
+     пустые полосы, а под ним — половину экрана. */
+  max-width: min(980px, 94vw);
+}
+
+.battle-inner {
+  /* Окно боя — две горизонтальные половины: сверху сцена и задание,
+     снизу кнопки. Верх растёт, низ держится по содержимому. */
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.battle-top {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.battle-scene {
+  position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* Арена стоит посередине полосы: сверху и снизу остаётся воздух, а не
+     пустое поле под бойцами. */
+  justify-content: center;
+  gap: 10px;
+  /* По бокам поле чуть меньше, чем сверху и снизу: статы стоят у края блока,
+     но не прилипают к нему. */
+  padding: 12px 10px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(10, 20, 36, 0.75), rgba(12, 24, 44, 0.45));
+  border: 1px solid #24365a;
+}
+
+.battle-side {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Задание под сценой: во всю ширину, с воздухом от арены. */
+.battle-top .battle-mid {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #24365a;
+}
+
+/* Нижняя половина: четыре категории кнопок. На широком экране они стоят
+   рядом, на узком — переносятся по две, а не уезжают за край. */
+.battle-foot {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 18px;
+}
+
+.battle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+
+.battle-group-name {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #7d92b4;
+}
+
+.battle-group .battle-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.battle-group .btn {
+  /* Кнопка по своему тексту: уменьшаем отступы и высоту, а размер шрифта
+     оставляем как есть — он задан общими правилами кнопок игры. */
+  width: auto;
+  padding: 7px 12px;
+  min-height: 36px;
+}
+
+/* Арена: бойцы друг напротив друга. Никакого свечения позади — по просьбе
+   «убери ореол» сцена осталась плоской, портреты держит сам фон сцены. */
+.scene-arena {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  padding-top: 4px;
+  border-radius: 12px;
+}
+
+/* Обёртка бойца перестаёт быть коробкой: её содержимое становится клетками
+   сетки арены. Так статы и портрет встают в свои колонки без лишней вложенности. */
+.fighter {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Содержимое прижато к своему краю, а статы тянутся: у героя первым идёт
+   список статов, у врага — портрет. Так портреты стоят у середины арены,
+   а статы занимают всё место до внешнего края, и пустых полос по бокам
+   не остаётся. */
+.fighter {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Портрет смотрит в центр арены, а статы уходят к своему краю: у героя —
+   влево, у врага — вправо. Раньше статы лежали под портретом во всю ширину. */
+.fighter-hero {
+  /* Герой слева, враг справа, но оба чуть сдвинуты к середине арены —
+     ровно настолько, чтобы бойцы читались как пара, а не как две крайности. */
+  flex-direction: row;
+  justify-content: flex-start;
+  padding-left: 64px;
+}
+
+.fighter-enemy {
+  /* Враг справа; тот же сдвиг к середине, что и у героя, — арена остаётся
+     зеркальной. */
+  flex-direction: row;
+  justify-content: flex-end;
+  padding-right: 64px;
+}
+
+.fighter-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  /* Ширина числом: полосы здоровья у обоих бойцов одной длины, и портрет
+     встаёт сразу за списком, а не посреди арены. */
+  flex: 0 0 220px;
+  width: 220px;
+}
+
+.fighter-hero .fighter-stats {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.fighter-enemy .fighter-stats {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.fighter-stats .hp-bar {
+  width: 100%;
+}
+
+.fighter-name {
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  color: #e6edf7;
+  overflow-wrap: anywhere;
+  /* Две строки под имя — у врага имена длиннее, и без общей высоты полосы
+     бойцов оказывались на разной высоте. */
+  min-height: 35px;
+  display: flex;
+  align-items: center;
+}
+
+.fighter-rank {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: #8296b5;
+  min-height: 16px;
+}
+
+.fighter-stats .hp-bar {
+  width: 100%;
+  max-width: 220px;
+}
+
+/* Портреты в сцене крупнее, чем были в шапке: тут они главные. */
+.battle-scene .battle-portrait {
+  width: 96px;
+  height: 96px;
+}
+
+/* 32 px × 4: целый масштаб держит пиксели квадратными (108 px давал ×3,375). */
+.battle-scene .battle-portrait.boss {
+  width: 128px;
+  height: 128px;
+}
+
+/* Итог боя прямо в сцене: когда враг повержен или герой пал, это видно
+   там, где идёт бой, а не только строкой в правой части. */
+.scene-banner {
+  position: absolute;
+  left: 50%;
+  top: 42%;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  padding: 6px 16px;
+  border-radius: 10px;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.scene-banner.win {
+  color: #0b1120;
+  background: #f6c453;
+  box-shadow: 0 0 26px rgba(246, 196, 83, 0.6);
+}
+
+.scene-banner.lose {
+  color: #fff;
+  background: #b91c1c;
+  box-shadow: 0 0 26px rgba(185, 28, 28, 0.6);
+}
+
+.fighter .enemy-tag {
+  margin-top: 0;
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.fighter .hp-bar {
+  width: 100%;
+}
+
+/* Полоса бойца стоит в колонке .fighter, а не в строке шапки панели. Общее
+   правило `body.game-page .hp-bar { flex: 1 1 100% }` в колонке сводило её
+   высоту к 0 px, а `order: 3` уводил под реплику: в бою не было видно ни
+   здоровья героя, ни здоровья врага. Высоту (10 px) задаёт правило
+   `body.game-page .battle .hp-bar` выше по файлу. */
+body.game-page .fighter .hp-bar {
+  flex: 0 0 auto;
+  order: 0;
+  margin-top: 0;
+}
+
+.fighter-hp {
+  font-size: 12px;
+  font-weight: 700;
+  color: #9fb3d1;
+}
+
+.scene-clash {
+  align-self: flex-start;
+  margin-top: 22px;
+  font-size: 22px;
+  line-height: 1;
+  color: rgba(246, 196, 83, 0.5);
+  text-shadow: 0 0 12px rgba(246, 196, 83, 0.4);
+}
+
+/* Фраза монстра — прямо под ним, а не подписью под всей сценой. */
+.scene-quip {
+  align-self: stretch;
+  margin-top: 2px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: rgba(12, 24, 44, 0.65);
+  border: 1px solid rgba(125, 162, 217, 0.16);
+  font-style: italic;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #a9b6c9;
+  text-align: center;
+}
+
+/* Павший боец гаснет: видно, кто уже не в игре. */
+.fighter.down .battle-portrait {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+
+.fighter.down .fighter-name {
+  opacity: 0.6;
+}
+
+/* Живость сцены: бьющий делает выпад, по битому проходит вспышка, число
+   урона всплывает рядом с ним (см. strikeScene в game.js). */
+@keyframes strikeRight {
+  0% { transform: translateX(0); }
+  35% { transform: translateX(10px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes strikeLeft {
+  0% { transform: translateX(0); }
+  35% { transform: translateX(-10px); }
+  100% { transform: translateX(0); }
+}
+
+.battle-scene.strike-enemy .fighter-hero {
+  animation: strikeRight 0.42s ease;
+}
+
+.battle-scene.strike-hero .fighter-enemy {
+  animation: strikeLeft 0.42s ease;
+}
+
+@keyframes fighterFlash {
+  0% { filter: brightness(2.6); }
+  100% { filter: brightness(1); }
+}
+
+.fighter.fighter-flash .battle-portrait {
+  animation: fighterFlash 0.5s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .battle-scene.strike-enemy .fighter-hero,
+  .battle-scene.strike-hero .fighter-enemy,
+  .fighter.fighter-flash .battle-portrait {
+    animation: none;
+  }
+}
+
+/* Узкий экран: области встают друг под друга — сцена полосой сверху.
+   Полоса сжата до предела: её высота отнимается у вопроса, а варианты
+   ответа должны оставаться на виду. */
+@media (max-width: 980px) {
+  .battle-inner {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  #battle-box {
+    padding: 16px;
+  }
+
+  .battle-scene {
+    flex: 0 0 auto;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  /* 64 и 96 px — ×2 и ×3 от нарисованных 32: целый масштаб, как и на карте. */
+  .battle-scene .battle-portrait {
+    width: 64px;
+    height: 64px;
+  }
+
+  .battle-scene .battle-portrait.boss {
+    width: 96px;
+    height: 96px;
+  }
+
+  .fighter-name {
+    font-size: 12.5px;
+    min-height: 0;
+  }
+
+  .fighter-rank {
+    font-size: 10px;
+    min-height: 0;
+  }
+
+  .fighter .enemy-tag {
+    font-size: 9px;
+    padding: 1px 6px;
+  }
+
+  .fighter-hp {
+    font-size: 11.5px;
+  }
+
+  .scene-clash {
+    font-size: 16px;
+    margin-top: 14px;
+  }
+
+  .scene-quip {
+    font-size: 11.5px;
+    padding: 4px 6px;
+  }
+}
+
+.challenge-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #0b1120;
+  background: #38bdf8;
+  border-radius: 999px;
+  padding: 5px 13px;
+  margin: 12px 0 12px;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.45);
+}
+
+.challenge-tag.code {
+  background: #a855f7;
+  box-shadow: 0 0 14px rgba(168, 85, 247, 0.5);
+}
+
+.challenge-tag.copy {
+  background: #06b6d4;
+  box-shadow: 0 0 14px rgba(6, 182, 212, 0.5);
+}
+
+.sample-code {
+  user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+  -moz-user-select: none;
+}
+
+.copy-note {
+  font-size: 12px;
+  color: #fca5a5;
+  margin: -8px 0 12px;
+  font-weight: 600;
+}
+
+.challenge-q {
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #f1f5f9;
+  margin-bottom: 14px;
+}
+
+/* Пометка о проклятой плите и других особых условиях боя */
+.battle-note {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c4b5fd;
+  margin: -6px 0 12px;
+  padding: 6px 10px;
+  border-left: 3px solid #8b5cf6;
+  background: rgba(124, 58, 237, 0.12);
+  border-radius: 0 8px 8px 0;
+}
+
+.battle .lead {
+  color: #9fb3d1;
+}
+
+pre.code {
+  background: #050a14;
+  color: #d1fae5;
+  border: 1px solid #1d2f4c;
+  border-radius: 12px;
+  padding: 16px 18px;
+  font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  overflow-x: auto;
+  margin: 0 0 16px;
+  white-space: pre;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.6);
+}
+
+.code-editor {
+  width: 100%;
+  min-height: 140px;
+  background: #050a14;
+  color: #d1fae5;
+  border: 1px solid #2a3b5a;
+  border-radius: 12px;
+  padding: 14px;
+  font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+  tab-size: 4;
+  white-space: pre;
+  overflow-wrap: normal;
+  overflow-x: auto;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.code-editor:focus {
+  outline: none;
+  border-color: #a855f7;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5), 0 0 0 3px rgba(168, 85, 247, 0.2);
+}
+
+.test-results {
+  margin-top: 12px;
+  font-size: 13px;
+  font-family: "JetBrains Mono", "Consolas", monospace;
+}
+
+.test-line {
+  padding: 5px 9px;
+  border-radius: 7px;
+  margin-bottom: 4px;
+}
+
+.test-line.pass {
+  background: rgba(22, 163, 74, 0.18);
+  color: #86efac;
+}
+
+.test-line.fail {
+  background: rgba(220, 38, 38, 0.18);
+  color: #fca5a5;
+}
+
+.battle-feedback {
+  margin-top: 14px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.battle-feedback.good { color: #4ade80; }
+.battle-feedback.bad { color: #fca5a5; }
+
+.battle-explain {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: rgba(56, 189, 248, 0.1);
+  border-left: 4px solid #38bdf8;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.55;
+  animation: cardIn 0.25s ease;
+}
+
+.battle-explain b {
+  color: #7dd3fc;
+}
+
+.battle-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+/* Варианты ответа внутри тёмной карточки */
+.battle .option {
+  background: #101f38;
+  border-color: #2a3b5a;
+  color: #e6edf7;
+}
+
+.battle .option:hover:not(:disabled) {
+  border-color: #7dd3fc;
+  background: #16294a;
+}
+
+.battle .option .key {
+  background: #1e2f4d;
+  color: #9fb3d1;
+}
+
+.battle .option.correct {
+  border-color: #22c55e;
+  background: rgba(22, 163, 74, 0.22);
+}
+
+.battle .option.wrong {
+  border-color: #ef4444;
+  background: rgba(220, 38, 38, 0.22);
+}
+
+.battle .btn.ghost {
+  background: #24344f;
+  color: #e6edf7;
+}
+
+.battle .btn.ghost:hover {
+  background: #2f4468;
+}
+
+.potion-row {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.potion-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #8296b5;
+}
+
+/* Зелье, которое сейчас не нужно: кнопка бледнее, но нажимается — ответит,
+   почему не выпито, а не промолчит. */
+.battle .btn.idle {
+  opacity: 0.55;
+}
+
+/* ---------- Инвентарь ---------- */
+.inventory {
+  max-width: 640px;
+}
+
+.inv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-bottom: 18px;
+  font-size: 14px;
+  color: #9fb3d1;
+}
+
+.inv-stats b {
+  color: #7dd3fc;
+  font-size: 16px;
+}
+
+.inv-section h3 {
+  font-size: 13px;
+  margin: 0 0 10px;
+  color: #8296b5;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.inv-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #2a3b5a;
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 5px solid #94a3b8;
+  border-radius: 11px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  transition: transform 0.12s, box-shadow 0.12s;
+}
+
+.inv-item:hover {
+  transform: translateX(2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Название — прямой потомок .info. Цена и числа внутри <span> остаются
+   строчными: раньше `.info b` растягивал в блок и их, и «цена 90» рвалась
+   на три строки. */
+.inv-item .info > b {
+  display: block;
+  font-size: 15px;
+  color: #f1f5f9;
+}
+
+.inv-item .info span b {
+  color: #f1f5f9;
+}
+
+.item-ico {
+  display: inline-block;
+  width: 23px;
+  height: 23px;
+  vertical-align: -6px;
+  margin-right: 7px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+.item-ico .ent-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Картинка предмета — пиксель-арт 32×32: ровно ×1, без дробного масштаба. */
+.item-ico.item-ico-px {
+  width: 32px;
+  height: 32px;
+  vertical-align: -10px;
+  margin-right: 8px;
+}
+
+.item-ico .item-px {
+  width: 100%;
+  height: 100%;
+  display: block;
+  image-rendering: pixelated;
+}
+
+.inv-item .info span {
+  font-size: 12px;
+  color: #9fb3d1;
+}
+
+.inv-item .btn {
+  padding: 8px 14px;
+  font-size: 14px;
+}
+
+.inv-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ---------- Наполнение подземелья ---------- */
+
+/* Способность врага — короткая строка под блоком его здоровья. */
+.enemy-ability {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fcd34d;
+  background: rgba(120, 53, 15, 0.35);
+  border: 1px solid rgba(252, 211, 77, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  margin-top: 6px;
+}
+
+.enemy-ability::before {
+  content: "✦";
+  color: #f59e0b;
+}
+
+.enemy-ability.curse {
+  color: #e9d5ff;
+  background: rgba(124, 58, 237, 0.3);
+  border-color: rgba(192, 132, 252, 0.4);
+}
+
+.enemy-ability.curse::before {
+  content: "☠";
+  color: #c084fc;
+}
+
+/* Дальнобойный — розовая плашка с прицелом. */
+.enemy-ability.ranged {
+  color: #fbcfe8;
+  background: rgba(190, 24, 93, 0.28);
+  border-color: rgba(244, 114, 182, 0.45);
+}
+
+.enemy-ability.ranged::before {
+  content: "➶";
+  color: #f472b6;
+}
+
+.enemy-quip {
+  margin: 8px 0 0;
+  font-size: 13px;
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.enemy-quip.poison {
+  font-style: normal;
+  color: #a3e635;
+  font-weight: 700;
+}
+
+/* Эпиграф этажа при спуске. Панель перекрывает верх карты, поэтому
+   исчезает сама через несколько секунд и её можно закрыть крестиком.
+   Текст лежит в .floor-arrival-body: контейнер нельзя перезаписывать
+   целиком — в нём живёт кнопка закрытия. */
+.floor-arrival {
+  position: absolute;
+  left: 14px;
+  right: 200px;
+  top: 12px;
+  z-index: 6;
+  max-width: 520px;
+  padding: 12px 40px 12px 16px;
+  border: 1px solid rgba(99, 102, 241, 0.45);
+  border-left: 4px solid #6366f1;
+  border-radius: 12px;
+  background: rgba(22, 22, 52, 0.94);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  animation: floor-arrival-in 0.35s ease-out;
+}
+
+.floor-arrival-body {
+  display: block;
+}
+
+.floor-arrival-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 7px;
+  background: rgba(15, 23, 42, 0.8);
+  color: #94a3b8;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.floor-arrival-close:hover {
+  background: rgba(99, 102, 241, 0.35);
+  color: #e2e8f0;
+}
+
+.floor-arrival h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  color: #c7d2fe;
+}
+
+.floor-arrival p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.floor-arrival .floor-epi-topic {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #a5b4fc;
+}
+
+.floor-arrival .floor-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #86efac;
+}
+
+@keyframes floor-arrival-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.floor-epilogue {
+  margin: 12px 0 10px;
+  padding: 12px 14px;
+  border-left: 3px solid #6366f1;
+  background: rgba(99, 102, 241, 0.08);
+  border-radius: 0 10px 10px 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.floor-epilogue b {
+  color: #a5b4fc;
+}
+
+.floor-epilogue .floor-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #86efac;
+}
+
+/* Экран-разбор в конце партии. */
+.run-report {
+  text-align: left;
+  margin: 16px 0;
+}
+
+.run-report h3 {
+  margin: 14px 0 8px;
+  font-size: 15px;
+  color: #e2e8f0;
+}
+
+.report-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  margin-bottom: 5px;
+  font-size: 13px;
+  color: #cbd5e1;
+}
+
+.report-row b {
+  color: #f1f5f9;
+  white-space: nowrap;
+}
+
+.report-bar {
+  flex: 1 1 auto;
+  height: 6px;
+  border-radius: 999px;
+  background: #1e293b;
+  overflow: hidden;
+  min-width: 60px;
+}
+
+.report-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+}
+
+.report-empty {
+  font-size: 13px;
+  color: #64748b;
+}
+
+/* Описание предмета и его особое действие. */
+.item-desc {
+  display: block;
+  font-size: 12px;
+  font-style: italic;
+  color: #8b9ab5;
+  margin-top: 2px;
+}
+
+.item-effect {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: #c4b5fd;
+  margin-top: 2px;
+}
+
+/* Комплекты-семейства: строка о семье предмета и блок «Комплекты». */
+.item-set {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-top: 3px;
+}
+
+.set-title {
+  margin-top: 10px;
+}
+
+.effect-row.set-row .effect-num {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.effect-row.set-row.full .effect-num {
+  color: #86efac;
+}
+
+.set-item .info b {
+  letter-spacing: 0.2px;
+}
+
+/* Сравнение предмета из сумки с надетым: видно, станет ли лучше. */
+.forge-lvl {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.item-cmp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #8296b5;
+}
+
+.item-cmp {
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid #2b3d5f;
+  background: #16233a;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.item-cmp.up {
+  color: #86efac;
+  border-color: #2f6b45;
+  background: #14301f;
+}
+
+.item-cmp.down {
+  color: #fca5a5;
+  border-color: #6b2f2f;
+  background: #301414;
+}
+
+.item-cmp.set {
+  color: #fde68a;
+  border-color: #6b5a2f;
+  background: #302a14;
+}
+
+.inv-empty {
+  color: #8296b5;
+  font-size: 14px;
+  padding: 6px 0;
+}
+
+/* ---------- Лавка: две колонки и подробные карточки ---------- */
+/* Коробка лавки шире инвентаря: слева товар, справа продажа. Потолок высоты
+   остаётся общим (.battle), поэтому прокручивается середина — раньше список
+   товара упирался в потолок карточки, и до продажи было не добраться. */
+#shop-box {
+  max-width: 1040px;
+}
+
+/* Шапка лавки и кузницы — это название и золото: ужимать её нельзя, иначе
+   заголовок срезается. В бою шапка по-прежнему уступает место заданию.
+   Тем же правилом живут окна деревни: без него шапка сжимается в нулевую
+   высоту, содержимое её перекрывает, и кнопка «Закрыть» пропадает — выйти
+   из окна торговца становится нечем. */
+#shop-box .battle-head,
+#forge-box .battle-head,
+#dialog-box .battle-head,
+#entrance-box .battle-head {
+  flex-shrink: 0;
+}
+
+/* Окна жителей и входа — той же ширины, что лавка: в узком окне карточки
+   товара вставали в три тесных столбца. */
+#dialog-box,
+#entrance-box {
+  max-width: 1040px;
+}
+
+.shop-stats {
+  margin: 14px 0 0;
+  flex-shrink: 0;
+}
+
+/* В панели справа статы живут сеткой 2x2, но в широкой лавке они встают
+   одной строкой: так видно всё сразу и нет растянутых промежутков. */
+#shop-box .inv-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 14px 0 0;
+}
+
+.shop-note {
+  margin: 10px 0 14px;
+  font-size: 13px;
+  color: #9fb3d1;
+  flex-shrink: 0;
+}
+
+.shop-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0 22px;
+  align-items: start;
+}
+
+/* Две кнопки покупки столбиком: в узкой колонке им тесно в строку. */
+.shop-buy-actions {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.shop-buy-actions .btn {
+  white-space: nowrap;
+}
+
+@media (max-width: 860px) {
+  .shop-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---------- Опасная среда этажа ---------- */
+
+/* Лёд: холодная плёнка поверх плитки. Встав на неё, герой скользит. */
+.tile.hazard-frost::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(125, 211, 252, 0.28);
+  box-shadow: inset 0 0 8px rgba(186, 230, 253, 0.55);
+  pointer-events: none;
+}
+
+/* Лава: плитка светлее и насыщеннее соседей — в демонической теме стены
+   (красный камень) горят ярче самой лавы, и без этого её не отличить. */
+.tile.hazard-lava {
+  filter: brightness(1.45) saturate(1.3);
+}
+
+/* Лава: тёплое дыхание снизу, чуть пульсирует. */
+.tile.hazard-lava::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  /* Сама клетка нарисована плиткой лавы (terrainLavaCellBg), поэтому плёнка
+     лишь подсвечивает кромку: так опасность читается с первого взгляда. */
+  background: rgba(255, 140, 40, 0.16);
+  box-shadow: inset 0 0 12px rgba(255, 150, 50, 0.85);
+  pointer-events: none;
+  animation: lava-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes lava-breathe {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+/* Тьма действует на весь этаж: гасим уже увиденные плитки, но не тех,
+   кто в зоне видимости — иначе в темноте не разглядеть даже монстра. */
+.map[data-hazard="dark"] .tile.floor.seen {
+  filter: brightness(0.42) saturate(0.6);
+}
+
+/* Винетка по краям экрана: камера держит героя в центре, поэтому
+   затемнение сходится именно там, где он стоит, а не в центре карты. */
+.map-scroll.hazard-dark {
+  box-shadow: inset 0 0 150px 50px rgba(2, 6, 23, 0.9);
+}
+
+.floor-arrival .floor-hazard {
+  color: #fca5a5;
+  font-weight: 700;
+}
+
+.floor-arrival .floor-hazard-hint {
+  color: #93c5fd;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile.hazard-lava::after {
+    animation: none;
+  }
+}
+
+/* ---------- Развилка на входе: сделка ---------- */
+/* Развилка на входе — окно уровня карты, а не модальное: в разметке она стоит
+   последней среди .overlay, и при общем z-index: 60 перекрывала бой, лавку и
+   экран победы. Ученик, не ответивший на развилку, видел её карточки поверх
+   всего и не мог ни драться, ни нажать «В деревню» после дракона. Ниже 60 —
+   значит выше карты и панели (их z-index максимум 20), но ниже любого окна. */
+#blessing-overlay {
+  z-index: 55;
+}
+
+.bless-box {
+  max-width: 640px;
+}
+
+.bless-lead {
+  color: #cbd5f5;
+  margin-bottom: 14px;
+}
+
+.bless-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.bless-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  text-align: center;
+  padding: 18px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(24, 33, 51, 0.95);
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+
+.bless-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+.bless-card.curse:hover {
+  box-shadow: 0 0 22px rgba(248, 113, 113, 0.35);
+  border-color: rgba(248, 113, 113, 0.7);
+}
+
+.bless-card.blessing:hover {
+  box-shadow: 0 0 22px rgba(74, 222, 128, 0.32);
+  border-color: rgba(74, 222, 128, 0.7);
+}
+
+.bless-icon {
+  font-size: 34px;
+  line-height: 1;
+}
+
+.bless-card.curse .bless-icon {
+  color: #f87171;
+}
+
+.bless-card.blessing .bless-icon {
+  color: #4ade80;
+}
+
+.bless-name {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.bless-good {
+  color: #fecaca;
+  font-size: 14px;
+}
+
+.bless-card.blessing .bless-good {
+  color: #bbf7d0;
+}
+
+.bless-extra {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+/* ---------- Калибровка уровня ---------- */
+.calibration-box {
+  text-align: left;
+  max-width: 620px;
+}
+
+.calibration-box h2 {
+  text-align: center;
+  margin: 14px 0 8px;
+}
+
+.calibration-box .battle-head {
+  margin-bottom: 12px;
+}
+
+.calib-question {
+  margin: 10px 0 12px;
+  color: #f1f5f9;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.calib-code {
+  margin: 0 0 14px;
+  padding: 10px 12px;
+  border: 1px solid #2f4468;
+  border-radius: 10px;
+  background: #0b1526;
+  color: #dbeafe;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.calib-options {
+  display: grid;
+  gap: 8px;
+}
+
+.calib-option {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #334a6e;
+  border-radius: 10px;
+  background: #1b2b49;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.calib-option b {
+  margin-right: 4px;
+  color: #93c5fd;
+}
+
+.calib-option:hover:not(:disabled) {
+  border-color: #3d7ee0;
+  background: #22385c;
+}
+
+.calib-option:disabled {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.calib-option.correct {
+  border-color: #22c55e;
+  background: rgba(34, 197, 94, 0.16);
+}
+
+.calib-option.wrong {
+  border-color: #ef4444;
+  background: rgba(239, 68, 68, 0.14);
+}
+
+.calib-feedback {
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.calib-feedback.ok {
+  color: #86efac;
+}
+
+.calib-feedback.bad {
+  color: #fca5a5;
+}
+
+.calib-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.calib-foot .btn {
+  min-width: 120px;
+}
+
+@media (max-width: 560px) {
+  .calibration-box {
+    padding: 18px;
+  }
+
+  .calib-question {
+    font-size: 16px;
+  }
+
+  .calib-foot {
+    flex-direction: column-reverse;
+  }
+
+  .calib-foot .btn {
+    width: 100%;
+  }
+}
+
+/* ---------- Итоговые экраны ---------- */
+.center-card {
+  text-align: center;
+}
+
+/* Заголовок стартового экрана переехал в блок «Главное меню подземелья»
+   в конце файла: градиентная заливка текста заменена на обычный цвет. */
+
+.center-card h2 {
+  font-size: 28px;
+  color: #f1f5f9;
+}
+
+.big-emoji-free {
+  font-size: 44px;
+  font-weight: 900;
+  margin: 8px 0;
+  letter-spacing: 2px;
+}
+
+.game-over {
+  color: #f87171;
+  text-shadow: 0 0 22px rgba(248, 113, 113, 0.6);
+}
+
+.victory {
+  color: #4ade80;
+  text-shadow: 0 0 22px rgba(74, 222, 128, 0.6);
+}
+
+/* Правила .start-grid удалены вместе со старой разметкой кнопок:
+   главное меню подземелья больше не собирает кнопки в колонку-карточку. */
+
+a.link-btn {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+}
+
+/* ---------- Кнопки (переопределяем на тёмном) ---------- */
+.btn {
+  background: #2f6fe4;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+  transition: transform 0.1s, filter 0.15s, box-shadow 0.15s;
+}
+
+.btn:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.5);
+}
+
+.btn.ghost {
+  background: #24344f;
+  color: #cbd5e1;
+  box-shadow: none;
+}
+
+.btn.ghost:hover {
+  background: #2f4468;
+}
+
+.btn.purple {
+  background: #8b5cf6;
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.45);
+}
+
+.btn.purple:hover {
+  filter: brightness(1.1);
+  box-shadow: 0 10px 24px rgba(124, 58, 237, 0.55);
+}
+
+/* Главное действие окна покупки — «Купить» в лавке и «Улучшить» в кузнице:
+   рядом есть второстепенные кнопки, и они не должны выглядеть так же. */
+.btn.primary {
+  background: linear-gradient(180deg, #3d7ee0, #2f6fe4);
+  color: #f4f8ff;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
+}
+
+.btn.primary:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.5);
+}
+
+/* ============================================================
+   ОКНА ДЕРЕВНИ И ВХОДА В ПОДЗЕМЕЛЬЕ
+   Раскладка: шапка во всю ширину, ниже две колонки — слева
+   настройки похода, справа сводка «что ждёт в подземелье».
+   Классы .check/.pick/.modes общие: их используют окна
+   страницы теста и самоподготовки (они делят .modes и .mode).
+   ============================================================ */
+
+:root {
+  /* Эти переменные уже использовались в game.css (строки с .panel
+     input:focus и .panel .mode.active), но нигде не были объявлены:
+     var(--gold) не подставлялся, и рамка выбранной карточки красилась
+     в currentColor вместо золота. Теперь токены определены. */
+  --gold: #f6c453;
+  --gold-ink: #2b1e04;
+  --steel-1: #101d31;
+  --steel-2: #0a1424;
+  --steel-line: rgba(125, 162, 217, 0.18);
+  --steel-muted: #93a8c8;
+  --display: Georgia, "Times New Roman", serif;
+}
+
+
+/* =========================================================
+   Экран настройки похода. Язык без карточек.
+   Поверхность одна — сама страница. Иерархию держат типографика,
+   волосяные линейки и воздух; вложенных прямоугольников с фоном,
+   рамкой и скруглением нет. Кнопки, поля и флажки остаются
+   контролами: у них есть форма, потому что с ними взаимодействуют.
+   ========================================================= */
+
+/* Тёмная поверхность на весь экран: раньше это была панель-карточка. */
+body.game-page {
+  background-color: #0a1220;
+  background-image: var(--tex-dots);
+}
+
+
+.dialog-setup-unused {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(300px, 0.92fr);
+  grid-template-areas:
+    "hero hero"
+    "main side";
+  gap: 24px 44px;
+  align-content: start;
+  align-items: start;
+  /* Карточки здесь больше нет: секция остаётся областью прокрутки. */
+  padding: 2px 0 4px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  /* Секция — только область прокрутки: карточная анимация появления
+     (style.css, .card/.panel) на ней больше не нужна. */
+  animation: none;
+  text-align: left;
+}
+
+/* ---------- шапка ---------- */
+.setup-hero {
+  grid-area: hero;
+  max-width: 76ch;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--steel-line);
+}
+
+.setup-kicker {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8ea9cf;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-family: var(--display);
+  font-size: clamp(29px, 3vw, 40px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: #f7ecd2;
+  text-wrap: balance;
+}
+
+.setup-lead {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 15px;
+  line-height: 1.55;
+  color: #a9bcd8;
+}
+
+/* ---------- левая колонка: настройки ---------- */
+.setup-main {
+  grid-area: main;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+  min-width: 0;
+}
+
+/* Кошелёк и медали живут в правой колонке: левая остаётся чистой
+   формой, и кнопка спуска видна без прокрутки. Метрики медалей
+   перебивают inline-стили badgesHtml() — цвет и рамка остаются его. */
+.side-block {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--steel-line);
+}
+
+.side-block #wallet-line {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #a9bcd8;
+}
+
+#game-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  margin: 10px 0 0;
+}
+
+#game-badges span {
+  margin: 0 !important;
+  padding: 2px 8px !important;
+  font-size: 11.5px !important;
+}
+
+/* Пока ученик не вошёл, спуск заблокирован. */
+#begin-btn[disabled] {
+  opacity: 0.45;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+/* Лавка деревни — сетка карточек. Ширина карточки ~190px, поэтому на
+   планшете влезает две, на телефоне — одна в столбец. */
+.hub-shop {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.hub-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.hub-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+
+.hub-price {
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: #f6c453;
+}
+
+.hub-card-note {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #94a3b8;
+}
+
+.hub-stock {
+  font-size: 12px;
+  color: #7dd3fc;
+}
+
+.hub-stock.full {
+  color: #94a3b8;
+}
+
+.hub-buy {
+  margin-top: auto;
+  min-height: 38px;
+}
+
+/* Развитие деревни и квесты: блок постройки в окне жителя, кнопки роста и
+   заголовки разделов в окне старосты. */
+.build-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  margin: 10px 0;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.build-go,
+.upg-buy,
+.quest-take,
+.quest-claim {
+  margin-top: auto;
+  min-height: 38px;
+}
+
+.quest-head {
+  margin: 16px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+/* Строка цели в панели подземелья: одна строка, чтобы не раздувать HUD. */
+.quest-line {
+  color: #f6c453;
+  font-size: 12px;
+}
+
+/* Прогоревший костёр: тот же спрайт, но видно, что привал здесь уже был. */
+.ent-camp.spent {
+  filter: grayscale(1) brightness(0.65);
+  opacity: 0.75;
+}
+
+/* Действия героя в бою: оборона, отступление и умение стоят отдельной
+   строкой под подсказкой и пропуском, чтобы их не путали с ответом. */
+.battle-actions-hero {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.25);
+}
+
+/* Показ первой проверки при «Прозрении» в задании с кодом. */
+.code-hint {
+  margin: 6px 0 0;
+  font-size: 12.5px;
+  color: #7dd3fc;
+}
+
+/* Флажок «забрать награды»: настоящий чекбокс скрыт, рисуется квадрат
+   20×20, а вся строка — цель не меньше 44 px по высоте. */
+.check {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: 44px;
+  padding: 2px 0;
+  font-size: 14px;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.check input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  opacity: 0;
+}
+
+.check-box {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid #3a5379;
+  border-radius: 4px;
+  background: none;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.check-box::after {
+  content: "";
+  width: 10px;
+  height: 5px;
+  border-left: 2px solid var(--gold-ink);
+  border-bottom: 2px solid var(--gold-ink);
+  transform: rotate(-45deg) scale(0);
+  transition: transform 0.16s ease;
+}
+
+.check input:checked + .check-box {
+  background: var(--gold);
+  border-color: var(--gold);
+}
+
+.check input:checked + .check-box::after {
+  transform: rotate(-45deg) scale(1);
+}
+
+.check input:focus-visible + .check-box {
+  outline: 3px solid rgba(246, 196, 83, 0.5);
+  outline-offset: 2px;
+}
+
+/* ---------- выборы: не карточки, а строки, разделённые линейками ---------- */
+.pick-label {
+  display: block;
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8ea9cf;
+}
+
+.modes,
+#difficulty {
+  display: grid;
+  gap: 0 34px;
+  margin: 0;
+}
+
+.modes,
+#difficulty {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.mode {
+  position: relative;
+  /* Строка-бланк: маркер, название и пояснение в одну линию.
+     На узком экране пояснение уезжает под название (медиазапрос ниже). */
+  display: grid;
+  grid-template-columns: 16px minmax(140px, 0.44fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 12px;
+  width: 100%;
+  margin: 0;
+  padding: 13px 12px 13px 10px;
+  border: 0;
+  border-top: 1px solid var(--steel-line);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.mode:hover {
+  background: rgba(125, 162, 217, 0.07);
+}
+
+.mode:active {
+  background: rgba(125, 162, 217, 0.12);
+}
+
+.mode.active {
+  border-top-color: var(--gold);
+  background: rgba(246, 196, 83, 0.06);
+}
+
+.mode:focus-visible {
+  outline: 2px solid rgba(246, 196, 83, 0.7);
+  outline-offset: -2px;
+}
+
+.mode-mark {
+  grid-column: 1;
+  align-self: start;
+  width: 16px;
+  height: 16px;
+  margin-top: 3px;
+  border: 1.5px solid #3a5379;
+  border-radius: 50%;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.mode.active .mode-mark {
+  border-color: var(--gold);
+  box-shadow: inset 0 0 0 4px var(--gold);
+}
+
+.mode b {
+  grid-column: 2;
+  display: block;
+  font-size: 15.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: #e7eefa;
+  transition: color 0.16s ease;
+}
+
+.mode.active b {
+  color: #ffe4a3;
+}
+
+.mode .mode-note {
+  grid-column: 3;
+  display: block;
+  margin-top: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #9db2d2;
+}
+
+/* ---------- действия ---------- */
+.setup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+#begin-btn,
+#resume-btn {
+  flex: 0 1 auto;
+  min-width: 240px;
+  max-width: 320px;
+  min-height: 52px;
+  padding: 15px 26px;
+  border-radius: 12px;
+  font-size: 16.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.1s ease, background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+#begin-btn {
+  border: 0;
+  background: #f6c453;
+  color: var(--gold-ink);
+  box-shadow: 0 6px 18px rgba(223, 168, 56, 0.24);
+}
+
+#begin-btn:hover {
+  background: #ffd77a;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(223, 168, 56, 0.3);
+}
+
+#begin-btn:active {
+  transform: translateY(1px);
+}
+
+#resume-btn {
+  border: 1px solid #33496e;
+  background: none;
+  color: #dbe6f7;
+}
+
+#resume-btn:hover {
+  border-color: #4a6892;
+  background: rgba(125, 162, 217, 0.08);
+}
+
+.setup-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+  margin-top: 2px;
+}
+
+.link-quiet {
+  padding: 3px 0;
+  font-size: 14px;
+  color: #9db2d2;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: color 0.16s ease, border-color 0.16s ease;
+}
+
+.link-quiet:hover {
+  color: #ffe4a3;
+  border-bottom-color: rgba(246, 196, 83, 0.5);
+}
+
+.link-quiet:focus-visible {
+  outline: 3px solid rgba(246, 196, 83, 0.5);
+  outline-offset: 2px;
+}
+
+/* ---------- правая колонка: сводка ---------- */
+.setup-side {
+  grid-area: side;
+  padding-left: 32px;
+  border-left: 1px solid var(--steel-line);
+}
+
+.side-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: #8ea9cf;
+}
+
+.brief {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.brief li {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 0;
+}
+
+.brief li + li {
+  border-top: 1px solid rgba(125, 162, 217, 0.1);
+}
+
+.brief svg {
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  margin-top: 3px;
+  /* Иконки нарисованы контурами: без этого браузер заливал их чёрным. */
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--gold);
+  opacity: 0.9;
+}
+
+.brief b {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: #e7eefa;
+}
+
+.brief span {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #9db2d2;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px 16px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(125, 162, 217, 0.1);
+  font-size: 12.5px;
+  color: #93a8c8;
+}
+
+.key-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+kbd {
+  padding: 1px 6px;
+  border: 1px solid #33496e;
+  border-radius: 5px;
+  background: none;
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #dbe6f7;
+}
+
+/* ---------- адаптив ---------- */
+@media (max-width: 1240px) {
+  .dialog-setup-unused {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "hero"
+      "main"
+      "side";
+  }
+
+  .setup-side {
+    padding: 26px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--steel-line);
+  }
+}
+
+@media (max-width: 700px) {
+  /* ?? ???????? ????????????? ????? ???????? ?????? ???, ? ? ?????
+     ?????? ?????? ???????? ????? ? ????????. */
+  #fullscreen-btn {
+    display: none;
+  }
+
+  /* Узко: пояснение уезжает под название, маркер остаётся слева. */
+  .mode {
+    grid-template-columns: 16px minmax(0, 1fr);
+  }
+
+  .mode b,
+  .mode .mode-note {
+    grid-column: 2;
+  }
+
+  .mode .mode-note {
+    margin-top: 3px;
+  }
+
+  .setup-actions {
+    flex-direction: column;
+  }
+
+  #begin-btn,
+  #resume-btn {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+}
+
+/* Появление экрана: только когда движение не отключено в системе. */
+@media (prefers-reduced-motion: no-preference) {
+  .setup-hero,
+  .setup-main > *,
+  .setup-side > * {
+    animation: setupIn 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .setup-main > *:nth-child(2) {
+    animation-delay: 0.04s;
+  }
+
+  .setup-main > *:nth-child(3) {
+    animation-delay: 0.08s;
+  }
+
+  .setup-main > *:nth-child(4) {
+    animation-delay: 0.12s;
+  }
+
+  .setup-side > *:nth-child(2) {
+    animation-delay: 0.06s;
+  }
+
+  @keyframes setupIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ==========================================================================
+   Игровой экран (#screen-game) — тот же безкарточный язык, что и в меню похода
+   Одна поверхность вместо карточек, иерархия держится на типографике,
+   волосяных линейках и воздухе. Форму сохраняют только те элементы,
+   с которыми игрок взаимодействует: поле ввода, кнопки, полосы здоровья.
+   ========================================================================== */
+
+/* ---------- Каркас: карта и колонка состояния ---------- */
+
+/* Панель вокруг карты больше не нужна: карта сама себе рамка. */
+body.game-page .game-wrap > #screen-game.panel {
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+#screen-game .map-scroll {
+  border: 1px solid var(--steel-line);
+  border-radius: 14px;
+}
+
+/* Колонка состояния: ширина по делу, а не процент от экрана.
+   На 1024 px подписи и значения перестают наезжать друг на друга. */
+body.game-page .side-panel {
+  flex: 0 0 clamp(268px, 21vw, 320px);
+  max-width: none;
+  gap: 0;
+}
+
+/* ---------- Колонка состояния: разделы вместо карточек ---------- */
+body.game-page .side-card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+body.game-page .side-card + .side-card {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--steel-line);
+}
+
+/* Здоровье и опыт: подпись и число в одну строку, полоса под ними. */
+body.game-page .hud {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 16px;
+  margin: 0;
+}
+
+body.game-page .hud-block {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 10px;
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+}
+
+body.game-page .hud-label {
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+body.game-page .hud-num {
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+body.game-page .hp-bar,
+body.game-page .xp-bar {
+  flex: 1 1 100%;
+  order: 3;
+  margin-top: 7px;
+  box-shadow: none;
+}
+
+body.game-page .hp-bar {
+  height: 8px;
+  border-radius: 3px;
+  background: #0b1526;
+}
+
+body.game-page .hp-bar > i {
+  border-radius: 3px;
+  background: #3f9e6a;
+  box-shadow: none;
+}
+
+/* Опыт — золотом: единственный акцент подземелья, а не второй цвет. */
+body.game-page .xp-bar {
+  height: 5px;
+  border-radius: 3px;
+  background: #0b1526;
+}
+
+body.game-page .xp-bar > i {
+  border-radius: 3px;
+  background: var(--gold);
+  box-shadow: none;
+}
+
+/* Этаж, монстры и золото — список строками с линейками. */
+body.game-page .hud-block:has(.floor-name) {
+  display: block;
+}
+
+body.game-page .floor-name {
+  font-size: 14.5px;
+  letter-spacing: 0.2px;
+}
+
+body.game-page .hud-block:has(.floor-name) .hud-num {
+  margin-top: 8px;
+  padding-top: 7px;
+  border-top: 1px solid var(--steel-line);
+}
+
+/* Экипировка: строки «подпись — значение». */
+body.game-page .equip-bar {
+  display: block;
+  margin: 0;
+}
+
+body.game-page .equip-slot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 0;
+  background: none;
+  border: 0;
+  border-top: 1px solid var(--steel-line);
+  border-radius: 0;
+}
+
+body.game-page .equip-slot:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+body.game-page .equip-label {
+  margin: 0;
+  font-size: 11px;
+}
+
+body.game-page .equip-value {
+  font-size: 13.5px;
+  text-align: right;
+}
+
+/* Особые эффекты: точка и название в первой строке, пояснение во второй.
+   В узкой колонке пояснение больше не наезжает на название. */
+body.game-page .effect-list {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--steel-line);
+}
+
+body.game-page .effect-title {
+  margin-bottom: 8px;
+}
+
+body.game-page .effect-row {
+  display: grid;
+  grid-template-columns: 8px minmax(0, 1fr);
+  gap: 2px 9px;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 12.5px;
+}
+
+body.game-page .effect-dot {
+  align-self: start;
+  margin-top: 5px;
+}
+
+body.game-page .effect-num {
+  grid-column: 2;
+  margin: 0;
+  white-space: normal;
+  font-size: 11.5px;
+  color: #7d92b3;
+}
+
+body.game-page .effect-row + .effect-row {
+  border-top: 1px solid rgba(125, 162, 217, 0.1);
+}
+
+/* Сумка: строки с цветной засечкой редкости вместо карточек. Кнопки строк
+   остаются плоскими: в панели они не должны спорить с золотыми «Лавкой» и
+   «Кузницей» из сводки. */
+body.game-page .inv-item .btn {
+  font-size: 12px;
+  font-weight: 600;
+  color: #cfe0f5;
+  background: none;
+  border: 1px solid var(--steel-line);
+  border-radius: 999px;
+  padding: 5px 12px;
+}
+
+body.game-page .inv-item .btn:hover {
+  border-color: rgba(246, 196, 83, 0.5);
+  color: var(--gold);
+}
+
+#shop-box .inv-item .btn.primary,
+#forge-box .inv-item .btn.primary {
+  background: linear-gradient(180deg, #3d7ee0, #2f6fe4);
+  color: #f4f8ff;
+  border-color: rgba(120, 170, 240, 0.55);
+  font-weight: 700;
+}
+
+#shop-box .inv-item .btn.purple {
+  background: linear-gradient(180deg, #9a6cf7, #8b5cf6);
+  color: #f7f3ff;
+  border-color: rgba(167, 139, 250, 0.55);
+  font-weight: 700;
+}
+
+#shop-box .inv-item .btn.primary:hover,
+#forge-box .inv-item .btn.primary:hover {
+  color: #f4f8ff;
+  filter: brightness(1.08);
+}
+
+#shop-box .inv-item .btn.purple:hover {
+  color: #f7f3ff;
+  filter: brightness(1.08);
+}
+
+/* «Мало золота»: кнопка гаснет и говорит причину — вместо всплывашки после
+   нажатия. Продажа остаётся обычной кнопкой, она не отказ. */
+#shop-box .inv-item .btn.ghost,
+#forge-box .inv-item .btn.ghost {
+  color: #8ea3c2;
+  border-color: rgba(125, 162, 217, 0.25);
+  opacity: 0.75;
+}
+
+body.game-page .inv-section h3 {
+  font-size: 11px;
+  margin: 0 0 4px;
+  color: var(--steel-muted);
+}
+
+body.game-page .inv-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px 12px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+body.game-page .inv-stats b {
+  font-size: 13px;
+  color: #e6edf7;
+}
+
+body.game-page .inv-item {
+  border: 0;
+  border-top: 1px solid var(--steel-line);
+  border-left: 3px solid #94a3b8;
+  border-radius: 0;
+  background: none;
+  padding: 9px 0 9px 11px;
+  margin: 0;
+  transition: none;
+}
+
+body.game-page .inv-item:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+body.game-page .inv-item .info > b {
+  font-size: 13.5px;
+}
+
+body.game-page .inv-item .info span {
+  font-size: 11.5px;
+}
+
+body.game-page .item-desc {
+  font-size: 11px;
+  color: #7d92b3;
+}
+
+body.game-page .inv-empty {
+  font-size: 12px;
+}
+
+/* ---------- Мебель карты: без наслоений ---------- */
+
+/* Сообщение уходит к левому краю и больше не заезжает на мини-карту. */
+#screen-game .game-msg {
+  left: 12px;
+  right: 208px;
+  max-width: 620px;
+  transform: none;
+  text-align: left;
+  white-space: normal;
+  border-color: var(--steel-line);
+  border-radius: 10px;
+  background: rgba(5, 8, 15, 0.86);
+}
+
+#screen-game .minimap {
+  border: 1px solid var(--steel-line);
+  border-radius: 12px;
+  background: rgba(5, 8, 15, 0.94);
+  box-shadow: none;
+}
+
+/* Подсказка про зум: тихая подпись вместо второй пилюли. */
+#screen-game .cam-hint {
+  right: 12px;
+  bottom: 9px;
+  color: #6f86a8;
+  background: none;
+  border: 0;
+  padding: 0;
+}
+
+/* Журнал: панель над картой в тех же линиях. Кнопка переехала в шапку,
+   поэтому раскладку панели задаёт только это правило. */
+#screen-game .log {
+  left: 12px;
+  bottom: 12px;
+  width: min(380px, 58%);
+  max-height: min(50%, 380px);
+  padding: 10px 12px;
+  border: 1px solid var(--steel-line);
+  border-radius: 12px;
+  background: rgba(5, 8, 15, 0.94);
+  font-size: 12.5px;
+}
+
+/* Род события виден по цвету и значку: находка, бой, урон, новый этаж.
+   Одинаковые серые строки приходилось читать подряд, чтобы найти нужную. */
+#screen-game .log .log-line {
+  padding: 1px 0;
+}
+
+#screen-game .log .kind-info {
+  color: #9fb3d1;
+}
+
+#screen-game .log .kind-loot {
+  color: #8fe0a6;
+}
+
+#screen-game .log .kind-fight {
+  color: #f0a68e;
+}
+
+#screen-game .log .kind-hurt {
+  color: #f28b7d;
+  font-weight: 600;
+}
+
+#screen-game .log .kind-floor {
+  color: #f6c453;
+  font-weight: 600;
+}
+
+/* Счётчик новых строк: виден, даже когда журнал свёрнут. */
+body.game-page .head-link[data-unread] {
+  text-shadow: 0 2px 14px rgba(234, 179, 8, 0.9);
+}
+
+body.game-page .head-link[data-unread]::after {
+  content: attr(data-unread);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2a1e02;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+
+/* Золота хватает на улучшение: у «Кузницы» тот же значок, что у журнала. */
+body.game-page .head-link[data-ready] {
+  text-shadow: 0 2px 14px rgba(234, 179, 8, 0.9);
+}
+
+body.game-page .head-link[data-ready]::after {
+  content: attr(data-ready);
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2a1e02;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+}
+
+/* Неизведанное — не чёрная пустота, а едва заметная сетка. */
+#screen-game .map .tile.unseen {
+  background-color: #060c18;
+  background-image: var(--tex-grid);
+  background-repeat: repeat;
+}
+
+/* Список предметов в узкой колонке: действия под описанием, а не сбоку —
+   иначе название рвётся на две строки. */
+body.game-page .side-panel .inv-item {
+  display: block;
+  border-left-width: 3px;
+}
+
+body.game-page .side-panel .inv-item .inv-actions {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
+/* Вкусовое описание предмета в панели лишнее: строка эффекта о нём уже есть. */
+body.game-page .side-panel .item-desc {
+  display: none;
+}
+
+body.game-page .side-panel .item-effect {
+  color: #b9c6dd;
+  font-weight: 600;
+}
+
+/* Колонка прокручивается: покажем, что прокрутка есть. */
+body.game-page .side-panel {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(125, 162, 217, 0.32) transparent;
+}
+
+body.game-page .side-panel::-webkit-scrollbar {
+  width: 10px;
+}
+
+body.game-page .side-panel::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-clip: content-box;
+  background-color: rgba(125, 162, 217, 0.32);
+}
+
+/* Заголовок списка эффектов: без него строки читались как продолжение
+   сводки экипировки. Рисуется вместе со списком, пустого не бывает. */
+body.game-page .side-panel .effect-title {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--steel-line);
+  font-size: 11.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #8296b5;
+}
+
+/* ---------- Панель состояния: сводка закреплена ---------- */
+
+/* Здоровье, этаж, золото и кнопки остаются на месте, пока игрок листает
+   сумку. Раньше сводка уезжала вверх вместе с прокруткой, и «Лавка» с
+   «Выйти» исчезали ровно тогда, когда нужны. */
+body.game-page .side-panel > .side-card:first-child {
+  margin: 0;
+  padding-bottom: 12px;
+  background-color: #0b1524;
+  background-image: var(--tex-dots);
+  border-bottom: 1px solid var(--steel-line);
+}
+
+/* Закрепляется сводка только там, где колонка высокая. На узком экране
+   колонка стоит под картой и бывает ниже 300px: закреплённые 225px сводки
+   оставляли сумке полоску в пару строк, и листать её было некуда. */
+@media (min-width: 981px) and (min-height: 560px) {
+  body.game-page .side-panel > .side-card:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 4;
+  }
+}
+
+/* Линейку рисует закреплённая сводка: второй раздел её не дублирует. */
+body.game-page .side-panel > .side-card:first-child + .side-card {
+  margin-top: 0;
+  padding-top: 14px;
+  border-top: 0;
+}
+
+/* Пункты похода живут в шапке справа. Появляются только в игре: на стартовом
+   экране ни лавки, ни кузницы, ни журнала ещё нет, и пунктам там нечего делать. */
+body.game-page .head-actions {
+  display: none;
+  margin-left: auto;
+  align-items: baseline;
+  gap: 6px 18px;
+}
+
+body.game-page:has(.stage.playing) .head-actions {
+  display: flex;
+}
+
+/* Лавка, кузница, журнал и выход — не кнопки, а золотые ссылки: их ищут глазами,
+   но они не должны спорить с кнопками, которые ждут нажатия внутри окон. Тень —
+   та же золотая, что была у кнопки, только текстовая. */
+body.game-page .head-link {
+  padding: 2px 1px;
+  background: none;
+  border: 0;
+  color: #f6c453;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-shadow: 0 2px 10px rgba(234, 179, 8, 0.45);
+  cursor: pointer;
+  transition: color 0.15s, text-shadow 0.15s;
+}
+
+body.game-page .head-link:hover {
+  color: #ffe08a;
+  text-decoration: underline;
+  text-decoration-color: rgba(246, 196, 83, 0.55);
+  text-underline-offset: 3px;
+  text-shadow: 0 2px 14px rgba(234, 179, 8, 0.8);
+}
+
+body.game-page .head-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid rgba(246, 196, 83, 0.7);
+  outline-offset: 2px;
+}
+
+/* Открытый журнал виден по подчёркиванию: ссылка не должна прыгать по ширине. */
+body.game-page .head-link.active {
+  text-decoration: underline;
+  text-decoration-color: rgba(246, 196, 83, 0.75);
+  text-underline-offset: 3px;
+}
+
+/* Снаряжение — четыре плашки в два ряда вместо четырёх строк списка. */
+body.game-page .equip-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 6px 8px;
+}
+
+body.game-page .equip-slot {
+  display: block;
+  min-width: 0;
+  padding: 5px 10px;
+  background: #0d1a2c;
+  border: 1px solid var(--steel-line);
+  border-radius: 10px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+/* Подпись сверху, значение снизу: название вещи помещается целиком. */
+body.game-page .equip-slot .equip-label {
+  display: block;
+  margin: 0 0 1px;
+}
+
+body.game-page .equip-slot .equip-value {
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+/* Плашка с вещью — кнопка «снять»: подсказка говорит об этом словами,
+   а рамка отзывается на наведение. Пустая плашка не нажимается. */
+body.game-page button.equip-slot {
+  cursor: pointer;
+}
+
+body.game-page button.equip-slot:hover:not(:disabled) {
+  border-color: rgba(246, 196, 83, 0.55);
+  background: #12213a;
+}
+
+body.game-page button.equip-slot:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+body.game-page button.equip-slot:disabled {
+  cursor: default;
+  border-style: dashed;
+  opacity: 0.75;
+}
+
+/* Строка сумки: название и статы слева, кнопки справа. До этого каждая
+   вещь занимала почти треть высоты колонки. */
+body.game-page .side-panel #inventory-box .inv-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0 8px 10px;
+}
+
+body.game-page .side-panel #inventory-box .inv-item .info {
+  min-width: 0;
+}
+
+body.game-page .side-panel #inventory-box .inv-item .inv-actions {
+  margin: 0;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 5px;
+}
+
+body.game-page .side-panel #inventory-box .inv-item .btn {
+  padding: 4px 10px;
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* Подробности строки в колонке не нужны: они ждут наведения. Сравнение с
+   надетым остаётся — это то, по чему игрок выбирает вещь. */
+body.game-page .side-panel #inventory-box .item-effect,
+body.game-page .side-panel #inventory-box .item-set,
+body.game-page .side-panel #inventory-box .item-desc {
+  display: none;
+}
+
+body.game-page .side-panel #inventory-box .item-cmp-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+body.game-page .inv-note {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  font-style: normal;
+  color: #8296b5;
+}
+
+/* Мелкий текст колонки читался как сноска: 11 px на тёмном фоне сливались. */
+body.game-page .hud-label,
+body.game-page .equip-label,
+body.game-page .inv-section h3,
+body.game-page .inv-item .info span,
+body.game-page .effect-num {
+  font-size: 12px;
+}
+
+body.game-page .equip-value {
+  font-size: 12.5px;
+}
+
+/* Тот же мелкий текст в бою, в лавке и в подсказке сумки: 10–11 px
+   на тёмном фоне читались как сноска. */
+body.game-page .enemy-tag,
+body.game-page .challenge-tag,
+body.game-page .effect-title,
+body.game-page .item-desc,
+body.game-page .action-btn .action-key,
+body.game-page .inv-note,
+body.game-page .side-panel .effect-title {
+  font-size: 12px;
+}
+
+#screen-game .cam-hint {
+  font-size: 12px;
+  color: #8296b5;
+}
+
+/* ---------- Подсказки при наведении ---------- */
+
+/* Одна карточка на всю игру: подробности предмета и пояснения кнопок.
+   Встаёт рядом с тем, о чём рассказывает, и мышь не перехватывает. */
+.tip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 70;
+  max-width: 300px;
+  padding: 9px 12px;
+  border: 1px solid #2c4569;
+  border-radius: 10px;
+  background: rgba(8, 14, 26, 0.98);
+  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.62);
+  color: #bdccdf;
+  font-size: 12.5px;
+  line-height: 1.45;
+  pointer-events: none;
+}
+
+.tip.hidden {
+  display: none;
+}
+
+.tip b {
+  display: block;
+  margin-bottom: 4px;
+  color: #f1f5f9;
+  font-size: 13px;
+}
+
+/* В подсказке строки идут подряд: каждая подробность — своя строка. */
+.tip .item-set,
+.tip .item-effect {
+  display: inline;
+  font-weight: 600;
+}
+
+/* ---------- Узкое окно ---------- */
+@media (max-width: 980px) {
+  /* В колонке карта не должна сжиматься до щели: у неё своя высота,
+     а колонка панели забирает остаток и прокручивается сама. */
+  .stage.playing .game-wrap {
+    flex: 0 0 auto;
+    height: min(56vh, 440px);
+    min-height: 300px;
+  }
+
+  #screen-game .map-scroll {
+    height: 100%;
+    min-height: 0;
+  }
+
+  body.game-page .side-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  /* Кнопка «Пропустить ход» живёт внизу справа, а карта на узком экране
+     низкая: снизу журнал всегда наезжал на неё или на подсказку. Ставим его
+     сверху, под строку-подсказку, во всю ширину карты. */
+  #screen-game .log {
+    left: 10px;
+    right: 10px;
+    width: auto;
+    top: 56px;
+    bottom: auto;
+    max-height: min(38%, 240px);
+  }
+}
+
+/* Предметы декора (колонна, фонтан, гриб, кол) — отдельный слой поверх пола.
+   Они стоят в клетке как вещь и рядом с героем и монстрами спорили за взгляд:
+   гриб принимали за монстра, белую колонну — за препятствие. Вполсилы они
+   читаются как обстановка, а герой, враги и сундуки остаются главными. */
+.tile.has-obj::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--obj) center / 100% 100% no-repeat;
+  image-rendering: pixelated;
+  opacity: 0.5;
+  filter: saturate(0.6);
+  pointer-events: none;
+}
+
+/* ==========================================================================
+   Телефон (до 700 px): бой и карта
+   Карточка боя прятала варианты ответа под сгибом: сцена, кнопки футера и
+   список эффектов съедали больше половины высоты. Здесь они ужаты так, чтобы
+   вопрос и четыре варианта помещались без прокрутки. На карте кнопки
+   «Подняться» и «Пропустить ход» стоят друг над другом и не накладываются,
+   мини-карта меньше, а подсказки про колесо и клавиши (их на телефоне нет)
+   убраны.
+   ========================================================================== */
+@media (max-width: 700px) {
+  #battle-box {
+    padding: 12px;
+    max-height: min(94vh, 880px);
+  }
+
+  .battle-inner {
+    gap: 8px;
+  }
+
+  /* Реплика монстра — украшение, а не информация: на телефоне она стоит
+     полтора варианта ответа. */
+  .scene-quip {
+    display: none;
+  }
+
+  .challenge-tag {
+    margin: 4px 0 8px;
+  }
+
+  .challenge-q {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .battle pre.code {
+    padding: 8px 10px;
+    font-size: 13px;
+    margin-bottom: 8px;
+  }
+
+  .battle .options {
+    gap: 8px;
+  }
+
+  .battle .option {
+    padding: 8px 10px;
+    gap: 10px;
+    font-size: 15px;
+  }
+
+  .battle .option .key {
+    width: 24px;
+    height: 24px;
+    flex: 0 0 24px;
+  }
+
+  /* Футер: подсказка и зелье рядом, эффекты — тонкой строкой без заголовка. */
+  .battle-foot {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 8px;
+    margin-top: 8px;
+    padding-top: 8px;
+  }
+
+  .battle-foot .battle-actions,
+  .battle-foot .potion-row {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    gap: 6px;
+  }
+
+  .battle-foot .btn {
+    flex: 1 1 auto;
+    padding: 9px 8px;
+    font-size: 13.5px;
+  }
+
+  .potion-label {
+    display: none;
+  }
+
+  .battle-effects {
+    flex: 1 1 100%;
+    max-height: 52px;
+  }
+
+  .battle-effects .effect-title,
+  .battle-effects .effect-num {
+    display: none;
+  }
+
+  /* Карта */
+  #screen-game .minimap {
+    width: 112px;
+    height: 80px;
+    top: 6px;
+    right: 6px;
+  }
+
+  #screen-game .game-msg {
+    right: 126px;
+    font-size: 13px;
+  }
+
+  #screen-game .cam-hint {
+    display: none;
+  }
+
+  .action-btn {
+    left: auto;
+    right: 10px;
+    bottom: 56px;
+    transform: none;
+    animation: none;
+    padding: 8px 12px;
+    font-size: 13.5px;
+  }
+
+  .skip-btn {
+    right: 10px;
+    bottom: 10px;
+    padding: 7px 12px;
+    font-size: 13px;
+  }
+
+  .action-btn .action-key {
+    display: none;
+  }
+}
+
+/* Число предметов в стеке: три зелья — одна строка «Малое зелье ×3». */
+.inv-count {
+  color: #f6c453;
+  font-weight: 700;
+}
+
+/* ---------- Загрузка этажа ----------
+   Оверлей висит, пока на компьютере игрока генерируется карта и проверяется
+   проходимость. Генерация занимает миллисекунды, поэтому минимум времени
+   показа держит play-код (LEVEL_MIN_LOAD_MS), иначе экран мигал бы кадром. */
+.loading-box {
+  width: min(440px, 92vw);
+  padding: 26px 26px 22px;
+  border-radius: 18px;
+  border: 1px solid rgba(246, 196, 83, 0.28);
+  background: linear-gradient(180deg, #101f3a 0%, #0b1428 100%);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  text-align: center;
+  color: #e2e8f0;
+}
+
+.loading-box h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: #f6c453;
+  letter-spacing: 0.01em;
+}
+
+.loading-text {
+  margin: 0 0 14px;
+  min-height: 20px;
+  color: #93a3ba;
+  font-size: 14px;
+}
+
+.loading-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.loading-fill {
+  width: 12%;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #b07a2c, #f6c453);
+  box-shadow: 0 0 12px rgba(246, 196, 83, 0.5);
+  transition: width 0.22s ease;
+}
+
+.loading-note {
+  margin: 14px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.loading-spinner {
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  border: 3px solid rgba(246, 196, 83, 0.22);
+  border-top-color: #f6c453;
+  animation: loading-spin 0.9s linear infinite;
+}
+
+@keyframes loading-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-spinner {
+    animation: none;
+    border-top-color: rgba(246, 196, 83, 0.22);
+  }
+  .loading-fill {
+    transition: none;
+  }
+}
+
+/* ---------- Инструменты разработчика ----------
+   Появляются только при запуске сервера с --dev. Панель выше оверлеев,
+   чтобы можно было пропустить бой, не закрывая его вручную. */
+.dev-toggle {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 90;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(246, 196, 83, 0.5);
+  background: rgba(11, 20, 40, 0.92);
+  color: #f6c453;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dev-toggle:hover {
+  background: rgba(20, 34, 62, 0.96);
+}
+
+.dev-panel {
+  position: fixed;
+  right: 14px;
+  bottom: 14px;
+  z-index: 95;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(246, 196, 83, 0.35);
+  background: linear-gradient(180deg, #101f3a 0%, #0a1226 100%);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.6);
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.dev-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #f6c453;
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.dev-close {
+  border: 0;
+  background: none;
+  color: #93a3ba;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.dev-close:hover {
+  color: #fff;
+}
+
+.dev-state {
+  margin-bottom: 10px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #9fb0c8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.dev-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+}
+
+.dev-group:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dev-group > span {
+  color: #93a3ba;
+  font-size: 12px;
+}
+
+.dev-panel input[type="number"] {
+  width: 62px;
+  padding: 4px 6px;
+  border-radius: 7px;
+  border: 1px solid #334155;
+  background: #0b1428;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 12px;
+}
+
+.dev-btn {
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(148, 163, 184, 0.08);
+  color: #dbe6f5;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.dev-btn:hover {
+  border-color: rgba(246, 196, 83, 0.55);
+  background: rgba(246, 196, 83, 0.1);
+}
+
+.dev-btn.dev-on {
+  border-color: #f6c453;
+  background: rgba(246, 196, 83, 0.2);
+  color: #ffe08a;
+}
+
+.dev-btn.dev-danger {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: #fca5a5;
+}
+
+.dev-btn.dev-danger:hover {
+  background: rgba(248, 113, 113, 0.14);
+}
+
+/* ==========================================================================
+   ????????????? ??????? ????: ????? ????? ?????, ????????? ? ??????.
+   ========================================================================== */
+body.game-page {
+  position: relative;
+  padding: 0;
+  gap: 0;
+}
+
+body.game-page .site-head {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  padding: 8px 14px;
+  background: linear-gradient(180deg, rgba(6, 12, 24, 0.94) 0%,
+    rgba(6, 12, 24, 0.58) 68%, transparent 100%);
+  pointer-events: none;
+}
+
+body.game-page .site-head .brand,
+body.game-page .site-head .head-actions {
+  pointer-events: auto;
+}
+
+body.game-page .site-head .head-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+body.game-page .stage {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+body.game-page .game-wrap,
+body.game-page .stage .game-wrap {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  z-index: 1;
+}
+
+body.game-page .game-wrap > #screen-game.panel {
+  position: absolute;
+  inset: 0;
+  display: block;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  overflow: hidden;
+}
+
+body.game-page #screen-game .map-scroll {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+body.game-page #screen-game .map-scroll .map {
+  border-radius: 0;
+}
+
+body.game-page #screen-game .game-msg {
+  top: 64px;
+}
+
+body.game-page #screen-game .minimap {
+  top: 68px;
+  left: 12px;
+  right: auto;
+}
+
+body.game-page .side-panel {
+  position: absolute;
+  top: 64px;
+  right: 12px;
+  bottom: 92px;
+  width: clamp(264px, 20vw, 330px);
+  max-width: none;
+  z-index: 30;
+  padding: 10px 12px;
+  border: 1px solid rgba(125, 162, 217, 0.26);
+  border-radius: 14px;
+  background: rgba(7, 13, 24, 0.84);
+  backdrop-filter: blur(9px);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  overflow-y: auto;
+}
+
+body.game-page .side-panel.hud-collapsed {
+  display: none;
+}
+
+body.game-page .side-panel .side-card {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+}
+
+body.game-page .side-panel .side-card + .side-card {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(125, 162, 217, 0.16);
+}
+
+body.game-page #hud-btn.active {
+  color: #f6c453;
+  border-color: rgba(246, 196, 83, 0.45);
+}
+
+@media (max-width: 980px) {
+  body.game-page .site-head {
+    padding: 6px 10px;
+  }
+
+  body.game-page .side-panel {
+    top: 58px;
+    left: auto;
+    right: 8px;
+    bottom: auto;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 46vh;
+  }
+
+  body.game-page #screen-game .minimap {
+    display: none;
+  }
+
+  body.game-page #screen-game .game-msg {
+    top: 58px;
+    max-width: calc(100vw - 24px);
+    white-space: normal;
+    text-align: center;
+  }
+
+  body.game-page #screen-game .log {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 70px;
+    width: auto;
+    max-height: 30%;
+  }
+}
