@@ -19,6 +19,8 @@
   let inited = false;
   let isOpen = false;
   let view = "main";
+  let mode = "main";
+  let returnView = "main";
   let editingName = false;
   let focusBefore = null;
   let activeItem = null;
@@ -182,8 +184,20 @@
     );
   }
 
+  function pauseItems() {
+    const list = document.querySelectorAll("#pause-list .menu-item");
+    return Array.prototype.slice.call(list).filter((node) =>
+      !node.classList.contains("hidden") && !node.classList.contains("is-disabled")
+    );
+  }
+
+  function activeItems() {
+    return mode === "pause" && view === "pause" ? pauseItems() : mainItems();
+  }
+
   function setActive(item, focus) {
-    mainItems().forEach((node) => node.classList.toggle("is-active", node === item));
+    document.querySelectorAll("#menu-list .menu-item, #pause-list .menu-item")
+      .forEach((node) => node.classList.toggle("is-active", node === item));
     activeItem = item;
     if (focus && item && typeof item.focus === "function") {
       try { item.focus(); } catch (e) {}
@@ -191,12 +205,12 @@
   }
 
   function ensureActive() {
-    const list = mainItems();
+    const list = activeItems();
     if (!list.includes(activeItem)) setActive(list[0] || null, false);
   }
 
   function moveActive(delta) {
-    const list = mainItems();
+    const list = activeItems();
     if (!list.length) return;
     let index = list.indexOf(activeItem);
     if (index < 0) index = delta > 0 ? -1 : 0;
@@ -231,6 +245,7 @@
     if (screen) screen.dataset.view = name;
     const views = {
       main: $("menu-view-main"),
+      pause: $("menu-view-pause"),
       settings: $("menu-view-settings"),
       account: $("menu-view-account"),
       about: $("menu-view-about")
@@ -243,6 +258,12 @@
       renderMain();
       ensureActive();
       setActive(activeItem || mainItems()[0] || null, true);
+      return;
+    }
+    if (name === "pause") {
+      renderPause();
+      ensureActive();
+      setActive(activeItem || pauseItems()[0] || null, true);
       return;
     }
     if (name === "account") {
@@ -316,13 +337,30 @@
     ensureActive();
   }
 
+  function renderPause() {
+    const state = gameStatus();
+    const load = $("pause-load");
+    const note = $("pause-load-note");
+    const can = !!(state && state.paused);
+    if (load) {
+      load.classList.toggle("is-disabled", !can);
+      load.setAttribute("aria-disabled", can ? "false" : "true");
+    }
+    if (note) {
+      note.textContent = can
+        ? "этаж " + state.floor + " · " + state.gold + " зол."
+        : "нет сохранения";
+    }
+  }
+
   function render() {
     renderMain();
     renderAccountView();
+    renderPause();
     applySettings();
     updateFullscreenLabel();
     renderVersion();
-    if (view === "main") ensureActive();
+    if (view === "main" || view === "pause") ensureActive();
   }
 
   // ---------- Экран аккаунта ----------
@@ -583,27 +621,112 @@
     window.location.href = isWeb() ? "index.html?exit=1" : "/";
   }
 
+  function openSub(name) {
+    returnView = mode === "pause" ? "pause" : "main";
+    setView(name);
+  }
+
+  function onPauseSave() {
+    sound("click");
+    const game = api();
+    let ok = false;
+    if (game && typeof game.save === "function") {
+      try { ok = game.save(); } catch (e) { ok = false; }
+    }
+    const note = $("pause-note");
+    if (note) note.textContent = ok ? "Поход сохранён." : "Сохранить не удалось.";
+    sound(ok ? "correct" : "wrong");
+    renderPause();
+  }
+
+  function onPauseLoad() {
+    sound("click");
+    const state = gameStatus();
+    if (!state || !state.paused) {
+      sound("wrong");
+      return;
+    }
+    const game = api();
+    let ok = false;
+    if (game && typeof game.resume === "function") {
+      try { ok = game.resume(); } catch (e) { ok = false; }
+    }
+    if (ok === false) {
+      sound("wrong");
+      return;
+    }
+    close();
+  }
+
+  function onPauseExit() {
+    sound("click");
+    const game = api();
+    if (game && typeof game.save === "function") {
+      try { game.save(); } catch (e) {}
+    }
+    // Поход остаётся на паузе за непрозрачным главным меню; «Загрузить»
+    // в нём сразу доступна.
+    mode = "main";
+    setMode("main");
+  }
+
   function activateAction(action) {
     switch (action) {
       case "new": onNew(); break;
       case "load": onLoad(); break;
-      case "settings": sound("click"); setView("settings"); break;
-      case "profile": sound("click"); setView("account"); break;
-      case "about": sound("click"); setView("about"); break;
+      case "settings": sound("click"); openSub("settings"); break;
+      case "profile": sound("click"); openSub("account"); break;
+      case "about": sound("click"); openSub("about"); break;
       case "exit": onExit(); break;
+      default: break;
+    }
+  }
+
+  function activatePause(action) {
+    switch (action) {
+      case "resume": sound("click"); close(); break;
+      case "save": onPauseSave(); break;
+      case "load": onPauseLoad(); break;
+      case "settings": sound("click"); openSub("settings"); break;
+      case "exit": onPauseExit(); break;
       default: break;
     }
   }
 
   // ---------- Открытие и закрытие ----------
 
-  function open() {
+  function setMode(next) {
+    mode = next === "pause" ? "pause" : "main";
+    const box = $("menu-overlay");
+    if (box) {
+      box.classList.toggle("menu-main", mode === "main");
+      box.classList.toggle("menu-pause", mode === "pause");
+      box.dataset.mode = mode;
+    }
+    const screen = $("menu-screen");
+    if (screen) screen.dataset.mode = mode;
+    const hint = $("menu-hint");
+    if (hint) {
+      hint.textContent = mode === "pause"
+        ? "↑↓ — выбор · Enter — ок · Esc — продолжить"
+        : "↑↓ — выбор · Enter — ок · Esc — закрыть";
+    }
+    if (mode === "pause") {
+      const note = $("pause-note");
+      if (note) note.textContent = "Поход сохраняется автоматически.";
+    }
+    activeItem = null;
+    view = mode === "pause" ? "pause" : "main";
+    render();
+    setView(view);
+  }
+
+  function openMode(next) {
     init();
     const box = $("menu-overlay");
     if (!box) return;
     if (isOpen) {
-      render();
-      setView(view);
+      setMode(next);
       return;
     }
     focusBefore = document.activeElement;
@@ -614,17 +737,33 @@
     document.body.classList.add("menu-open");
     const stage = $("stage");
     if (stage) stage.setAttribute("aria-hidden", "true");
-    render();
-    setView("main");
+    setMode(next);
+  }
+
+  function openMain() {
+    openMode("main");
+  }
+
+  function openPause() {
+    const state = gameStatus();
+    if (state && state.battle) return;
+    openMode("pause");
+  }
+
+  // Совместимость со старым вызовом: открыть главное меню.
+  function open() {
+    openMain();
   }
 
   function close() {
     const box = $("menu-overlay");
     if (!isOpen || !box) return;
     isOpen = false;
+    mode = "main";
     view = "main";
     editingName = false;
     box.classList.add("hidden");
+    box.classList.remove("menu-main", "menu-pause");
     document.body.classList.remove("menu-open");
     const stage = $("stage");
     if (stage) stage.removeAttribute("aria-hidden");
@@ -643,7 +782,7 @@
     // После входа страница перезагружается: не показываем меню второй раз,
     // если игрок уже нажал «Играть» или пришёл со стартового экрана веб-сборки.
     if (hasUser() && !forced && (autoplay || play)) return;
-    open();
+    openMain();
   }
 
   // ---------- Клавиатура ----------
@@ -673,6 +812,19 @@
       return;
     }
 
+    if (view === "pause") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close();
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        moveActive(e.key === "ArrowDown" ? 1 : -1);
+      }
+      return;
+    }
+
     if (view !== "main") {
       if (e.key !== "Escape") return;
       e.preventDefault();
@@ -682,7 +834,7 @@
         focusLater($("menu-edit-name"));
         return;
       }
-      setView("main");
+      setView(returnView || "main");
       return;
     }
 
@@ -716,6 +868,21 @@
       });
     }
 
+    const pauseList = $("pause-list");
+    if (pauseList) {
+      pauseList.addEventListener("click", (e) => {
+        const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
+        if (!item || item.classList.contains("is-disabled")) return;
+        e.preventDefault();
+        activatePause(item.dataset.pause);
+      });
+      pauseList.addEventListener("mouseover", (e) => {
+        const item = e.target && e.target.closest ? e.target.closest(".menu-item") : null;
+        if (!item || item.classList.contains("hidden") || item.classList.contains("is-disabled")) return;
+        setActive(item, false);
+      });
+    }
+
     // Tab ходит по списку, а когда фокус уходит в подэкран, золотая строка
     // списка снимается: иначе на экране два акцента.
     const overlay = $("menu-overlay");
@@ -723,7 +890,7 @@
       overlay.addEventListener("focusin", (e) => {
         const target = e.target;
         const item = target && target.closest
-          ? target.closest("#menu-list .menu-item") : null;
+          ? target.closest("#menu-list .menu-item, #pause-list .menu-item") : null;
         if (item) setActive(item, false);
       });
     }
@@ -734,7 +901,7 @@
         back.addEventListener("click", () => {
           sound("click");
           editingName = false;
-          setView("main");
+          setView(returnView || "main");
         });
       }
     });
@@ -838,6 +1005,8 @@
   window.PyMenu = {
     boot: boot,
     open: open,
+    openMain: openMain,
+    openPause: openPause,
     close: close,
     isOpen: () => isOpen,
     render: render
