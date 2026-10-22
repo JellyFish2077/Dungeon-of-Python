@@ -190,27 +190,21 @@ def run_checks(browser, base):
     check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
     check(page.locator("#new-game").is_visible(), "на старте есть «Новая игра»")
 
-    # 2. «Новая игра» сразу открывает деревню: стартовый экран уже собрал имя,
-    #    поэтому игровое меню не дублируется.
+    # 2. «Новая игра» открывает главное меню: стартовый экран уже собрал имя,
+    #    а меню показывает поход, деревню и настройки.
     page.fill("#player-name", "Смоук")
     page.click("#new-game")
-    page.wait_for_url(re.compile(r".*/game\.html\?play=1$"), timeout=15000)
-    page.wait_for_function(
-        "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
-    check(not page.locator("#menu-overlay").is_visible(),
-          "«Новая игра» открывает деревню без лишнего меню")
-    # Дожидаемся загрузки крупных ассетов (спрайты, рельеф, иконки), прежде
-    # чем уходить на ?menu=1: иначе браузер обрывает их загрузку и в консоли
-    # появляются сетевые ошибки, не связанные с игрой.
-    page.wait_for_load_state("load", timeout=15000)
-
-    # 3. Меню по ?menu=1: вход подставлен локальным именем, «Играть» отдаёт карту.
-    page.goto(base + "/game.html?menu=1", wait_until="load")
+    page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
-    check(page.locator("#menu-overlay").is_visible(), "стартовое меню игры открывается")
+    check(page.locator("#menu-overlay").is_visible(),
+          "«Новая игра» открывает главное меню")
+    check(page.locator("#menu-play .menu-item-label").inner_text() == "Начать поход",
+          "в главном меню есть «Начать поход»")
     account = page.locator("#menu-account").inner_text()
     check("Смоук" in account, "меню видит имя игрока", account)
+    # Дожидаемся крупных ассетов, прежде чем уходить в поход.
+    page.wait_for_load_state("load", timeout=15000)
     page.click("#menu-play")
     page.wait_for_timeout(400)
     check(not page.locator("#menu-overlay").is_visible(), "«Начать поход» закрывает меню")
