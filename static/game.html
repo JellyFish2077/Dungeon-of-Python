@@ -251,17 +251,12 @@
     <div class="battle inventory" id="forge-box"></div>
   </div>
 
-  <!-- Стартовое меню: крупное название и один вертикальный список действий.
-       Настройки — отдельная кнопка-шестерёнка, аккаунт — строка игрока внизу.
-       Лежит поверх игры, поэтому деревня успевает отрисоваться за ним. -->
+  <!-- Стартовое меню: один вертикальный список. Настройки, профиль и «Об игре» —
+       такие же пункты, как «Новая игра» и «Загрузить». Лежит поверх игры,
+       поэтому деревня успевает отрисоваться за ним. -->
   <div class="overlay menu-overlay hidden" id="menu-overlay">
     <main class="menu-screen" id="menu-screen" role="dialog" aria-modal="true"
           aria-labelledby="menu-title" data-view="main">
-      <button class="menu-gear" id="menu-settings-btn" type="button"
-              aria-label="Настройки" title="Настройки">
-        <span aria-hidden="true">⚙</span>
-      </button>
-
       <section class="menu-view menu-view-main" id="menu-view-main">
         <header class="menu-title">
           <div class="menu-logo" aria-hidden="true">Py</div>
@@ -270,20 +265,30 @@
         </header>
 
         <nav class="menu-list" id="menu-list" aria-label="Главное меню">
-          <button class="menu-item is-active" id="menu-play" type="button" data-action="play">
-            <span class="menu-item-mark" aria-hidden="true">▶</span>
-            <span class="menu-item-label">Начать поход</span>
-            <span class="menu-item-note" id="menu-play-note">сложность у стража</span>
-          </button>
-          <button class="menu-item hidden" id="menu-village" type="button" data-action="village">
-            <span class="menu-item-mark" aria-hidden="true">▶</span>
-            <span class="menu-item-label">В деревню</span>
-            <span class="menu-item-note" id="menu-village-note">осмотреться</span>
-          </button>
-          <button class="menu-item" id="menu-new" type="button" data-action="new">
+          <button class="menu-item is-active" id="menu-new" type="button" data-action="new">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Новая игра</span>
-            <span class="menu-item-note">сложность у стража</span>
+            <span class="menu-item-note" id="menu-new-note">поход и сложность</span>
+          </button>
+          <button class="menu-item" id="menu-load" type="button" data-action="load">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Загрузить</span>
+            <span class="menu-item-note" id="menu-load-note">нет сохранения</span>
+          </button>
+          <button class="menu-item" id="menu-settings" type="button" data-action="settings">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Настройки</span>
+            <span class="menu-item-note">звук и экран</span>
+          </button>
+          <button class="menu-item" id="menu-profile" type="button" data-action="profile">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Профиль</span>
+            <span class="menu-item-note" id="menu-profile-note">гость</span>
+          </button>
+          <button class="menu-item" id="menu-about" type="button" data-action="about">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Об игре</span>
+            <span class="menu-item-note">PyDungeon</span>
           </button>
           <button class="menu-item menu-item-quiet" id="menu-exit" type="button" data-action="exit">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
@@ -293,8 +298,8 @@
       </section>
 
       <footer class="menu-statusbar">
-        <div class="menu-account" id="menu-account"></div>
-        <div class="menu-keys-hint">↑↓ — выбор · Tab — настройки · Enter — ок · Esc — закрыть</div>
+        <div></div>
+        <div class="menu-keys-hint">↑↓ — выбор · Enter — ок · Esc — закрыть</div>
         <span class="menu-version" data-app-version></span>
       </footer>
 
@@ -346,8 +351,29 @@
       <section class="menu-view menu-view-sub hidden" id="menu-view-account"
                aria-labelledby="menu-account-title">
         <button class="menu-back" id="menu-back-account" type="button">← Назад</button>
-        <h2 id="menu-account-title">Аккаунт</h2>
+        <h2 id="menu-account-title">Профиль</h2>
         <div class="menu-panel" id="menu-account-panel"></div>
+      </section>
+
+      <section class="menu-view menu-view-sub hidden" id="menu-view-about"
+               aria-labelledby="menu-about-title">
+        <button class="menu-back" id="menu-back-about" type="button">← Назад</button>
+        <h2 id="menu-about-title">Об игре</h2>
+        <div class="menu-panel">
+          <p class="menu-note">
+            PyDungeon — учебный рогалик: спускайся по этажам, отвечай на вопросы
+            и пиши функции. Золото, материалы и ключи остаются в деревне даже
+            после поражения.
+          </p>
+          <p class="menu-note">
+            Каждый поход начинается у стража: он показывает сложность, режим и
+            калибровку. Управление и звук — в настройках.
+          </p>
+          <p class="menu-note">
+            Версия <span data-app-version></span>. Публичная сборка работает без
+            сервера: профиль и сохранения лежат в этом браузере.
+          </p>
+        </div>
       </section>
     </main>
   </div>

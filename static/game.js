@@ -9364,7 +9364,7 @@ function topicName(key) {
     // Сохраняем только поход: в деревне сохранять нечего, там сейв не пишется.
     if (G.running) saveGame();
     window.location.href = (typeof window !== "undefined" && window.__PYQUIZ_WEB)
-      ? "index.html" : "/";
+      ? "index.html?exit=1" : "/";
   }
 
   // ---------- Сохранение / загрузка ----------

@@ -184,6 +184,7 @@ def run_checks(browser, base):
     page.on("console",
             lambda m: console_errors.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: console_errors.append(str(e)))
+    page.on("dialog", lambda d: d.accept())
 
     # 1. Корень сайта сразу ведёт в главное меню: отдельного landing больше нет.
     page.goto(base + "/", wait_until="domcontentloaded")
@@ -193,17 +194,36 @@ def run_checks(browser, base):
     check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
     check(page.locator("#menu-overlay").is_visible(),
           "корень открывает главное меню")
-    check(page.locator("#menu-play .menu-item-label").inner_text() == "Начать поход",
-          "в главном меню есть «Начать поход»")
-    account = page.locator("#menu-account").inner_text()
-    check("Игрок" in account, "меню видит игрока", account)
+    labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
+    check(labels == ["Новая игра", "Загрузить", "Настройки",
+                     "Профиль", "Об игре", "Выход"],
+          "главное меню — один вертикальный список", labels)
+    check(page.locator("#menu-load").get_attribute("aria-disabled") == "true",
+          "«Загрузить» без сохранения недоступна")
+
+    # Профиль, справка и настройки — пункты списка, а не отдельные кнопки.
+    page.click("#menu-profile")
+    page.wait_for_function(
+        "() => (document.getElementById('menu-account-panel') || {}).textContent"
+        ".includes('Игрок')", timeout=10000)
+    check(True, "«Профиль» открывает игрока")
+    page.click("#menu-back-account")
+    page.click("#menu-about")
+    check(page.locator("#menu-about-title").inner_text() == "Об игре",
+          "«Об игре» открывает справку")
+    page.click("#menu-back-about")
+    page.click("#menu-settings")
+    check(page.locator("#menu-settings-title").inner_text() == "Настройки",
+          "«Настройки» открывают настройки")
+    page.click("#menu-back-settings")
+
     # Дожидаемся крупных ассетов, прежде чем уходить в поход.
     page.wait_for_load_state("load", timeout=15000)
-    page.click("#menu-play")
+    page.click("#menu-new")
     page.wait_for_timeout(400)
-    check(not page.locator("#menu-overlay").is_visible(), "«Начать поход» закрывает меню")
+    check(not page.locator("#menu-overlay").is_visible(), "«Новая игра» закрывает меню")
     check(page.locator("#entrance-overlay").is_visible(),
-          "«Начать поход» открывает окно стража")
+          "«Новая игра» открывает окно стража")
     focused = page.evaluate("() => document.activeElement && document.activeElement.id")
     check(focused in ("begin-btn", "resume-btn"), "фокус в окне стража", focused)
     page.click("#entrance-close")
@@ -239,16 +259,24 @@ def run_checks(browser, base):
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
-    label = page.locator("#menu-play .menu-item-label").inner_text()
-    check(label in ("Продолжить поход", "Вернуться в игру"),
-          "в меню есть продолжение", label)
-    page.click("#menu-play")
+    check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
+          "«Загрузить» доступна при сохранении")
+    page.click("#menu-load")
     page.wait_for_function(
         "() => ((document.getElementById('log') || {}).textContent || '')"
         ".includes('Продолжение игры')", timeout=15000)
-    check(True, "продолжение поднимает сохранённый поход")
+    check(True, "«Загрузить» поднимает сохранённый поход")
 
-    # 6. Сборка без сервера.
+    # 6. «Выход» не возвращает в меню по кругу, а показывает страницу завершения.
+    page.click("#menu-btn")
+    page.wait_for_function(
+        "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
+    page.click("#menu-exit")
+    page.wait_for_url(re.compile(r".*/index\.html\?exit=1$"), timeout=10000)
+    check("Вы вышли" in page.locator("#exit-text").inner_text(),
+          "«Выход» ведёт на страницу завершения")
+
+    # 7. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))
 
     # favicon — не ошибка сборки, его отсутствие допустимо.
