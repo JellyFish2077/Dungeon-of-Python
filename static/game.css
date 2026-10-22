@@ -5284,3 +5284,197 @@ body.game-page #hud-btn.active {
     overflow: auto;
   }
 }
+
+/* ---------- Визуальный проход A: HUD как каменный журнал ---------- */
+
+body.game-page .side-panel {
+  gap: 0;
+  padding: 0;
+  overflow-y: auto;
+  background:
+    linear-gradient(180deg, rgba(32, 44, 58, 0.98), rgba(11, 17, 26, 0.99));
+  border: 2px solid var(--gold-dim, rgba(214, 168, 75, 0.32));
+  border-radius: 2px;
+  box-shadow:
+    6px 6px 0 rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+body.game-page .side-panel > .side-card {
+  order: 4;
+  padding: 12px 13px 14px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(214, 168, 75, 0.16);
+  border-radius: 0;
+  box-shadow: none;
+}
+
+body.game-page .side-panel > .side-card:last-child {
+  border-bottom: 0;
+}
+
+body.game-page .side-panel > .side-card:nth-child(3) {
+  order: 1;
+}
+
+/* В деревне карточка героя пустая: HP и снаряжение там не показываются. */
+.stage.village .side-panel > .side-card:nth-child(3) {
+  display: none;
+}
+
+body.game-page #village-info {
+  order: 2;
+}
+
+body.game-page #wallet-block {
+  order: 3;
+}
+
+body.game-page #inventory-card {
+  order: 5;
+}
+
+body.game-page .side-panel > .side-card:nth-child(3)::before,
+body.game-page .side-panel > .side-card:nth-child(4)::before,
+body.game-page .side-panel > .side-card:nth-child(5)::before {
+  display: block;
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(214, 168, 75, 0.2);
+  color: var(--gold, #d6a84b);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body.game-page .side-panel > .side-card:nth-child(3)::before {
+  content: "Герой";
+}
+
+body.game-page .side-panel > .side-card:nth-child(4)::before {
+  content: "Снаряжение";
+}
+
+body.game-page .side-panel > .side-card:nth-child(5)::before {
+  content: "Сумка";
+}
+
+body.game-page .side-title {
+  margin-bottom: 7px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(214, 168, 75, 0.2);
+  color: var(--gold, #d6a84b);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+}
+
+body.game-page .side-panel .hud {
+  gap: 8px;
+  margin-bottom: 0;
+}
+
+body.game-page .side-panel .hud-block {
+  padding: 0 0 8px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(214, 168, 75, 0.1);
+  border-radius: 0;
+}
+
+body.game-page .side-panel .hud-block:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+body.game-page .side-panel .hud-label {
+  color: var(--parchment-dim, #b9b3a5);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+body.game-page .side-panel .hud-num {
+  margin-top: 3px;
+  color: var(--parchment, #eee4cf);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 12px;
+}
+
+body.game-page .side-panel .floor-name {
+  color: var(--gold-bright, #f0c66a);
+  font-family: var(--font-data, Consolas, monospace);
+  letter-spacing: 0.06em;
+}
+
+body.game-page .side-panel .lead {
+  color: var(--parchment-dim, #b9b3a5);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+body.game-page .side-panel .hp-bar,
+body.game-page .side-panel .xp-bar {
+  height: 9px;
+  border: 1px solid rgba(214, 168, 75, 0.24);
+  border-radius: 0;
+  background: #140d0e;
+}
+
+body.game-page .side-panel .hp-bar i {
+  background: linear-gradient(90deg, #7f2f2f, #c96b3b);
+}
+
+body.game-page .side-panel .xp-bar i {
+  background: linear-gradient(90deg, #6f8f5a, #d6a84b);
+}
+
+body.game-page .side-panel .equip-slot {
+  padding: 7px;
+  background: rgba(7, 11, 18, 0.4);
+  border: 1px solid rgba(214, 168, 75, 0.16);
+  border-radius: 0;
+}
+
+body.game-page .side-panel .equip-label {
+  color: var(--parchment-dim, #b9b3a5);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 9px;
+}
+
+body.game-page .side-panel .equip-value {
+  color: var(--parchment, #eee4cf);
+  font-family: var(--font-data, Consolas, monospace);
+  font-size: 11px;
+}
+
+/* Памятка первого спуска в той же каменной рамке, что и журнал. */
+.tutorial-panel {
+  border-width: 2px;
+  border-left-width: 4px;
+  border-radius: 2px;
+  background:
+    linear-gradient(180deg, rgba(32, 44, 58, 0.97), rgba(11, 17, 26, 0.98));
+  box-shadow:
+    6px 6px 0 rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.tutorial-kicker,
+.tutorial-progress,
+.tutorial-steps li b,
+.tutorial-hint {
+  font-family: var(--font-data, Consolas, monospace);
+}
+
+.tutorial-steps li b {
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.tutorial-skip {
+  border-radius: 2px;
+}
