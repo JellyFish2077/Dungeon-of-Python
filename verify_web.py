@@ -198,6 +198,8 @@ def run_checks(browser, base):
     check(labels == ["Новая игра", "Загрузить", "Настройки",
                      "Профиль", "Об игре", "Выход"],
           "главное меню — один вертикальный список", labels)
+    check(page.locator("#menu-dungeon-bg").is_visible(),
+          "фон главного меню — подземелье")
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
           "«Загрузить» открывает меню сохранений")
     page.click("#menu-load")
@@ -262,6 +264,8 @@ def run_checks(browser, base):
     pause_labels = page.locator("#pause-list .menu-item-label").all_inner_texts()
     check(page.locator("#menu-view-pause").is_visible(),
           "ESC открывает паузу", pause_labels)
+    check(not page.locator("#menu-dungeon-bg").is_visible(),
+          "в паузе фон подземелья скрыт")
     check(pause_labels == ["Продолжить", "Сохранить", "Загрузить",
                            "Настройки", "Выход в Меню"],
           "меню паузы — пять пунктов", pause_labels)

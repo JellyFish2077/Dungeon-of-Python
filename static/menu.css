@@ -24,6 +24,61 @@
     #0b1220;
 }
 
+/* Живые подземелья на фоне главного меню. Два слоя меняются крест-накрест:
+   новый проявляется, старый одновременно гаснет. */
+.menu-dungeon-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+  background: #0b1220;
+}
+
+#menu-overlay.menu-main .menu-dungeon-bg {
+  display: block;
+}
+
+#menu-overlay.menu-pause .menu-dungeon-bg {
+  display: none;
+}
+
+.menu-dungeon-layer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background-position: center;
+  background-size: cover;
+  filter: saturate(0.92) brightness(1.02);
+  transition: opacity 2.2s ease;
+}
+
+.menu-dungeon-layer.is-on {
+  opacity: 1;
+}
+
+.menu-dungeon-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.52) 0%, rgba(2, 6, 23, 0.06) 34%,
+                    rgba(2, 6, 23, 0.16) 68%, rgba(2, 6, 23, 0.74) 100%),
+    radial-gradient(68% 54% at 50% 46%, rgba(2, 6, 23, 0.44) 0%,
+                    rgba(2, 6, 23, 0.1) 58%, transparent 100%);
+}
+
+#menu-overlay.menu-main .menu-screen::before {
+  background:
+    linear-gradient(180deg, rgba(2, 6, 23, 0.12) 0%, transparent 30%,
+                    transparent 72%, rgba(2, 6, 23, 0.36) 100%),
+    radial-gradient(80% 60% at 50% 45%, transparent 44%, rgba(2, 6, 23, 0.26) 100%);
+}
+
+#menu-overlay.menu-main .menu-view-main {
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.72);
+}
+
 /* Пауза — поверх видимой, но приглушённой игры. */
 #menu-overlay.menu-pause {
   background: rgba(2, 6, 23, 0.74);
@@ -57,6 +112,7 @@ body.menu-open #web-controls-hint {
 
 .menu-screen {
   position: relative;
+  z-index: 2;
   width: 100%;
   min-height: 100vh;
   max-height: 100vh;

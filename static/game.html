@@ -256,6 +256,13 @@
        такие же пункты, как «Новая игра» и «Загрузить». Лежит поверх игры,
        поэтому деревня успевает отрисоваться за ним. -->
   <div class="overlay menu-overlay menu-main hidden" id="menu-overlay">
+    <!-- Живой фон главного меню: два слоя подземелий, которые плавно
+         сменяют друг друга. В паузе фон скрыт — там видна настоящая игра. -->
+    <div class="menu-dungeon-bg" id="menu-dungeon-bg" aria-hidden="true">
+      <div class="menu-dungeon-layer" id="menu-dungeon-a"></div>
+      <div class="menu-dungeon-layer" id="menu-dungeon-b"></div>
+      <div class="menu-dungeon-vignette"></div>
+    </div>
     <main class="menu-screen" id="menu-screen" role="dialog" aria-modal="true"
           aria-labelledby="menu-title" data-view="main" data-mode="main">
       <section class="menu-view menu-view-main" id="menu-view-main">
@@ -454,6 +461,7 @@
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/audio.js"></script>
+  <script src="/static/menu-bg.js"></script>
   <script src="/static/menu.js"></script>
   <script src="/static/saves.js"></script>
   <script src="/static/game.js"></script>
