@@ -105,6 +105,8 @@
     }
     const out = $("set-volume-out");
     if (out) out.textContent = Math.round(settings.volume * 100) + "%";
+    const motion = $("set-motion");
+    if (motion) motion.checked = !!settings.reduceMotion;
   }
 
   function savedName() {
@@ -310,12 +312,16 @@
     const user = current();
     if (user) {
       const initial = String(user.name || "?").slice(0, 1).toUpperCase();
-      const role = user.role === "teacher" ? "преподаватель" : "ученик";
+      const role = isWeb()
+        ? "профиль"
+        : user.role === "teacher" ? "преподаватель" : "ученик";
+      const changeText = isWeb() ? "Изменить" : "Сменить";
       box.innerHTML =
         "<span class='menu-account-avatar' aria-hidden='true'>" + esc(initial) + "</span>" +
         "<span class='menu-account-name'><b>" + esc(user.name) + "</b> <span>" +
         role + "</span></span>" +
-        "<button class='menu-change' id='menu-change' type='button'>Сменить</button>";
+        "<button class='menu-change' id='menu-change' type='button'>" +
+        changeText + "</button>";
     } else {
       box.innerHTML =
         "<span class='menu-account-name'>Гость</span>" +
@@ -356,7 +362,9 @@
     const user = current();
     if (user && !(isWeb() && editingName)) {
       const initial = String(user.name || "?").slice(0, 1).toUpperCase();
-      const role = user.role === "teacher" ? "преподаватель" : "ученик";
+      const role = isWeb()
+        ? "локальный профиль"
+        : user.role === "teacher" ? "преподаватель" : "ученик";
       const teacher = !isWeb() && typeof isTeacher === "function" && isTeacher();
       panel.innerHTML =
         "<div class='menu-profile'>" +
@@ -718,7 +726,6 @@
     }
 
     if (e.key === "Escape") {
-      if (!hasUser()) return;
       e.preventDefault();
       close();
       return;

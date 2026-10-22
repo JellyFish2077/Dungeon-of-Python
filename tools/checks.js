@@ -126,6 +126,19 @@ quietFloor(4);
 if ((G.vaults || []).length) {
   const vault = G.vaults[0];
   const grid = G.map.grid;
+  // На клетке перед дверью мог оказаться сундук, рычаг, жила, табличка или
+  // костёр: тогда первой целью будет он, и проверка тайника станет флаком.
+  // Убираем все интерактивные объекты с этой клетки.
+  const clearAt = (x, y) => {
+    const keep = (o) => !(o && o.x === x && o.y === y);
+    G.treasures = (G.treasures || []).filter(keep);
+    G.traders = (G.traders || []).filter(keep);
+    G.nodes = (G.nodes || []).filter(keep);
+    G.levers = (G.levers || []).filter(keep);
+    G.signs = (G.signs || []).filter(keep);
+    G.camps = (G.camps || []).filter(keep);
+    G.npcs = (G.npcs || []).filter(keep);
+  };
   // Дверь — проход: раньше она оставалась монолитом, и комната была
   // запечатана навсегда, хотя ключ и рычаг «открывали» её.
   log(grid[vault.door.y][vault.door.x] === 1, "дверь тайника — проход, а не стена");
@@ -142,9 +155,9 @@ if ((G.vaults || []).length) {
   G.vaultKeys = 0;
   G.playerPos = { x: vault.from.x, y: vault.from.y };
   // На клетке перед дверью мог оказаться сундук: тогда первой целью будет он.
-  // Для проверки тайника убираем его — в игре игрок просто откроет сундук
-  // и нажмёт «Е» ещё раз, а проверка одноразовая.
-  G.treasures = (G.treasures || []).filter((t) => !(t.x === vault.from.x && t.y === vault.from.y));
+  // Убираем все объекты — в игре игрок просто нажмёт «Е» ещё раз, а проверка
+  // одноразовая.
+  clearAt(vault.from.x, vault.from.y);
   const lockedTarget = API.interactTarget();
   log(!!lockedTarget && lockedTarget.kind === "vault" && /заперт/i.test(lockedTarget.label),
     "тайник заперт", lockedTarget && lockedTarget.label);
@@ -161,10 +174,12 @@ if ((G.vaults || []).length) {
     API.defeatEnemy(guard);
     log(G.vaultKeys > 0, "ключ от тайника снимают со стража этажа", "ключей: " + G.vaultKeys);
     G.playerPos = { x: v2.from.x, y: v2.from.y };
-    // На клетке перед дверью мог оказаться сундук: тогда первой целью будет он.
-    G.treasures = (G.treasures || []).filter((t) => !(t.x === v2.from.x && t.y === v2.from.y));
+    // На клетке перед дверью мог оказаться другой интерактивный объект.
+    clearAt(v2.from.x, v2.from.y);
+    const openTarget = API.interactTarget();
     API.doInteract();
-    log(v2.locked === false, "с ключом тайник открывается");
+    log(!!openTarget && openTarget.kind === "vault" && v2.locked === false,
+      "с ключом тайник открывается", openTarget && openTarget.kind);
     log(G.vaultKeys === 0, "и ключ тратится", String(G.vaultKeys));
   }
 
@@ -2452,9 +2467,10 @@ const iceStep = iceScenario(true);
 log(!plainStep.battling && plainStep.shift === 1,
   "на обычной клетке монстр делает один шаг",
   "сдвиг " + plainStep.shift + ", бой " + plainStep.battling);
-log(iceStep.shift > plainStep.shift,
-  "на льду монстры делают лишний шаг",
-  "обычно " + plainStep.shift + ", на льду " + iceStep.shift);
+log(iceStep.shift > plainStep.shift || iceStep.battling,
+  "на льду монстры получают лишнее действие",
+  "обычно " + plainStep.shift + ", на льду " + iceStep.shift +
+  ", бой " + iceStep.battling);
 
 // Среда помечается и на самой карте, и на плитках.
 // Случайную раскладку здесь проверять нельзя: ледяная клетка может не

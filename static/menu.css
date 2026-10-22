@@ -320,7 +320,8 @@ body.menu-open #web-controls-hint {
 }
 
 .menu-change {
-  padding: 2px 0;
+  padding: 8px 8px;
+  min-height: 36px;
   border: 0;
   background: none;
   color: var(--gold, #f6c453);
@@ -384,8 +385,9 @@ body.menu-open #web-controls-hint {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 0;
-  margin-bottom: 8px;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin: 0 0 4px -12px;
   border: 0;
   background: none;
   color: #93a8c8;
@@ -764,9 +766,14 @@ body.reduce-motion *::after {
   .menu-gear {
     top: 12px;
     right: 12px;
-    width: 40px;
-    height: 40px;
-    font-size: 19px;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .menu-change {
+    min-height: 44px;
+    padding: 10px 8px;
   }
 
   .menu-view-main {
