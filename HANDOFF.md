@@ -162,7 +162,7 @@ python tools/package_web.py          # dist/pydungeon-standalone-<версия>.
 профили). Локальный `standalone/build` удалён при чистке и пересобирается
 через `python tools/build_web.py`; `verify_web.py` делает это сам.
 `dist/pydungeon-standalone-1.6.1.zip` — 6,0 МБ, `index.html` в корне,
-sha256 `c3a99251f0fb62dec3682c13d25d43b20c6df5a040353394c149497c11bd238e`
+sha256 `41cd12c33fcb35404271808660c8c5d51fa5893d0001ec6414cb2f7e55d6dfe3`
 (изменится после следующей пересборки).
 
 - **GitHub Pages:** готовая сборка 1.6.1 лежит в ветке `gh-pages`, сайт —
