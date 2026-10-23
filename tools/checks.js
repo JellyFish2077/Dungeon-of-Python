@@ -5229,8 +5229,8 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(API.makeEnemy("orc", 0).maxHp < API.makeEnemy("orc", 4).maxHp / (1 + 0.18 * 4) - 1,
     "на первых этажах бои короче: враги толще не сразу");
 
-  // --- страж этажа ---
-  freshRun(3);
+  // --- стража этажа ---
+  freshRun(1);
   const guards = G.enemies.filter((x) => x.guard);
   const gd = guards[0];
   log(guards.length === 1, "на обычном этаже ровно один страж лестницы", guards.length);
@@ -5241,7 +5241,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const post = { x: gd.x, y: gd.y };
   for (let i = 0; i < 30; i++) API.enemyTurn();
   log(gd.x === post.x && gd.y === post.y, "страж не сходит с поста");
-  const saved = API.serializeFloor(G.cache[3]);
+  const saved = API.serializeFloor(G.cache[1]);
   const restored = API.deserializeFloor(JSON.parse(JSON.stringify(saved)));
   log(restored.enemies.filter((x) => x.guard).length === 1 && restored.stairsDown.active === false,
     "страж и закрытая лестница переживают сохранение");

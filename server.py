@@ -582,15 +582,15 @@ ENEMY_FIELDS = [
 
 FLOOR_FIELDS = [
     ("Пещеры новичка", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Забытые катакомбы", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Логово орков", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Гнилые болота", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Ледяные залы", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Древние руины", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Обитель демонов", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Проклятый склеп", "~name|~pool|count|w|h|qmin|qmax"),
-    ("Тронный зал лича", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Пещеры новичка", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Пещеры новичка", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Гоблин-вожак", "~name|~pool|count|w|h|qmin|qmax"),
     ("Логово дракона", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Логово дракона", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Логово дракона", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Логово дракона", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Логово дракона", "~name|~pool|count|w|h|qmin|qmax"),
+    ("Дракон", "~name|~pool|count|w|h|qmin|qmax"),
 ]
 
 # Подписи и границы числовых полей контента: поле -> (подпись, от, до, шаг).

@@ -167,7 +167,22 @@ def main():
     FILL = load_const("static/code-tasks.js", "FILL_TASKS")
     ERROR = load_const("static/code-tasks.js", "ERROR_TASKS")
     ETYPES = load_const("static/game.js", "ENEMY_TYPES")
-    FLOORS = load_const("static/game.js", "FLOORS")
+    BIOMES = load_const("static/game.js", "BIOMES")
+    FLOORS = []
+    for biome in BIOMES:
+        for floor in biome.get("floors", []):
+            item = dict(floor)
+            item["name"] = biome.get("name", "")
+            item["boss"] = False
+            FLOORS.append(item)
+        boss = dict(biome.get("boss", {}))
+        boss.update({
+            "name": boss.get("name", ""),
+            "count": 0,
+            "pool": [boss.get("key", "")],
+            "boss": True,
+        })
+        FLOORS.append(boss)
     DIFF = load_const("static/game.js", "DIFFICULTY")
     ICONS = load_const("static/icons.js", "ICONS")
     ITEMS = load_const("static/items.js", "ITEM_POOL")
