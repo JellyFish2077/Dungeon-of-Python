@@ -27,7 +27,7 @@
   ];
 
   // Биомы: 3–5 обычных этажей, затем босс. Внутри биома этажи — разные
-  // комнаты одного места, а не десять отдельных локаций.
+  // комнаты одного места, а не отдельные локации.
   const BIOMES = [
     {
       key: "caves",
@@ -41,15 +41,46 @@
       boss: { key: "goblin", name: "Гоблин-вожак", w: 34, h: 24, qmin: 2, qmax: 3 }
     },
     {
+      key: "catacombs",
+      name: "Забытые катакомбы",
+      theme: 2,
+      floors: [
+        { w: 34, h: 24, count: 10, pool: ["skeleton", "goblin", "bat"], qmin: 2, qmax: 3 },
+        { w: 36, h: 26, count: 11, pool: ["orc", "goblin", "skeleton"], qmin: 3, qmax: 3 },
+        { w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 3, qmax: 4 }
+      ],
+      boss: { key: "necromancer", name: "Некромант", w: 36, h: 26, qmin: 3, qmax: 4 }
+    },
+    {
+      key: "ice",
+      name: "Ледяные залы",
+      theme: 4,
+      floors: [
+        { w: 38, h: 26, count: 12, pool: ["wolf", "ghost", "troll"], qmin: 4, qmax: 4 },
+        { w: 40, h: 28, count: 13, pool: ["golem", "skeleton", "shieldman"], qmin: 4, qmax: 4 },
+        { w: 42, h: 28, count: 14, pool: ["golem", "ghost", "wolf"], qmin: 4, qmax: 4 }
+      ],
+      boss: { key: "golem", name: "Король големов", w: 38, h: 28, qmin: 4, qmax: 4 }
+    },
+    {
+      key: "demons",
+      name: "Обитель демонов",
+      theme: 6,
+      floors: [
+        { w: 42, h: 28, count: 14, pool: ["demon", "minotaur", "shieldman"], qmin: 4, qmax: 4 },
+        { w: 44, h: 30, count: 15, pool: ["demon", "vampire", "priest"], qmin: 4, qmax: 4 },
+        { w: 46, h: 30, count: 16, pool: ["lich", "priest", "necromancer"], qmin: 4, qmax: 4 }
+      ],
+      boss: { key: "demon", name: "Владыка демонов", w: 40, h: 28, qmin: 4, qmax: 4 }
+    },
+    {
       key: "lair",
       name: "Логово дракона",
       theme: 9,
       floors: [
-        { w: 34, h: 24, count: 10, pool: ["skeleton", "goblin", "bat"], qmin: 2, qmax: 2 },
-        { w: 36, h: 26, count: 11, pool: ["orc", "goblin", "skeleton"], qmin: 2, qmax: 3 },
-        { w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 2, qmax: 3 },
-        { w: 40, h: 28, count: 13, pool: ["wolf", "ghost", "troll"], qmin: 3, qmax: 3 },
-        { w: 42, h: 28, count: 14, pool: ["golem", "skeleton", "shieldman"], qmin: 4, qmax: 4 }
+        { w: 44, h: 30, count: 16, pool: ["vampire", "priest", "shieldman"], qmin: 4, qmax: 4 },
+        { w: 46, h: 30, count: 17, pool: ["lich", "demon", "golem"], qmin: 4, qmax: 4 },
+        { w: 48, h: 32, count: 18, pool: ["vampire", "necromancer", "lich"], qmin: 4, qmax: 4 }
       ],
       boss: { key: "dragon", name: "Дракон", w: 34, h: 24, qmin: 4, qmax: 4 }
     }

@@ -277,7 +277,9 @@ const HAZARD_TYPES = {
 // Ключ среды на каждый этаж или null. Пустыми оставлены первый,
 // последний (босс) и «передышка» на восьмом.
 const FLOOR_HAZARD = [
-  null, null, null, null, "frost", "dark", "lava", null, null, null
+  null, null, null, null, "frost", "dark", "lava", null,
+  "frost", "dark", "lava", null, "frost", "dark", "lava", null,
+  "frost", "dark", "lava", null
 ];
 
 // Плотность опасных клеток от числа свободных плиток этажа.

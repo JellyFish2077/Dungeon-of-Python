@@ -319,10 +319,14 @@ def main():
         err(f"нет иконок: {sorted(missing)}")
     print(f"монстры: {len(ETYPES)}, этажи: {len(FLOORS)}, иконки: ok")
 
-    # Атмосфера: эпиграф, событие и реплики на каждый этаж и каждого врага
-    if len(EPILOGUES) != len(FLOORS):
+    # Атмосфера: эпиграфы, события и среда могут идти по кругу внутри биомов.
+    if not EPILOGUES:
+        err("нет эпиграфов этажей")
+    if len(EPILOGUES) > len(FLOORS):
         err(f"эпиграфов {len(EPILOGUES)}, а этажей {len(FLOORS)}")
-    if len(EVENTS) != len(FLOORS):
+    if not EVENTS:
+        err("нет событий этажей")
+    if len(EVENTS) > len(FLOORS):
         err(f"событий {len(EVENTS)}, а этажей {len(FLOORS)}")
     for e in EPILOGUES:
         if not (e.get("text") or "").strip():
@@ -379,7 +383,9 @@ def main():
     print(f"ловушки: {len(TRAPS)}")
 
     # Опасная среда этажей и сделки на входе.
-    if len(FLOOR_HAZARD) != len(FLOORS):
+    if not FLOOR_HAZARD:
+        err("нет расписания опасной среды")
+    if len(FLOOR_HAZARD) > len(FLOORS):
         err(f"FLOOR_HAZARD длиной {len(FLOOR_HAZARD)}, а этажей {len(FLOORS)}")
     for i, key in enumerate(FLOOR_HAZARD):
         if key is None:

@@ -1,6 +1,6 @@
 // ================= 1. Контент =================
 log(API.ENEMY_TYPES.length === 20, "ENEMY_TYPES = 20 видов", API.ENEMY_TYPES.length);
-log(API.FLOORS.length === 10, "FLOORS = 10 этажей", API.FLOORS.length);
+log(API.FLOORS.length === 20, "FLOORS = 20 этажей (5 биомов)", API.FLOORS.length);
 log(API.ITEM_POOL.length >= 29, "ITEM_POOL >= 29 предметов", API.ITEM_POOL.length);
 // Банк заданий растёт (сейчас 13 и 10), поэтому порог, а не точное число:
 // проверка ловит несобранный банк, а не добавленное задание.
@@ -512,7 +512,7 @@ log(mino.dmgBoost > 0, "минотавр копит силу", "+" + mino.dmgBoo
 G.battle = null;
 
 // ярость босса
-freshRun(9);
+freshRun(API.FLOORS.length - 1);
 let dragon = enemyOnPlayerCell("dragon", 300);
 dragon.maxHp = 260;
 dragon.hp = 100; // <= 40% от 260
@@ -562,7 +562,7 @@ let trapTotal = 0;
 const trapKindsSeen = new Set();
 let placementOk = true;
 const trapFloorDetail = [];
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < API.FLOORS.length; i++) {
   freshRun(i);
   const traps = G.traps || [];
   trapTotal += traps.length;
@@ -596,7 +596,7 @@ for (let i = 0; i < 10; i++) {
     trapFloorDetail.push("этаж " + (i + 1) + ": ловушки на первых этажах");
   }
 }
-log(trapTotal > 0, "ловушки генерируются", trapTotal + " шт. на 10 этажах");
+log(trapTotal > 0, "ловушки генерируются", trapTotal + " шт. на " + API.FLOORS.length + " этажах");
 log(trapKindsSeen.size >= 4, "разнообразие ловушек: >= 4 вида",
   [...trapKindsSeen].sort().join(","));
 log(placementOk, "ловушки стоят на свободных клетках не ближе 3 от старта",
@@ -1008,11 +1008,11 @@ log(arrival.classList.contains("hidden") === true ||
   el("game-msg").textContent !== undefined, "повторный вход не ломает экран");
 
 let eventOk = true;
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < API.FLOORS.length; i++) {
   if (!API.floorEvent(i) || !API.floorEpilogue(i)) { eventOk = false; break; }
   if (!API.floorTip(i)) { eventOk = false; break; }
 }
-log(eventOk, "у всех 10 этажей есть событие, эпиграф и совет");
+log(eventOk, "у всех этажей есть событие, эпиграф и совет");
 
 // ================= 10. Сохранение и загрузка =================
 freshRun(5);
@@ -1141,7 +1141,7 @@ log(/Разбор по темам/.test(el("end-box").innerHTML), "в побед
 // ================= 12. Отрисовка всех этажей =================
 let renderErr = "";
 let renderOk = 0;
-for (let i = 0; i < 10; i++) {
+for (let i = 0; i < API.FLOORS.length; i++) {
   try {
     freshRun(i);
     API.render();
@@ -1154,8 +1154,8 @@ for (let i = 0; i < 10; i++) {
     break;
   }
 }
-log(renderOk === 10, "все 10 этажей рендерятся без ошибок",
-  renderOk + "/10" + (renderErr ? " " + renderErr : ""));
+log(renderOk === API.FLOORS.length, "все этажи рендерятся без ошибок",
+  renderOk + "/" + API.FLOORS.length + (renderErr ? " " + renderErr : ""));
 
 // рендер с ловушками, врагами и сундуками
 let busyErr = "";
@@ -1348,7 +1348,8 @@ log(tileShorthands.length === 0,
   }
   log(bossOk, "дракон роняет только вещи 3+ тира и никогда зелья",
     [...bossTiers].join(","));
-  log(API.FLOORS[9].count === 0 && API.FLOORS[9].boss === true,
+  log(API.FLOORS[API.FLOORS.length - 1].count === 0 &&
+    API.FLOORS[API.FLOORS.length - 1].boss === true,
     "боссовый этаж помечен флагом boss и без обычных монстров");
 }
 
@@ -2355,12 +2356,12 @@ log(hazKeys.every((k) => {
   const h = API.HAZARD_TYPES[k];
   return h.key === k && h.name && h.text && h.hint && h.icon;
 }), "у каждой среды есть имя, описание, подсказка и значок");
-log(API.FLOOR_HAZARD.length === 10, "среда расписана по всем десяти этажам",
+log(API.FLOOR_HAZARD.length === API.FLOORS.length, "среда расписана по всем этажам",
   API.FLOOR_HAZARD.length);
 log(API.floorHazard(4).key === "frost" && API.floorHazard(5).key === "dark" &&
   API.floorHazard(6).key === "lava", "среда стоит на этажах 5, 6 и 7",
   [4, 5, 6].map((i) => API.floorHazard(i).key).join(", "));
-log(API.floorHazard(0) === null && API.floorHazard(9) === null,
+log(API.floorHazard(0) === null && API.floorHazard(API.FLOORS.length - 1) === null,
   "первый и боссовый этажи без среды");
 log(API.hazardByKey("lava") && API.hazardByKey("lava").name === "Лавовые разломы" &&
   API.hazardByKey("нет-такой") === null, "поиск среды по ключу");
@@ -3097,20 +3098,21 @@ G.battle = null;
 // ================= 23. Пункт 5: бесконечный режим =================
 // Замысел: после десятого этажа подземелье не кончается — этажи
 // синтезируются, а не берутся из короткого массива FLOORS.
-log(API.FLOORS.length === 10, "в FLOORS по-прежнему десять этажей",
+log(API.FLOORS.length === 20, "в FLOORS двадцать этажей — пять биомов",
   API.FLOORS.length);
-const deep = API.floorDef(11);
+const deep = API.floorDef(API.FLOORS.length + 1);
 log(!!deep && !!deep.name, "за десятым этажом описание этажа синтезируется",
   deep && deep.name);
 log(!!deep && deep.count > 0, "на синтезированном этаже есть монстры", deep && deep.count);
 log(API.floorNameAt(0) === API.FLOORS[0].name,
   "имя обычного этажа берётся из FLOORS", API.floorNameAt(0));
-log(API.floorNameAt(14) === API.floorDef(14).name,
+log(API.floorNameAt(API.FLOORS.length + 1) === API.floorDef(API.FLOORS.length + 1).name,
   "имя синтезированного этажа не падает");
-const bossDeep = API.floorDef(14);
+const endlessBoss = API.FLOORS.length + 4;
+const bossDeep = API.floorDef(endlessBoss);
 log(!!bossDeep && bossDeep.boss === true,
   "каждый пятый этаж за пределами FLOORS — босс", bossDeep && bossDeep.name);
-log(API.floorDef(12).count >= API.floorDef(11).count,
+log(API.floorDef(API.FLOORS.length + 2).count >= API.floorDef(API.FLOORS.length + 1).count,
   "глубина добавляет монстров, а не убавляет");
 freshRun(0);
 log(API.runIsEndless() === false, "обычный забег не считается бесконечным");
@@ -5258,7 +5260,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(G.stairsDown.active === true && API.interactTarget().kind === "down",
     "победа над стражем открывает лестницу");
   } else log(false, "стража нет — проверки поста, сохранения и замка лестницы пропущены");
-  freshRun(9);
+  freshRun(API.FLOORS.length - 1);
   log(!G.enemies.some((x) => x.guard) && G.stairsDown.active === false,
     "на этаже дракона стража нет: выход держит сам дракон");
   G.playerPos = { x: G.stairsDown.x, y: G.stairsDown.y };
