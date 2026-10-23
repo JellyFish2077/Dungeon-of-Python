@@ -6695,6 +6695,15 @@ body.game-page .site-head .head-actions {
     rgba(2, 6, 14, 0.62);
   box-shadow: none;
   animation: floor-intro-in 0.22s ease-out;
+  transition: opacity 0.38s ease;
+}
+
+/* Плавное исчезновение: .hidden оставляет элемент в кадре, но гасит его
+   по прозрачности. Тесты по-прежнему видят класс hidden сразу. */
+#floor-arrival.hidden {
+  display: grid !important;
+  opacity: 0;
+  pointer-events: none;
 }
 
 #floor-arrival .floor-arrival-body {
