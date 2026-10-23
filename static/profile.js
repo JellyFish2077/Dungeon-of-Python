@@ -72,7 +72,7 @@ function progressEmpty() {
     hero: { hp: 0, dmg: 0, potions: 0, loot: 0, armor: 0 },
     village: { well: 0, barn: 0, forge: 0, smith: 0 },
     loot: { ore: 0, wood: 0, shard: 0, keys: [] },
-    quests: { story: 0, done: [], repeat: {}, progress: {}, active: "" },
+    quests: { story: 0, done: [], repeat: {}, progress: {}, active: "", failed: [] },
     ability: { pick: "", used: 0 }
   };
 }
@@ -101,6 +101,8 @@ function normalizeProgress(p) {
   if (!p.quests || typeof p.quests !== "object") p.quests = blank.quests;
   if (!Array.isArray(p.quests.done)) p.quests.done = [];
   p.quests.done = p.quests.done.filter((k) => typeof k === "string" && k).slice(0, 60);
+  if (!Array.isArray(p.quests.failed)) p.quests.failed = [];
+  p.quests.failed = p.quests.failed.filter((k) => typeof k === "string" && k).slice(-60);
   if (!p.quests.repeat || typeof p.quests.repeat !== "object") p.quests.repeat = {};
   if (!p.quests.progress || typeof p.quests.progress !== "object") p.quests.progress = {};
   // Взятое повторяемое задание: оно живёт между походами, потому что цель
@@ -133,6 +135,9 @@ function progressMerge(local, remote) {
   out.quests.repeat = Object.assign({}, r.quests.repeat, l.quests.repeat);
   out.quests.progress = Object.assign({}, r.quests.progress, l.quests.progress);
   out.quests.active = l.quests.active || r.quests.active;
+  const failed = (l.quests.failed || []).concat((r.quests.failed || [])
+    .filter((k) => (l.quests.failed || []).indexOf(k) < 0));
+  out.quests.failed = failed.slice(-60);
   out.ability.pick = l.ability.pick || r.ability.pick;
   out.ability.used = Math.max(l.ability.used, r.ability.used);
   return out;

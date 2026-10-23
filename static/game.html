@@ -24,7 +24,7 @@
     <div class="head-actions" id="head-actions">
       <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад. У торговца на этаже дешевле.">Лавка</button>
       <button class="head-link" id="forge-btn" type="button" data-tip="Кузница: улучшения героя у кузнеца в деревне.">Кузница</button>
-      <button class="head-link" id="log-toggle" type="button" data-tip="Журнал похода: находки, бои и подсказки заданий.">Журнал</button>
+      <button class="head-link" id="log-toggle" type="button" data-tip="Журнал заданий: активные, выполненные и проваленные.">Журнал</button>
       <button class="head-link" id="hud-btn" type="button" data-tip="Показать или скрыть панель героя: здоровье, снаряжение, сумка.">HUD</button>
       <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню, не заканчивая поход: этаж, золото и снаряжение сохранятся. Продолжить можно у стража у входа.">В деревню</button>
       <button class="head-link" id="menu-btn" type="button" data-tip="Пауза: продолжить, сохранить, загрузить, настройки, выйти в меню.">Пауза</button>
@@ -56,6 +56,9 @@
       <div class="battle" id="battle-box"></div>
     </div>
   </aside>
+  <div class="overlay hidden" id="journal-overlay">
+    <div class="battle" id="journal-box"></div>
+  </div>
   <div class="game-wrap">
 
     <section id="screen-game" class="panel">

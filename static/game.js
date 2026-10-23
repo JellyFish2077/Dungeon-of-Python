@@ -460,10 +460,9 @@
   }
 
   function logBadge() {
+    // Событийный лог больше не показывается: журнал занят заданиями.
     const btn = el("log-toggle");
-    if (!btn) return;
-    if (logUnread > 0) btn.setAttribute("data-unread", logUnread > 9 ? "9+" : String(logUnread));
-    else btn.removeAttribute("data-unread");
+    if (btn) btn.removeAttribute("data-unread");
   }
 
   function log(msg, kind) {
@@ -8954,6 +8953,13 @@ function topicName(key) {
   function takeRepeatQuest(key) {
     const prof = hubProfile();
     if (!prof) return false;
+    if (key && !REPEAT_QUESTS[key]) return false;
+    // Снятое или заменённое задание остаётся в журнале как проваленное —
+    // иначе отказ выглядел бы так, будто поручения никогда и не было.
+    const old = prof.quests.active;
+    if (old && old !== key) {
+      prof.quests.failed = (prof.quests.failed || []).concat([old]).slice(-60);
+    }
     // Пустой ключ — отказ от задания: без него тоже пускают, а цель может
     // оказаться не по силам.
     if (!key) {
@@ -8965,7 +8971,6 @@ function topicName(key) {
       updateHud();
       return true;
     }
-    if (!REPEAT_QUESTS[key]) return false;
     prof.quests.active = key;
     putProfile(hubName(), prof);
     syncProfile(hubName());
@@ -8996,6 +9001,7 @@ function topicName(key) {
     if (!prof) return false;
     prof.quests.repeat[key] = (prof.quests.repeat[key] || 0) + 1;
     prof.quests.active = "";
+    prof.quests.failed = (prof.quests.failed || []).filter((k) => k !== key);
     putProfile(hubName(), prof);
     syncProfile(hubName());
     G.questProgress = { n: 0 };
@@ -9022,6 +9028,158 @@ function topicName(key) {
     if (goalDone(step.goal)) return "Староста ждёт награды: " + step.title;
     const prog = goalProgressText(step.goal);
     return "Цель: " + step.title + (prog ? " (" + prog + ")" : "");
+  }
+
+  // ---------- Журнал заданий ----------
+  // Журнал — не лог событий. В нём только задания: что в работе, что закрыто
+  // и что было снято. События по-прежнему пишутся в скрытый #log для проверок,
+  // но в интерфейсе его больше нет.
+  let journalTab = "active";
+
+  function journalEntries() {
+    const empty = { active: [], done: [], failed: [] };
+    const prof = hubProfile();
+    if (!prof) return empty;
+    const q = prof.quests || {};
+    const active = [];
+    const done = [];
+    const failed = [];
+
+    const storyDone = Math.max(0, Math.min(Number(q.story) || 0, STORY_QUESTS.length));
+    STORY_QUESTS.slice(0, storyDone).forEach((step) => {
+      done.push({
+        title: step.title,
+        text: step.text,
+        meta: "Награда: " + rewardText(step.reward),
+        status: "Выполнено",
+        kind: "story"
+      });
+    });
+
+    const step = storyStep();
+    if (step) {
+      const ready = goalDone(step.goal);
+      active.push({
+        title: step.title,
+        text: step.text,
+        meta: ready ? "Цель выполнена — сдай старосте" : (goalProgressText(step.goal) || "В работе"),
+        status: ready ? "Готово к сдаче" : "В работе",
+        kind: "story"
+      });
+    }
+
+    if (q.active && REPEAT_QUESTS[q.active]) {
+      const def = REPEAT_QUESTS[q.active];
+      const now = questProgress();
+      const ready = now >= def.need;
+      active.push({
+        title: def.title,
+        text: def.text,
+        meta: def.progress + ": " + now + " / " + def.need,
+        status: ready ? "Готово к сдаче" : "В работе",
+        kind: "repeat"
+      });
+    }
+
+    REPEAT_KEYS.forEach((key) => {
+      const def = REPEAT_QUESTS[key];
+      const count = q.repeat && q.repeat[key];
+      if (!def || !count) return;
+      done.push({
+        title: def.title,
+        text: def.text,
+        meta: "Выполнено раз: " + count + " · награда: " + rewardText(def.reward),
+        status: "Выполнено ×" + count,
+        kind: "repeat"
+      });
+    });
+
+    (q.failed || []).forEach((key) => {
+      const def = REPEAT_QUESTS[key];
+      if (!def) return;
+      failed.push({
+        title: def.title,
+        text: def.text,
+        meta: "Задание снято или заменено",
+        status: "Провалено",
+        kind: "repeat"
+      });
+    });
+
+    return { active: active, done: done, failed: failed };
+  }
+
+  function journalCard(item, tab) {
+    const cls = tab === "done" ? " is-done" : tab === "failed" ? " is-failed" : "";
+    return "<article class='journal-card" + cls + "'>" +
+      "<div class='journal-card-head'><span class='journal-kind'>" +
+      (item.kind === "story" ? "Сюжет" : "Поручение") + "</span>" +
+      "<span class='journal-status'>" + item.status + "</span></div>" +
+      "<h3>" + item.title + "</h3>" +
+      "<p>" + item.text + "</p>" +
+      "<div class='journal-meta'>" + item.meta + "</div>" +
+      "</article>";
+  }
+
+  function renderJournal() {
+    const box = el("journal-box");
+    if (!box) return;
+    const entries = journalEntries();
+    if (!["active", "done", "failed"].includes(journalTab)) journalTab = "active";
+    const counts = {
+      active: entries.active.length,
+      done: entries.done.length,
+      failed: entries.failed.length
+    };
+    const labels = { active: "Активные", done: "Выполненные", failed: "Проваленные" };
+    const items = entries[journalTab] || [];
+    let html = "<div class='battle-head'><div>" +
+      "<div class='enemy-name'>Журнал</div>" +
+      "<div class='hud-num'>Задания · " + (counts.active + counts.done + counts.failed) + " всего</div>" +
+      "</div><button class='exit-btn' id='journal-close' type='button' " +
+      "data-tip='Закрыть журнал. Клавиша Escape.'>Закрыть</button></div>";
+    html += "<div class='battle-mid journal-body'>" +
+      "<div class='journal-tabs' role='tablist' aria-label='Разделы журнала'>" +
+      ["active", "done", "failed"].map((tab) =>
+        "<button class='journal-tab" + (tab === journalTab ? " is-active" : "") +
+        "' type='button' role='tab' aria-selected='" + (tab === journalTab) +
+        "' data-jtab='" + tab + "'>" + labels[tab] +
+        " <b>" + counts[tab] + "</b></button>"
+      ).join("") + "</div>";
+    if (!items.length) {
+      html += "<div class='journal-empty'>" +
+        (journalTab === "active" ? "Активных заданий нет." :
+          journalTab === "done" ? "Выполненных заданий пока нет." :
+            "Проваленных заданий нет.") + "</div>";
+    } else {
+      html += "<div class='journal-list'>" + items.map((item) => journalCard(item, journalTab)).join("") + "</div>";
+    }
+    html += "</div>";
+    html += "<div class='battle-foot'><span class='foot-note'>Только задания · без событий</span>" +
+      "<span class='win-chip'>Esc — закрыть</span></div>";
+    box.innerHTML = html;
+
+    const close = el("journal-close");
+    if (close) close.addEventListener("click", closeJournal);
+    box.querySelectorAll("[data-jtab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        journalTab = btn.dataset.jtab;
+        renderJournal();
+      });
+    });
+  }
+
+  function openJournal() {
+    renderJournal();
+    el("journal-overlay").classList.remove("hidden");
+    const btn = el("log-toggle");
+    if (btn) btn.classList.add("active");
+  }
+
+  function closeJournal() {
+    el("journal-overlay").classList.add("hidden");
+    const btn = el("log-toggle");
+    if (btn) btn.classList.remove("active");
   }
 
   function amuletWord(n) {
@@ -10444,7 +10602,7 @@ function topicName(key) {
     el("skip-btn").addEventListener("click", skipTurn);
     el("forge-btn").addEventListener("click", openForge);
     el("minimap").addEventListener("click", toggleMinimap);
-    el("log-toggle").addEventListener("click", () => toggleLog());
+    el("log-toggle").addEventListener("click", () => openJournal());
     // Плашки снаряжения в сводке снимают вещь нажатием: отдельного списка
     // «Экипировано» в колонке больше нет, чтобы не повторять одно и то же.
     document.addEventListener("click", (ev) => {
@@ -10645,6 +10803,10 @@ function topicName(key) {
           toggleMinimap();
           return;
         }
+      }
+      if (e.key === "Escape" && !el("journal-overlay").classList.contains("hidden")) {
+        closeJournal();
+        return;
       }
       if (e.key === "Escape" && !el("shop-overlay").classList.contains("hidden")) {
         closeShop();
