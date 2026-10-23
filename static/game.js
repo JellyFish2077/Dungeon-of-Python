@@ -4296,6 +4296,8 @@
       });
     }
     html += "</div></div></div></div>";  // отдел продажи, колонки, середина
+    html += "<div class='battle-foot'><span class='foot-note'>Цены этого этажа</span>" +
+      "<span class='win-chip'>Esc — закрыть</span></div>";
 
     box.innerHTML = html;
     el("shop-close").addEventListener("click", closeShop);
@@ -4467,6 +4469,8 @@
         + "\">" + (can ? "Улучшить" : "Мало золота") + "</button></div>";
     });
     html += "</div></div>";
+    html += "<div class='battle-foot'><span class='foot-note'>Улучшения остаются до конца спуска</span>" +
+      "<span class='win-chip'>Esc — закрыть</span></div>";
     box.innerHTML = html;
     el("forge-close").addEventListener("click", closeForge);
     box.querySelectorAll("button[data-forge]").forEach((btn) => {

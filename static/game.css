@@ -5664,6 +5664,24 @@ body.game-page .side-panel .equip-value {
   white-space: nowrap;
 }
 
+.overlay > .battle > .battle-foot .foot-note {
+  margin-right: auto;
+  color: var(--parchment-dim);
+  font: 9px/1.2 var(--font-data);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.overlay > .battle > .battle-foot .win-chip {
+  margin-left: auto;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  color: var(--gold-bright);
+  font: 10px/1 var(--font-data);
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
 .overlay > .battle > .battle-head .exit-btn {
   width: 34px;
   height: 34px;
@@ -5855,4 +5873,47 @@ body.game-page .side-panel .equip-value {
   #battle-box .scene-clash {
     display: none;
   }
+}
+
+/* Лавка: компактные товарные строки вместо длинных описаний.
+   Цена и бонус остаются в первой строке; описание, сеты и сравнение
+   доступны в сумке, а не отнимают высоту у витрины. */
+#shop-box .shop-cols {
+  gap: 18px;
+}
+
+#shop-box .inv-item {
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+}
+
+#shop-box .inv-item .info {
+  min-width: 0;
+}
+
+#shop-box .inv-item .info > b {
+  font-size: 12.5px;
+}
+
+#shop-box .inv-item .info > span:first-of-type {
+  margin-top: 3px;
+  color: var(--parchment-dim);
+  font-size: 9.5px;
+}
+
+#shop-box .shop-buy .inv-item .info > span:not(:first-of-type),
+#shop-box .shop-sell .inv-item .info > span:not(:first-of-type) {
+  display: none;
+}
+
+#shop-box .inv-actions .btn {
+  min-height: 31px;
+  padding: 0 9px;
+  font-size: 9.5px;
+}
+
+#shop-box .shop-note,
+#shop-box .inv-stats {
+  font-size: 10px;
 }
