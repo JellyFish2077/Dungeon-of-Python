@@ -195,8 +195,8 @@ def run_checks(browser, base):
     check(page.locator("#menu-overlay").is_visible(),
           "корень открывает главное меню")
     labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
-    check(labels == ["Новая игра", "Загрузить", "Справочник", "Настройки",
-                     "Профиль", "Об игре", "Выход"],
+    check(labels == ["Новая игра", "Загрузить", "Справочник", "Обновления",
+                     "Настройки", "Профиль", "Об игре", "Выход"],
           "главное меню — один вертикальный список", labels)
     check(page.locator("#menu-dungeon-bg").is_visible(),
           "фон главного меню — подземелье")
@@ -223,6 +223,17 @@ def run_checks(browser, base):
     page.wait_for_timeout(200)
     check(page.locator("#menu-view-main").is_visible(),
           "закрытие сохранений возвращает в меню")
+
+    page.click("#menu-updates")
+    updates_text = page.locator("#updates-box").inner_text()
+    check(page.locator("#updates-overlay").is_visible() and
+          "Пять биомов" in updates_text and "1.7.0" in updates_text,
+          "«Обновления» открывают ленту новостей")
+    page.click("#updates-close")
+    page.wait_for_timeout(200)
+    check(not page.locator("#updates-overlay").is_visible() and
+          page.locator("#menu-view-main").is_visible(),
+          "закрытие обновлений возвращает в главное меню")
 
     # Профиль, справка и настройки — пункты списка, а не отдельные кнопки.
     page.click("#menu-profile")

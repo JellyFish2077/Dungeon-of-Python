@@ -640,6 +640,10 @@
         sound("click");
         if (window.PyCodex && typeof window.PyCodex.open === "function") window.PyCodex.open();
         break;
+      case "updates":
+        sound("click");
+        if (window.PyUpdates && typeof window.PyUpdates.open === "function") window.PyUpdates.open();
+        break;
       case "settings": sound("click"); openSub("settings"); break;
       case "profile": sound("click"); openSub("account"); break;
       case "about": sound("click"); openSub("about"); break;
