@@ -26,22 +26,67 @@
     { key: "dragon", name: "Дракон", color: "#dc2626", hp: 260, dmg: 25, boss: true, ability: "bossrage", abilityText: "Дракон впадает в ярость и усиливает удары" }
   ];
 
-  const FLOORS = [
-    { name: "Пещеры новичка", w: 30, h: 22, count: 8, pool: ["slime", "rat", "bat"], qmin: 1, qmax: 2 },
-    { name: "Забытые катакомбы", w: 34, h: 24, count: 10, pool: ["skeleton", "goblin", "bat"], qmin: 2, qmax: 2 },
-    // Тролль переехал на «Ледяные залы»: орк и тролль подряд после катакомб
-    // (урон 16–18 против 11–13) были стеной, о которую разбивались слабые ученики.
-    { name: "Логово орков", w: 36, h: 26, count: 12, pool: ["orc", "goblin", "skeleton"], qmin: 2, qmax: 3 },
-    { name: "Гнилые болота", w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 2, qmax: 3 },
-    { name: "Ледяные залы", w: 40, h: 28, count: 14, pool: ["wolf", "ghost", "troll"], qmin: 3, qmax: 3 },
-    { name: "Древние руины", w: 42, h: 28, count: 14, pool: ["golem", "skeleton", "shieldman"], qmin: 3, qmax: 3 },
-    { name: "Обитель демонов", w: 44, h: 30, count: 16, pool: ["demon", "minotaur", "shieldman"], qmin: 3, qmax: 4 },
-    { name: "Проклятый склеп", w: 46, h: 30, count: 16, pool: ["vampire", "priest", "necromancer", "golem"], qmin: 4, qmax: 4 },
-    { name: "Тронный зал лича", w: 48, h: 32, count: 18, pool: ["lich", "priest", "necromancer"], qmin: 4, qmax: 4 },
-    // count: 0 означает «никаких обычных монстров»: на боссовом этаже
-    // createFloorState всё равно ставит ровно одного (f.boss ? 1 : f.count).
-    { name: "Логово дракона", w: 34, h: 24, count: 0, pool: ["dragon"], qmin: 4, qmax: 4, boss: true }
+  // Биомы: 3–5 обычных этажей, затем босс. Внутри биома этажи — разные
+  // комнаты одного места, а не десять отдельных локаций.
+  const BIOMES = [
+    {
+      key: "caves",
+      name: "Пещеры новичка",
+      theme: 0,
+      floors: [
+        { w: 30, h: 22, count: 8, pool: ["slime", "rat", "bat"], qmin: 1, qmax: 2 },
+        { w: 32, h: 23, count: 9, pool: ["slime", "rat", "goblin"], qmin: 2, qmax: 2 },
+        { w: 34, h: 24, count: 10, pool: ["bat", "goblin", "skeleton"], qmin: 2, qmax: 3 }
+      ],
+      boss: { key: "goblin", name: "Гоблин-вожак", w: 34, h: 24, qmin: 2, qmax: 3 }
+    },
+    {
+      key: "lair",
+      name: "Логово дракона",
+      theme: 9,
+      floors: [
+        { w: 34, h: 24, count: 10, pool: ["skeleton", "goblin", "bat"], qmin: 2, qmax: 2 },
+        { w: 36, h: 26, count: 11, pool: ["orc", "goblin", "skeleton"], qmin: 2, qmax: 3 },
+        { w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 2, qmax: 3 },
+        { w: 40, h: 28, count: 13, pool: ["wolf", "ghost", "troll"], qmin: 3, qmax: 3 },
+        { w: 42, h: 28, count: 14, pool: ["golem", "skeleton", "shieldman"], qmin: 4, qmax: 4 }
+      ],
+      boss: { key: "dragon", name: "Дракон", w: 34, h: 24, qmin: 4, qmax: 4 }
+    }
   ];
+
+  const FLOORS = [];
+  BIOMES.forEach((biome, biomeIndex) => {
+    biome.floors.forEach((floor, floorIndex) => {
+      FLOORS.push(Object.assign({}, floor, {
+        name: biome.name,
+        biome: biome.key,
+        biomeName: biome.name,
+        biomeIndex: biomeIndex,
+        depth: floorIndex + 1,
+        theme: biome.theme,
+        boss: false
+      }));
+    });
+    FLOORS.push({
+      name: biome.boss.name,
+      biome: biome.key,
+      biomeName: biome.name,
+      biomeIndex: biomeIndex,
+      depth: biome.floors.length + 1,
+      w: biome.boss.w,
+      h: biome.boss.h,
+      count: 0,
+      pool: [biome.boss.key],
+      qmin: biome.boss.qmin,
+      qmax: biome.boss.qmax,
+      theme: biome.theme,
+      boss: true,
+      bossKey: biome.boss.key,
+      bossName: biome.boss.name,
+      finalBoss: biomeIndex === BIOMES.length - 1
+    });
+  });
 
   // ---------- Бесконечный спуск ----------
   // За десятым этажом таблица FLOORS кончается, а бесконечный режим
@@ -842,7 +887,7 @@
     return Math.max(1, Math.round((base + ramp) * mul * endlessDepthMul(floorIdx)));
   }
 
-  function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx) {
+  function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx, isBoss) {
     const t = ENEMY_TYPES.find((e) => e.key === typeKey);
     const mul = DIFFICULTY[G.difficulty].enemyScale;
     const isElite = !!elite;
@@ -865,7 +910,7 @@
       dmg: dmg,
       baseDmg: dmg,
       fireScale: 1,
-      boss: !!t.boss,
+      boss: !!isBoss || !!t.boss,
       ability: t.ability || null,
       elite: isElite,
       title: isElite ? eliteTitleFor(typeKey) : "",
@@ -1040,11 +1085,12 @@
         if (!spot) break;
         placed.push(spot);
         const e = makeEnemy(
-          f.boss ? "dragon" : f.pool[rand(0, f.pool.length - 1)],
+          f.boss ? (f.bossKey || "dragon") : f.pool[rand(0, f.pool.length - 1)],
           index,
           group.elite && j === 0,
           group.squadId,
-          j
+          j,
+          f.boss
         );
         if (group.elite && j === 0) {
           e.name = e.title + " " + e.name;
@@ -1879,7 +1925,7 @@
     G.mat = null;
     G.roofKind = null;
     G.roofColor = null;
-    G.ground = index % 10;
+    G.ground = floorDef(index).theme != null ? floorDef(index).theme : index % 10;
     const stageNode = el("stage");
     if (stageNode) stageNode.classList.remove("village");
     // Снимок входа на этаж. Смерть откатывает к нему: опыт этого этажа
@@ -1920,7 +1966,7 @@
     G.tileBg = [];
     G.tileObj = [];
     G.camera.zoomIndex = null;
-    el("map").dataset.theme = String(index % 10);
+    el("map").dataset.theme = String(floorDef(index).theme != null ? floorDef(index).theme : index % 10);
     const hz = currentFloorHazard();
     el("map").dataset.hazard = hz ? hz.key : "";
     // Винетка тьмы живёт на вьюпорте, а не на карте: камера держит героя
@@ -5304,7 +5350,8 @@
       }
       if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) {
         if (!G.stairsDown.active) {
-          return { kind: "locked", label: floorDef(G.floorIndex).boss ? "Выход охраняет дракон" : "Лестницу охраняет страж", icon: "▲" };
+          const bossFloor = floorDef(G.floorIndex);
+          return { kind: "locked", label: bossFloor.boss ? "Выход охраняет " + String(bossFloor.bossName || "дракон").toLowerCase() : "Лестницу охраняет страж", icon: "▲" };
         }
         if (!canDescend()) return { kind: "sealed", label: "Спуск запечатан", icon: "▼" };
         return chained ? held("▼") : { kind: "down", label: "Спуститься ниже", icon: "▼" };
@@ -6072,7 +6119,7 @@
     cancelWalk();
     // Боссовый этаж обычного забега — последний: за драконом стены нет.
     // В бесконечном режиме за драконом спуск продолжается.
-    if (floorDef(G.floorIndex).boss && !runIsEndless()) {
+    if (floorDef(G.floorIndex).finalBoss && !runIsEndless()) {
       victory();
       return;
     }
@@ -7170,10 +7217,10 @@
 
     if (G.enemies.length === 0) {
       G.stairsDown.active = true;
-      if (floorDef(G.floorIndex).boss && !runIsEndless()) {
+      if (floorDef(G.floorIndex).finalBoss && !runIsEndless()) {
         log("Дракон повержен! Выход из подземелья открыт.", "fight");
       } else if (floorDef(G.floorIndex).boss) {
-        log("Дракон повержен! Спуск в бездну открыт.", "fight");
+        log((floorDef(G.floorIndex).bossName || "Босс") + " повержен! Путь глубже открыт.", "fight");
       } else {
         log("Этаж зачищен!", "fight");
       }
