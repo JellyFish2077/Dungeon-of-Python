@@ -6988,3 +6988,17 @@ body.game-page .site-head .head-actions {
     height: 26px;
   }
 }
+
+/* Портал в деревню на пятом этаже: заметный фиолетово-голубой проход. */
+.ent-portal {
+  width: calc(var(--cell) * 0.8);
+  height: calc(var(--cell) * 0.8);
+  filter: drop-shadow(0 0 8px rgba(124, 58, 237, 0.95))
+    drop-shadow(0 0 4px rgba(56, 189, 248, 0.8));
+  animation: portalPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes portalPulse {
+  0%, 100% { transform: scale(1); opacity: 0.9; }
+  50% { transform: scale(1.06); opacity: 1; }
+}

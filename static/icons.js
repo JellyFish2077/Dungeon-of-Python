@@ -255,6 +255,14 @@ const ICONS = {
       <path d="M2 13h3v-3h3V7h3V4h3" fill="none" stroke="#34d399" stroke-width="1.3" stroke-linejoin="round"/>
       <path d="M6 8.5L8 6.5l2 2" fill="none" stroke="#6ee7b7" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>`,
+  portal: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="8" cy="8.6" rx="5.6" ry="6.4" fill="#0b1220" stroke="#7c3aed" stroke-width="1.1"/>
+      <ellipse cx="8" cy="8.6" rx="3.7" ry="4.5" fill="#1e1b4b" stroke="#38bdf8" stroke-width="0.9"/>
+      <path d="M6.1 11.5c-.6-1.6-.4-3.4.6-4.9M9.9 5.5c.7 1.6.5 3.4-.6 4.9" fill="none" stroke="#a5f3fc" stroke-width="0.8" stroke-linecap="round"/>
+      <circle cx="8" cy="8.6" r="1" fill="#67e8f9"/>
+      <path d="M3 3.2l.5 1.3M13 3.2l-.5 1.3M3.4 12.8l1.1-.8M12.6 12.8l-1.1-.8" stroke="#c4b5fd" stroke-width="0.6" stroke-linecap="round"/>
+    </svg>`,
   trader: `
     <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path d="M8 1.6c2.7 0 4.5 1.9 4.5 4.3l.7 7.1H2.8l.7-7.1C3.5 3.5 5.3 1.6 8 1.6z" fill="#6d5a3a" stroke="${OL}" stroke-width="0.7"/>
