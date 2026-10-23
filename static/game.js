@@ -2225,6 +2225,20 @@
     if (!box) return;
     G.dialogNpc = npc;
     box.innerHTML = dialogHtml(npc);
+    // Единый каркас диалога: шапка остаётся сверху, остальное уходит в
+    // прокручиваемое тело, а внизу — спокойная подсказка вместо второй кнопки
+    // «Закрыть» (крестик уже есть в шапке).
+    const head = box.querySelector(":scope > .battle-head");
+    if (head) {
+      const body = document.createElement("div");
+      body.className = "battle-mid dialog-body";
+      while (head.nextSibling) body.appendChild(head.nextSibling);
+      box.appendChild(body);
+      const foot = document.createElement("div");
+      foot.className = "battle-foot";
+      foot.innerHTML = "<span class='foot-note'>Esc — закрыть</span>";
+      box.appendChild(foot);
+    }
     el("dialog-overlay").classList.remove("hidden");
     const close = el("dialog-close");
     if (close) close.addEventListener("click", closeDialog);

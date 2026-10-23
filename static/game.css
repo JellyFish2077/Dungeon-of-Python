@@ -5917,3 +5917,94 @@ body.game-page .side-panel .equip-value {
 #shop-box .inv-stats {
   font-size: 10px;
 }
+
+/* Диалог: та же схема, но содержимое — слоты жителей, а не текстовая стена. */
+#dialog-box {
+  overflow: hidden;
+}
+
+#dialog-box > .battle-head {
+  position: static;
+}
+
+#dialog-box .dialog-body {
+  padding-top: 12px;
+}
+
+#dialog-box .hub-shop {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+#dialog-box .hub-card {
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid rgba(214, 168, 75, 0.2);
+  border-left: 2px solid rgba(214, 168, 75, 0.45);
+  border-radius: 2px;
+  background: rgba(7, 11, 18, 0.36);
+}
+
+#dialog-box .hub-card-head {
+  font-size: 12.5px;
+}
+
+#dialog-box .hub-card-head b {
+  color: var(--parchment);
+  font-family: var(--font-ui);
+}
+
+#dialog-box .hub-price {
+  color: var(--gold-bright);
+  font: 10px/1 var(--font-data);
+}
+
+#dialog-box .hub-card-note {
+  margin: 0;
+  color: var(--parchment-dim);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+#dialog-box .hub-stock {
+  color: var(--moss);
+  font: 9px/1.2 var(--font-data);
+}
+
+#dialog-box .hub-buy {
+  width: 100%;
+  min-height: 32px;
+  margin-top: 2px;
+  padding: 0 8px;
+  border-radius: 2px;
+  font-size: 9.5px;
+}
+
+#dialog-box .quest-head,
+#dialog-box h3 {
+  margin-top: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(214, 168, 75, 0.16);
+  color: var(--gold);
+  font: 10px/1.2 var(--font-data);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+#dialog-box .lead {
+  color: var(--parchment-dim);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+#dialog-box .build-block {
+  border: 1px solid rgba(214, 168, 75, 0.16);
+  border-radius: 2px;
+  background: rgba(7, 11, 18, 0.28);
+}
+
+@media (max-width: 640px) {
+  #dialog-box .hub-shop {
+    grid-template-columns: 1fr;
+  }
+}
