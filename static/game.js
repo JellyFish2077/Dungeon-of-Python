@@ -11353,6 +11353,7 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
       "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
       "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал (5-й)</button>" +
       "<button type='button' class='dev-btn dev-primary' data-dev='village'>Вернуться в деревню</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='player'>" +
@@ -11360,6 +11361,8 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='heal'>Лечить</button>" +
       "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
       "<button type='button' class='dev-btn' data-dev='xp'>+1000 опыта</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='battle-win'>Победить в бою</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='quests'>" +
       "<div class='dev-quest' id='dev-quest-state'></div>" +
@@ -11367,6 +11370,7 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='story'>Сдать сюжетный шаг</button>" +
       "<button type='button' class='dev-btn' data-dev='repeat'>Закрыть повторяемое</button></div>" +
       "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='quest-fill'>Заполнить прогресс</button>" +
       "<button type='button' class='dev-btn' data-dev='story-reset'>Сбросить сюжет</button>" +
       "<button type='button' class='dev-btn' data-dev='quest-reset'>Сбросить повторяемые</button></div>" +
       "</div>" +
@@ -11377,6 +11381,8 @@ function topicName(key) {
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='mats'>Материалы +10</button>" +
       "<button type='button' class='dev-btn' data-dev='keys'>Все ключи</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='codex-all'>Открыть весь справочник</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='settings'>" +
       "<div class='dev-group'>" +
@@ -11445,6 +11451,62 @@ function topicName(key) {
     }
     if (!returnToVillage()) enterVillage(null);
     toast("DEV: возврат в деревню");
+  }
+
+  function devBattleWin() {
+    if (!G.battle || !G.battle.enemy) {
+      toast("Сейчас нет боя");
+      return;
+    }
+    defeatEnemy(G.battle.enemy);
+    G.battle.won = true;
+    G.battle.phase = "result";
+    continueBattle();
+    updateHud();
+    render();
+    updateActionButton();
+    toast("Бой завершён победой");
+  }
+
+  function devQuestFill() {
+    const prof = hubProfile();
+    const def = prof && REPEAT_QUESTS[prof.quests.active];
+    if (!def) {
+      toast("Нет активного повторяемого задания");
+      return;
+    }
+    G.questProgress = { n: def.need };
+    updateHud();
+    toast("Прогресс задания заполнен");
+  }
+
+  function devCodexAll() {
+    const state = codexState();
+    (typeof ITEM_POOL !== "undefined" ? ITEM_POOL : []).forEach((item) => {
+      if (item && item.id) state.items[item.id] = 1;
+    });
+    VILLAGE_NPCS.forEach((npc) => { state.npcs[npc.key] = 1; });
+    ENEMY_TYPES.forEach((mob) => { state.enemies[mob.key] = 1; });
+    scheduleSave();
+    toast("Справочник открыт полностью");
+  }
+
+  function devOpenPortal() {
+    if (G.floorIndex !== 4) {
+      toast("Портал есть только на пятом этаже");
+      return;
+    }
+    if (!G.portal) {
+      toast("На этом этаже портала нет");
+      return;
+    }
+    (G.enemies || []).forEach((e) => { e.hp = 0; });
+    G.enemies = [];
+    if (G.stairsDown) G.stairsDown.active = true;
+    render();
+    updateHud();
+    updateActionButton();
+    toast("Портал в деревню открыт");
   }
 
   function devStoryStep() {
@@ -11537,6 +11599,10 @@ function topicName(key) {
     if (!G.dev) return;
     if (action === "panel") { devToggle(); return; }
     if (action === "village") { devReturnVillage(); return; }
+    if (action === "battle-win") { devBattleWin(); return; }
+    if (action === "quest-fill") { devQuestFill(); return; }
+    if (action === "codex-all") { devCodexAll(); return; }
+    if (action === "portal") { devOpenPortal(); return; }
     if (action === "xp") { devXp(); return; }
     if (action === "story") { devStoryStep(); return; }
     if (action === "repeat") { devRepeatClose(); return; }
