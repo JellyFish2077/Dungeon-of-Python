@@ -7112,6 +7112,14 @@
     const abilityText = abilityTextOf(e);
     let footLabel = "";
     let html = "";
+    // Шапка боя — та же, что у остальных окон, только без крестика:
+    // бой нельзя закрыть, пока он не закончен.
+    html +=
+      "<div class='battle-head'>" +
+      "<div><div class='enemy-name'>Бой</div>" +
+      "<div class='hud-num'>" + floorNameAt(G.floorIndex) + " · " + e.name + "</div></div>" +
+      "<span class='win-chip'>Идёт бой</span>" +
+      "</div>";
     // Окно боя разделено на две области: слева сцена — кто с кем бьётся,
     // справа задание и свойства боя. Раньше враг, его полоса и твоя полоса
     // жили в одной шапке, и на саму картинку боя места не оставалось.
