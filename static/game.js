@@ -11104,8 +11104,11 @@ function topicName(key) {
     );
 
     document.addEventListener("keydown", (e) => {
-      // F5 открывает панель разработчика даже поверх меню; F2 — старый ярлык.
-      if ((e.key === "F5" || e.key === "F2") && G.dev) {
+      // P открывает панель разработчика даже поверх меню (F5 больше не нужен).
+      if (!isTypingTarget(e.target) &&
+          (String(e.key).toLowerCase() === "p" ||
+           String(e.key).toLowerCase() === "з" ||
+           e.code === "KeyP") && G.dev) {
         e.preventDefault();
         devToggle();
         return;
@@ -11321,7 +11324,7 @@ function topicName(key) {
     btn.id = "dev-toggle";
     btn.className = "dev-toggle";
     btn.textContent = "DEV";
-    btn.title = "Панель разработчика. Клавиша F5.";
+    btn.title = "Панель разработчика. Клавиша P.";
     btn.addEventListener("click", devToggle);
     document.body.appendChild(btn);
 
@@ -11330,8 +11333,8 @@ function topicName(key) {
     panel.className = "dev-panel hidden";
     panel.innerHTML =
       "<div class='dev-head'><b>Панель разработчика</b>" +
-      "<span class='dev-key'>F5</span>" +
-      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (F5)'>×</button></div>" +
+      "<span class='dev-key'>P</span>" +
+      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (P)'>×</button></div>" +
       "<div class='dev-state' id='dev-state'></div>" +
       "<div class='dev-tabs'>" +
       "<button type='button' class='dev-tab is-active' data-dev-tab='world'>Мир</button>" +
