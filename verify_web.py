@@ -195,7 +195,7 @@ def run_checks(browser, base):
     check(page.locator("#menu-overlay").is_visible(),
           "корень открывает главное меню")
     labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
-    check(labels == ["Новая игра", "Загрузить", "Настройки",
+    check(labels == ["Новая игра", "Загрузить", "Справочник", "Настройки",
                      "Профиль", "Об игре", "Выход"],
           "главное меню — один вертикальный список", labels)
     check(page.locator("#menu-dungeon-bg").is_visible(),
@@ -283,8 +283,8 @@ def run_checks(browser, base):
         ".filter((n) => n.offsetParent !== null).length")
     check(pause_notes == 0, "кнопки паузы без подписей")
     check(pause_labels == ["Продолжить", "Сохранить", "Загрузить",
-                           "Настройки", "Выход в Меню"],
-          "меню паузы — пять пунктов", pause_labels)
+                           "Настройки", "Справочник", "Выход в Меню"],
+          "меню паузы — шесть пунктов", pause_labels)
     page.click("#pause-save")
     page.wait_for_function(
         "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)

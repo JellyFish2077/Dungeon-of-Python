@@ -636,6 +636,10 @@
     switch (action) {
       case "new": onNew(); break;
       case "load": onLoad(); break;
+      case "codex":
+        sound("click");
+        if (window.PyCodex && typeof window.PyCodex.open === "function") window.PyCodex.open();
+        break;
       case "settings": sound("click"); openSub("settings"); break;
       case "profile": sound("click"); openSub("account"); break;
       case "about": sound("click"); openSub("about"); break;
@@ -650,6 +654,10 @@
       case "save": onPauseSave(); break;
       case "load": onPauseLoad(); break;
       case "settings": sound("click"); openSub("settings"); break;
+      case "codex":
+        sound("click");
+        if (window.PyCodex && typeof window.PyCodex.open === "function") window.PyCodex.open();
+        break;
       case "exit": onPauseExit(); break;
       default: break;
     }

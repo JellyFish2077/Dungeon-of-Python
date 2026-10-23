@@ -121,6 +121,9 @@
   <div class="overlay hidden" id="journal-overlay">
     <div class="battle" id="journal-box"></div>
   </div>
+  <div class="overlay hidden" id="codex-overlay">
+    <div class="battle" id="codex-box"></div>
+  </div>
   <div class="game-wrap">
 
     <section id="screen-game" class="panel">
@@ -143,11 +146,9 @@
         <!-- Пропуск хода: герой остаётся на месте, монстры ходят по карте
              и могут сами найти его и ударить. -->
         <button class="action-btn skip-btn" id="skip-btn" type="button" data-tip="Пропустить ход: герой стоит, монстры ходят. Клавиша Пробел.">
-          <span class="action-icon">⏳</span>
           <span class="action-label">Пропустить ход</span>
           <span class="action-key">Пробел</span>
         </button>
-        <div class="cam-hint">колесо мыши — зум · M — карта</div>
         <canvas class="minimap" id="minimap" width="184" height="132" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
         <div class="log collapsed" id="log"></div>
       </div>
@@ -340,6 +341,11 @@
             <span class="menu-item-label">Загрузить</span>
             <span class="menu-item-note" id="menu-load-note">нет сохранения</span>
           </button>
+          <button class="menu-item" id="menu-codex" type="button" data-action="codex">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Справочник</span>
+            <span class="menu-item-note">управление и бестиарий</span>
+          </button>
           <button class="menu-item" id="menu-settings" type="button" data-action="settings">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Настройки</span>
@@ -389,6 +395,11 @@
             <span class="menu-item-label">Настройки</span>
             <span class="menu-item-note">звук и экран</span>
           </button>
+          <button class="menu-item" id="pause-codex" type="button" data-pause="codex">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Справочник</span>
+            <span class="menu-item-note">управление и бестиарий</span>
+          </button>
           <button class="menu-item menu-item-quiet" id="pause-exit" type="button" data-pause="exit">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Выход в Меню</span>
@@ -426,23 +437,7 @@
 
           <button class="menu-btn" id="set-fullscreen" type="button">На весь экран</button>
           <button class="menu-btn ghost" id="set-reset-hints" type="button">Сбросить подсказки</button>
-          <p class="menu-note" id="set-note">Настройки хранятся в этом браузере.</p>
-        </div>
-
-        <div class="menu-panel menu-controls">
-          <h3>Управление</h3>
-          <div class="menu-keys">
-            <div><b>WASD / стрелки</b> — ходить</div>
-            <div><b>E</b> — действие</div>
-            <div><b>Пробел</b> — пропустить ход</div>
-            <div><b>I</b> — сумка</div>
-            <div><b>Кузница</b> — у кузнеца в деревне</div>
-            <div><b>M</b> — мини-карта</div>
-          </div>
-          <p class="menu-note">
-            Первый спуск — у стража у входа в подземелье: он же покажет
-            сложность и режим похода.
-          </p>
+          <p class="menu-note" id="set-note">Настройки хранятся в этом браузере. Управление — в «Справочнике».</p>
         </div>
       </section>
 
