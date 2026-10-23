@@ -5,34 +5,91 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PyDungeon</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="static/style.css?v=20261023141514" />
-  <link rel="stylesheet" href="static/game.css?v=20261023141514" />
-  <link rel="stylesheet" href="static/menu.css?v=20261023141514" />
-  <link rel="stylesheet" href="static/saves.css?v=20261023141514" />
+  <link rel="stylesheet" href="static/style.css?v=20261023150822" />
+  <link rel="stylesheet" href="static/game.css?v=20261023150822" />
+  <link rel="stylesheet" href="static/menu.css?v=20261023150822" />
+  <link rel="stylesheet" href="static/saves.css?v=20261023150822" />
 </head>
 <body class="game-page">
   <header class="site-head">
-    <!-- В подземелье меню сайта убрано: это игра на весь экран, а не раздел сайта.
-         Название ведёт на главную, а игровые пункты живут справа в шапке. -->
-    <a class="brand" href="index.html" data-tip="Главная страница PyDungeon">
-      <div class="logo">Py</div>
-      <h1>PyDungeon</h1>
-    </a>
+    <nav class="game-nav" id="game-nav" aria-label="Игровое меню">
+      <button class="nav-btn" type="button" data-panel="stats" data-tip="Здоровье, опыт и характеристики героя.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        <span>Статы</span>
+      </button>
+      <button class="nav-btn" type="button" data-panel="place" data-tip="Этаж в подземелье или деревня: где ты и что делать дальше.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+        <span>Этаж</span>
+      </button>
+      <button class="nav-btn" type="button" data-panel="inventory" data-tip="Кошелёк, снаряжение и сумка в одном окне.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l-1 13H7L6 8z"/><path d="M9 8V6a3 3 0 016 0v2"/></svg>
+        <span>Инвентарь</span>
+      </button>
+      <button class="nav-btn" type="button" data-panel="achievements" data-tip="Значки и достижения.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v4a4 4 0 01-8 0V4z"/><path d="M8 6H5a3 3 0 003 3M16 6h3a3 3 0 01-3 3M12 12v4M8 20h8"/></svg>
+        <span>Достижения</span>
+      </button>
+      <button class="nav-btn" type="button" id="log-toggle" data-panel="journal" data-tip="Журнал заданий: активные, выполненные и проваленные.">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 012 2v14H7a2 2 0 01-2-2V4z"/><path d="M8 8h7M8 12h7"/></svg>
+        <span>Журнал</span>
+      </button>
+    </nav>
 
-    <!-- Пункты похода. Показываются только в игре (правило в game.css с :has(.stage.playing)):
-         на стартовом экране ни лавки, ни кузницы, ни журнала ещё нет. -->
+    <!-- Служебные кнопки — справа у края; игровые разделы — в центре. -->
     <div class="head-actions" id="head-actions">
-      <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад. У торговца на этаже дешевле.">Лавка</button>
+      <button class="head-link" id="shop-btn" type="button" data-tip="Лавка: зелья, снаряжение этажа и ящик наугад.">Лавка</button>
       <button class="head-link" id="forge-btn" type="button" data-tip="Кузница: улучшения героя у кузнеца в деревне.">Кузница</button>
-      <button class="head-link" id="log-toggle" type="button" data-tip="Журнал заданий: активные, выполненные и проваленные.">Журнал</button>
-      <button class="head-link" id="hud-btn" type="button" data-tip="Показать или скрыть панель героя: здоровье, снаряжение, сумка.">HUD</button>
-      <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню, не заканчивая поход: этаж, золото и снаряжение сохранятся. Продолжить можно у стража у входа.">В деревню</button>
-      <button class="head-link" id="menu-btn" type="button" data-tip="Пауза: продолжить, сохранить, загрузить, настройки, выйти в меню.">Пауза</button>
+      <button class="head-link" id="hud-btn" type="button" data-tip="Панель героя.">HUD</button>
+      <button class="head-link hidden" id="village-btn" type="button" data-tip="Вернуться в деревню.">В деревню</button>
+      <button class="head-link" id="menu-btn" type="button" data-tip="Пауза: сохранить, загрузить, настройки, выйти в меню.">Пауза</button>
       <button class="head-link" id="fullscreen-btn" type="button" data-tip="На весь экран (F11)">⛶</button>
-      <button class="head-link hidden" id="leave-btn" type="button" data-tip="Выйти в главное меню. Поход сохранится, его можно будет продолжить.">Выйти</button>
+      <button class="head-link hidden" id="leave-btn" type="button" data-tip="Выйти в главное меню.">Выйти</button>
       <span class="app-version" data-app-version></span>
     </div>
   </header>
+
+  <div class="game-dock hidden" id="game-dock">
+    <section class="game-panel" id="panel-stats" data-panel-view="stats">
+      <header class="panel-head">
+        <div><span class="panel-kicker">Герой</span><h2>Статы</h2></div>
+        <button class="panel-close" type="button" data-panel-close aria-label="Закрыть">×</button>
+      </header>
+      <div class="panel-body" id="stats-slot"></div>
+      <div class="stats-combat" id="stats-combat"></div>
+      <div class="stats-effects" id="stats-effects"></div>
+    </section>
+
+    <section class="game-panel" id="panel-place" data-panel-view="place">
+      <header class="panel-head">
+        <div><span class="panel-kicker">Локация</span><h2>Место</h2></div>
+        <button class="panel-close" type="button" data-panel-close aria-label="Закрыть">×</button>
+      </header>
+      <div class="panel-body">
+        <div id="place-dungeon"></div>
+        <div id="place-village-slot"></div>
+      </div>
+    </section>
+
+    <section class="game-panel" id="panel-inventory" data-panel-view="inventory">
+      <header class="panel-head">
+        <div><span class="panel-kicker">Герой</span><h2>Инвентарь</h2></div>
+        <button class="panel-close" type="button" data-panel-close aria-label="Закрыть">×</button>
+      </header>
+      <div class="panel-body">
+        <div id="inventory-wallet"></div>
+        <div id="inventory-equip"></div>
+        <div id="inventory-bag"></div>
+      </div>
+    </section>
+
+    <section class="game-panel" id="panel-achievements" data-panel-view="achievements">
+      <header class="panel-head">
+        <div><span class="panel-kicker">Путь героя</span><h2>Достижения</h2></div>
+        <button class="panel-close" type="button" data-panel-close aria-label="Закрыть">×</button>
+      </header>
+      <div class="panel-body" id="achievements-slot"></div>
+    </section>
+  </div>
 
   <div class="stage" id="stage">
   <!-- Загрузка этажа: карта генерируется и проверяется на компьютере игрока,
@@ -465,25 +522,25 @@
   </aside>
 
 
-    <script src="static/questions.js?v=20261023141514"></script>
-  <script src="static/variants.js?v=20261023141514"></script>
-  <script src="static/code-tasks.js?v=20261023141514"></script>
-  <script src="static/task-meta.js?v=20261023141514"></script>
-  <script src="static/practice-variants.js?v=20261023141514"></script>
-  <script src="static/items.js?v=20261023141514"></script>
-  <script src="static/icons.js?v=20261023141514"></script>
-<script src="static/sprites.js?v=20261023141514"></script>
-<script src="static/terrain.js?v=20261023141514"></script>
-  <script src="static/dungeon-content.js?v=20261023141514"></script>
-  <script src="static/village-content.js?v=20261023141514"></script>
-  <script src="static/profile.js?v=20261023141514"></script>
-  <script src="static/auth.js?v=20261023141514"></script>
-  <script src="static/web-boot.js?v=20261023141514"></script>
-  <script src="static/pyodide-check.js?v=20261023141514"></script>
-  <script src="static/audio.js?v=20261023141514"></script>
-  <script src="static/menu-bg.js?v=20261023141514"></script>
-  <script src="static/menu.js?v=20261023141514"></script>
-  <script src="static/saves.js?v=20261023141514"></script>
-  <script src="static/game.js?v=20261023141514"></script>
+    <script src="static/questions.js?v=20261023150822"></script>
+  <script src="static/variants.js?v=20261023150822"></script>
+  <script src="static/code-tasks.js?v=20261023150822"></script>
+  <script src="static/task-meta.js?v=20261023150822"></script>
+  <script src="static/practice-variants.js?v=20261023150822"></script>
+  <script src="static/items.js?v=20261023150822"></script>
+  <script src="static/icons.js?v=20261023150822"></script>
+<script src="static/sprites.js?v=20261023150822"></script>
+<script src="static/terrain.js?v=20261023150822"></script>
+  <script src="static/dungeon-content.js?v=20261023150822"></script>
+  <script src="static/village-content.js?v=20261023150822"></script>
+  <script src="static/profile.js?v=20261023150822"></script>
+  <script src="static/auth.js?v=20261023150822"></script>
+  <script src="static/web-boot.js?v=20261023150822"></script>
+  <script src="static/pyodide-check.js?v=20261023150822"></script>
+  <script src="static/audio.js?v=20261023150822"></script>
+  <script src="static/menu-bg.js?v=20261023150822"></script>
+  <script src="static/menu.js?v=20261023150822"></script>
+  <script src="static/saves.js?v=20261023150822"></script>
+  <script src="static/game.js?v=20261023150822"></script>
   </body>
 </html>

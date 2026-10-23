@@ -3864,6 +3864,7 @@
       updateForgeHint();
     }
     refreshInventoryStats();
+    refreshStatsPanel();
 
     // Вспышка урона и лечения — отдельно от подписи: она нужна ровно в тот
     // момент, когда здоровье изменилось.
@@ -3878,6 +3879,21 @@
     p._lastHp = p.hp;
 
     scheduleSave();
+  }
+
+  function refreshStatsPanel() {
+    const box = el("stats-combat");
+    if (!box || !G.player) return;
+    const p = G.player;
+    const dmg = Math.round(p.dmgBase + p.atkBonus);
+    const def = Math.round(p.defBonus || 0);
+    const potions = typeof countPotions === "function" ? countPotions() : 0;
+    const charges = G.ability ? (G.ability.left || 0) : 0;
+    box.innerHTML =
+      "<span>Урон <b>" + dmg + "</b></span>" +
+      "<span>Защита <b>" + def + "</b></span>" +
+      "<span>Зелий <b>" + potions + "</b></span>" +
+      "<span>Заряды <b>" + charges + "</b></span>";
   }
 
   function equippedEffect(kind) {
@@ -4902,7 +4918,7 @@
     if (!box || !p) return;
     let html = "";
     html += "<div class='inv-section'><h3>Характеристики</h3>" +
-      "<div class='inv-stats' id='inv-stats'>" + inventoryStatsInner() + "</div>";
+      "<div class='inv-stats' id='inv-stats'>" + inventoryStatsInner() + "</div></div>";
     G.invStatsSig = inventoryStatsSig();
 
     // Надетое здесь не повторяем: те же три плашки стоят в закреплённой
@@ -9170,6 +9186,7 @@ function topicName(key) {
   }
 
   function openJournal() {
+    closeGamePanel();
     renderJournal();
     el("journal-overlay").classList.remove("hidden");
     const btn = el("log-toggle");
@@ -10563,9 +10580,127 @@ function topicName(key) {
     d: [1, 0]
   };
 
+  // ---------- Верхнее меню и выезжающие панели ----------
+  let gamePanel = null;
+
+  function closeGamePanel() {
+    gamePanel = null;
+    const dock = el("game-dock");
+    if (dock) dock.classList.add("hidden");
+    document.querySelectorAll(".game-panel").forEach((panel) => panel.classList.remove("is-open"));
+    document.querySelectorAll(".game-nav .nav-btn").forEach((btn) => btn.classList.remove("active"));
+  }
+
+  function openGamePanel(name) {
+    const dock = el("game-dock");
+    if (!dock) return;
+    if (name === "journal") {
+      if (!el("journal-overlay").classList.contains("hidden")) closeJournal();
+      else openJournal();
+      return;
+    }
+    if (gamePanel === name) {
+      closeGamePanel();
+      return;
+    }
+    gamePanel = name;
+    dock.classList.remove("hidden");
+    document.querySelectorAll(".game-panel").forEach((panel) => {
+      panel.classList.toggle("is-open", panel.dataset.panelView === name);
+    });
+    document.querySelectorAll(".game-nav .nav-btn").forEach((btn) => {
+      btn.classList.toggle("active", btn.dataset.panel === name);
+    });
+  }
+
+  // Переносим существующие узлы HUD в панели, сохраняя id: весь код обновления
+  // героя, сумки и деревни продолжает работать без переписывания.
+  function setupGamePanels() {
+    const side = document.querySelector(".side-panel");
+    const dock = el("game-dock");
+    if (!side || !dock) return;
+
+    const cards = Array.from(side.querySelectorAll(":scope > .side-card"));
+    const hud = cards[2] ? cards[2].querySelector(".hud") : null;
+    const statsSlot = el("stats-slot");
+    const place = el("place-dungeon");
+    const inventoryWallet = el("inventory-wallet");
+    const inventoryEquip = el("inventory-equip");
+    const inventoryBag = el("inventory-bag");
+
+    if (hud && statsSlot) {
+      const blocks = Array.from(hud.querySelectorAll(":scope > .hud-block"));
+      if (blocks[0]) statsSlot.appendChild(blocks[0]);
+      if (blocks[1]) statsSlot.appendChild(blocks[1]);
+      if (blocks[2]) {
+        const nick = blocks[2].querySelector("#hud-nick");
+        if (nick) statsSlot.appendChild(nick);
+        if (place) {
+          const title = document.createElement("div");
+          title.className = "panel-section-title";
+          title.textContent = "Подземелье";
+          const lines = document.createElement("div");
+          lines.className = "place-lines";
+          place.appendChild(title);
+          place.appendChild(lines);
+          ["#floor-name", "#enemies-left", "#quest-line"].forEach((sel) => {
+            const node = blocks[2].querySelector(sel);
+            if (node) lines.appendChild(node);
+          });
+        }
+        const gold = blocks[2].querySelector("#gold-text");
+        if (gold && inventoryWallet) {
+          const line = gold.closest(".hud-num");
+          if (line) inventoryWallet.appendChild(line);
+        }
+      }
+    }
+
+    const village = el("village-info");
+    const villageSlot = el("place-village-slot");
+    if (village && villageSlot) villageSlot.appendChild(village);
+
+    const wallet = el("wallet-line");
+    if (wallet && inventoryWallet) inventoryWallet.appendChild(wallet);
+    const badges = el("game-badges");
+    if (badges) el("achievements-slot").appendChild(badges);
+
+    const equip = side.querySelector(".equip-bar");
+    if (equip && inventoryEquip) inventoryEquip.appendChild(equip);
+    const effects = el("effect-list");
+    if (effects) el("stats-effects").appendChild(effects);
+
+    const bag = el("inventory-card");
+    if (bag && inventoryBag) inventoryBag.appendChild(bag);
+
+    side.classList.add("hidden");
+    side.setAttribute("aria-hidden", "true");
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-icon]").forEach((node) => {
       node.innerHTML = iconSvg(node.dataset.icon);
+    });
+
+    setupGamePanels();
+    document.querySelectorAll(".game-nav [data-panel]").forEach((btn) => {
+      btn.addEventListener("click", () => openGamePanel(btn.dataset.panel));
+    });
+    document.querySelectorAll("[data-panel-close]").forEach((btn) => {
+      btn.addEventListener("click", closeGamePanel);
+    });
+    const journalOverlay = el("journal-overlay");
+    if (journalOverlay) {
+      journalOverlay.addEventListener("click", (ev) => {
+        if (ev.target === journalOverlay) closeJournal();
+      });
+    }
+    document.addEventListener("click", (ev) => {
+      if (!gamePanel) return;
+      const t = ev.target;
+      if (!t || !t.closest) return;
+      if (t.closest("#game-dock") || t.closest(".game-nav") || t.closest("#head-actions")) return;
+      closeGamePanel();
     });
 
     el("begin-btn").addEventListener("click", beginFromEntrance);
@@ -10602,7 +10737,6 @@ function topicName(key) {
     el("skip-btn").addEventListener("click", skipTurn);
     el("forge-btn").addEventListener("click", openForge);
     el("minimap").addEventListener("click", toggleMinimap);
-    el("log-toggle").addEventListener("click", () => openJournal());
     // Плашки снаряжения в сводке снимают вещь нажатием: отдельного списка
     // «Экипировано» в колонке больше нет, чтобы не повторять одно и то же.
     document.addEventListener("click", (ev) => {
@@ -10803,6 +10937,10 @@ function topicName(key) {
           toggleMinimap();
           return;
         }
+      }
+      if (e.key === "Escape" && gamePanel) {
+        closeGamePanel();
+        return;
       }
       if (e.key === "Escape" && !el("journal-overlay").classList.contains("hidden")) {
         closeJournal();
