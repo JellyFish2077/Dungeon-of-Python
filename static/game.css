@@ -6941,3 +6941,50 @@ body.game-page .site-head .head-actions {
     z-index: 25;
   }
 }
+
+/* Спрайты и иконки в справочнике: моб, НПС или предмет стоят слева. */
+.codex-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.codex-card-icon {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(214, 168, 75, 0.18);
+  border-radius: 2px;
+  background: rgba(4, 8, 14, 0.6);
+}
+
+.codex-card-icon svg,
+.codex-card-icon img,
+.codex-card-icon .item-ico {
+  display: block;
+  width: 32px;
+  height: 32px;
+  image-rendering: pixelated;
+}
+
+.codex-card-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .codex-card-icon {
+    flex-basis: 34px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .codex-card-icon svg,
+  .codex-card-icon img,
+  .codex-card-icon .item-ico {
+    width: 26px;
+    height: 26px;
+  }
+}
