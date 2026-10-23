@@ -305,6 +305,7 @@
     minimapOn: true,
     stairsDown: null,
     stairsUp: null,
+    portal: null,
     cache: {},
     visited: new Set(),
     // Постоянные улучшения героя и постройки деревни, действующие в этом
@@ -978,6 +979,7 @@
       nodes: [],
       levers: [],
       signs: [],
+      portal: null,
       vaultNeedsKey: false,
       discovered: new Set()
     };
@@ -1103,6 +1105,7 @@
     state.nodes = (state.nodes || []).concat(placeNodes(index, free, used));
     state.levers = placeLevers(index, free, used, state.vaults);
     state.signs = placeSigns(index, free, used, gen.spots.length);
+    state.portal = placePortal(index, free, used, gen.end);
     placeHazards(state, index);
     return state;
   }
@@ -1268,6 +1271,20 @@
     return [{ uid: ++G.uid, x: s.x, y: s.y, text: tip }];
   }
 
+  // Портал в деревню на пятом этаже. Появляется только после зачистки:
+  // без обещанного старосте оберега глубже не пускают.
+  function placePortal(index, free, used, end) {
+    if (index !== 4) return null;
+    const candidates = free.filter((s) => !used.has(key(s.x, s.y)));
+    if (!candidates.length) return null;
+    candidates.sort((a, b) =>
+      (Math.abs(a.x - end.x) + Math.abs(a.y - end.y)) -
+      (Math.abs(b.x - end.x) + Math.abs(b.y - end.y)));
+    const s = candidates[0];
+    used.add(key(s.x, s.y));
+    return { x: s.x, y: s.y };
+  }
+
   // Тайник: открыть можно ключом или рычагом. Ключ тратится, а сам тайник
   // остаётся открытым до конца похода.
   function openVault(vault) {
@@ -1333,6 +1350,7 @@
       " здоровья, но <b>не убьёт</b>: рычаг оставляет герою одно здоровье. " +
       "Дёргать его не обязательно.</p>" +
       "<p class='lead'>" + (q.text || "") + "</p>" +
+      (q.code ? "<pre class='code lever-code'>" + escText(q.code) + "</pre>" : "") +
       "<div class='battle-options' id='lever-options'>" +
       view.options.map((o, i) =>
         "<button class='option lever-pick' type='button' data-lever='" + i + "'>" +
@@ -1397,6 +1415,10 @@
 
   function leverAt(x, y) {
     return (G.levers || []).find((l) => l.x === x && l.y === y && !l.used) || null;
+  }
+
+  function portalActive() {
+    return G.floorIndex === 4 && !!G.portal && !(G.enemies && G.enemies.length);
   }
 
   function signAt(x, y) {
@@ -1886,6 +1908,7 @@
     G.nodes = state.nodes || [];
     G.levers = state.levers || [];
     G.signs = state.signs || [];
+    G.portal = state.portal || null;
     G.vaultNeedsKey = !!state.vaultNeedsKey;
     G.hazard = state.hazard || null;
     G.playerPos = { ...state.playerPos };
@@ -2147,6 +2170,7 @@
     G.vaultNeedsKey = false;
     G.stairsDown = null;
     G.stairsUp = null;
+    G.portal = null;
     G.battle = null;
     G.blessingOffer = null;
     G.walkTarget = null;
@@ -3761,6 +3785,11 @@
       const vis = G.visible.has(key(sgn.x, sgn.y));
       place("sign-" + sgn.uid, sgn.x, sgn.y, vis, "sign", "ent-sign", null, "Табличка", 2);
     });
+    if (portalActive()) {
+      const vis = G.visible.has(key(G.portal.x, G.portal.y));
+      place("village-portal", G.portal.x, G.portal.y, vis, "portal",
+        "ent-portal", null, "Портал в деревню", 2);
+    }
 
     // Костры-привалы: пока не прогорели — горят.
     (G.camps || []).forEach((c) => {
@@ -5270,6 +5299,9 @@
           icon: "⚒", obj: { key: bkey }
         };
       }
+      if (portalActive() && G.portal.x === x && G.portal.y === y) {
+        return { kind: "portal", label: "Войти в портал в деревню", icon: "✦", obj: G.portal };
+      }
       if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) {
         if (!G.stairsDown.active) {
           return { kind: "locked", label: floorDef(G.floorIndex).boss ? "Выход охраняет дракон" : "Лестницу охраняет страж", icon: "▲" };
@@ -5405,6 +5437,10 @@
     }
     if (target.kind === "lever") {
       openLever(target.obj);
+      return;
+    }
+    if (target.kind === "portal") {
+      returnToVillage();
       return;
     }
     if (target.kind === "sign") {
@@ -7069,6 +7105,10 @@
     if (!e) return;
     const idx = G.enemies.indexOf(e);
     if (idx >= 0) G.enemies.splice(idx, 1);
+    if (G.floorIndex === 4 && G.portal && !G.enemies.length) {
+      toast("Портал в деревню открыт");
+      log("Этаж зачищен. У лестницы открылся портал в деревню.", "floor");
+    }
     G.stats.kills += 1;
     if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
     // Стражи лестницы держат ключи от построек деревни: ключ от амбара лежит
@@ -10082,6 +10122,7 @@ function topicName(key) {
       nodes: (st.nodes || []).map((n) => ({ uid: n.uid, x: n.x, y: n.y, kind: n.kind, taken: !!n.taken })),
       levers: (st.levers || []).map((l) => ({ uid: l.uid, x: l.x, y: l.y, vault: l.vault, used: !!l.used })),
       signs: (st.signs || []).map((s2) => ({ uid: s2.uid, x: s2.x, y: s2.y, text: s2.text })),
+      portal: st.portal ? { x: st.portal.x, y: st.portal.y } : null,
       vaultNeedsKey: !!st.vaultNeedsKey,
       // Опасная среда: без неё после перезагрузки этаж «выздоравливал» —
       // лава и лёд исчезали, а тьма переставала сужать обзор.
@@ -10117,6 +10158,7 @@ function topicName(key) {
       nodes: (o.nodes || []).map((n) => ({ taken: false, ...n })),
       levers: (o.levers || []).map((l) => ({ used: false, ...l })),
       signs: (o.signs || []).map((s2) => Object.assign({}, s2)),
+      portal: o.portal ? { x: o.portal.x, y: o.portal.y } : null,
       vaultNeedsKey: !!o.vaultNeedsKey,
       hazard: o.hazard || null,
       discovered: new Set(o.discovered || [])
@@ -10877,25 +10919,12 @@ function topicName(key) {
     document.querySelectorAll("[data-panel-close]").forEach((btn) => {
       btn.addEventListener("click", closeGamePanel);
     });
-    const journalOverlay = el("journal-overlay");
-    if (journalOverlay) {
-      journalOverlay.addEventListener("click", (ev) => {
-        if (ev.target === journalOverlay) closeJournal();
-      });
-    }
     const codexOverlay = el("codex-overlay");
     if (codexOverlay) {
       codexOverlay.addEventListener("click", (ev) => {
         if (ev.target === codexOverlay) closeCodex();
       });
     }
-    document.addEventListener("click", (ev) => {
-      if (!gamePanel) return;
-      const t = ev.target;
-      if (!t || !t.closest) return;
-      if (t.closest("#game-dock") || t.closest(".game-nav") || t.closest("#head-actions")) return;
-      closeGamePanel();
-    });
 
     el("begin-btn").addEventListener("click", beginFromEntrance);
     el("resume-btn").addEventListener("click", loadGame);
@@ -11132,16 +11161,8 @@ function topicName(key) {
           return;
         }
       }
-      if (e.key === "Escape" && gamePanel) {
-        closeGamePanel();
-        return;
-      }
       if (e.key === "Escape" && !el("codex-overlay").classList.contains("hidden")) {
         closeCodex();
-        return;
-      }
-      if (e.key === "Escape" && !el("journal-overlay").classList.contains("hidden")) {
-        closeJournal();
         return;
       }
       if (e.key === "Escape" && !el("shop-overlay").classList.contains("hidden")) {
