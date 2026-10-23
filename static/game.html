@@ -91,6 +91,11 @@
     </section>
   </div>
 
+  <div class="floor-arrival hidden" id="floor-arrival" role="status">
+    <div class="floor-arrival-body" id="floor-arrival-body"></div>
+    <button class="floor-arrival-close" id="floor-arrival-close" type="button" title="Скрыть" aria-label="Скрыть">×</button>
+  </div>
+
   <div class="stage" id="stage">
   <!-- Загрузка этажа: карта генерируется и проверяется на компьютере игрока,
        поэтому оверлей висит до активации карты, а не после. -->
@@ -142,12 +147,6 @@
           <span class="action-label">Пропустить ход</span>
           <span class="action-key">Пробел</span>
         </button>
-        <div class="floor-arrival hidden" id="floor-arrival" role="status">
-          <!-- Текст пишется во внутренний блок: showFloorArrival задаёт
-               innerHTML, и кнопку закрытия он стёр бы вместе с собой. -->
-          <div class="floor-arrival-body" id="floor-arrival-body"></div>
-          <button class="floor-arrival-close" id="floor-arrival-close" type="button" title="Скрыть" aria-label="Скрыть">×</button>
-        </div>
         <div class="cam-hint">колесо мыши — зум · M — карта</div>
         <canvas class="minimap" id="minimap" width="184" height="132" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
         <div class="log collapsed" id="log"></div>

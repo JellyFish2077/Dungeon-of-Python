@@ -1909,6 +1909,8 @@
     if (!G.visited.has(index)) {
       showFloorArrival(index);
       offerBlessing(index);
+    } else {
+      showFloorTitle(index);
     }
     G.visited.add(index);
   }
@@ -2961,19 +2963,35 @@
     scheduleSave();
   }
 
-  // Первое появление на этаже: эпиграф, событие и подсказка.
-  // Показываются один раз — при возвращении этаж уже знаком.
+  // Название этажа — короткая полноэкранная заставка на пару секунд.
+  // Описание этажа из панели «Место/Этаж» убрано; его текст остаётся только
+  // в скрытом блоке для проверок и не мешает игроку.
+  function showFloorTitle(index, extraHtml) {
+    const body = el("floor-arrival-body") || el("floor-arrival");
+    if (!body) return;
+    hideLevelLoading();
+    body.innerHTML =
+      "<div class='floor-intro-card'>" +
+      "<div class='floor-intro-kicker'>Этаж " + (index + 1) + "</div>" +
+      "<h2 class='floor-intro-title'>" + floorNameAt(index) + "</h2>" +
+      (extraHtml ? "<div class='floor-intro-desc'>" + extraHtml + "</div>" : "") +
+      "</div>";
+    el("floor-arrival").classList.remove("hidden");
+    clearTimeout(showFloorTitle._timer);
+    showFloorTitle._timer = setTimeout(hideFloorArrival, 2200);
+    const close = el("floor-arrival-close");
+    if (close) close.onclick = hideFloorArrival;
+  }
+
+  // Первое появление на этаже: событие и подсказка по-прежнему пишутся
+  // в скрытый журнал, но на экране остаётся только название этажа.
   function showFloorArrival(index) {
     const epi = typeof floorEpilogue === "function" ? floorEpilogue(index) : null;
+    let extra = "";
     if (epi) {
       const topic = TOPICS[epi.topic];
       const hz = typeof floorHazard === "function" ? floorHazard(index) : null;
-      // Пишем во вложенный блок, а не в сам #floor-arrival: у контейнера
-      // есть кнопка закрытия, и innerHTML стёр бы её вместе с текстом —
-      // после первого спуска крестик исчезал навсегда.
-      const body = el("floor-arrival-body") || el("floor-arrival");
-      body.innerHTML =
-        "<h3>" + floorNameAt(index) + "</h3>" +
+      extra =
         "<p>" + epi.text + "</p>" +
         (hz ? "<p class='floor-hazard'>" + hz.icon + " " + hz.name + ": " + hz.text + "</p>" : "") +
         (topic ? "<p class='floor-epi-topic'>Тема этажа: " + topic + "</p>" : "") +
@@ -2982,14 +3000,8 @@
         (G.stairsDown && !G.stairsDown.active && !floorDef(index).boss
           ? "<p class='floor-hint'>Лестницу вниз охраняет страж: победи его, чтобы спуститься.</p>"
           : "");
-      el("floor-arrival").classList.remove("hidden");
-      // Планка живёт 9 секунд и сама уезжает. Раньше она висела до
-      // следующего этажа и закрывала верх карты.
-      clearTimeout(showFloorArrival._timer);
-      showFloorArrival._timer = setTimeout(hideFloorArrival, 9000);
-      const close = el("floor-arrival-close");
-      if (close) close.onclick = hideFloorArrival;
     }
+    showFloorTitle(index, extra);
     const ev = typeof floorEvent === "function" ? floorEvent(index) : null;
     if (ev) log("Событие: " + ev.text);
     const tip = typeof floorTip === "function" ? floorTip(index) : null;
@@ -3001,7 +3013,7 @@
     const box = el("floor-arrival");
     if (!box || box.classList.contains("hidden")) return;
     box.classList.add("hidden");
-    clearTimeout(showFloorArrival._timer);
+    clearTimeout(showFloorTitle._timer);
   }
 
   // Добыча на этаже. Раньше предмет выпадал равновероятно из всего
@@ -8558,7 +8570,6 @@ function topicName(key) {
     if (!tutorialEligible() || !tutorialPanelEl()) return;
     G.tutorial = { active: true, moves: 0, chest: false, battle: false, camp: false };
     tutorialEnsureObjects();
-    hideFloorArrival();
     tutorialRender();
     setMsg("Первый спуск: выполни четыре подсказки слева.");
   }
@@ -10643,7 +10654,7 @@ function topicName(key) {
           lines.className = "place-lines";
           place.appendChild(title);
           place.appendChild(lines);
-          ["#floor-name", "#enemies-left", "#quest-line"].forEach((sel) => {
+          ["#enemies-left", "#quest-line"].forEach((sel) => {
             const node = blocks[2].querySelector(sel);
             if (node) lines.appendChild(node);
           });

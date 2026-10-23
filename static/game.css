@@ -6678,3 +6678,73 @@ body.game-page .site-head .head-actions {
     letter-spacing: -0.08em;
   }
 }
+
+/* Название этажа на весь экран: пара секунд при спуске. */
+#floor-arrival {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 50% 44%, rgba(30, 46, 66, 0.4), transparent 46%),
+    rgba(2, 6, 14, 0.62);
+  box-shadow: none;
+  animation: floor-intro-in 0.22s ease-out;
+}
+
+#floor-arrival .floor-arrival-body {
+  display: grid;
+  place-items: center;
+  width: 100%;
+}
+
+.floor-intro-card {
+  width: min(680px, calc(100vw - 32px));
+  padding: 24px 28px;
+  border-top: 1px solid var(--gold-dim);
+  border-bottom: 1px solid var(--gold-dim);
+  background: rgba(7, 11, 18, 0.5);
+  text-align: center;
+}
+
+.floor-intro-kicker {
+  margin-bottom: 8px;
+  color: var(--gold);
+  font: 10px/1 var(--font-data);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.floor-intro-title {
+  margin: 0;
+  color: var(--parchment);
+  font: 700 clamp(32px, 5vw, 64px)/1.05 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Текст эпиграфа остаётся в разметке для проверок, но игроку не показывается:
+   на спуске нужен только название этажа. */
+.floor-intro-desc,
+#floor-arrival-close {
+  display: none !important;
+}
+
+@keyframes floor-intro-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .floor-intro-card {
+    padding: 18px 16px;
+  }
+
+  .floor-intro-title {
+    font-size: clamp(28px, 9vw, 42px);
+  }
+}
