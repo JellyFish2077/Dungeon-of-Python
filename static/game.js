@@ -292,6 +292,8 @@
     // Уровни кузницы: вложенное золото навсегда усиливает героя.
     forge: { weapon: 0, armor: 0, vitality: 0 },
     inventory: [],
+    // Что герой уже видел: справочник показывает только это.
+    codex: { items: {}, npcs: {}, enemies: {} },
     uid: 0,
     entityEls: new Map(),
     tileEls: [],
@@ -2224,6 +2226,7 @@
     if (!npc) return;
     const box = el("dialog-box");
     if (!box) return;
+    markCodex("npcs", npc.key);
     G.dialogNpc = npc;
     box.innerHTML = dialogHtml(npc);
     // Единый каркас диалога: шапка остаётся сверху, остальное уходит в
@@ -2563,6 +2566,7 @@
 
   // Окно входа в подземелье: статичная вёрстка (сложность, режим, спуск).
   function openEntrance() {
+    markCodex("npcs", "guard");
     renderAbilityPick();
     el("entrance-overlay").classList.remove("hidden");
     updateResumeButton();
@@ -4699,6 +4703,7 @@
 
   function addItem(item, opts) {
     G.inventory.push(item);
+    markCodex("items", item.id);
     log(item.desc ? item.name + " — " + item.desc : item.name, "loot");
     // Покупка сама пишет строку в журнал, поэтому ей лишние две ни к чему.
     if (!opts || !opts.quiet) {
@@ -6080,6 +6085,7 @@
   function openBattle(enemy) {
     // Бой прерывает маршрут, набранный кликом.
     endWalk();
+    markCodex("enemies", enemy.key);
     G.battle = {
       enemy,
       phase: "question",
@@ -9238,6 +9244,25 @@ function topicName(key) {
   };
   let codexTab = "controls";
 
+  function codexState() {
+    if (!G.codex || typeof G.codex !== "object") {
+      G.codex = { items: {}, npcs: {}, enemies: {} };
+    }
+    ["items", "npcs", "enemies"].forEach((kind) => {
+      if (!G.codex[kind] || typeof G.codex[kind] !== "object") G.codex[kind] = {};
+    });
+    return G.codex;
+  }
+
+  function markCodex(kind, key) {
+    if (!kind || !key) return;
+    const codex = codexState();
+    if (!codex[kind][key]) {
+      codex[kind][key] = 1;
+      scheduleSave();
+    }
+  }
+
   function codexItemList() {
     const seen = {};
     const out = [];
@@ -9246,16 +9271,19 @@ function topicName(key) {
       seen[item.id] = true;
       out.push(item);
     };
+    const state = codexState();
+    Object.keys(state.items).forEach((id) => add(typeof itemById === "function" ? itemById(id) : null));
     if (G.equipment) Object.keys(G.equipment).forEach((slot) => add(G.equipment[slot]));
     (G.inventory || []).forEach(add);
     return out;
   }
 
-  function codexCard(title, meta, body, className) {
+  function codexCard(title, meta, body, icon, className) {
     return "<article class='codex-card " + (className || "") + "'>" +
-      "<div class='codex-card-head'><h3>" + title + "</h3>" +
+      "<div class='codex-card-icon'>" + (icon || "") + "</div>" +
+      "<div class='codex-card-main'><div class='codex-card-head'><h3>" + title + "</h3>" +
       (meta ? "<span>" + meta + "</span>" : "") + "</div>" +
-      (body ? "<p>" + body + "</p>" : "") + "</article>";
+      (body ? "<p>" + body + "</p>" : "") + "</div></article>";
   }
 
   function codexBodyHtml(tab) {
@@ -9274,19 +9302,30 @@ function topicName(key) {
         return codexCard(item.name,
           (SLOT_NAMES[item.slot] || item.slot) + " · " + rarity.name,
           (itemBonusText(item) ? itemBonusText(item) + ". " : "") + (item.desc || ""),
+          itemPic(item, rarity.color),
           "is-item");
       }).join("") + "</div>";
     }
     if (tab === "npcs") {
-      return "<div class='codex-list'>" + VILLAGE_NPCS.map((npc) =>
-        codexCard(npc.name, "Деревня", CODEX_NPC_ROLES[npc.key] || "Житель деревни.")
+      const known = VILLAGE_NPCS.filter((npc) => codexState().npcs[npc.key]);
+      if (!known.length) {
+        return "<div class='codex-empty'>Ты ещё не встретил ни одного жителя деревни.</div>";
+      }
+      return "<div class='codex-list'>" + known.map((npc) =>
+        codexCard(npc.name, "Деревня", CODEX_NPC_ROLES[npc.key] || "Житель деревни.",
+          iconSvg("npc_" + npc.key))
       ).join("") + "</div>";
     }
     if (tab === "mobs") {
-      return "<div class='codex-list'>" + ENEMY_TYPES.map((mob) =>
+      const known = ENEMY_TYPES.filter((mob) => codexState().enemies[mob.key]);
+      if (!known.length) {
+        return "<div class='codex-empty'>Ты ещё не встретил ни одного противника.</div>";
+      }
+      return "<div class='codex-list'>" + known.map((mob) =>
         codexCard(mob.name,
           "HP " + mob.hp + " · урон " + mob.dmg + (mob.boss ? " · босс" : ""),
-          mob.abilityText || "Обычный противник подземелья.")
+          mob.abilityText || "Обычный противник подземелья.",
+          iconSvg(mob.key))
       ).join("") + "</div>";
     }
     return "";
@@ -10349,6 +10388,7 @@ function topicName(key) {
         // перезагрузки цель обнулялась, хотя задание оставалось взятым.
         questProgress: G.questProgress || null,
         learn: G.learn || null,
+        codex: G.codex || null,
         blessings: G.blessings || {},
         cameraZoom: G.camera.zoomIndex,
         // Размер клетки в px: номер ступени зависит от шкалы, а px — нет.
@@ -10576,6 +10616,9 @@ function topicName(key) {
       : { n: 0 };
     G.learn = data.learn || null;
     learnState();
+    G.codex = data.codex && typeof data.codex === "object"
+      ? { items: data.codex.items || {}, npcs: data.codex.npcs || {}, enemies: data.codex.enemies || {} }
+      : { items: {}, npcs: {}, enemies: {} };
     G.blessings = data.blessings || {};
     G.blessingOffer = null;
     G.mode = data.mode || "dungeon";
