@@ -11104,6 +11104,12 @@ function topicName(key) {
     );
 
     document.addEventListener("keydown", (e) => {
+      // F5 открывает панель разработчика даже поверх меню; F2 — старый ярлык.
+      if ((e.key === "F5" || e.key === "F2") && G.dev) {
+        e.preventDefault();
+        devToggle();
+        return;
+      }
       // Меню — модальное окно: под ним не ходят, не пропускают ход и не
       // открывают панели. Свои клавиши (Escape, Enter в полях) меню
       // обрабатывает отдельным слушателем.
@@ -11115,12 +11121,6 @@ function topicName(key) {
       // Если поверх него открыта калибровка, фокусом управляет она.
       if (el("calibration-overlay").classList.contains("hidden") &&
           trapFocus(e, "entrance-overlay")) {
-        return;
-      }
-      // F2 открывает панель разработчика, если сервер запущен с --dev.
-      if (e.key === "F2" && devEnabled()) {
-        e.preventDefault();
-        devToggle();
         return;
       }
       // Калибровка — модальное окно поверх стража: Escape закрывает, Enter
@@ -11313,15 +11313,15 @@ function topicName(key) {
   }
 
   function devInit() {
-    if (!devEnabled()) return;
-    if (!G.dev) G.dev = { god: false, reveal: false, panel: false };
+    if (!G.dev) G.dev = { god: false, reveal: false, panel: false, tab: "world" };
+    if (!G.dev.tab) G.dev.tab = "world";
 
     const btn = document.createElement("button");
     btn.type = "button";
     btn.id = "dev-toggle";
     btn.className = "dev-toggle";
     btn.textContent = "DEV";
-    btn.title = "Инструменты разработчика. Клавиша F2.";
+    btn.title = "Панель разработчика. Клавиша F5.";
     btn.addEventListener("click", devToggle);
     document.body.appendChild(btn);
 
@@ -11329,30 +11329,59 @@ function topicName(key) {
     panel.id = "dev-panel";
     panel.className = "dev-panel hidden";
     panel.innerHTML =
-      "<div class='dev-head'><b>Инструменты разработчика</b>" +
-      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (F2)'>×</button></div>" +
+      "<div class='dev-head'><b>Панель разработчика</b>" +
+      "<span class='dev-key'>F5</span>" +
+      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (F5)'>×</button></div>" +
       "<div class='dev-state' id='dev-state'></div>" +
+      "<div class='dev-tabs'>" +
+      "<button type='button' class='dev-tab is-active' data-dev-tab='world'>Мир</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='player'>Игрок</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='quests'>Квесты</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='items'>Предметы</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='settings'>Настройки</button></div>" +
+      "<div class='dev-pane is-active' data-dev-pane='world'>" +
       "<div class='dev-group'><span>Этаж</span>" +
       "<input type='number' id='dev-floor' min='1' max='99' step='1'>" +
       "<button type='button' class='dev-btn' data-dev='jump'>Перейти</button>" +
       "<button type='button' class='dev-btn' data-dev='next'>Следующий</button>" +
       "<button type='button' class='dev-btn' data-dev='regen'>Пересоздать</button></div>" +
       "<div class='dev-group'>" +
-      "<button type='button' class='dev-btn' data-dev='heal'>Лечить</button>" +
-      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
-      "<button type='button' class='dev-btn' data-dev='reveal'>Открыть карту</button></div>" +
-      "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='kill'>Убить всех</button>" +
       "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
       "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn dev-primary' data-dev='village'>Вернуться в деревню</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='player'>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='heal'>Лечить</button>" +
+      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
+      "<button type='button' class='dev-btn' data-dev='xp'>+1000 опыта</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='quests'>" +
+      "<div class='dev-quest' id='dev-quest-state'></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='story'>Сдать сюжетный шаг</button>" +
+      "<button type='button' class='dev-btn' data-dev='repeat'>Закрыть повторяемое</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='story-reset'>Сбросить сюжет</button>" +
+      "<button type='button' class='dev-btn' data-dev='quest-reset'>Сбросить повторяемые</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='items'>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='gold'>+1000 золота</button>" +
       "<button type='button' class='dev-btn' data-dev='items'>Выдать снаряжение</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='mats'>Материалы +10</button>" +
       "<button type='button' class='dev-btn' data-dev='keys'>Все ключи</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='settings'>" +
       "<div class='dev-group'>" +
-      "<button type='button' class='dev-btn dev-danger' data-dev='wipe'>Удалить сейв</button></div>";
+      "<button type='button' class='dev-btn' data-dev='reveal'>Открыть карту</button>" +
+      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn dev-danger' data-dev='wipe'>Удалить сейв</button></div>" +
+      "</div>";
     document.body.appendChild(panel);
     panel.addEventListener("click", devClick);
     devRender();
@@ -11401,7 +11430,100 @@ function topicName(key) {
     updateActionButton();
   }
 
+  function devReturnVillage() {
+    if (G.place === "village") {
+      toast("Ты уже в деревне");
+      return;
+    }
+    if (G.battle) {
+      G.battle = null;
+      el("battle-overlay").classList.add("hidden");
+      document.body.classList.remove("battling");
+    }
+    if (!returnToVillage()) enterVillage(null);
+    toast("DEV: возврат в деревню");
+  }
+
+  function devStoryStep() {
+    const prof = hubProfile();
+    if (!prof) { toast("Нет профиля"); return; }
+    const step = storyStep();
+    if (!step) { toast("Сюжет уже пройден"); return; }
+    prof.quests.story = Math.min(STORY_QUESTS.length, (prof.quests.story || 0) + 1);
+    if (step.key && prof.quests.done.indexOf(step.key) < 0) prof.quests.done.push(step.key);
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    renderVillageInfo();
+    updateHud();
+    toast("Сюжет: «" + step.title + "» зачтён");
+  }
+
+  function devRepeatClose() {
+    const prof = hubProfile();
+    if (!prof || !REPEAT_QUESTS[prof.quests.active]) {
+      toast("Нет активного повторяемого задания");
+      return;
+    }
+    const key = prof.quests.active;
+    prof.quests.repeat[key] = (prof.quests.repeat[key] || 0) + 1;
+    prof.quests.active = "";
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.questProgress = { n: 0 };
+    renderVillageInfo();
+    updateHud();
+    toast("Повторяемое задание закрыто");
+  }
+
+  function devQuestReset() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.quests.repeat = {};
+    prof.quests.active = "";
+    prof.quests.failed = [];
+    prof.quests.progress = {};
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.questProgress = { n: 0 };
+    renderVillageInfo();
+    updateHud();
+    toast("Повторяемые задания сброшены");
+  }
+
+  function devStoryReset() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.quests.story = 0;
+    prof.quests.done = [];
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    renderVillageInfo();
+    updateHud();
+    toast("Сюжет сброшен");
+  }
+
+  function devXp() {
+    if (!G.player) return;
+    G.player.xp += 1000;
+    while (G.player.xp >= G.player.xpNext) {
+      G.player.xp -= G.player.xpNext;
+      G.player.level += 1;
+      G.player.baseMaxHp += LEVEL_HP;
+      G.player.dmgBase += LEVEL_DMG;
+      G.player.xpNext = XP_BASE * G.player.level;
+      recalcStats();
+    }
+    updateHud();
+    toast("+1000 опыта");
+  }
+
   function devClick(ev) {
+    const tab = ev.target && ev.target.closest ? ev.target.closest("[data-dev-tab]") : null;
+    if (tab) {
+      G.dev.tab = tab.dataset.devTab;
+      devRender();
+      return;
+    }
     const btn = ev.target && ev.target.closest ? ev.target.closest("[data-dev]") : null;
     if (!btn) return;
     devAction(btn.dataset.dev);
@@ -11411,6 +11533,12 @@ function topicName(key) {
   function devAction(action) {
     if (!G.dev) return;
     if (action === "panel") { devToggle(); return; }
+    if (action === "village") { devReturnVillage(); return; }
+    if (action === "xp") { devXp(); return; }
+    if (action === "story") { devStoryStep(); return; }
+    if (action === "repeat") { devRepeatClose(); return; }
+    if (action === "story-reset") { devStoryReset(); return; }
+    if (action === "quest-reset") { devQuestReset(); return; }
     if (action === "jump") {
       const input = el("dev-floor");
       const n = Number(input && input.value) || (G.floorIndex + 1);
@@ -11497,7 +11625,6 @@ function topicName(key) {
   }
 
   function devRender() {
-    if (!devEnabled()) return;
     const state = el("dev-state");
     if (!state) return;
     const cached = G.cache && G.cache[G.floorIndex];
@@ -11510,10 +11637,40 @@ function topicName(key) {
       " · врагов " + ((G.enemies || []).length) +
       (checked ? " · проверка: попыток " + checked.attempts +
         (checked.repaired ? ", чинена" : "") : "");
+    if (G.dev && G.dev.tab) {
+      document.querySelectorAll("[data-dev-tab]").forEach((btn) => {
+        btn.classList.toggle("is-active", btn.dataset.devTab === G.dev.tab);
+      });
+      document.querySelectorAll("[data-dev-pane]").forEach((pane) => {
+        pane.classList.toggle("is-active", pane.dataset.devPane === G.dev.tab);
+      });
+    }
     ["god", "reveal"].forEach((name) => {
-      const node = document.querySelector("[data-dev='" + name + "']");
-      if (node) node.classList.toggle("dev-on", !!(G.dev && G.dev[name]));
+      document.querySelectorAll("[data-dev='" + name + "']").forEach((node) => {
+        node.classList.toggle("dev-on", !!(G.dev && G.dev[name]));
+      });
     });
+    const questState = el("dev-quest-state");
+    if (questState) {
+      const prof = hubProfile();
+      const q = prof && prof.quests;
+      if (!q) {
+        questState.textContent = "Профиль ещё не выбран.";
+      } else {
+        const step = storyStep();
+        const active = REPEAT_QUESTS[q.active];
+        const repeatDone = REPEAT_KEYS
+          .filter((k) => q.repeat && q.repeat[k])
+          .map((k) => REPEAT_QUESTS[k].title + " ×" + q.repeat[k]);
+        questState.innerHTML =
+          "<b>Сюжет:</b> " + Math.min(q.story || 0, STORY_QUESTS.length) + " / " + STORY_QUESTS.length +
+          (step ? " · " + step.title : " · пройден") +
+          "<br><b>Повторяемое:</b> " + (active
+            ? active.title + " (" + questProgress() + "/" + active.need + ")"
+            : "не взято") +
+          "<br><b>Закрыто повторяемых:</b> " + (repeatDone.length ? repeatDone.join(", ") : "нет");
+      }
+    }
     const input = el("dev-floor");
     if (input && document.activeElement !== input) {
       input.value = String(G.floorIndex + 1);
