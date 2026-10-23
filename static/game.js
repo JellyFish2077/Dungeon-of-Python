@@ -1348,10 +1348,11 @@
     return [{ uid: ++G.uid, x: s.x, y: s.y, text: tip }];
   }
 
-  // Портал в деревню на пятом этаже. Появляется только после зачистки:
-  // без обещанного старосте оберега глубже не пускают.
+  // Портал в деревню открывается после каждого босса, кроме финального:
+  // так игрок возвращается за печатью и не ищет старую лестницу наверх.
   function placePortal(index, free, used, end) {
-    if (index !== 4) return null;
+    const def = floorDef(index);
+    if (!def.boss || def.finalBoss || def.endless) return null;
     const candidates = free.filter((s) => !used.has(key(s.x, s.y)));
     if (!candidates.length) return null;
     candidates.sort((a, b) =>
@@ -1495,7 +1496,7 @@
   }
 
   function portalActive() {
-    return G.floorIndex === 4 && !!G.portal && !(G.enemies && G.enemies.length);
+    return !!G.portal && !(G.enemies && G.enemies.length);
   }
 
   function signAt(x, y) {
@@ -7183,7 +7184,7 @@
     if (!e) return;
     const idx = G.enemies.indexOf(e);
     if (idx >= 0) G.enemies.splice(idx, 1);
-    if (G.floorIndex === 4 && G.portal && !G.enemies.length) {
+    if (G.portal && !G.enemies.length) {
       toast("Портал в деревню открыт");
       log("Этаж зачищен. У лестницы открылся портал в деревню.", "floor");
     }
@@ -8969,13 +8970,12 @@ function topicName(key) {
 
   const REPEAT_KEYS = ["guard", "ore", "nomiss"];
 
-  // Затворы глубины: шестой этаж запечатан оберегом, восьмой — печатью
-  // мастера (нумерация этажей с нуля). Оберег выдаёт староста за кузницу,
-  // печать — за дом мастера, а ключ от дома держит страж шестого этажа.
-  // Так глубина открывается ступенями, и каждый спуск требует деревни.
+  // Затворы на границах биомов: после первого босса нужен оберег, после
+  // второго — печать мастера. Портал на этаже босса возвращает в деревню
+  // за наградой, а не заставляет искать старую лестницу наверх.
   const SEALS = [
-    { floor: 5, key: "seal", what: "оберег глубины", from: "кузницу" },
-    { floor: 7, key: "seal2", what: "печать мастера", from: "дом мастера" }
+    { floor: 4, key: "seal", what: "оберег глубины", from: "кузницу" },
+    { floor: 8, key: "seal2", what: "печать мастера", from: "дом мастера" }
   ];
 
   // Затвор для следующего этажа: null, если спуск свободен.
@@ -8997,7 +8997,7 @@ function topicName(key) {
     const s = seal || sealFor(G.floorIndex + 1);
     if (!s) return "";
     return "Спуск запечатан: нужен " + s.what + ". Его дают в деревне за " +
-      s.from + " — вернись в деревню кнопкой «В деревню» в шапке. " +
+      s.from + " — вернись в деревню порталом на этаже босса. " +
       "Поход сохранится, продолжишь у стража у входа.";
   }
 
@@ -9504,6 +9504,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.7.1",
+      date: "24 октября 2026",
+      title: "Порталы после боссов",
+      items: [
+        "После каждого босса, кроме финального Дракона, открывается портал в деревню.",
+        "Оберег глубины теперь закрывает спуск сразу после Гоблина-вожака, а печать мастера — после Некроманта.",
+        "Вернуться за наградой можно с этажа босса, не поднимаясь по старым лестницам."
+      ]
+    },
     {
       version: "1.7.0",
       date: "24 октября 2026",
@@ -11525,7 +11535,7 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
       "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
       "<div class='dev-group'>" +
-      "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал (5-й)</button>" +
+      "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал</button>" +
       "<button type='button' class='dev-btn dev-primary' data-dev='village'>Вернуться в деревню</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='player'>" +
@@ -11664,10 +11674,6 @@ function topicName(key) {
   }
 
   function devOpenPortal() {
-    if (G.floorIndex !== 4) {
-      toast("Портал есть только на пятом этаже");
-      return;
-    }
     if (!G.portal) {
       toast("На этом этаже портала нет");
       return;
