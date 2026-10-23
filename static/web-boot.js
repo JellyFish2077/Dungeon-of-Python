@@ -41,32 +41,8 @@
       n.style.display = "none";
     });
 
-    // Подсказка для первого запуска на Itch.io. Не блокирует карту: её можно
-    // закрыть, а после закрытия она не возвращается.
-    try {
-      if (!localStorage.getItem("pyquiz_web_hint")) {
-        const hint = document.createElement("div");
-        hint.id = "web-controls-hint";
-        hint.style.cssText =
-          "position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:999;" +
-          "max-width:min(92vw,560px);padding:8px 12px;border:1px solid #334155;" +
-          "border-radius:10px;background:rgba(15,23,42,.94);color:#e2e8f0;" +
-          "font:13px/1.35 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);" +
-          "pointer-events:none;text-align:center";
-        hint.innerHTML =
-          "Стрелки/WASD — ходить · E — действие · Пробел — ждать " +
-          "<button type='button' aria-label='Скрыть подсказку' " +
-          "style='pointer-events:auto;margin-left:8px;border:0;background:transparent;" +
-          "color:#94a3b8;font-size:16px;cursor:pointer'>×</button>";
-        hint.querySelector("button").addEventListener("click", function () {
-          try { localStorage.setItem("pyquiz_web_hint", "1"); } catch (e) {}
-          hint.remove();
-        });
-        document.body.appendChild(hint);
-      }
-    } catch (e) {
-      // localStorage может быть недоступен — подсказка не критична.
-    }
+    // Подсказки управления больше не висят поверх карты: они живут
+    // в «Справочнике» главного меню и паузы.
 
     // «Продолжить поход» со стартового экрана: игра уже инициализирована,
     // поэтому просто просим её поднять сохранение.

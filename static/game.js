@@ -9210,6 +9210,140 @@ function topicName(key) {
     if (btn) btn.classList.remove("active");
   }
 
+  // ---------- Справочник ----------
+  const CODEX_TABS = {
+    controls: "Управление",
+    items: "Предметы",
+    npcs: "НПС",
+    mobs: "Мобы"
+  };
+  const CODEX_CONTROLS = [
+    ["WASD / стрелки", "ходить по карте"],
+    ["E", "действие: сундук, дверь, торговец, лестница"],
+    ["Пробел", "пропустить ход — монстры ходят без тебя"],
+    ["I", "открыть инвентарь"],
+    ["M", "показать или скрыть мини-карту"],
+    ["Колесо мыши", "приблизить или отдалить карту"],
+    ["Esc", "пауза или закрыть открытое окно"],
+    ["Кузница", "улучшения героя у кузнеца в деревне"]
+  ];
+  const CODEX_NPC_ROLES = {
+    guard: "Спуск в подземелье",
+    trader: "Лавка и товары",
+    elder: "Сюжетные задания",
+    mentor: "Обучение",
+    blacksmith: "Кузница",
+    master: "Улучшения снаряжения",
+    storekeeper: "Амбар и припасы"
+  };
+  let codexTab = "controls";
+
+  function codexItemList() {
+    const seen = {};
+    const out = [];
+    const add = (item) => {
+      if (!item || !item.id || seen[item.id]) return;
+      seen[item.id] = true;
+      out.push(item);
+    };
+    if (G.equipment) Object.keys(G.equipment).forEach((slot) => add(G.equipment[slot]));
+    (G.inventory || []).forEach(add);
+    return out;
+  }
+
+  function codexCard(title, meta, body, className) {
+    return "<article class='codex-card " + (className || "") + "'>" +
+      "<div class='codex-card-head'><h3>" + title + "</h3>" +
+      (meta ? "<span>" + meta + "</span>" : "") + "</div>" +
+      (body ? "<p>" + body + "</p>" : "") + "</article>";
+  }
+
+  function codexBodyHtml(tab) {
+    if (tab === "controls") {
+      return "<div class='codex-list'>" + CODEX_CONTROLS.map((row) =>
+        "<div class='codex-key'><b>" + row[0] + "</b><span>" + row[1] + "</span></div>"
+      ).join("") + "</div>";
+    }
+    if (tab === "items") {
+      const items = codexItemList();
+      if (!items.length) {
+        return "<div class='codex-empty'>Изученных предметов пока нет: подбери что-нибудь в подземелье.</div>";
+      }
+      return "<div class='codex-list'>" + items.map((item) => {
+        const rarity = RARITY[item.rarity] || RARITY.common;
+        return codexCard(item.name,
+          (SLOT_NAMES[item.slot] || item.slot) + " · " + rarity.name,
+          (itemBonusText(item) ? itemBonusText(item) + ". " : "") + (item.desc || ""),
+          "is-item");
+      }).join("") + "</div>";
+    }
+    if (tab === "npcs") {
+      return "<div class='codex-list'>" + VILLAGE_NPCS.map((npc) =>
+        codexCard(npc.name, "Деревня", CODEX_NPC_ROLES[npc.key] || "Житель деревни.")
+      ).join("") + "</div>";
+    }
+    if (tab === "mobs") {
+      return "<div class='codex-list'>" + ENEMY_TYPES.map((mob) =>
+        codexCard(mob.name,
+          "HP " + mob.hp + " · урон " + mob.dmg + (mob.boss ? " · босс" : ""),
+          mob.abilityText || "Обычный противник подземелья.")
+      ).join("") + "</div>";
+    }
+    return "";
+  }
+
+  function renderCodex() {
+    const box = el("codex-box");
+    if (!box) return;
+    if (!CODEX_TABS[codexTab]) codexTab = "controls";
+    let html = "<div class='battle-head'><div>" +
+      "<div class='enemy-name'>Справочник</div>" +
+      "<div class='hud-num'>Управление, предметы, НПС и мобы</div>" +
+      "</div><button class='exit-btn' id='codex-close' type='button' " +
+      "data-tip='Закрыть справочник. Клавиша Escape.'>Закрыть</button></div>";
+    html += "<div class='battle-mid codex-body'>" +
+      "<div class='codex-tabs' role='tablist' aria-label='Разделы справочника'>" +
+      Object.keys(CODEX_TABS).map((tab) =>
+        "<button class='codex-tab" + (tab === codexTab ? " is-active" : "") +
+        "' type='button' role='tab' aria-selected='" + (tab === codexTab) +
+        "' data-codex-tab='" + tab + "'>" + CODEX_TABS[tab] + "</button>"
+      ).join("") + "</div>" + codexBodyHtml(codexTab) + "</div>";
+    html += "<div class='battle-foot'><span class='foot-note'>Знания героя</span>" +
+      "<span class='win-chip'>Esc — закрыть</span></div>";
+    box.innerHTML = html;
+    const close = el("codex-close");
+    if (close) close.addEventListener("click", closeCodex);
+    box.querySelectorAll("[data-codex-tab]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        codexTab = btn.dataset.codexTab;
+        renderCodex();
+      });
+    });
+  }
+
+  function openCodex() {
+    closeGamePanel();
+    renderCodex();
+    el("codex-overlay").classList.remove("hidden");
+    document.removeEventListener("keydown", codexKeydown, true);
+    document.addEventListener("keydown", codexKeydown, true);
+  }
+
+  function codexKeydown(e) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeCodex();
+  }
+
+  function closeCodex() {
+    const box = el("codex-overlay");
+    if (box) box.classList.add("hidden");
+    document.removeEventListener("keydown", codexKeydown, true);
+  }
+
+  window.PyCodex = { open: openCodex, close: closeCodex };
+
   function amuletWord(n) {
     const m10 = n % 10, m100 = n % 100;
     if (m10 === 1 && m100 !== 11) return "амулет";
@@ -10706,6 +10840,12 @@ function topicName(key) {
         if (ev.target === journalOverlay) closeJournal();
       });
     }
+    const codexOverlay = el("codex-overlay");
+    if (codexOverlay) {
+      codexOverlay.addEventListener("click", (ev) => {
+        if (ev.target === codexOverlay) closeCodex();
+      });
+    }
     document.addEventListener("click", (ev) => {
       if (!gamePanel) return;
       const t = ev.target;
@@ -10951,6 +11091,10 @@ function topicName(key) {
       }
       if (e.key === "Escape" && gamePanel) {
         closeGamePanel();
+        return;
+      }
+      if (e.key === "Escape" && !el("codex-overlay").classList.contains("hidden")) {
+        closeCodex();
         return;
       }
       if (e.key === "Escape" && !el("journal-overlay").classList.contains("hidden")) {
