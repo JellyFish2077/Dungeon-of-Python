@@ -9501,6 +9501,94 @@ function topicName(key) {
 
   window.PyCodex = { open: openCodex, close: closeCodex };
 
+  // ---------- Обновления ----------
+  // Короткая лента новостей для главного меню. Новые записи — сверху.
+  const UPDATES = [
+    {
+      version: "1.7.0",
+      date: "24 октября 2026",
+      title: "Пять биомов",
+      items: [
+        "Двадцать этажей разбиты на пять биомов по три обычных этажа и боссу: Пещеры новичка, Забытые катакомбы, Ледяные залы, Обитель демонов и Логово дракона.",
+        "У каждого биома свой босс: Гоблин-вожак, Некромант, Король големов, Владыка демонов и Дракон.",
+        "В главном меню появился раздел «Обновления» — здесь будут короткие новости о том, что изменилось."
+      ]
+    },
+    {
+      version: "1.6.1",
+      date: "22 октября 2026",
+      title: "Справочник, портал и панель P",
+      items: [
+        "В главном меню и паузе появился «Справочник» с управлением, предметами, НПС и мобами.",
+        "На пятом этаже после зачистки открывается портал в деревню.",
+        "Панель разработчика открывается по P; «Продолжить поход» снова возвращает на сохранённый этаж."
+      ]
+    },
+    {
+      version: "1.6.0",
+      date: "21 октября 2026",
+      title: "Верхнее меню и журнал",
+      items: [
+        "Статы, Этаж, Инвентарь, Достижения и Журнал переехали в верхнее меню.",
+        "Журнал показывает выполненные, активные и проваленные задания.",
+        "Появились достижения, общий инвентарь и деревенские постройки."
+      ]
+    }
+  ];
+
+  function updatesHtml() {
+    const info = typeof window !== "undefined" ? window.__PYQUIZ_VERSION : null;
+    const current = (info && info.version) || "1.7.0";
+    const rows = UPDATES.map((entry) =>
+      "<article class='update-entry'>" +
+      "<div class='update-entry-head'><h3>" + escText(entry.title) + "</h3>" +
+      "<span class='update-version'>v" + escText(entry.version) + "</span></div>" +
+      "<div class='update-date'>" + escText(entry.date) + "</div>" +
+      "<ul>" + entry.items.map((item) => "<li>" + escText(item) + "</li>").join("") + "</ul>" +
+      "</article>"
+    ).join("");
+    return "<div class='battle-head'><div>" +
+      "<div class='enemy-name'>Обновления</div>" +
+      "<div class='hud-num'>Что нового · v" + escText(current) + "</div>" +
+      "</div><button class='exit-btn' id='updates-close' type='button' " +
+      "data-tip='Закрыть обновления. Клавиша Escape.'>Закрыть</button></div>" +
+      "<div class='battle-mid updates-body'>" + rows + "</div>" +
+      "<div class='battle-foot'><span class='foot-note'>Новости игры</span>" +
+      "<span class='win-chip'>Esc — закрыть</span></div>";
+  }
+
+  function updatesKeydown(e) {
+    if (e.key !== "Escape") return;
+    e.preventDefault();
+    e.stopPropagation();
+    closeUpdates();
+  }
+
+  function openUpdates() {
+    closeCodex();
+    closeGamePanel();
+    const box = el("updates-box");
+    if (!box) return;
+    box.innerHTML = updatesHtml();
+    const close = el("updates-close");
+    if (close) close.addEventListener("click", closeUpdates);
+    el("updates-overlay").classList.remove("hidden");
+    document.removeEventListener("keydown", updatesKeydown, true);
+    document.addEventListener("keydown", updatesKeydown, true);
+  }
+
+  function closeUpdates() {
+    const box = el("updates-overlay");
+    if (box) box.classList.add("hidden");
+    document.removeEventListener("keydown", updatesKeydown, true);
+  }
+
+  window.PyUpdates = {
+    open: openUpdates,
+    close: closeUpdates,
+    isOpen: () => !!(el("updates-overlay") && !el("updates-overlay").classList.contains("hidden"))
+  };
+
   function amuletWord(n) {
     const m10 = n % 10, m100 = n % 100;
     if (m10 === 1 && m100 !== 11) return "амулет";

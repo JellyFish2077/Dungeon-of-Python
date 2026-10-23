@@ -5,10 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>PyDungeon</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="static/style.css?v=20261023211626" />
-  <link rel="stylesheet" href="static/game.css?v=20261023211626" />
-  <link rel="stylesheet" href="static/menu.css?v=20261023211626" />
-  <link rel="stylesheet" href="static/saves.css?v=20261023211626" />
+  <link rel="stylesheet" href="static/style.css?v=20261023212317" />
+  <link rel="stylesheet" href="static/game.css?v=20261023212317" />
+  <link rel="stylesheet" href="static/menu.css?v=20261023212317" />
+  <link rel="stylesheet" href="static/saves.css?v=20261023212317" />
 </head>
 <body class="game-page">
   <header class="site-head">
@@ -123,6 +123,9 @@
   </div>
   <div class="overlay hidden" id="codex-overlay">
     <div class="battle" id="codex-box"></div>
+  </div>
+  <div class="overlay hidden" id="updates-overlay">
+    <div class="battle" id="updates-box"></div>
   </div>
   <div class="game-wrap">
 
@@ -346,6 +349,11 @@
             <span class="menu-item-label">Справочник</span>
             <span class="menu-item-note">управление и бестиарий</span>
           </button>
+          <button class="menu-item" id="menu-updates" type="button" data-action="updates">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Обновления</span>
+            <span class="menu-item-note">что нового в игре</span>
+          </button>
           <button class="menu-item" id="menu-settings" type="button" data-action="settings">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Настройки</span>
@@ -516,25 +524,25 @@
   </aside>
 
 
-    <script src="static/questions.js?v=20261023211626"></script>
-  <script src="static/variants.js?v=20261023211626"></script>
-  <script src="static/code-tasks.js?v=20261023211626"></script>
-  <script src="static/task-meta.js?v=20261023211626"></script>
-  <script src="static/practice-variants.js?v=20261023211626"></script>
-  <script src="static/items.js?v=20261023211626"></script>
-  <script src="static/icons.js?v=20261023211626"></script>
-<script src="static/sprites.js?v=20261023211626"></script>
-<script src="static/terrain.js?v=20261023211626"></script>
-  <script src="static/dungeon-content.js?v=20261023211626"></script>
-  <script src="static/village-content.js?v=20261023211626"></script>
-  <script src="static/profile.js?v=20261023211626"></script>
-  <script src="static/auth.js?v=20261023211626"></script>
-  <script src="static/web-boot.js?v=20261023211626"></script>
-  <script src="static/pyodide-check.js?v=20261023211626"></script>
-  <script src="static/audio.js?v=20261023211626"></script>
-  <script src="static/menu-bg.js?v=20261023211626"></script>
-  <script src="static/menu.js?v=20261023211626"></script>
-  <script src="static/saves.js?v=20261023211626"></script>
-  <script src="static/game.js?v=20261023211626"></script>
+    <script src="static/questions.js?v=20261023212317"></script>
+  <script src="static/variants.js?v=20261023212317"></script>
+  <script src="static/code-tasks.js?v=20261023212317"></script>
+  <script src="static/task-meta.js?v=20261023212317"></script>
+  <script src="static/practice-variants.js?v=20261023212317"></script>
+  <script src="static/items.js?v=20261023212317"></script>
+  <script src="static/icons.js?v=20261023212317"></script>
+<script src="static/sprites.js?v=20261023212317"></script>
+<script src="static/terrain.js?v=20261023212317"></script>
+  <script src="static/dungeon-content.js?v=20261023212317"></script>
+  <script src="static/village-content.js?v=20261023212317"></script>
+  <script src="static/profile.js?v=20261023212317"></script>
+  <script src="static/auth.js?v=20261023212317"></script>
+  <script src="static/web-boot.js?v=20261023212317"></script>
+  <script src="static/pyodide-check.js?v=20261023212317"></script>
+  <script src="static/audio.js?v=20261023212317"></script>
+  <script src="static/menu-bg.js?v=20261023212317"></script>
+  <script src="static/menu.js?v=20261023212317"></script>
+  <script src="static/saves.js?v=20261023212317"></script>
+  <script src="static/game.js?v=20261023212317"></script>
   </body>
 </html>
