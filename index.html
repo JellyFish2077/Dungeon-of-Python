@@ -24,13 +24,13 @@
   <main>
     <h1>PyDungeon</h1>
     <p id="exit-text">Открываю главное меню…</p>
-    <p><a id="exit-link" href="game.html?menu=1&v=20261023165503">Открыть меню</a></p>
+    <p><a id="exit-link" href="game.html?menu=1&v=20261023195152">Открыть меню</a></p>
   </main>
   <script>
     (function () {
       var exited = new URLSearchParams(window.location.search).get("exit") === "1";
       if (!exited) {
-        window.location.replace("game.html?menu=1&v=20261023165503");
+        window.location.replace("game.html?menu=1&v=20261023195152");
         return;
       }
       document.getElementById("exit-text").textContent =
