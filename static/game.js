@@ -10579,8 +10579,14 @@ function topicName(key) {
   }
 
   function loadGame(source) {
-    const data = source || readSave();
+    // Кнопка «Продолжить» передаёт событие клика, а не данные. Раньше это
+    // событие принималось за сейв, и продолжение молча не срабатывало:
+    // игрок возвращался в деревню, сдавал квест и не мог вернуться в поход.
+    const data = source && source.v === 1 ? source : readSave();
     if (!data || data.v !== 1) return false;
+    // Окно стража должно закрыться: иначе загрузка идёт «за» открытой
+    // модалкой, и кажется, что кнопка «Продолжить» ничего не сделала.
+    closeEntrance();
     tutorialHide();
     G.tutorial = null;
     // Сейв другого ученика (за компьютером сменился игрок) не поднимаем.
@@ -10927,7 +10933,7 @@ function topicName(key) {
     }
 
     el("begin-btn").addEventListener("click", beginFromEntrance);
-    el("resume-btn").addEventListener("click", loadGame);
+    el("resume-btn").addEventListener("click", () => loadGame());
     const tutorialSkipBtn = el("tutorial-skip");
     if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", tutorialSkip);
     el("calibration-btn").addEventListener("click", () => openCalibration(null));
