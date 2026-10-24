@@ -364,6 +364,7 @@
     map: null,
     enemies: [],
     treasures: [],
+    lootBags: [],
     traders: [],
     equipment: { weapon: null, armor: null, accessory: null },
     // Уровни кузницы: вложенное золото навсегда усиливает героя.
@@ -1050,6 +1051,7 @@
       stairsUp: index > 0 ? { x: gen.start.x, y: gen.start.y } : null,
       enemies: [],
       treasures: [],
+      lootBags: [],
       traders: [],
       traps: [],
       // Интерактив этажа: тайники с запертой дверью, жилы руды, рычаги и
@@ -1983,6 +1985,7 @@
     G.stairsUp = state.stairsUp;
     G.enemies = state.enemies;
     G.treasures = state.treasures;
+    G.lootBags = state.lootBags || [];
     G.traders = state.traders || [];
     G.traps = state.traps || [];
     G.camps = state.camps || [];
@@ -2238,6 +2241,7 @@
     G.ground = VILLAGE_GROUND;
     G.enemies = [];
     G.treasures = [];
+    G.lootBags = [];
     G.traders = [];
     G.traps = [];
     G.hazard = null;
@@ -3416,8 +3420,11 @@
     // Ловушки на мини-карте: оранжевые ромки, сработавшие гаснут.
     (G.traps || []).forEach((t) => {
       if (G.discovered.has(key(t.x, t.y))) {
-        dot(t.x, t.y, t.armed === false ? "#475569" : "#fb923c", 0.6);
+        dot(t.x, t.y, t.armed === false ? "#475569" : "#8a6a4a", 0.28);
       }
+    });
+    (G.lootBags || []).forEach((b) => {
+      if (G.discovered.has(key(b.x, b.y))) dot(b.x, b.y, "#f2c14e", 0.8);
     });
     if (G.stairsUp && G.discovered.has(key(G.stairsUp.x, G.stairsUp.y))) {
       dot(G.stairsUp.x, G.stairsUp.y, "#34d399", 0.72);
@@ -3901,8 +3908,23 @@
         type ? type.icon : "spikes",
         "ent-trap" + (armed ? "" : " spent"),
         type && type.damage ? "#f87171" : "#fbbf24",
-        type ? type.name : "Ловушка",
+        armed ? "" : (type ? type.name : "Ловушка"),
         1
+      );
+    });
+
+    (G.lootBags || []).forEach((b) => {
+      const vis = G.visible.has(key(b.x, b.y));
+      place(
+        "loot-" + b.uid,
+        b.x,
+        b.y,
+        vis,
+        "lootBag",
+        "ent-bag",
+        null,
+        "Мешочек с добычей",
+        2
       );
     });
 
@@ -4827,6 +4849,43 @@
     renderInventory();
   }
 
+  // Мешочек с добычей лежит на месте павшего врага. Золото и предмет
+  // забираются только при подборе: так победа не проскакивает мимо игрока.
+  function lootBagAt(x, y) {
+    return (G.lootBags || []).find((b) => b.x === x && b.y === y) || null;
+  }
+
+  function ensureLootBag(x, y, gold, item) {
+    let bag = lootBagAt(x, y);
+    if (!bag) {
+      bag = { uid: ++G.uid, x, y, gold: 0, items: [] };
+      G.lootBags.push(bag);
+    }
+    bag.gold = (bag.gold || 0) + Math.max(0, gold || 0);
+    if (item) bag.items.push(item);
+    return bag;
+  }
+
+  function pickupLootBag(bag) {
+    if (!bag) return false;
+    const idx = G.lootBags.indexOf(bag);
+    if (idx < 0) return false;
+    G.lootBags.splice(idx, 1);
+    const gold = bag.gold || 0;
+    if (gold > 0) addGold(gold);
+    (bag.items || []).forEach((item) => addItem(item));
+    const parts = [];
+    if (gold > 0) parts.push("золото +" + gold);
+    (bag.items || []).forEach((item) => parts.push(item.name));
+    log("Мешочек с добычей подобран: " + (parts.length ? parts.join(", ") : "пусто") + ".", "loot");
+    toast(parts.length ? "Добыча: " + parts.join(", ") : "Мешочек пуст");
+    render();
+    updateHud();
+    updateActionButton();
+    scheduleSave();
+    return true;
+  }
+
   function countPotions() {
     return G.inventory.filter((i) => i.slot === "potion").length;
   }
@@ -5300,6 +5359,11 @@
     const chained = !!(G.player && G.player.snared);
     const held = (icon) => ({ kind: "chained", label: "Цепь не пускает к лестнице", icon: icon });
     const at = (x, y) => {
+      // Мешочек с добычей — приоритетнее декора: он лежит на месте врага.
+      const bag = lootBagAt(x, y);
+      if (bag) {
+        return { kind: "loot", label: "Подобрать мешочек с добычей", icon: "✦", obj: bag };
+      }
       // НПС и двери — объекты деревни и домов.
       const npc = (G.npcs || []).find((n) => n.x === x && n.y === y);
       if (npc) return { kind: "npc", label: npc.name, icon: "☺", obj: npc };
@@ -5508,6 +5572,10 @@
     }
     if (target.kind === "camp") {
       restAtCamp(target.obj);
+      return;
+    }
+    if (target.kind === "loot") {
+      pickupLootBag(target.obj);
       return;
     }
     if (target.kind === "vault") {
@@ -5721,10 +5789,15 @@
       return;
     }
 
+    // Мешочек подбирается шагом: враг уже мёртв, бой не начинается.
+    const bag = lootBagAt(nx, ny);
+    if (bag) pickupLootBag(bag);
+
     // Сундук, торговец и лестницы ждут кнопку действия (пункт 1).
     // Само по себе срабатывание убрано: шаг больше ничего не открывает.
     const standOn = (x, y) =>
       G.treasures.some((t) => t.x === x && t.y === y) ||
+      (G.lootBags || []).some((t) => t.x === x && t.y === y) ||
       (G.traders || []).some((t) => t.x === x && t.y === y) ||
       (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) ||
       (G.stairsDown.x === x && G.stairsDown.y === y);
@@ -6008,6 +6081,10 @@
     const py = G.playerPos.y;
     for (const e of G.enemies.slice()) {
       if (e.hp <= 0) continue;
+      if (e.trapHold > 0) {
+        e.trapHold -= 1;
+        continue;
+      }
       // Страж не сходит с поста и не бродит: бьёт, только когда герой
       // подошёл (дальнобойный — на расстояние выстрела по прямой).
       if (e.guard) {
@@ -6110,9 +6187,30 @@
 
   // Переставить ОДНОГО монстра. Отряд больше не телепортируется целиком:
   // каждый участник ходит сам, иначе все трое возникают на одной клетке.
+  // Монстры, кроме боссов, тоже наступают на ловушки. Босс слишком большой,
+  // чтобы провалиться в яму или зацепиться за цепь; обычный моб — нет.
+  function triggerEnemyTrap(e, x, y) {
+    if (!e || e.boss) return;
+    const trap = trapAt(x, y);
+    if (!trap || trap.armed === false) return;
+    const type = trapByKey(trap.kind);
+    if (!type) return;
+    trap.armed = false;
+    if (type.damage > 0) {
+      const dmg = Math.max(1, Math.round(e.maxHp * 0.15 + type.damage));
+      e.hp = Math.max(0, e.hp - dmg);
+      log(e.name + " попал в ловушку «" + type.name + "»: −" + dmg + " здоровья.", "fight");
+      if (e.hp <= 0) defeatEnemy(e);
+    } else {
+      e.trapHold = Math.max(e.trapHold || 0, 2);
+      log(e.name + " запутался в ловушке «" + type.name + "» и пропускает ход.", "fight");
+    }
+  }
+
   function moveEnemyTo(e, x, y) {
     e.x = x;
     e.y = y;
+    triggerEnemyTrap(e, x, y);
   }
 
   // Отойти от цели на дистанцию range, не наступая на занятые клетки.
@@ -7218,7 +7316,7 @@
     // Награда растёт с глубиной: иначе золото обесценивается, ведь монстры
     // к 8-му этажу бьют втрое сильнее, а платили за них столько же.
     const baseGold = e.boss ? ECON.bossGold : ECON.goldBase + (e.elite ? eliteGoldBonus() : 0);
-    addGold(Math.round(baseGold * depthMul(ECON.goldDepth) * goldMulForFloor()));
+    const bagGold = Math.round(baseGold * depthMul(ECON.goldDepth) * goldMulForFloor());
     while (G.player.xp >= G.player.xpNext) {
       G.player.xp -= G.player.xpNext;
       G.player.level += 1;
@@ -7235,14 +7333,22 @@
     // и переживает смерть, поэтому замещает обычную добычу.
     const amuletDrop = (e.boss || e.elite) ? findAmulet() : false;
     const dropChance = e.boss ? 1 : e.elite ? 0.6 : 0.35;
+    let bagItem = null;
     if (!amuletDrop && Math.random() < dropChance) {
       // Дракон — единственный, кто всегда что-то оставляет, и оставляет
       // вещь высшего тира: раньше он ронял случайную вещь третьего этажа.
-      const item = e.boss ? bossDrop() : randomItemForFloor(G.floorIndex);
-      addItem(item);
-      log("С монстра выпал предмет: " + item.name + ".", "loot");
-      toast("Добыча: " + item.name);
+      bagItem = e.boss ? bossDrop() : randomItemForFloor(G.floorIndex);
     }
+    const bag = ensureLootBag(e.x, e.y, bagGold, bagItem);
+    if (bagItem) {
+      log("На месте врага остался мешочек: " + bagItem.name + ".", "loot");
+      toast("Добыча в мешочке: " + bagItem.name);
+    } else {
+      log("На месте врага остался мешочек с золотом.", "loot");
+    }
+    // Если бой закончился на клетке героя, мешочек подбирается сразу —
+    // иначе он остался бы под ногами и требовал лишнего шага.
+    if (bag.x === G.playerPos.x && bag.y === G.playerPos.y) pickupLootBag(bag);
 
     // Страж лестницы повержен — спуск открыт.
     if (e.guard && G.stairsDown && !G.stairsDown.active) {
@@ -9509,6 +9615,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.8.0",
+      date: "24 октября 2026",
+      title: "Тихие ловушки и мешочки с добычей",
+      items: [
+        "Ловушки больше не светятся и не пульсируют: их видно по едва заметной неровности пола.",
+        "Обычные монстры и элита, но не боссы, сами наступают на ловушки и получают урон или теряют ход.",
+        "После смерти врага или босса на его клетке остаётся мешочек: золото и предмет забираются шагом или кнопкой действия."
+      ]
+    },
+    {
       version: "1.7.2",
       date: "24 октября 2026",
       title: "Баланс глубин",
@@ -10302,6 +10418,10 @@ function topicName(key) {
         y: e.y
       })),
       treasures: st.treasures.map((t) => ({ uid: t.uid, x: t.x, y: t.y, item: t.item })),
+      lootBags: (st.lootBags || []).map((b) => ({
+        uid: b.uid, x: b.x, y: b.y, gold: b.gold || 0,
+        items: (b.items || []).map((item) => Object.assign({}, item))
+      })),
       traders: (st.traders || []).map((t) => ({ uid: t.uid, x: t.x, y: t.y })),
       traps: (st.traps || []).map((t) => ({ uid: t.uid, x: t.x, y: t.y, kind: t.kind, armed: t.armed !== false })),
       // Костры: без них после перезагрузки страницы привалы исчезали бы,
@@ -10341,6 +10461,10 @@ function topicName(key) {
         )
       ),
       treasures: (o.treasures || []).map((t) => Object.assign({}, t)),
+      lootBags: (o.lootBags || []).map((b) => ({
+        uid: b.uid, x: b.x, y: b.y, gold: b.gold || 0,
+        items: (b.items || []).map((item) => Object.assign({}, item))
+      })),
       traders: (o.traders || []).map((t) => Object.assign({}, t)),
       traps: (o.traps || []).map((t) => ({ armed: true, ...t })),
       camps: (o.camps || []).map((c) => ({ used: false, ...c })),

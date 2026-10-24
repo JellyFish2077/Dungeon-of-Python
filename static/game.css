@@ -1032,17 +1032,19 @@ body.game-page:has(.stage.village) .tile.unseen {
   animation: treasurePulse 1.6s ease-in-out infinite;
 }
 
-/* Ловушка — тусклее сундука, чтобы не спутать с наградой */
+/* Ловушка намеренно тихая: не светится и не пульсирует, чтобы её
+   замечали по неровности пола, а не по фонарю. */
 .ent-trap {
-  width: calc(var(--cell) * 0.62);
-  height: calc(var(--cell) * 0.62);
-  filter: drop-shadow(0 0 7px var(--c, #f87171)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
-  animation: trapPulse 1.1s ease-in-out infinite;
+  width: calc(var(--cell) * 0.46);
+  height: calc(var(--cell) * 0.46);
+  opacity: 0.3;
+  filter: grayscale(0.55) brightness(0.68) drop-shadow(0 1px 1px rgba(0, 0, 0, 0.45));
+  animation: none;
 }
 
 .ent-trap.spent {
-  opacity: 0.4;
-  filter: grayscale(0.8);
+  opacity: 0.12;
+  filter: grayscale(0.85);
   animation: none;
 }
 
@@ -1053,7 +1055,20 @@ body.game-page:has(.stage.village) .tile.unseen {
 }
 
 .ent-trap.ent-px:not(.spent) {
-  animation: trapGlow 1.1s ease-in-out infinite;
+  animation: none;
+}
+
+/* Мешочек с добычей: заметная награда, но не сундук. */
+.ent-bag {
+  width: calc(var(--cell) * 0.58);
+  height: calc(var(--cell) * 0.58);
+  filter: drop-shadow(0 0 5px rgba(242, 193, 78, 0.55)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+  animation: bagBob 2.2s ease-in-out infinite;
+}
+
+@keyframes bagBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
 }
 
 @keyframes treasureGlow {

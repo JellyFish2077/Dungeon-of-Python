@@ -243,6 +243,14 @@ const ICONS = {
       <path d="M3.4 4.6l1-1.4M12.6 4.6l-1-1.4" stroke="#fde68a" stroke-width="0.7" stroke-linecap="round"/>
       <path d="M5.5 11.5h5" stroke="#6b3308" stroke-width="0.5"/>
     </svg>`,
+  lootBag: `
+    <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+      <path d="M5.1 5.1c0-1.5.9-2.4 2.9-2.4s2.9.9 2.9 2.4" fill="none" stroke="${OL}" stroke-width="0.9"/>
+      <path d="M5.2 5.4h5.6l1.4 6.1c.2.9-.4 1.5-1.3 1.5H5.1c-.9 0-1.5-.6-1.3-1.5z" fill="#8a5a2b" stroke="${OL}" stroke-width="0.7"/>
+      <path d="M5.4 6.2h5.2l.5 2.2H4.9z" fill="#a8733c"/>
+      <circle cx="8" cy="10.4" r="1.35" fill="#f2c14e" stroke="${OL}" stroke-width="0.45"/>
+      <path d="M7.3 10.4h1.4M8 9.7v1.4" stroke="#7c4a12" stroke-width="0.45" stroke-linecap="round"/>
+    </svg>`,
   stairs: `
     <svg class="ent-svg" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
       <path d="M2 13h3v-3h3V7h3V4h3v9z" fill="#0c4a6e" stroke="${OL}" stroke-width="0.6"/>
