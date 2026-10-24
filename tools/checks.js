@@ -630,6 +630,47 @@ if (spot) {
   log(G.map.grid[G.playerPos.y][G.playerPos.x] === 1, "игрок остался на той же клетке");
 }
 
+// Мобы, кроме боссов, сами наступают на ловушки.
+freshRun(2);
+spot = walkableNeighbours(G.playerPos)[0];
+if (spot) {
+  G.traps = [{ uid: 9010, kind: "spikes", armed: true, x: spot.x, y: spot.y }];
+  const foe = API.makeEnemy("rat", 2);
+  foe.x = G.playerPos.x;
+  foe.y = G.playerPos.y;
+  G.enemies = [foe];
+  const foeHp = foe.hp;
+  API.moveEnemyTo(foe, spot.x, spot.y);
+  log(foe.hp < foeHp && G.traps[0].armed === false,
+    "обычный моб попадает в ловушку и получает урон",
+    foeHp + " -> " + foe.hp);
+  const boss = API.makeEnemy("dragon", 2, false, 0, 0, true);
+  boss.x = G.playerPos.x;
+  boss.y = G.playerPos.y;
+  G.traps = [{ uid: 9011, kind: "spikes", armed: true, x: spot.x, y: spot.y }];
+  API.triggerEnemyTrap(boss, spot.x, spot.y);
+  log(G.traps[0].armed === true && boss.hp === boss.maxHp,
+    "босс в ловушку не попадает");
+}
+
+// Мешочек с добычей: золото и предмет ждут на месте врага.
+freshRun(0);
+const bagFoe = API.makeEnemy("rat", 0);
+bagFoe.x = G.playerPos.x + 1;
+bagFoe.y = G.playerPos.y;
+G.enemies = [bagFoe];
+G.player.gold = 0;
+API.defeatEnemy(bagFoe);
+log(G.lootBags.length === 1 && G.player.gold === 0,
+  "после смерти врага на его месте лежит мешочек", G.lootBags.length);
+if (G.lootBags.length) {
+  const bag = G.lootBags[0];
+  G.playerPos = { x: bag.x, y: bag.y };
+  API.doInteract();
+  log(G.lootBags.length === 0 && G.player.gold > 0,
+    "мешочек подбирается и отдаёт золото", G.player.gold);
+}
+
 // защита блокирует весь урон — на максимальном HP смерть исключена
 freshRun(6);
 spot = walkableNeighbours(G.playerPos)[0];
