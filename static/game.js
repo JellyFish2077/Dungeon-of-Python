@@ -38,7 +38,7 @@
         { w: 32, h: 23, count: 9, pool: ["slime", "rat", "goblin"], qmin: 2, qmax: 2 },
         { w: 34, h: 24, count: 10, pool: ["bat", "goblin", "skeleton"], qmin: 2, qmax: 3 }
       ],
-      boss: { key: "goblin", name: "Гоблин-вожак", w: 34, h: 24, qmin: 2, qmax: 3 }
+      boss: { key: "goblin", name: "Гоблин-вожак", hp: 200, w: 34, h: 24, qmin: 2, qmax: 3 }
     },
     {
       key: "catacombs",
@@ -49,7 +49,7 @@
         { w: 36, h: 26, count: 11, pool: ["orc", "goblin", "skeleton"], qmin: 3, qmax: 3 },
         { w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 3, qmax: 4 }
       ],
-      boss: { key: "necromancer", name: "Некромант", w: 36, h: 26, qmin: 3, qmax: 4 }
+      boss: { key: "necromancer", name: "Некромант", hp: 260, w: 36, h: 26, qmin: 3, qmax: 4 }
     },
     {
       key: "ice",
@@ -60,7 +60,7 @@
         { w: 40, h: 28, count: 13, pool: ["golem", "skeleton", "shieldman"], qmin: 4, qmax: 4 },
         { w: 42, h: 28, count: 14, pool: ["golem", "ghost", "wolf"], qmin: 4, qmax: 4 }
       ],
-      boss: { key: "golem", name: "Король големов", w: 38, h: 28, qmin: 4, qmax: 4 }
+      boss: { key: "golem", name: "Король големов", hp: 320, w: 38, h: 28, qmin: 4, qmax: 4 }
     },
     {
       key: "demons",
@@ -71,7 +71,7 @@
         { w: 44, h: 30, count: 15, pool: ["demon", "vampire", "priest"], qmin: 4, qmax: 4 },
         { w: 46, h: 30, count: 16, pool: ["lich", "priest", "necromancer"], qmin: 4, qmax: 4 }
       ],
-      boss: { key: "demon", name: "Владыка демонов", w: 40, h: 28, qmin: 4, qmax: 4 }
+      boss: { key: "demon", name: "Владыка демонов", hp: 380, w: 40, h: 28, qmin: 4, qmax: 4 }
     },
     {
       key: "lair",
@@ -82,7 +82,7 @@
         { w: 46, h: 30, count: 17, pool: ["lich", "demon", "golem"], qmin: 4, qmax: 4 },
         { w: 48, h: 32, count: 18, pool: ["vampire", "necromancer", "lich"], qmin: 4, qmax: 4 }
       ],
-      boss: { key: "dragon", name: "Дракон", w: 34, h: 24, qmin: 4, qmax: 4 }
+      boss: { key: "dragon", name: "Дракон", hp: 350, w: 34, h: 24, qmin: 4, qmax: 4 }
     }
   ];
 
@@ -107,6 +107,7 @@
       depth: biome.floors.length + 1,
       w: biome.boss.w,
       h: biome.boss.h,
+      bossHp: biome.boss.hp,
       count: 0,
       pool: [biome.boss.key],
       qmin: biome.boss.qmin,
@@ -318,8 +319,8 @@
   // с постоянными улучшениями и постройками. На десятом этаже здоровье врагов
   // больше номинального примерно в 1,76 раза, а урон — в 1,54.
   let DEEP_FROM = 5;            // номер этажа (нумерация с нуля), где начинается
-  let DEEP_HP_MUL = 0.16;       // прибавка здоровья за каждый этаж глубже
-  let DEEP_DMG_MUL = 0.12;      // прибавка урона за каждый этаж глубже
+  let DEEP_HP_MUL = 0.08;       // прибавка здоровья за каждый этаж глубже
+  let DEEP_DMG_MUL = 0.06;      // прибавка урона за каждый этаж глубже
   // Материалы. Руда и древесина попадаются на мелких этажах, обломки — только
   // с шестого: второй уровень кузницы нельзя получить, не спускаясь глубоко.
   let LOOT_ORE_CHANCE = 0.45;
@@ -853,7 +854,7 @@
   // На десятом этаже крыса бьёт уже вчетверо сильнее, чем на первом.
   let ENEMY_DMG_PER_FLOOR = 0.32;
   let ENEMY_DMG_RAMP = 0.28;
-  let HP_PER_FLOOR = 0.18;
+  let HP_PER_FLOOR = 0.10;
   let XP_BASE = 50;
   let LEVEL_DMG = 3;
   let LEVEL_HP = 22;
@@ -924,7 +925,10 @@
     const isElite = !!elite;
     const hpMul = isElite ? ELITE.hpMul : 1;
     const dmgMul = isElite ? ELITE.dmgMul : 1;
-    const hp = Math.round(t.hp * (1 + HP_PER_FLOOR * floorIdx) * mul * hpMul *
+    // У боссов свой базовый запас здоровья: иначе слабый по виду Гоблин-вожак
+    // остаётся обычным монстром, а Дракон на глубине раздувается в стену.
+    const baseHp = isBoss && floorDef(floorIdx).bossHp ? floorDef(floorIdx).bossHp : t.hp;
+    const hp = Math.round(baseHp * (1 + HP_PER_FLOOR * floorIdx) * mul * hpMul *
       enemyHpMulFor(floorIdx) * deepScale(floorIdx).hp);
     const dmg = enemyDamageFor(t, floorIdx, mul * dmgMul * deepScale(floorIdx).dmg);
     return {
@@ -937,7 +941,7 @@
       // Опыт — от здоровья вида на этом этаже, без множителя сложности и
       // длины боя. Раньше опыт равнялся здоровью врага, и «Сложный» сам
       // кормил героя: к концу похода уровень 19,8 против 16,5 на «Лёгком».
-      xp: Math.round(t.hp * (1 + HP_PER_FLOOR * floorIdx) * hpMul),
+      xp: Math.round(baseHp * (1 + HP_PER_FLOOR * floorIdx) * hpMul),
       dmg: dmg,
       baseDmg: dmg,
       fireScale: 1,
@@ -9504,6 +9508,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.7.2",
+      date: "24 октября 2026",
+      title: "Баланс глубин",
+      items: [
+        "Здоровье и урон врагов на поздних этажах снижены: обычные мобы больше не требуют десятков вопросов.",
+        "У боссов свой запас здоровья вместо общего вида: Гоблин-вожак остаётся первым испытанием, а Дракон — финальным, но не стеной на 40 000 HP.",
+        "Кривая глубины стала мягче: бой удлиняется постепенно, а прокачка и снаряжение успевают за ней."
+      ]
+    },
     {
       version: "1.7.1",
       date: "24 октября 2026",
