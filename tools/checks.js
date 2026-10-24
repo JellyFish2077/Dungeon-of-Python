@@ -4380,7 +4380,9 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   // --- декор-предметы идут отдельным слоем, плоский — в фоне ---
   log(!!API.terrainObjectUri(0, 3, 3, 3) && !!API.terrainObjectUri(0, 3, 3, 7) &&
     !!API.terrainObjectUri(0, 3, 3, 5) && !!API.terrainObjectUri(0, 3, 3, 8),
-    "колонна, фонарь, гриб и кол — предметы отдельного слоя");
+    "колонна, фонарь, обломки и кол — предметы отдельного слоя");
+  log(!API.TERRAIN_DECOR.mushroom && API.TERRAIN_DECOR_NAMES[5] !== "грибы",
+    "грибы убраны из декора");
   log(!API.terrainObjectUri(0, 3, 3, 1) && !API.terrainObjectUri(0, 3, 3, 2) &&
     !API.terrainObjectUri(0, 3, 3, 6) && !API.terrainObjectUri(0, 3, 3, 9) && !API.terrainObjectUri(0, 3, 3, 0),
     "трава, вода, мох и кристаллы остаются в фоне плитки");

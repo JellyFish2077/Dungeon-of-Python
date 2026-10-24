@@ -223,9 +223,6 @@ const TERRAIN_DECOR = {
   lamp: [
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAYFBMVEUAAAAAAAAAgIAAoKAA1NQA4uIB+fkDwcEgICAixcUu6+sv//8zeHg2hYU2lZVF+vpHoKBHsLBJZWVLkZFMe3tQUFBgYGBw/Px1dXWAgICA//+QkJCgoKCp///AwMDI//9udRHZAAAAIHRSTlMA/////////////////////////////////////////5KarXYAAAFZSURBVHjanVOLboMwDKwpIaylTV9Oa+KF///LnpNKq6YSTTNIRPi4s89ms/lXELXznLiJIFYeqcWfkvCqCuF70QSKFQhJAoGqiNAaBT4ejWG1BgG7NPogFEitRo1BtAEY2brgsWHEyE2joMHS9JpYPtRIzBvGaziJLuSXj3iVVMiKI3MRHPoGIdJEnHU6nM7en0/T5LdXEX28EKSK6U3Xr971vUPsdjsH3DVxrYQk6+Xo3YCYh3kOAQfnen/jZCQQlctt2If9figR5gWgEJyf1CZKmvXgByOYl2X5Xu6FarkHdyx2mC1Hh9xcQHcLEwmDP6hw2cAsnYc4oorYwbltl9KDa43KHSDWgSXt4RzsxFUAcAYs2kWcovdRJEYV3HUkcA2nDB3RnFUSsFFzKgh6TYEVgXzNYWETvIs/u09VRgxmOhLrn0Hvq2xTRI7JSkDrnxaC3uPPP/oTbIMg/x44l6sAAAAASUVORK5CYII="
   ],
-  mushroom: [
-    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAMAAABEpIrGAAAAQlBMVEUAAAAAAAASGAYdFjYgIAAhjAgjLgwuI0I7SB5FpgtHOVVRYS9ja1FpfEBtVXR8hWl/lVGEyQ2Fc4qWony95xTX/2uQbEqfAAAAFnRSTlMA////////////////////////////VIGNowAAAUpJREFUeNp1k9t6hCAMhDdQjjGWKLz/q3biRdsFFm+U+TNMwufr9b6I6PV5Qe2jf2SIqvYxRk+J9nI9jehd64Yw+bquU6GXqmUmKEHXriCgl74QMLjMXmFSk+Il0GSQTgsI4Kqp6GxBResTUE/oRmjw/wmy6NXq0Ihq8iVMvYIoqYYCSu3V2/NOUPAe5uk5qKSEr7kR8lb3BDSLEpZpgfApBehIUNZhmUkEYroP2jcXQjFHczFKt/VZJEcwoWyunDjGb+EcneYcN/rNsY/GR3Z8HLw14DGa8BHdPdYE1AHc7Wbm+CV9LBZ0R5G7NVGOlAXkPEd2LK0Lc3bk9L5XCwcDNJEBwILzCrAIC3oF4FxeU0aHcpGGDPT8GtOsSKJzzjph+l1vehM73XFXtyOoNc22xdplA0AXeSpza20FCP7ZAXgZkDcH/O3M2g/xAhMrEvwITAAAAABJRU5ErkJggg=="
-  ],
   pike: [
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAJFBMVEUAAAAAAABeUDmAgICVammgoKCxl2y9qoHAwMDPyqPj3Ibx8cH3fTtXAAAADHRSTlMA//////////////8JxFAmAAABEUlEQVR42mNggAEBCMUEFzBAE2B0RFfBgC5wAV3gAZoAswKaAD+6GUzvobbBBIT/MbxHUfEvaqWgAEKAUXKV9scVjAwMDCwQAYlF/y/8OTk1+z1MBRPDB4YD/0UaBWAqfjPsd3ERZBBhYGCGCHzjdhL48f0705YfUC3/nQTe7BEU5PgAtyXv3YffCcs/wLVwsXILfjx/Yv8PmLOkhYTEVgowINzRcE73iiADQoBRwJHB8O0HJL+8Z2RU+J+IJCDI/+H/ZaTw4NheIJ6jIIDwrVAI4xMWPgaEb/+zlnNO/P8BYct/BhHW/3eQzHh5nfn3jdMb/jPAnf5I8/DiC/8/wAUYWxTVv1z/gBTqggwMEDMZAMekUBjVEVJWAAAAAElFTkSuQmCC",
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAKlBMVEUAAAAAAAA+Pj5eUDlgPC1lZWWAgICVammgoKCxl2zAwMDPyqPj3Ibx8cFSDR6vAAAADnRSTlMA/////////////////1dK2xQAAADWSURBVHjaY2AgFzA6wFhMUNoFXUAWXYABXeABQRWP0QWUBaAMZijN+vQHigpBhgwBZAHG1ZohG5EFJBR0BKQgSligJhl8eM+AJMD4X+AfP7KW/wwMEftRBOLuMMxDCQ7j06d3CyCreHGi4NoHFCUnLYUFUPziIaGB6rlFV/8xCiDcwcDA8OErAyNchaDA/xf/GRoYBAWhKjgkHjUwuCkoJP3Lhyhj4DR48CPAgGP6BZilgoyzGQNnCzAKQvkyEwU3MipKC8pAw4TxAPdOBgYGxtkbscUyAEDMMPps/e6AAAAAAElFTkSuQmCC"
@@ -333,7 +330,7 @@ const TERRAIN_VILLAGE = {
 // </art:terrain>
 
 const TERRAIN_DECOR_BY_CODE = {
-  1: "grass", 2: "water", 3: "rubble", 4: "bones", 5: "mushroom",
+  1: "grass", 2: "water", 3: "rubble", 4: "bones", 5: "rubble",
   6: "moss", 7: "lamp", 8: "pike", 9: "crystal", 10: "pike"
 };
 
@@ -358,14 +355,14 @@ function terrainWaveDir(x, y) {
 
 // Зелень уместна на первых этажах: в склепе и логове дракона трава и мох
 // заменяются камнем и костями, иначе посреди демонов растут кусты.
-const TERRAIN_LATE_DECOR = { grass: "rubble", moss: "bones", mushroom: "bones" };
+const TERRAIN_LATE_DECOR = { grass: "rubble", moss: "bones" };
 
 // В огненных этажах зелёные кости смотрятся чужими: там стоят колья с черепами.
 const TERRAIN_INFERNAL_DECOR = { bones: "pike" };
 
 // Человеческие имена декораций: по ним говорят проверки и подсказки.
 const TERRAIN_DECOR_NAMES = {
-  1: "трава", 2: "вода", 3: "обломки", 4: "кости", 5: "грибы",
+  1: "трава", 2: "вода", 3: "обломки", 4: "кости", 5: "обломки",
   6: "мох", 7: "фонтан", 8: "кол", 9: "кристалл", 10: "череп на колу"
 };
 
@@ -385,12 +382,12 @@ function terrainDecorName(floorIdx, code) {
   return name;
 }
 
-// Декор-«предметы»: колонны, фонтан, гриб, колья. Они стоят в клетке как вещь,
-// а не лежат на полу, и спорили за взгляд с героем и монстрами: гриб принимали
-// за монстра, белую колонну — за препятствие. Рисуются отдельным слоем с
+// Декор-«предметы»: колонны, фонтан, обломки, колья. Они стоят в клетке как вещь,
+// а не лежат на полу, и спорили за взгляд с героем и монстрами: белую колонну
+// принимали за препятствие. Рисуются отдельным слоем с
 // приглушением (см. .tile.has-obj в game.css); плоский декор — трава, мох,
 // кристаллы, вода — остаётся в фоне плитки.
-const TERRAIN_OBJECT_DECOR = { rubble: true, lamp: true, mushroom: true, pike: true, fire: true };
+const TERRAIN_OBJECT_DECOR = { rubble: true, lamp: true, pike: true, fire: true };
 
 // Плитка-предмет для отдельного слоя либо "" — тогда декор лежит в фоне.
 function terrainObjectUri(floorIdx, x, y, code) {
