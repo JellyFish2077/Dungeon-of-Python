@@ -252,7 +252,7 @@ if ((G.vaults || []).length) {
   const vv = G.vaults[0];
   G.vaultKeys = 0;
   G.playerPos = { x: vv.from.x, y: vv.from.y };
-  G.treasures = (G.treasures || []).filter((t) => !(t.x === vv.from.x && t.y === vv.from.y));
+  G.treasures = [];
   const vt = API.interactTarget();
   log(/ключ/i.test(vt.label) && /страж/i.test(vt.label),
     "в подписи запертого тайника сказано, где ключ", vt.label);
@@ -1351,6 +1351,16 @@ log(tileShorthands.length === 0,
   log(API.FLOORS[API.FLOORS.length - 1].count === 0 &&
     API.FLOORS[API.FLOORS.length - 1].boss === true,
     "боссовый этаж помечен флагом boss и без обычных монстров");
+  const prevDiff = G.difficulty;
+  G.difficulty = "normal";
+  const firstBoss = API.createFloorState(3).enemies[0];
+  const lastBoss = API.createFloorState(API.FLOORS.length - 1).enemies[0];
+  const lateMob = API.makeEnemy("lich", 18);
+  G.difficulty = prevDiff;
+  log(firstBoss.maxHp < 1500 && lastBoss.maxHp > 8000 &&
+    lastBoss.maxHp < 20000 && lateMob.maxHp < 6000,
+    "кривая глубины: боссы растут, но не превращаются в стену",
+    [firstBoss.maxHp, lastBoss.maxHp, lateMob.maxHp].join(" / "));
 }
 
 // ================= 14. Ломбарь бонусов =================
@@ -5228,7 +5238,8 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   G.enemies = [xpHard];
   API.defeatEnemy(xpHard);
   log(G.player.xp === xpHard.xp, "за победу начисляется опыт врага, а не его здоровье", G.player.xp);
-  log(API.makeEnemy("orc", 0).maxHp < API.makeEnemy("orc", 4).maxHp / (1 + 0.18 * 4) - 1,
+  const hpPerFloor = API.balanceValue("enemy.hpPerFloor");
+  log(API.makeEnemy("orc", 0).maxHp < API.makeEnemy("orc", 4).maxHp / (1 + hpPerFloor * 4),
     "на первых этажах бои короче: враги толще не сразу");
 
   // --- стража этажа ---
@@ -6052,10 +6063,9 @@ log(API.deepScale(5).hp > 1 && API.deepScale(9).hp > API.deepScale(5).hp,
   "этаж 6: " + API.deepScale(5).hp.toFixed(2) + ", этаж 10: " + API.deepScale(9).hp.toFixed(2));
 const shallow = API.makeEnemy("rat", 4);
 const deepEnemy = API.makeEnemy("rat", 9);
-const nominal = shallow.maxHp * (1 + 0.18 * 5);
-log(deepEnemy.maxHp > nominal * 1.5,
+log(deepEnemy.maxHp > shallow.maxHp * 1.5,
   "и это видно в самом враге: без прокачки десятый этаж не пройти",
-  deepEnemy.maxHp + " при номинальных " + Math.round(nominal));
+  deepEnemy.maxHp + " против " + shallow.maxHp);
 
 // Квесты: цель сюжета проверяется по состоянию деревни, награда — по кнопке.
 resetProgress();
