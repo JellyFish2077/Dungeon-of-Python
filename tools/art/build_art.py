@@ -39,6 +39,9 @@ except ImportError:  # pragma: no cover
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ART = os.path.join(ROOT, "tools", "art")
 SRC = os.path.join(ART, "src")
+# Оверрайды вертикального среза: PNG, экспортированные из .aseprite.
+# Файл с тем же относительным путём перекрывает исходник из src/.
+CUSTOM = os.path.join(ART, "src_custom")
 STATIC = os.path.join(ROOT, "static")
 
 DECOR_ORDER = ["grass", "moss", "bones", "crystal", "rubble", "lamp", "mushroom", "pike", "fire"]
@@ -48,14 +51,32 @@ WAVE_ORDER = ["E", "N", "S", "W"]
 
 # ---------------------------------------------------------------- картинки
 def load(rel):
-    return Image.open(os.path.join(SRC, *rel.split("/"))).convert("RGBA")
+    for root in (CUSTOM, SRC):
+        path = os.path.join(root, *rel.split("/"))
+        if os.path.isfile(path):
+            return Image.open(path).convert("RGBA")
+    raise FileNotFoundError(os.path.join(SRC, *rel.split("/")))
+
+
+def has_custom(rel):
+    return os.path.isfile(os.path.join(CUSTOM, *rel.split("/")))
+
+
+def source_files(folder):
+    """Все PNG в папке из обоих слоёв, без дублей (custom перекрывает src)."""
+    names = set()
+    for root in (SRC, CUSTOM):
+        path = os.path.join(root, *folder.split("/"))
+        if os.path.isdir(path):
+            names.update(n for n in os.listdir(path) if n.lower().endswith(".png"))
+    return sorted(names)
 
 
 def numbered(folder, prefix=""):
     """Файлы prefix_0.png, prefix_1.png … (или 0.png, 1.png …) по порядку номеров."""
     pattern = (re.escape(prefix) + "_" if prefix else "") + r"(\d+)\.png"
     found = []
-    for name in os.listdir(os.path.join(SRC, *folder.split("/"))):
+    for name in source_files(folder):
         m = re.fullmatch(pattern, name)
         if m:
             found.append((int(m.group(1)), folder + "/" + name))
@@ -330,38 +351,65 @@ def make_fence(seed):
 
 
 def build_village(manifest, report):
-    """Материалы деревни: стена-кладка из набора, крыши и двор — нарисованы."""
+    """Материалы деревни: кастомные PNG из src_custom/village, иначе —
+    прежние сгенерированные стены, окна, крыши и двор."""
     v = manifest["village"]
     pal = v["palette"]
-    wall = tone_group([load(v["wall_source"])], pal["wall"])[0]
-    window = make_window(wall, v["pane_hue"])
+    if has_custom("village/wall.png"):
+        wall = load("village/wall.png")
+    else:
+        wall = tone_group([load(v["wall_source"])], pal["wall"])[0]
+    if has_custom("village/window.png"):
+        window = load("village/window.png")
+    else:
+        window = make_window(wall, v["pane_hue"])
     roofs = {}
     for i, name in enumerate(v["roofs"]):
-        hue = v["roof_hues"][name]
-        # Список, а не одна картинка: рендер берёт из него вариант по клетке,
-        # и форма обязана совпадать с wall/window. Строка здесь однажды уже
-        # проехала — рендер порезал её на буквы и нарисовал url("A").
-        roofs[name] = {k: [png_uri(make_roof(hue, k, seed=700 + i * 10 + n))]
-                       for n, k in enumerate(("ridge", "slope", "eave"))}
-    objects = {
-        "barrel": png_uri(make_barrel(seed=41)),
-        "woodpile": png_uri(make_woodpile(seed=42)),
-        "chimney": png_uri(make_chimney()),
-        "fence": png_uri(make_fence(seed=43)),
+        roofs[name] = {}
+        for n, kind in enumerate(("ridge", "slope", "eave")):
+            rel = "village/roof_%s_%s.png" % (name, kind)
+            if has_custom(rel):
+                ims = [load(rel)]
+            else:
+                ims = [make_roof(v["roof_hues"][name], kind, seed=700 + i * 10 + n)]
+            roofs[name][kind] = [png_uri(im) for im in ims]
+    makers = {
+        "barrel": lambda: make_barrel(seed=41),
+        "woodpile": lambda: make_woodpile(seed=42),
+        "chimney": make_chimney,
+        "fence": lambda: make_fence(seed=43),
     }
-    # Жители: один спрайт из набора, разные кафтаны — по цвету и различаем.
+    objects = {}
+    for name, maker in makers.items():
+        rel = "village/%s.png" % name
+        objects[name] = png_uri(load(rel) if has_custom(rel) else maker())
+    # Жители: один базовый спрайт, разные кафтаны. В срезе база — свой
+    # крестьянин из village/npc_base.png, иначе берём прежнего торговца.
     sprites = {}
-    base = load(v["npc_source"])
+    base_rel = "village/npc_base.png" if has_custom("village/npc_base.png") else v["npc_source"]
+    base = load(base_rel)
     oc = hex_rgb(manifest["outline"]["color"])
     for key, hue in v["npcs"].items():
         sprites["npc_" + key] = png_uri(outline(recolor_range(base, v["tunic_span"], hue), oc))
     # Числа для проверок: крыша обязана быть темнее фасада, иначе дом
     # выглядит плоским пятном, а окно — заметно отличаться от стены.
-    # В JS это не уходит — см. art["village_meta"].
-    meta = {"wall": luma_of(wall), "window_diff": image_difference(window, wall),
-            "roof": {n: luma_of(make_roof(v["roof_hues"][n], "slope", 1)) for n in v["roofs"]}}
+    roof_meta = {}
+    for name in v["roofs"]:
+        rel = "village/roof_%s_slope.png" % name
+        roof_meta[name] = luma_of(load(rel) if has_custom(rel) else make_roof(v["roof_hues"][name], "slope", 1))
+    meta = {"wall": luma_of(wall), "window_diff": image_difference(window, wall), "roof": roof_meta}
+    ground = [png_uri(load("village/ground_%d.png" % i)) for i in range(4)
+              if has_custom("village/ground_%d.png" % i)]
+    interior = {}
+    for kind, count in (("wall", 2), ("floor", 4)):
+        pics = []
+        for i in range(count):
+            rel = "village/%s_%d.png" % (kind, i)
+            if has_custom(rel):
+                pics.append(png_uri(load(rel)))
+        interior[kind] = pics
     return {"wall": [png_uri(wall)], "window": [png_uri(window)], "roofs": roofs,
-            "objects": objects}, sprites, meta
+            "objects": objects, "ground": ground, "interior": interior}, sprites, meta
 
 
 def png_uri(im):
@@ -414,13 +462,17 @@ def build(manifest):
         sprites[key] = png_uri(im)
 
     items = {}
-    for name in sorted(os.listdir(os.path.join(SRC, "items"))):
-        if name.endswith(".png"):
-            items[name[:-4]] = png_uri(load("items/" + name))
+    for name in source_files("items"):
+        items[name[:-4]] = png_uri(load("items/" + name))
 
     # Этажи: стены и пол каждого этажа — к своим целевым тонам.
     floors = []
-    floor_dirs = sorted(d for d in os.listdir(os.path.join(SRC, "floors")) if d.isdigit())
+    dirs = set()
+    for root in (SRC, CUSTOM):
+        path = os.path.join(root, "floors")
+        if os.path.isdir(path):
+            dirs.update(d for d in os.listdir(path) if d.isdigit())
+    floor_dirs = sorted(dirs)
     for d in floor_dirs:
         no = int(d)
         walls = [load(r) for r in numbered("floors/" + d, "wall")]
@@ -455,6 +507,17 @@ def build(manifest):
     traps = {t: png_uri(load("traps/%s.png" % t)) for t in TRAP_ORDER}
     doors = [png_uri(load(r)) for r in numbered("doors")]
     objects = {"chest": png_uri(load("objects/chest.png"))}
+    if has_custom("objects/portal.png"):
+        objects["portal"] = png_uri(load("objects/portal.png"))
+    for key in ("ore", "rubble", "lever", "sign", "lootBag",
+                "table", "chair", "bed", "shelf", "crate", "anvil",
+                "fireplace", "workbench", "cauldron", "counter"):
+        if has_custom("objects/%s.png" % key):
+            objects[key] = png_uri(load("objects/%s.png" % key))
+    # Дерево — не «предмет» подземелья, но иконка деревни. Кладётся в тот же
+    # словарь, чтобы terrain.js мог взять её через TERRAIN_ICONS.tree.
+    if has_custom("village/tree.png"):
+        objects["tree"] = png_uri(load("village/tree.png"))
     # Деревня: материалы зданий и двор (генерируются) плюс спрайты жителей.
     village, npc_sprites, village_meta = build_village(manifest, report)
     sprites.update(npc_sprites)
@@ -488,15 +551,19 @@ def js_map(d, indent=0, order=None):
     return "{\n" + ",\n".join(rows) + "\n" + pad + "}"
 
 
-SPRITES_HEAD = """// СОБРАНО tools/art/build_art.py — правьте картинки в tools/art/src и
-// параметры в tools/art/art.json, а не этот блок: следующая сборка его перезапишет.
-// Картинки — Dungeon Crawl Stone Soup (rltiles, CC0), кадр 32×32, вшиты как
-// data-URI: отдельных файлов в static не нужно.
+SPRITES_HEAD = """// СОБРАНО tools/art/build_art.py — правьте картинки в tools/art/src,
+// tools/art/src_custom (вертикальный срез из Aseprite) и параметры в
+// tools/art/art.json, а не этот блок: следующая сборка его перезапишет.
+// Вертикальный срез — оригинальная графика проекта (Aseprite, MIT).
+// Остальные картинки — Dungeon Crawl Stone Soup (rltiles, CC0), кадр 32×32,
+// вшиты как data-URI: отдельных файлов в static не нужно.
 """
 
-TERRAIN_HEAD = """// СОБРАНО tools/art/build_art.py — правьте картинки в tools/art/src и
-// параметры в tools/art/art.json, а не этот блок: следующая сборка его перезапишет.
-// Тайлы подземелья — Dungeon Crawl Stone Soup (rltiles, CC0), кадр 32×32:
+TERRAIN_HEAD = """// СОБРАНО tools/art/build_art.py — правьте картинки в tools/art/src,
+// tools/art/src_custom (вертикальный срез из Aseprite) и параметры в
+// tools/art/art.json, а не этот блок: следующая сборка его перезапишет.
+// Вертикальный срез — оригинальная графика проекта (Aseprite, MIT).
+// Остальные тайлы — Dungeon Crawl Stone Soup (rltiles, CC0), кадр 32×32:
 // 10 этажей (стены и пол уже приведены к тону этажа), вода с кадрами волн,
 // лава, декор, лестницы, ловушки, двери и сундук. Внешних файлов нет: всё data-URI.
 """
@@ -544,8 +611,28 @@ def splice(path, tag, block):
     return raw, new
 
 
-def check_rules(art, report):
+def check_custom():
+    """Оверрайды должны быть 32×32 RGBA: иначе build_art молча вставит
+    картинку другого размера, и карта поедет."""
     errors = []
+    if not os.path.isdir(CUSTOM):
+        return errors
+    for dirpath, _, files in os.walk(CUSTOM):
+        for name in sorted(files):
+            if not name.lower().endswith(".png"):
+                continue
+            path = os.path.join(dirpath, name)
+            rel = os.path.relpath(path, CUSTOM).replace("\\", "/")
+            with Image.open(path) as im:
+                if im.size != (32, 32):
+                    errors.append("src_custom/%s: %dx%d вместо 32×32" % (rel, *im.size))
+                if im.mode not in ("RGBA", "P"):
+                    errors.append("src_custom/%s: режим %s, нужен RGBA" % (rel, im.mode))
+    return errors
+
+
+def check_rules(art, report):
+    errors = check_custom()
     for no, mw, mf, aw, af in report:
         if af - aw < 0.1:
             errors.append("этаж %d: пол (%.2f) не светлее стен (%.2f) хотя бы на 0.1" % (no, af, aw))

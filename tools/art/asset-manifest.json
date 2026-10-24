@@ -1,0 +1,2650 @@
+{
+  "about": "Вертикальный срез графики PyDungeon. Источник — .aseprite в tools/art/aseprite; сборка — python tools/art/export_aseprite.py && python tools/art/build_art.py",
+  "style": "тёмное фэнтези, 32x32, контур #05070d, свет сверху-слева, ограниченная палитра",
+  "style_guide": "tools/art/STYLE.md",
+  "palette": "tools/art/palette.gpl",
+  "license": "MIT (оригинальная графика проекта)",
+  "canvas": [
+    32,
+    32
+  ],
+  "pipeline": {
+    "source": "tools/art/aseprite/*.aseprite",
+    "export": "python tools/art/export_aseprite.py",
+    "build": "python tools/art/build_art.py",
+    "check": "python tools/art/export_aseprite.py --check && python tools/art/build_art.py --check"
+  },
+  "families": {
+    "creatures": {
+      "source": "tools/art/aseprite/creatures.aseprite",
+      "destination": "tools/art/src_custom/creatures",
+      "assets": [
+        {
+          "tag": "player",
+          "file": "player.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "slime",
+          "file": "slime.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rat",
+          "file": "rat.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bat",
+          "file": "bat.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "skeleton",
+          "file": "skeleton.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "goblin",
+          "file": "goblin.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "items": {
+      "source": "tools/art/aseprite/items.aseprite",
+      "destination": "tools/art/src_custom/items",
+      "assets": [
+        {
+          "tag": "short_sword",
+          "file": "short_sword.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "small_potion",
+          "file": "small_potion.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rusty_sword",
+          "file": "rusty_sword.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "leather_armor",
+          "file": "leather_armor.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "lucky_charm",
+          "file": "lucky_charm.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "scout_lens",
+          "file": "scout_lens.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "objects": {
+      "source": "tools/art/aseprite/objects.aseprite",
+      "destination": "tools/art/src_custom/objects",
+      "assets": [
+        {
+          "tag": "chest",
+          "file": "chest.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_01": {
+      "source": "tools/art/aseprite/terrain_01.aseprite",
+      "destination": "tools/art/src_custom/floors/01",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "water": {
+      "source": "tools/art/aseprite/water.aseprite",
+      "destination": "tools/art/src_custom/water",
+      "assets": [
+        {
+          "tag": "base_0",
+          "file": "base_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "base_1",
+          "file": "base_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "base_2",
+          "file": "base_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "base_3",
+          "file": "base_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_E_0",
+          "file": "wave_E_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_E_1",
+          "file": "wave_E_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_N_0",
+          "file": "wave_N_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_N_1",
+          "file": "wave_N_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_S_0",
+          "file": "wave_S_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_S_1",
+          "file": "wave_S_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_W_0",
+          "file": "wave_W_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wave_W_1",
+          "file": "wave_W_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "lava": {
+      "source": "tools/art/aseprite/lava.aseprite",
+      "destination": "tools/art/src_custom/lava",
+      "assets": [
+        {
+          "tag": "0",
+          "file": "0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "1",
+          "file": "1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "2",
+          "file": "2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "3",
+          "file": "3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "4",
+          "file": "4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "5",
+          "file": "5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "stairs": {
+      "source": "tools/art/aseprite/stairs.aseprite",
+      "destination": "tools/art/src_custom/stairs",
+      "assets": [
+        {
+          "tag": "down_0",
+          "file": "down_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "down_1",
+          "file": "down_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "up_0",
+          "file": "up_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "up_1",
+          "file": "up_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "traps": {
+      "source": "tools/art/aseprite/traps.aseprite",
+      "destination": "tools/art/src_custom/traps",
+      "assets": [
+        {
+          "tag": "spikes",
+          "file": "spikes.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "pit",
+          "file": "pit.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "net",
+          "file": "net.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "gas",
+          "file": "gas.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "blade",
+          "file": "blade.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "magical",
+          "file": "magical.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "doors": {
+      "source": "tools/art/aseprite/doors.aseprite",
+      "destination": "tools/art/src_custom/doors",
+      "assets": [
+        {
+          "tag": "0",
+          "file": "0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "1",
+          "file": "1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "decor": {
+      "source": "tools/art/aseprite/decor.aseprite",
+      "destination": "tools/art/src_custom/decor",
+      "assets": [
+        {
+          "tag": "grass_0",
+          "file": "grass_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "grass_1",
+          "file": "grass_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "grass_2",
+          "file": "grass_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "grass_3",
+          "file": "grass_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "grass_4",
+          "file": "grass_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "grass_5",
+          "file": "grass_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "moss_0",
+          "file": "moss_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "moss_1",
+          "file": "moss_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "moss_2",
+          "file": "moss_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "moss_3",
+          "file": "moss_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bones_0",
+          "file": "bones_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bones_1",
+          "file": "bones_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bones_2",
+          "file": "bones_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crystal_0",
+          "file": "crystal_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crystal_1",
+          "file": "crystal_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crystal_2",
+          "file": "crystal_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crystal_3",
+          "file": "crystal_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_0",
+          "file": "rubble_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_1",
+          "file": "rubble_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_2",
+          "file": "rubble_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_3",
+          "file": "rubble_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_4",
+          "file": "rubble_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble_5",
+          "file": "rubble_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "lamp_0",
+          "file": "lamp_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "pike_0",
+          "file": "pike_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "pike_1",
+          "file": "pike_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "fire_0",
+          "file": "fire_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "village": {
+      "source": "tools/art/aseprite/village.aseprite",
+      "destination": "tools/art/src_custom/village",
+      "assets": [
+        {
+          "tag": "wall",
+          "file": "wall.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "window",
+          "file": "window.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "npc_base",
+          "file": "npc_base.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "tree",
+          "file": "tree.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ground_0",
+          "file": "ground_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ground_1",
+          "file": "ground_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ground_2",
+          "file": "ground_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ground_3",
+          "file": "ground_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_red_ridge",
+          "file": "roof_red_ridge.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_red_slope",
+          "file": "roof_red_slope.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_red_eave",
+          "file": "roof_red_eave.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_blue_ridge",
+          "file": "roof_blue_ridge.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_blue_slope",
+          "file": "roof_blue_slope.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_blue_eave",
+          "file": "roof_blue_eave.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_green_ridge",
+          "file": "roof_green_ridge.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_green_slope",
+          "file": "roof_green_slope.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_green_eave",
+          "file": "roof_green_eave.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_brown_ridge",
+          "file": "roof_brown_ridge.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_brown_slope",
+          "file": "roof_brown_slope.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "roof_brown_eave",
+          "file": "roof_brown_eave.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "barrel",
+          "file": "barrel.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "woodpile",
+          "file": "woodpile.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "chimney",
+          "file": "chimney.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "fence",
+          "file": "fence.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_02": {
+      "source": "tools/art/aseprite/terrain_02.aseprite",
+      "destination": "tools/art/src_custom/floors\\02",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_03": {
+      "source": "tools/art/aseprite/terrain_03.aseprite",
+      "destination": "tools/art/src_custom/floors\\03",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_04": {
+      "source": "tools/art/aseprite/terrain_04.aseprite",
+      "destination": "tools/art/src_custom/floors\\04",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_05": {
+      "source": "tools/art/aseprite/terrain_05.aseprite",
+      "destination": "tools/art/src_custom/floors\\05",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_06": {
+      "source": "tools/art/aseprite/terrain_06.aseprite",
+      "destination": "tools/art/src_custom/floors\\06",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_07": {
+      "source": "tools/art/aseprite/terrain_07.aseprite",
+      "destination": "tools/art/src_custom/floors\\07",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_08": {
+      "source": "tools/art/aseprite/terrain_08.aseprite",
+      "destination": "tools/art/src_custom/floors\\08",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_09": {
+      "source": "tools/art/aseprite/terrain_09.aseprite",
+      "destination": "tools/art/src_custom/floors\\09",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "terrain_10": {
+      "source": "tools/art/aseprite/terrain_10.aseprite",
+      "destination": "tools/art/src_custom/floors\\10",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "creatures2": {
+      "source": "tools/art/aseprite/creatures2.aseprite",
+      "destination": "tools/art/src_custom/creatures",
+      "assets": [
+        {
+          "tag": "spider",
+          "file": "spider.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "orc",
+          "file": "orc.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "troll",
+          "file": "troll.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ghost",
+          "file": "ghost.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wolf",
+          "file": "wolf.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "zombie",
+          "file": "zombie.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "golem",
+          "file": "golem.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "demon",
+          "file": "demon.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "minotaur",
+          "file": "minotaur.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "vampire",
+          "file": "vampire.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "lich",
+          "file": "lich.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "dragon",
+          "file": "dragon.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "trader",
+          "file": "trader.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "priest",
+          "file": "priest.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "necromancer",
+          "file": "necromancer.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "shieldman",
+          "file": "shieldman.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "items2": {
+      "source": "tools/art/aseprite/items2.aseprite",
+      "destination": "tools/art/src_custom/items",
+      "assets": [
+        {
+          "tag": "aegis",
+          "file": "aegis.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "antidote",
+          "file": "antidote.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "big_potion",
+          "file": "big_potion.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bone_dagger",
+          "file": "bone_dagger.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "chainmail",
+          "file": "chainmail.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "cloth_robe",
+          "file": "cloth_robe.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crown",
+          "file": "crown.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "dragon_blade",
+          "file": "dragon_blade.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "dragon_scale",
+          "file": "dragon_scale.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "elixir",
+          "file": "elixir.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "frost_blade",
+          "file": "frost_blade.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "greater_elixir",
+          "file": "greater_elixir.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "guard_amulet",
+          "file": "guard_amulet.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "hero_medal",
+          "file": "hero_medal.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ledger_amulet",
+          "file": "ledger_amulet.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "mirror_plate",
+          "file": "mirror_plate.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "purifying_draught",
+          "file": "purifying_draught.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ring_power",
+          "file": "ring_power.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "serpent_ward",
+          "file": "serpent_ward.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "spiked_shield",
+          "file": "spiked_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "steel_sword",
+          "file": "steel_sword.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "trident_precise",
+          "file": "trident_precise.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "vampiric_blade",
+          "file": "vampiric_blade.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "objects2": {
+      "source": "tools/art/aseprite/objects2.aseprite",
+      "destination": "tools/art/src_custom/objects",
+      "assets": [
+        {
+          "tag": "portal",
+          "file": "portal.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "interior": {
+      "source": "tools/art/aseprite/interior.aseprite",
+      "destination": "tools/art/src_custom/village",
+      "assets": [
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "objects3": {
+      "source": "tools/art/aseprite/objects3.aseprite",
+      "destination": "tools/art/src_custom/objects",
+      "assets": [
+        {
+          "tag": "ore",
+          "file": "ore.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "rubble",
+          "file": "rubble.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "lever",
+          "file": "lever.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "sign",
+          "file": "sign.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "lootBag",
+          "file": "lootBag.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "furniture": {
+      "source": "tools/art/aseprite/furniture.aseprite",
+      "destination": "tools/art/src_custom/objects",
+      "assets": [
+        {
+          "tag": "table",
+          "file": "table.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "chair",
+          "file": "chair.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bed",
+          "file": "bed.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "shelf",
+          "file": "shelf.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crate",
+          "file": "crate.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "anvil",
+          "file": "anvil.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "fireplace",
+          "file": "fireplace.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "workbench",
+          "file": "workbench.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "cauldron",
+          "file": "cauldron.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "counter",
+          "file": "counter.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    }
+  }
+}

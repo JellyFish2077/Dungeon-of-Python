@@ -26,7 +26,71 @@
   ],
   "outline": {
     "color": "#05070d",
-    "except": []
+    "except": [
+      "player",
+      "slime",
+      "rat",
+      "bat",
+      "skeleton",
+      "goblin",
+      "spider",
+      "orc",
+      "troll",
+      "ghost",
+      "wolf",
+      "zombie",
+      "golem",
+      "demon",
+      "minotaur",
+      "vampire",
+      "lich",
+      "dragon",
+      "trader",
+      "priest",
+      "necromancer",
+      "shieldman"
+    ]
+  },
+  "custom_slice": {
+    "about": "Вертикальный срез: оригинальная графика, нарисованная в Aseprite. Лежит в tools/art/aseprite, экспортируется в tools/art/src_custom и перекрывает одноимённые файлы из src. Сюда входят все существа и предметы, сундук, портал, интерактив подземелья, все 10 тем подземелья, вода, лава, лестницы, ловушки, двери, декор, деревня, интерьеры и мебель домов. У существ уже есть собственный контур, поэтому build_art не добавляет второй (см. outline.except).",
+    "source": "tools/art/aseprite",
+    "export": "python tools/art/export_aseprite.py",
+    "build": "python tools/art/build_art.py",
+    "license": "MIT (оригинальная графика проекта)",
+    "assets": [
+      "creatures/player",
+      "creatures/slime",
+      "creatures/rat",
+      "creatures/bat",
+      "creatures/skeleton",
+      "creatures/goblin",
+      "creatures/spider, orc, troll, ghost, wolf, zombie, golem, demon, minotaur, vampire, lich, dragon, trader, priest, necromancer, shieldman",
+      "items/short_sword",
+      "items/small_potion",
+      "items/rusty_sword",
+      "items/leather_armor",
+      "items/lucky_charm",
+      "items/scout_lens",
+      "items/aegis, antidote, big_potion, bone_dagger, chainmail, cloth_robe, crown, dragon_blade, dragon_scale, elixir, frost_blade, greater_elixir, guard_amulet, hero_medal, ledger_amulet, mirror_plate, purifying_draught, ring_power, serpent_ward, spiked_shield, steel_sword, trident_precise, vampiric_blade",
+      "objects/chest",
+      "objects/portal",
+      "objects/ore, rubble, lever, sign, lootBag",
+      "objects/table, chair, bed, shelf, crate, anvil, fireplace, workbench, cauldron, counter",
+      "floors/01/wall_0 … wall_5",
+      "floors/01/floor_0 … floor_5",
+      "floors/02 … 10: 9 биомов, по 6 стен и 6 полов",
+      "water/base_0 … base_3",
+      "water/wave_E/N/S/W_0 … 1",
+      "lava/0 … 5",
+      "stairs/down_0 … 1, up_0 … 1",
+      "traps/spikes, pit, net, gas, blade, magical",
+      "doors/0, 1",
+      "decor/grass_0 … 5, moss_0 … 3, bones_0 … 2, crystal_0 … 3, rubble_0 … 5, lamp_0, pike_0 … 1, fire_0",
+      "village/wall, window, npc_base, tree, ground_0 … 3",
+      "village/wall_0 … 1, floor_0 … 3 (интерьер)",
+      "village/roof_{red,blue,green,brown}_{ridge,slope,eave}",
+      "village/barrel, woodpile, chimney, fence"
+    ]
   },
   "village": {
     "about": "Материалы деревни. Стена дома и окно выводятся из набора DCSS (floors/02/wall_1 — готовая кладка: она читается как стена здания, а не как панель в рамке, которой застроена вся деревня раньше). Крыши, бочка, поленница и труба рисуются сборкой: в наборе нет ничего похожего на черепицу, а крыша — регулярная геометрия, её честно рисует скрипт в палитре проекта. Стиль поэтому не рассыпается, а лицензия не меняется.",
@@ -92,11 +156,56 @@
       "saturation": 0.75
     },
     "water": {
-      "target": 0.34,
-      "texture": 0.05,
-      "saturation": 0.9
+      "target": 0.26,
+      "texture": 0.04,
+      "saturation": 0.8
     },
-    "by_floor": {}
+    "by_floor": {
+      "1": {
+        "wall": { "target": 0.18, "texture": 0.05, "saturation": 0.45 },
+        "floor": {
+          "target": 0.34,
+          "texture": 0.04,
+          "saturation": 0.7
+        }
+      },
+      "2": {
+        "wall": { "target": 0.17, "texture": 0.05, "saturation": 0.65 },
+        "floor": { "target": 0.38, "texture": 0.05, "saturation": 0.7 }
+      },
+      "3": {
+        "wall": { "target": 0.18, "texture": 0.05, "saturation": 0.7 },
+        "floor": { "target": 0.38, "texture": 0.05, "saturation": 0.8 }
+      },
+      "4": {
+        "wall": { "target": 0.17, "texture": 0.05, "saturation": 0.85 },
+        "floor": { "target": 0.34, "texture": 0.05, "saturation": 0.9 }
+      },
+      "5": {
+        "wall": { "target": 0.20, "texture": 0.05, "saturation": 0.7 },
+        "floor": { "target": 0.46, "texture": 0.05, "saturation": 0.6 }
+      },
+      "6": {
+        "wall": { "target": 0.18, "texture": 0.05, "saturation": 0.7 },
+        "floor": { "target": 0.42, "texture": 0.05, "saturation": 0.65 }
+      },
+      "7": {
+        "wall": { "target": 0.17, "texture": 0.05, "saturation": 0.85 },
+        "floor": { "target": 0.34, "texture": 0.05, "saturation": 0.95 }
+      },
+      "8": {
+        "wall": { "target": 0.18, "texture": 0.05, "saturation": 0.8 },
+        "floor": { "target": 0.36, "texture": 0.05, "saturation": 0.85 }
+      },
+      "9": {
+        "wall": { "target": 0.15, "texture": 0.05, "saturation": 0.8 },
+        "floor": { "target": 0.32, "texture": 0.05, "saturation": 0.85 }
+      },
+      "10": {
+        "wall": { "target": 0.17, "texture": 0.05, "saturation": 0.8 },
+        "floor": { "target": 0.36, "texture": 0.05, "saturation": 0.9 }
+      }
+    }
   },
   "sources": {
     "creatures/bat.png": "встроено ранее: DCSS rltiles (github.com/crawl/crawl), CC0",
@@ -322,32 +431,5 @@
     "water/wave_S_1.png": "встроено ранее: DCSS rltiles (github.com/crawl/crawl), CC0",
     "water/wave_W_0.png": "встроено ранее: DCSS rltiles (github.com/crawl/crawl), CC0",
     "water/wave_W_1.png": "встроено ранее: DCSS rltiles (github.com/crawl/crawl), CC0"
-  },
-  "creature_recolors": {
-    "_note": "Новые виды врагов рисуются перекраской готовых спрайтов: менять тело под каждого вида — работа на день, а различать их надо с первого взгляда. span — какие оттенки перекрашивать, hue — в какой.",
-    "priest": {
-      "from": "lich",
-      "span": [
-        0.55,
-        1.0
-      ],
-      "hue": 0.13
-    },
-    "necromancer": {
-      "from": "vampire",
-      "span": [
-        0.0,
-        1.0
-      ],
-      "hue": 0.72
-    },
-    "shieldman": {
-      "from": "golem",
-      "span": [
-        0.0,
-        1.0
-      ],
-      "hue": 0.08
-    }
   }
 }

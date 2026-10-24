@@ -922,6 +922,15 @@ body.game-page:has(.stage.village) .tile.unseen {
   animation: pop 0.2s ease;
 }
 
+/* Герой и жители тоже дышат. Анимация на картинке, а не на клетке: у
+   клетки бывают свои filter/transform, и они бы спорили. */
+.ent-player .sprite-img,
+.ent-npc .sprite-img {
+  animation: enemyIdle var(--idle-dur, 2.6s) ease-in-out infinite;
+  animation-delay: var(--idle-delay, 0s);
+  transform-origin: 50% 100%;
+}
+
 .ent-svg {
   width: 100%;
   height: 100%;
@@ -948,7 +957,8 @@ body.game-page:has(.stage.village) .tile.unseen {
   width: calc(var(--cell) * 0.78);
   height: calc(var(--cell) * 0.78);
   filter: drop-shadow(0 0 5px var(--c, #64748b)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
-  animation: enemyIdle 2.6s ease-in-out infinite;
+  animation: enemyIdle var(--idle-dur, 2.6s) ease-in-out infinite;
+  animation-delay: var(--idle-delay, 0s);
 }
 
 /* Только сдвиг на целые пиксели: scale() давал дробный масштаб пиксель-арта,
@@ -1064,6 +1074,12 @@ body.game-page:has(.stage.village) .tile.unseen {
   height: calc(var(--cell) * 0.58);
   filter: drop-shadow(0 0 5px rgba(242, 193, 78, 0.55)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
   animation: bagBob 2.2s ease-in-out infinite;
+}
+
+/* Пиксельный мешочек сохраняет свой размер, а не растягивается на клетку. */
+.ent.ent-bag.ent-px {
+  width: calc(var(--cell) * 0.58);
+  height: calc(var(--cell) * 0.58);
 }
 
 @keyframes bagBob {
@@ -1549,6 +1565,21 @@ body.game-page.battling .game-wrap > .panel {
   display: grid;
   place-items: center;
   animation: enemyIdle 2.6s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+
+/* Враги и герой дышат вразнобой, а не как один механизм. */
+.fighter-enemy .battle-portrait {
+  animation-delay: -1.25s;
+}
+
+.fighter.down .battle-portrait {
+  animation: fighterDown 0.65s ease forwards;
+}
+
+@keyframes fighterDown {
+  0% { filter: grayscale(0); opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+  100% { filter: grayscale(1); opacity: 0.45; transform: translateY(10px) rotate(-8deg) scale(0.92); }
 }
 
 .battle-portrait.boss {
@@ -7234,4 +7265,14 @@ body.game-page .site-head .head-actions {
   font: 10px/1.4 var(--font-data);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Анимации покоя и падения отключаются вместе с остальной анимацией. */
+@media (prefers-reduced-motion: reduce) {
+  .ent-player .sprite-img,
+  .ent-npc .sprite-img,
+  .battle-portrait,
+  .fighter.down .battle-portrait {
+    animation: none;
+  }
 }

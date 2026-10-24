@@ -1,0 +1,1788 @@
+{
+  "about": "Экспортировано из tools/art/aseprite. Не правьте PNG вручную.",
+  "aseprite": "Aseprite 1.x-b3e34ac-dev",
+  "families": {
+    "creatures": {
+      "destination": "creatures",
+      "assets": [
+        {
+          "tag": "bat",
+          "file": "bat.png",
+          "sha256": "41378fa558ac65dbb9b40ffce15dcb7d5618aa9ef31135409c335c485d18efce"
+        },
+        {
+          "tag": "goblin",
+          "file": "goblin.png",
+          "sha256": "1785dd26508d5744dbbe5fd68c00146b9a05a4519e3b92d878a40ec2d51016e5"
+        },
+        {
+          "tag": "player",
+          "file": "player.png",
+          "sha256": "0506531541d45fd2c426872f239b3a8e05640176a3d72474426334a67aaa36b0"
+        },
+        {
+          "tag": "rat",
+          "file": "rat.png",
+          "sha256": "3d6cffc1497365b771af693aa814e700b6e67ac0b7411f4af0bf7b98cf5bc152"
+        },
+        {
+          "tag": "skeleton",
+          "file": "skeleton.png",
+          "sha256": "6419c6c70866c762a961b57e654f0a061b6e994544c809810de26510c4e509cb"
+        },
+        {
+          "tag": "slime",
+          "file": "slime.png",
+          "sha256": "2454a96ce002d64af4f46f36c7f05f850e4abf7183e7c740b92c64f8212fae3b"
+        }
+      ]
+    },
+    "creatures2": {
+      "destination": "creatures",
+      "assets": [
+        {
+          "tag": "demon",
+          "file": "demon.png",
+          "sha256": "28fd460b5c01eb1fc4424dd57ede3e1e9ba5af4bd6a66800a93b4c8aa5ac5482"
+        },
+        {
+          "tag": "dragon",
+          "file": "dragon.png",
+          "sha256": "0ae95a04a4e70c96d6b91f184ffc589e100a37bae8d3c478fd7814c0248614c6"
+        },
+        {
+          "tag": "ghost",
+          "file": "ghost.png",
+          "sha256": "4384f96aab991ef42b2c17b302a193d236c37b062a39400e722a34df218674a4"
+        },
+        {
+          "tag": "golem",
+          "file": "golem.png",
+          "sha256": "41cc2d29f207c1b699ed0b0476a766b813c2f2382f43489a7af5bf1cd8d0c149"
+        },
+        {
+          "tag": "lich",
+          "file": "lich.png",
+          "sha256": "2f630f48c741f7c4131b2b91e29b91201c79de6f8698b63e6a260ca9fe93def6"
+        },
+        {
+          "tag": "minotaur",
+          "file": "minotaur.png",
+          "sha256": "cf89eca8e9f10e0ce047370331f3b4938af0537c418ca3414a3ac360d793bd5a"
+        },
+        {
+          "tag": "necromancer",
+          "file": "necromancer.png",
+          "sha256": "ab6b14dba8a8a2921dd4a43989a26a26c4ab3d5edfd42cbbe8ab846a5d8673ec"
+        },
+        {
+          "tag": "orc",
+          "file": "orc.png",
+          "sha256": "23467274cff166bd8ee61ad6e8ab2d25428aad677ded980833e5ced7d0929428"
+        },
+        {
+          "tag": "priest",
+          "file": "priest.png",
+          "sha256": "ec39dec93fcc0bdfef5a05223f875c4da4dc8635cb902bd890995c76d1cdfa9e"
+        },
+        {
+          "tag": "shieldman",
+          "file": "shieldman.png",
+          "sha256": "e734c4f18d642152a71a4f5a96589896521f70c18b314ede3a95f1058c4e779a"
+        },
+        {
+          "tag": "spider",
+          "file": "spider.png",
+          "sha256": "730ae97bd66127937aaa39bff98b56bfac54c5694c8cd8d1d873e8a382d6054f"
+        },
+        {
+          "tag": "trader",
+          "file": "trader.png",
+          "sha256": "25d57c7b6f9f9e132b9a142cfe5e5092d0a70a2ef0f91c95f5cf2320ca69999c"
+        },
+        {
+          "tag": "troll",
+          "file": "troll.png",
+          "sha256": "1a8260efefa75a44fa5d64a8921b72e674fc9fa08de6eedf6c6ffd352d25509e"
+        },
+        {
+          "tag": "vampire",
+          "file": "vampire.png",
+          "sha256": "93e5d3e4c9af81b31b67f4fd80ff1bfabb486e9b760aeec3f5a2fb2a3ab4b9af"
+        },
+        {
+          "tag": "wolf",
+          "file": "wolf.png",
+          "sha256": "0bb6af0c81599d2e1671c0ce0361b69d3c661e02aa1a7a5d8c40f0a575ec4395"
+        },
+        {
+          "tag": "zombie",
+          "file": "zombie.png",
+          "sha256": "cea27403e83fe45ab3786c10aae62b28bd8303fc0b99c2078b0e84bec5e40dee"
+        }
+      ]
+    },
+    "items": {
+      "destination": "items",
+      "assets": [
+        {
+          "tag": "leather_armor",
+          "file": "leather_armor.png",
+          "sha256": "398c66b219b695785a185584efb6cbc60412f8861c067383979815ed67f08639"
+        },
+        {
+          "tag": "lucky_charm",
+          "file": "lucky_charm.png",
+          "sha256": "538b0ea7fae6c5848c7094c64d1361a2465a274d38c57a166046e461b9ff20e4"
+        },
+        {
+          "tag": "rusty_sword",
+          "file": "rusty_sword.png",
+          "sha256": "a08401b012e5bb7c81a2f8fc58aae53a0ca84c269d311bad0ad8de7dbd22274d"
+        },
+        {
+          "tag": "scout_lens",
+          "file": "scout_lens.png",
+          "sha256": "875088fbdff8323df3a478360522e4f241151f950c7c24754cb0ac8fff193c8b"
+        },
+        {
+          "tag": "short_sword",
+          "file": "short_sword.png",
+          "sha256": "98e4d31536148ffaf6ffa426696d261bde7de2c8dc16706be43bf1cb184ebc57"
+        },
+        {
+          "tag": "small_potion",
+          "file": "small_potion.png",
+          "sha256": "e7a86429ff61f1db332fc71b9df85b7f787043b894a4f959b15b31f17306528c"
+        }
+      ]
+    },
+    "items2": {
+      "destination": "items",
+      "assets": [
+        {
+          "tag": "aegis",
+          "file": "aegis.png",
+          "sha256": "2a2a90b6a111439bf627d9d67b4f29085ae629be0673daddc97753984ed01d76"
+        },
+        {
+          "tag": "antidote",
+          "file": "antidote.png",
+          "sha256": "0db79ecc3126d6b38dd8d522358d19ff4dcccace1b9c9529a14f31301a080750"
+        },
+        {
+          "tag": "big_potion",
+          "file": "big_potion.png",
+          "sha256": "b2448ca98de485392e24563714838680ca2f2c7e52b24c9286661f6a40303447"
+        },
+        {
+          "tag": "bone_dagger",
+          "file": "bone_dagger.png",
+          "sha256": "029d857152851d436c726f49aca2857e40632fe71a7b93164ad19af354c53548"
+        },
+        {
+          "tag": "chainmail",
+          "file": "chainmail.png",
+          "sha256": "36992b933bbe1736be771c84fb8b60b70d9bcc9213e80da7ef562c54c15f048e"
+        },
+        {
+          "tag": "cloth_robe",
+          "file": "cloth_robe.png",
+          "sha256": "04b42a1e0bec026c3624cf3363c08dad1b446cd6179ef04d373677810ae07073"
+        },
+        {
+          "tag": "crown",
+          "file": "crown.png",
+          "sha256": "8443b8816e36a3436ea3da91e32ae2d2a8353629e05e138b12c096f22e282ef8"
+        },
+        {
+          "tag": "dragon_blade",
+          "file": "dragon_blade.png",
+          "sha256": "38541e43eddb69bcdffb0c7153b0a41059761f3ca2c2342df82c4f3918cd4f05"
+        },
+        {
+          "tag": "dragon_scale",
+          "file": "dragon_scale.png",
+          "sha256": "44649fd3644a57b8216f001c7639690ddfbaf151d0ab7a09a185467c951b6509"
+        },
+        {
+          "tag": "elixir",
+          "file": "elixir.png",
+          "sha256": "76332069a1f0abcd50a6794423086a9c74afdb6cb6089c0d8abacf0e4d0a9911"
+        },
+        {
+          "tag": "frost_blade",
+          "file": "frost_blade.png",
+          "sha256": "566b7b376c734d13172e676904c17ea3312cfb0c4bff3d6332c721aba973aebd"
+        },
+        {
+          "tag": "greater_elixir",
+          "file": "greater_elixir.png",
+          "sha256": "624c315843741c9f5912bc0a898203bca4909e1a6ca7de0712aeeb1edf835b99"
+        },
+        {
+          "tag": "guard_amulet",
+          "file": "guard_amulet.png",
+          "sha256": "ee582e7681e25be6bf3d1541b139ffc7bcb31283293dd0346fd1900f18b4584f"
+        },
+        {
+          "tag": "hero_medal",
+          "file": "hero_medal.png",
+          "sha256": "0e006175af1f2f5bb68a18e3fdd2d332a6dbc6aba21eebaea36a41347b59cd3e"
+        },
+        {
+          "tag": "ledger_amulet",
+          "file": "ledger_amulet.png",
+          "sha256": "1c312af288f8ba4e54fedbb7324afa9692b9469470586fdba58c2a836551e078"
+        },
+        {
+          "tag": "mirror_plate",
+          "file": "mirror_plate.png",
+          "sha256": "34f45ab649423616fbfdaedf74618244ad11a1735d156657cfb62580016d3537"
+        },
+        {
+          "tag": "purifying_draught",
+          "file": "purifying_draught.png",
+          "sha256": "cf51a36a9da58781d65baeea69f76aae36571ad419caa15a584aa990ede7db65"
+        },
+        {
+          "tag": "ring_power",
+          "file": "ring_power.png",
+          "sha256": "caab00145230095fecf1eed738564d75f48028162d1c25255ed0591227ed60af"
+        },
+        {
+          "tag": "serpent_ward",
+          "file": "serpent_ward.png",
+          "sha256": "c104c009a2609b4364895f720d7244d12cbbf909cd13129260dbebde982364d1"
+        },
+        {
+          "tag": "spiked_shield",
+          "file": "spiked_shield.png",
+          "sha256": "611322fb474596b401ca1cbb215a6eaee5d6c9e9c1b8cef62c07e2dc36614ede"
+        },
+        {
+          "tag": "steel_sword",
+          "file": "steel_sword.png",
+          "sha256": "92c735cb4140e7e3c030991673e3f9fc26729d47ca74fee843474f8acb39b19f"
+        },
+        {
+          "tag": "trident_precise",
+          "file": "trident_precise.png",
+          "sha256": "f86bb52b7c0edada5e6268ca9984721dab20f9362f3504503176bf1f8f575cfa"
+        },
+        {
+          "tag": "vampiric_blade",
+          "file": "vampiric_blade.png",
+          "sha256": "7f789194878980beaf679140a2fe5aa72f40a0b961326300b6e23c177f5efb08"
+        }
+      ]
+    },
+    "objects": {
+      "destination": "objects",
+      "assets": [
+        {
+          "tag": "chest",
+          "file": "chest.png",
+          "sha256": "68d88849fc875c3ae1eea3ddf2afa6e5c92ac5a6a3ceccee1b177fe7d8ed3d23"
+        }
+      ]
+    },
+    "objects2": {
+      "destination": "objects",
+      "assets": [
+        {
+          "tag": "portal",
+          "file": "portal.png",
+          "sha256": "7f8dcd4372743e394d2b775357cd9d67101824b13236556134becb7c594bf6d6"
+        }
+      ]
+    },
+    "objects3": {
+      "destination": "objects",
+      "assets": [
+        {
+          "tag": "lever",
+          "file": "lever.png",
+          "sha256": "ec23814b887741f29c708fb57963676864ec11c4f6b387d390cf4234988983a5"
+        },
+        {
+          "tag": "lootBag",
+          "file": "lootBag.png",
+          "sha256": "30731a3bf6e2ca444d5ce05366a1cd5375fd24f362cf5d607371cdfc66b34485"
+        },
+        {
+          "tag": "ore",
+          "file": "ore.png",
+          "sha256": "913d471d7549d568ade180091fd41751c63670a9363f6198cacede387aafcda3"
+        },
+        {
+          "tag": "rubble",
+          "file": "rubble.png",
+          "sha256": "28ddd19e1f03c463310204506d540a4122a57fd6608eb8a798e4604745f34ca9"
+        },
+        {
+          "tag": "sign",
+          "file": "sign.png",
+          "sha256": "cb22deb6b298d4c65e9c7646d5b8b6977f6c76e474ca2eeb66b8eac2830b125c"
+        }
+      ]
+    },
+    "furniture": {
+      "destination": "objects",
+      "assets": [
+        {
+          "tag": "anvil",
+          "file": "anvil.png",
+          "sha256": "d00d9a18ce012f778ab7f60a835d6a56a029a34bcf2188376eb3b803d8b6d0ac"
+        },
+        {
+          "tag": "bed",
+          "file": "bed.png",
+          "sha256": "cd48000749c7d58af1f41e3c1d87eb947ce5ad4bee0a81da19ff1006b770a8c1"
+        },
+        {
+          "tag": "cauldron",
+          "file": "cauldron.png",
+          "sha256": "4cb8927346afc2a093b508a9c1e5d45ab8514d03683f3431041c5584d635bd8c"
+        },
+        {
+          "tag": "chair",
+          "file": "chair.png",
+          "sha256": "ce8b554153aba6216abbf09b2ea0aaf27a885ee96d71b123d35cb31625c6df3a"
+        },
+        {
+          "tag": "counter",
+          "file": "counter.png",
+          "sha256": "487fa14ebb400957164b8968ea2f2397faedeeefafbf107ebc7034892b603dc8"
+        },
+        {
+          "tag": "crate",
+          "file": "crate.png",
+          "sha256": "748591a90f713c06f8fbf8914d4ba41e421c25d8461131a65a2ebc7a11bc43bd"
+        },
+        {
+          "tag": "fireplace",
+          "file": "fireplace.png",
+          "sha256": "28583d4e4d8a49f90df534fed22cb23042f6ad788a83dee4f01b3e7169c53144"
+        },
+        {
+          "tag": "shelf",
+          "file": "shelf.png",
+          "sha256": "fdac1df79c4e28ebcde2464082f5903d78c484401ff430fc42313324cf6809ac"
+        },
+        {
+          "tag": "table",
+          "file": "table.png",
+          "sha256": "dfe619278c9ba3c2ec75ce0d36215a075804aebd31afa031d842fb14d1844a04"
+        },
+        {
+          "tag": "workbench",
+          "file": "workbench.png",
+          "sha256": "d46093889e4b88d50a4b6dc90005182dfe02523c52dec316b68257b55fb1aa4a"
+        }
+      ]
+    },
+    "terrain_01": {
+      "destination": "floors\\01",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "cfeedf35a2bc486684adb43dfd8eb217ab523032137eb78452de6b369ab95e2c"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "4b5a124e0fa76608fa6b3a7686dcb31b67ccb836280b4e0f8ce5ba5ab191f92e"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "8821c1c4a66ee65da8d8186f0c5265c8cf764bf480d8fdac97470f001eb79e72"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "dc14b881bc29ff07e62270039b55b5bef7dd14452782b07cb2d0ce2c209832cd"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "8ccf4f1f2ad505cd4758f19676308fe78dc1c0534aee4c616c8a8cb431a3be2f"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "9d29ffc5734c087c45e4177bdbf1c27f0f2e81728bb429e5ecf38d1caf0edc6d"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "db469db7d09a0a92abe0a380f0613e2a71f22a4bd2c80449eb8f5a546ac97dde"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "b61ba6b8ad5f346c940dba92b7ff0ca4b939f102367388cd5329b1e252b7d575"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "2882b1dd0dbdfa5a7aab7a5cdbb5129bc72f542073a689245207c162b2a34a11"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "8120c59dd36ce220902ef2bf7b9526d3408781925fe128a0cb359eac1a77cd3a"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "24f4baaa4fd00240517ad418586493264188985587a2c8500b909bd83344759c"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "b52895c48f21aed286765c0eeaa1e675528dda49f1ed738d156af92d40ec1ad6"
+        }
+      ]
+    },
+    "water": {
+      "destination": "water",
+      "assets": [
+        {
+          "tag": "base_0",
+          "file": "base_0.png",
+          "sha256": "e65a12c3c2bf0aabe0b80a0388d8e2f84b7b5059a1d943cedbb5d0ed9cc4a8bb"
+        },
+        {
+          "tag": "base_1",
+          "file": "base_1.png",
+          "sha256": "454d2cbd10c7012da8a05fee07714ba8a41408c07402bb9bf1fd40206fd04cb3"
+        },
+        {
+          "tag": "base_2",
+          "file": "base_2.png",
+          "sha256": "98ac9388354bd5d21ec7db58ab49240de4b5bb2380415393b0498d5286b6ca49"
+        },
+        {
+          "tag": "base_3",
+          "file": "base_3.png",
+          "sha256": "356dcdb051f2c6efd529d6484a1fa107699fd78d734987663e9b725f73ea95c8"
+        },
+        {
+          "tag": "wave_E_0",
+          "file": "wave_E_0.png",
+          "sha256": "5054fbe0d07a0738d671a1990eb6e5e9485de336c5739c49155643c6ff9d7e3a"
+        },
+        {
+          "tag": "wave_E_1",
+          "file": "wave_E_1.png",
+          "sha256": "c741395d19f6e6b143ab56b612899c2d602d62b9d43e83cddad704905785a7c5"
+        },
+        {
+          "tag": "wave_N_0",
+          "file": "wave_N_0.png",
+          "sha256": "9844836c1bbf7f762e621e877ad87f2ef94efdad2cb6527b01129ce1b975cfbe"
+        },
+        {
+          "tag": "wave_N_1",
+          "file": "wave_N_1.png",
+          "sha256": "6133dc23ad178020ed9b70efd02712c0ddebaa116c5eab6b46c655cc620c7e9d"
+        },
+        {
+          "tag": "wave_S_0",
+          "file": "wave_S_0.png",
+          "sha256": "01335cd16b4bb12ea9a8b9b4ae01ee3970648f46cc465dfeac5ba09f969e9775"
+        },
+        {
+          "tag": "wave_S_1",
+          "file": "wave_S_1.png",
+          "sha256": "695277631ebea62eb3ec5f158ae389aa8d7b509e74171aebe6011fe4d1026f3d"
+        },
+        {
+          "tag": "wave_W_0",
+          "file": "wave_W_0.png",
+          "sha256": "14fdccf07bbefa55b182b33d17272ef403a9c4e7ad3150e36d889c6860dff0bf"
+        },
+        {
+          "tag": "wave_W_1",
+          "file": "wave_W_1.png",
+          "sha256": "55e99edb46b894eb5035f93f9b88d77a96be407e40bf882d73652815382d90f4"
+        }
+      ]
+    },
+    "lava": {
+      "destination": "lava",
+      "assets": [
+        {
+          "tag": "0",
+          "file": "0.png",
+          "sha256": "6df6752e77d81f8bab4bd8d075f3b7a42b38d7b35559b20deb13c0ee267636c3"
+        },
+        {
+          "tag": "1",
+          "file": "1.png",
+          "sha256": "b418b95a484781242ae6ad45ce5bb48a69de9e97754aff00e5a19e037f50416a"
+        },
+        {
+          "tag": "2",
+          "file": "2.png",
+          "sha256": "4bd640ee2b54d9c95020592fe24581c77b20d51f9ab77089f72a2ff3ac4f8354"
+        },
+        {
+          "tag": "3",
+          "file": "3.png",
+          "sha256": "d5d2293956f80b8b24926a07aa9e0f649fb33f75a4267164c8a77b0067674b1d"
+        },
+        {
+          "tag": "4",
+          "file": "4.png",
+          "sha256": "e99e35051e3ef5aa7ebbb86101f7bcc1602019cf5db7963edd40f59599576ad2"
+        },
+        {
+          "tag": "5",
+          "file": "5.png",
+          "sha256": "fa457e0355c0464e60ce8fad6bb97c0ee97e50f50254bbd72a5f2ff828669195"
+        }
+      ]
+    },
+    "stairs": {
+      "destination": "stairs",
+      "assets": [
+        {
+          "tag": "down_0",
+          "file": "down_0.png",
+          "sha256": "fbb31aaa321175ffeb173991046676a51a7479c90a06b38cc8fbf5f43608ad67"
+        },
+        {
+          "tag": "down_1",
+          "file": "down_1.png",
+          "sha256": "d25b1fe620c18291d93f04bf2925c047d1388519012e0955dd456be97b2f0d34"
+        },
+        {
+          "tag": "up_0",
+          "file": "up_0.png",
+          "sha256": "e91ee7454966a51ddab203402230bead6e6718408d010a4e3d3935cb38d81aee"
+        },
+        {
+          "tag": "up_1",
+          "file": "up_1.png",
+          "sha256": "39e3cabc9e8889f78c96ca1176770e6549366fbc60403e053754b8fb67cd5ceb"
+        }
+      ]
+    },
+    "traps": {
+      "destination": "traps",
+      "assets": [
+        {
+          "tag": "blade",
+          "file": "blade.png",
+          "sha256": "8b84b2e31d936d10b63942ddb01fcfeefa9858526c10394e3f3c33843ec24644"
+        },
+        {
+          "tag": "gas",
+          "file": "gas.png",
+          "sha256": "632f2258c9a60c5116b12847eff93bad92f5cc1cb78a7bae559417beabf39d17"
+        },
+        {
+          "tag": "magical",
+          "file": "magical.png",
+          "sha256": "7ef6d5040fb876b2666af63562786944c7b837578e29fd1584ffb70c650009b4"
+        },
+        {
+          "tag": "net",
+          "file": "net.png",
+          "sha256": "9e127f1bcf8320444a4848e87622aa2e8185d6c2e8a4ae02b2bfad53ab3e2697"
+        },
+        {
+          "tag": "pit",
+          "file": "pit.png",
+          "sha256": "9285d11e2f952dd4e16ffa46a496e8f39ad1a281f1f2e6bfb47dcf43c5175109"
+        },
+        {
+          "tag": "spikes",
+          "file": "spikes.png",
+          "sha256": "d666e3cd673681e78e6e98a15fd5b3b6fa362ea01ceed1857261ba588d732d6f"
+        }
+      ]
+    },
+    "doors": {
+      "destination": "doors",
+      "assets": [
+        {
+          "tag": "0",
+          "file": "0.png",
+          "sha256": "a2dcc4e57a1c1be10db09eaa83ff18a41e34e25304ab5d36c8017b35dcdc1848"
+        },
+        {
+          "tag": "1",
+          "file": "1.png",
+          "sha256": "5eb06a8ee79cb48e341c886209e5e536729e62df1367706a5903ba87dc7f1e51"
+        }
+      ]
+    },
+    "decor": {
+      "destination": "decor",
+      "assets": [
+        {
+          "tag": "bones_0",
+          "file": "bones_0.png",
+          "sha256": "ce47cb7681deadf6030f74f4d0e534daf41cacc48ef890c558a48e5c6e5b49ba"
+        },
+        {
+          "tag": "bones_1",
+          "file": "bones_1.png",
+          "sha256": "acdacd91a759a9606e178aa87728acdd764e23fa2b726ee3eb7b13aff8930471"
+        },
+        {
+          "tag": "bones_2",
+          "file": "bones_2.png",
+          "sha256": "7f5d27cb0b5ad3719ad12cd6fba8b0e5d5fcbb24cab00d2685d4775f90f7d5d7"
+        },
+        {
+          "tag": "crystal_0",
+          "file": "crystal_0.png",
+          "sha256": "84c294d0c60cf70e38aa0204effa5e248039450ca5fc915ff78ed0a22d18c351"
+        },
+        {
+          "tag": "crystal_1",
+          "file": "crystal_1.png",
+          "sha256": "2a18806a3499fc482e095ae7cbe1ffd220b86cce24a0f5e3ab12d27a6edae54e"
+        },
+        {
+          "tag": "crystal_2",
+          "file": "crystal_2.png",
+          "sha256": "b779789f8bbd26bc3ca428293bfb603638f7e49bb734862aeadcc7a1091111a4"
+        },
+        {
+          "tag": "crystal_3",
+          "file": "crystal_3.png",
+          "sha256": "84c294d0c60cf70e38aa0204effa5e248039450ca5fc915ff78ed0a22d18c351"
+        },
+        {
+          "tag": "fire_0",
+          "file": "fire_0.png",
+          "sha256": "812438758e6bc5be0b46dae491c11ba9f08f05995efdc202b95bc0f18af01749"
+        },
+        {
+          "tag": "grass_0",
+          "file": "grass_0.png",
+          "sha256": "4129c820bcf1cfaca10b2700a3ffa031722e87dcc3e8fa6b35b41f4820eac1e6"
+        },
+        {
+          "tag": "grass_1",
+          "file": "grass_1.png",
+          "sha256": "b9f8a67c4efc92124805f237eb28de14c7fbc183a160ae4ba468ec71f5955ed0"
+        },
+        {
+          "tag": "grass_2",
+          "file": "grass_2.png",
+          "sha256": "7ad4bb0ae97e8581e00b6eec705e2b331579a52e767175405c93709535edc8ae"
+        },
+        {
+          "tag": "grass_3",
+          "file": "grass_3.png",
+          "sha256": "3e228d33b4f42e82bd5a83ef6b42487cb2938856691e5c28e6e30494ee885a05"
+        },
+        {
+          "tag": "grass_4",
+          "file": "grass_4.png",
+          "sha256": "9ed1cd3964b806996ada250593a44821c1f44d350eb4979a158f96a9940f5ee1"
+        },
+        {
+          "tag": "grass_5",
+          "file": "grass_5.png",
+          "sha256": "5d3cfbf0071d0546c54b3720b4e026fedb32f260394aac6d8d65ae3f7adaee9f"
+        },
+        {
+          "tag": "lamp_0",
+          "file": "lamp_0.png",
+          "sha256": "3d1a9e4b88b101dbba9c5eee3f785be86578564042be10f4760bed6d05fca44d"
+        },
+        {
+          "tag": "moss_0",
+          "file": "moss_0.png",
+          "sha256": "b1b42c318f348c771e400f7bf4d549a2b01e7c49a9767d1995015191a795af7d"
+        },
+        {
+          "tag": "moss_1",
+          "file": "moss_1.png",
+          "sha256": "b558d602812a21fdc5a31410b11a098d170cba4aeb229cd6202c8f696577408f"
+        },
+        {
+          "tag": "moss_2",
+          "file": "moss_2.png",
+          "sha256": "b8f5b8c291a270fd718571316e86a83652cb779d19980f3ae1cca9318b319447"
+        },
+        {
+          "tag": "moss_3",
+          "file": "moss_3.png",
+          "sha256": "bce6423a5bde2d2bf6884263b978bce9b84454834ed5b424b1d37363651480f4"
+        },
+        {
+          "tag": "pike_0",
+          "file": "pike_0.png",
+          "sha256": "c36cbbc474baf16348e70088aaddbbea83e78e972110f7141edb80d0acfa42de"
+        },
+        {
+          "tag": "pike_1",
+          "file": "pike_1.png",
+          "sha256": "3a012aaf6f5f5aed4419ea09e438f3c5a4fe2abe40ed1a7ec9d9754489a5e017"
+        },
+        {
+          "tag": "rubble_0",
+          "file": "rubble_0.png",
+          "sha256": "88f482e97527737bb574077793eb400d7af597509e42150d305cb57976a0c21b"
+        },
+        {
+          "tag": "rubble_1",
+          "file": "rubble_1.png",
+          "sha256": "1d10e253191c7610ab154e4fb01c9222788adb0bf4cbab6d49ef0a792993297a"
+        },
+        {
+          "tag": "rubble_2",
+          "file": "rubble_2.png",
+          "sha256": "d9211cece1503194cf5801e39864cfacafffcf4ab30b3e5c5dc36b1d113bd03b"
+        },
+        {
+          "tag": "rubble_3",
+          "file": "rubble_3.png",
+          "sha256": "3f4d557fddcd2403e7cc2eb878d0d4fc37841844fba4f8ecbaec5333c33e69af"
+        },
+        {
+          "tag": "rubble_4",
+          "file": "rubble_4.png",
+          "sha256": "db043fce6fe2394c711449cb0640e2e40172eaa0ad2436e25ee3f4194a8477c0"
+        },
+        {
+          "tag": "rubble_5",
+          "file": "rubble_5.png",
+          "sha256": "b6874e5e96c7a8737dcf01ff2ac7f84bf5b8edec497ce1f82e6dc7b109513559"
+        }
+      ]
+    },
+    "village": {
+      "destination": "village",
+      "assets": [
+        {
+          "tag": "barrel",
+          "file": "barrel.png",
+          "sha256": "dfcf3ba384b906cf0f86b8436118b3fbbd28af0173e003f8bdcd2755f347ad60"
+        },
+        {
+          "tag": "chimney",
+          "file": "chimney.png",
+          "sha256": "f4a8dd510a8c02311abb747af4d2278f36426b211267f76daae09badacfac5f0"
+        },
+        {
+          "tag": "fence",
+          "file": "fence.png",
+          "sha256": "71075d73b5b5cf9b7f3342ce20640bf90b3e1c166033142f9bb37b0a65fa9b8c"
+        },
+        {
+          "tag": "ground_0",
+          "file": "ground_0.png",
+          "sha256": "1655f2bbb30fa74b283caa14d868a813b8a3b5f1af893ae7687c8bf0d94f9e56"
+        },
+        {
+          "tag": "ground_1",
+          "file": "ground_1.png",
+          "sha256": "d8f304b8f7d88da992e8224598ef3ad50cbc72484130814848f9eb7b9bbdba53"
+        },
+        {
+          "tag": "ground_2",
+          "file": "ground_2.png",
+          "sha256": "38a329876dd3cb3491b3af54ca83c4c2505cba102709ab397c7cfa6b12596561"
+        },
+        {
+          "tag": "ground_3",
+          "file": "ground_3.png",
+          "sha256": "c30da99e5c8d35cda3bddff91a5dc126912975e28a5e78a39737f8a8d03b0960"
+        },
+        {
+          "tag": "npc_base",
+          "file": "npc_base.png",
+          "sha256": "c04d77d9a9fcbf5a0ec5fb3b32e04fc5b4d4f21b5433fadcd6390153105fb915"
+        },
+        {
+          "tag": "roof_blue_eave",
+          "file": "roof_blue_eave.png",
+          "sha256": "9fc1afff982997ed83fda0fced4b5dac6034611a3221c77b927e5109a42ffe88"
+        },
+        {
+          "tag": "roof_blue_ridge",
+          "file": "roof_blue_ridge.png",
+          "sha256": "3a3d3bc486728767b18cf9e589f80919a3e14feb06e56fca682f28bd118a50c5"
+        },
+        {
+          "tag": "roof_blue_slope",
+          "file": "roof_blue_slope.png",
+          "sha256": "2683b26736b282ae39e9380f6d3383d9b7449072a037b767f4375d5cdd47b82b"
+        },
+        {
+          "tag": "roof_brown_eave",
+          "file": "roof_brown_eave.png",
+          "sha256": "63e697b0759a64f57f2815a93b0d21ba4416634c99229687312bc756469551f4"
+        },
+        {
+          "tag": "roof_brown_ridge",
+          "file": "roof_brown_ridge.png",
+          "sha256": "70c9cfbd52bfa814c5bcf5333f5cdd8a68a480dac6bb87efc69804ada0daf240"
+        },
+        {
+          "tag": "roof_brown_slope",
+          "file": "roof_brown_slope.png",
+          "sha256": "e0765d678512b81790db04f7a3d24ba828e482d87185a884bf9d5fa638af65f9"
+        },
+        {
+          "tag": "roof_green_eave",
+          "file": "roof_green_eave.png",
+          "sha256": "9ea5a6b07ae3509ca2aeb3a445971a3d6227df00348811e6c406de976975c1b8"
+        },
+        {
+          "tag": "roof_green_ridge",
+          "file": "roof_green_ridge.png",
+          "sha256": "1fc5f26fde843575a9180d618e738d825ec3d44c95392ba43985b945fb4741a5"
+        },
+        {
+          "tag": "roof_green_slope",
+          "file": "roof_green_slope.png",
+          "sha256": "1314a8a81283dae2338b306dfff7803490736205728fdf85280dc94618af1a27"
+        },
+        {
+          "tag": "roof_red_eave",
+          "file": "roof_red_eave.png",
+          "sha256": "4fa8d6d25e3dd862bfb88a3f0da3fcb19d7278b348321e3f68075a4bca0f3252"
+        },
+        {
+          "tag": "roof_red_ridge",
+          "file": "roof_red_ridge.png",
+          "sha256": "d28e51f6d6e4959b090b0ed3d0d465d216eb2744db62fb8a4be3096c1ef42f11"
+        },
+        {
+          "tag": "roof_red_slope",
+          "file": "roof_red_slope.png",
+          "sha256": "43be8a61b9e98b874d42d259fb145f067a6f88dc63d126206325d34f891424aa"
+        },
+        {
+          "tag": "tree",
+          "file": "tree.png",
+          "sha256": "be06db11a5968b1163e9b6bfa08e17e32d81b023d1daa05446c97776f55a0ffb"
+        },
+        {
+          "tag": "wall",
+          "file": "wall.png",
+          "sha256": "84b08a574fe96936bdf44ccc92ca471d4e42f9b91507a9dc5ab9287e1b2c3184"
+        },
+        {
+          "tag": "window",
+          "file": "window.png",
+          "sha256": "e85197366b000d18c66b899c2616ebc935b05458e5e441f9425261bbbb9f4047"
+        },
+        {
+          "tag": "woodpile",
+          "file": "woodpile.png",
+          "sha256": "443b6c7a42c3f972c43c31bc2684458a6ef6d4228977777d869c4442660b918a"
+        }
+      ]
+    },
+    "interior": {
+      "destination": "village",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "4627ecc3aa16057a561f6fa9e902a97100d4fc8b01c866288d589ca7bc33afa3"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "1a214773e900eb9c46460dab321dad0823638f1f8f1af1434a61205bc3de8c83"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "b9dc2c19a1161b9fa3eb6f09c9b8b3f341a5793ca8f957f37a4b7007bab4e9ed"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "2b2d4a9448c15816cd466ea55950e8380f3e3e90241b79dad5912c8571ee8b86"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "1832bcaccbd1e611fda072148ecc5645bf4123af087bd51297ea42bdca3393ba"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "3e93cde3a4f0030ed3302f2b57e2c305a1acb0fb5829c8cf542595b96041e96d"
+        }
+      ]
+    },
+    "terrain_02": {
+      "destination": "floors\\02",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "1b441e860f89a18f8006d403c83a2d39054eb9673add5ec853b7964951b9f808"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "a65fe851822fe0d6a0c48d1f0de02c91e4584297020688301710d86e17a86966"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "eae59ca189f92f91dd518b0c37cc148d27095da783894d02d74e43650061ce5d"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "9c50c664595ec48ce923d493c419ebbd0260552e4b6161f958627d8b34d4a93a"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "bb185d4195ca6224e3f3d11d2810c74d81adfa2fe0322488226c4211233833a8"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "19c608cc409baa1ae24f1f555fe66f8eadea7cf456b1ed5139e4c7de9a43294d"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "19e4b5c158a10d0682cbf7215770cf8f34b9a4daafa066541347fa730a37e1ba"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "06ef6f710a34532c333a8234c9941e0752a1e63d69b081f6b85f534caa5a1147"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "3ed82a607aebb78d7ef1c8758730f27f2136720f13f5e6eaff607b81d4b9c93d"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "32082b0607a11809fcec41329f7f6f2ba8ffc371f98d8591bf11658c7f640d7f"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "aba2c3ec173d29a5cb5f7ca48e158e2a436a2c0814e34b82567a9558115d003a"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "7c5a1d40e077befc3efc0da6b38bc7232c7a6ce6c929bf4b2485ff08ef605a1d"
+        }
+      ]
+    },
+    "terrain_03": {
+      "destination": "floors\\03",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "bbd228ed1cd4d93639aa8ab1a85ad94eb86499b675269fdeb5ca3e12617c7c76"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "51418e72e5066dc9d6e551f52c07b27aab72798a68cded680ed25dc41320be55"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "76ca4eca52784958e96955ad375b3f3d9ed8b9be1ef28919325c4725790d2e00"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "957f3c938c561203a01bd89b8ac91cd3ec6ad977504c33c261698fbaf06ee6b1"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "de5c8120b2ad5c5d5ab055b1ca7c02a95c9616ce3b5c2a7ce8dd9f1cfeede86b"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "d104f7f964f9d5084c7b29a206de081f126c6f32668d1dbb233bd9720bb025d8"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "af645c5c58d80dcaa8ea48e4ebe36178b9fb977f89f2188f12f13d619edcf799"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "81004b2ab5dfd8a5999bc12d5e2ecb73ac2486b214ee85e4e8478d6afd679903"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "fd7dac4c046660f80a42568c81041a94e5977d8982b15caf14862cd2f4d50f9f"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "74b1afc0cc0b8bd4244b42a40369d7fffe52f23e1d24df0f37cc0f7c6b567f30"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "bcce2895ad1d6cc325eee9cc944fbaf596e1caf9d45251d4779c72b2df827f56"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "8bede3f9920e60f402f6ed4b72824df3dd02904d15f0682f7ae0c8ea2e290f98"
+        }
+      ]
+    },
+    "terrain_04": {
+      "destination": "floors\\04",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "f575225c7d18b183bd8c5c0a837b536ddd9a2bd4c17a9f99b0039e5f99132158"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "3e28368d65b6bc9316348296436463c8821f1305b1cc2316d3f48fe07eb8832f"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "f04a78c8a49e2c348c53a7a694911338e806446ea84397c0c252f2c81ec29d2a"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "aaade70a0a64e21e737b549c32d91e82d41b2f3206b505fdfdf2eca4a557365a"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "9b2677757d32487a690f02cf09e8982dced96b4934e830c6e824527bfc19d8b7"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "e0947c8086ee6babd08df536cfe7e629673d403c6ce5d1e6700d2bca20ef43fe"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "514398953f2e9f44353b15178d5717a2046040ff132dd600946d191f5f496393"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "96dc364fda31aea78f97be09022c730759a4483d46fe6fa0b8dd08d9c4049670"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "3e17632a8469fdc41b657f25e16a6001088cf07e0ac7a559ff9e88f50b0c0c24"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "e326cbe918108e870d4b1fc8db64fabd468849b7b680087f14e8b87321dce7b7"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "80e480572f6bcc84913a6a9b39158adc7fe5718552d4a13ec62da17137e6018b"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "e1b94432da93d1fba08193654d6a5404291505a90b7c085542eda85d2b6e5016"
+        }
+      ]
+    },
+    "terrain_05": {
+      "destination": "floors\\05",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "cd4d39234928043a597d415c844e479d856f8da2bd3e520ac6c78607e15bc68a"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "7e1812fc3c7e036709b6ad2fd5f89bc5ef56ab850914ed9bbeb503bacec4c761"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "b8fd6b59a5029a79e0eda611a1110326acedf5c8546180b99211f4e6f3ccb121"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "5ceea7431d1eb98f4d72f7cb0435f65cb8c402a971d9f7f2598d2266dbc7d2ab"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "24a54301145c27102853df89a860c062941231888d827cef0748c8c85f94f2a5"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "e5aa5a028aac7e5c9b3f9996fb485d3531b8744494559e4c9415212bb18af98e"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "7bdeee15dd378d9a02acc6df2e2e1c8d89c65230687aa60574fef6213d9a86c6"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "0c525c97028fe4f2ac703c376b0ae6e216e75f077a12b1a98a39e2a41a8465ba"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "cb5354ff1b34171957e17849a841ad2f65f072d30a42b8c2765dfc1ec6000b88"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "a93c4864fe0d180ee1282813264fa548a3aaa38540f4053a6829104fa4789936"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "ca1988debda0d710eae057be6e54ff76a8d0476d9bb06244e5958e68e8ae47bc"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "8c7b767e830046b79533373e9c0cd509833d61ab01ed72289206d2783e3c2582"
+        }
+      ]
+    },
+    "terrain_06": {
+      "destination": "floors\\06",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "b9f5b69677868d98bbf0dc272b80277eea08d676c1e6197c0c3acc05dde919de"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "7ba15ab92d48b1c540964b9d2310ddfd093008bbc280b6398118be91d45c6ba4"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "b8a5227082f64356b92ed4f69bad34e03385abe9c0317226c02bd1ccfa47e937"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "3eb2ee64fed0efbe633f0e53ff802847df50f47f3a1de2db1402af17e707d3d8"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "3ac374769e4000f0808abd5be9bd5e14fb34e9250466e79593f4d7a314d5d919"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "aedfc54d83d65b775b125cfbac83e25b51a891258fbb1a52dcd88d140f16429a"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "0c25ed61399a2126072c99d66f4f9bd5d03ee5a36179eef9ce047fb8e2e5dd44"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "01552ad13bdd7a048e6bb64e5f49815163b6231f0001b3d5e6dea5fa9153f57f"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "f52f700edf15da81d7f560c2dd186919c250c358d07055a65848e08285b489a3"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "ae091a1fc7c7fb92131b92ebc4ac5832b2787503f34534671aa11760b60ac256"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "a35c59d039d91c9aaf72b45297b7df4dc2578089fbeeb89723b326fbb2c1c9a5"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "ba0b2e2be7aaf3e04aac3a840587abb315c31dc53d42654e35f1dab44578976a"
+        }
+      ]
+    },
+    "terrain_07": {
+      "destination": "floors\\07",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "1b03c1b32960617cb0e0ef4557dd692022c114c58bd41d8c0eef3512c033c4a6"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "a5b9e58dfb88a272b36fecdd517e795340db805cfb7700798724770ad8bd015c"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "46ed46d8a00f332a55c97c4736fb166e4c7d0facb10506d978547e5e11c81409"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "9f1edf498def1ce33b55f140e0b35302b96fe13ef9701c372b7ef9694cb11f1d"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "d9faa5ec6dd7c009a7bf50a3bdf6c24ccc9629ee14b02ec4090995c5660f08b7"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "3f79ffdb1fe228cbee55bdc102a2548361807b11e97fbaa9ea820fa09105b3c3"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "e5966c82ad037ac4e3683682757e20086380033c581ad2f325d3b19a4e66c9b3"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "6c51330ac1c2bbdb98473c71f5d07d913deba3791c05eb0f12d5640ecb8c04c7"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "6d6f7701555989fcf559d4b63f03fb143e23d9f11a8500cdfaf72c98c4f1c472"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "9d6a49ccea4ebd2764fa2302d6e607d8577023b38e5794707b8fed0c7ed60001"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "4d9146edc6a6822c6691aff5369e04784148f1ef26aa3c65beeb9caf28990137"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "f05e48351e489905c05643f9ccfc661060f9c1e4dbf46ab47766a0faf88a9bc5"
+        }
+      ]
+    },
+    "terrain_08": {
+      "destination": "floors\\08",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "509a12ca4d04fd74a1538af057916984fcf602be7a4cd6a53440396d2de9371c"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "f8a1db5cc8a59b1cca019f73ecadfe1a29a423f74cf98802848c9643b0be3696"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "688df71a156417e3dce716d3a485a8c03a3c0198b1e986f040153e2991aa8ef2"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "ebee682b82ebc713445102955d1e829c9a3058bce281f50c8ec563f2572026ee"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "3f10995a4fe683a3d3183f1b20d48cf48f262cc4a72f0fba93d90a39b2dfe08f"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "aa8bc3c5e4c2b5cbf2ea78147ba51a350243482defbdfb0efcc2b90b9f40abe0"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "cd75fccbf3f115959db950d59f7bc5e405647ac9a94f830c4ec097d98fb8aca3"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "51fdec21a86a043ddc38c2cc1ef3c153675dacb4f32fe42ce42e975116f062d2"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "20bdabe47786adccf604ec7e3f423c429e94f00fe87316140f667d3c456d3abc"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "777250c4debdcf14d59d2e2700ea7feeb74b805b157e0e60cb9505e252b235ae"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "9c173531be7c7dcc85e2ed09732c59ca6a87ddfcabdc18eeef5734812fecc947"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "0ca829babc501a3d132e12805f19bba18a4782eaf2593014dfb6db550d27e651"
+        }
+      ]
+    },
+    "terrain_09": {
+      "destination": "floors\\09",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "d04f61f65d6e6a4d7792d9129e4d50b35f285da0e41d116ce3ab9e919e360dd9"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "fb8847c28dc765f26eeee30a2904639a0a506ea5921286ceb0f623fe8e61c47f"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "973de6880fd8ebe9ce293dd7cae136f6cc644a0b00398c2f8bb5352f778cd0e7"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "868ec1576c62f0b393a133d1f9ef4d1d2091341bb661c469795be60a6839e4b7"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "183665254299193365c3e3b839eaad80918e94e09c178fec881334a84218c3ae"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "fafe67a439481eced91ed75be985224c4692ca9bc252a79e74fdba2982671675"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "9dbc5f6ac3e211b78b60f0c882c11c6b5dfa519caadf98322f488664524a8c1e"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "1cb715ff676b610335d4d30de2697c81afdcfdd6df1a2784486a9aacd37b4feb"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "b68af57aa1388ec0efe537130f454112e0bdc496e699b7c10e78cb4f79d59e56"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "b5ec816d007f368afa878ebf172a46da0d63aed960ee7857fecb26fa283d8cbd"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "8810875d2bd9c53c7be180672f4c793326d0086b457a39ddf885f1fe1b04d456"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "a9dcb884b9caf0e661779fb392c87a02b7cfe8abf13d7a08a9c4e2265d3cec5b"
+        }
+      ]
+    },
+    "terrain_10": {
+      "destination": "floors\\10",
+      "assets": [
+        {
+          "tag": "floor_0",
+          "file": "floor_0.png",
+          "sha256": "2468bb9b4e49c9dad58e8efd8a5eafd349efd9881d7632ae81a56f6dc03b0a67"
+        },
+        {
+          "tag": "floor_1",
+          "file": "floor_1.png",
+          "sha256": "858e78c3e61659074c9ac5801fcc955e52556682da6c6d4430eae91bad03ed89"
+        },
+        {
+          "tag": "floor_2",
+          "file": "floor_2.png",
+          "sha256": "741ce0c54ed50f4db0815982a67e45fa7dbaa7371fa77331c9aeaf55196d2fe1"
+        },
+        {
+          "tag": "floor_3",
+          "file": "floor_3.png",
+          "sha256": "490f23e6087aad85b5d47fcb6469eb8e210d809792782955b7d0a98586669d3f"
+        },
+        {
+          "tag": "floor_4",
+          "file": "floor_4.png",
+          "sha256": "dc9caafed8bdc5e139cfc8e2a95c8b17dd92659ff1b7d1981a268da1af50d838"
+        },
+        {
+          "tag": "floor_5",
+          "file": "floor_5.png",
+          "sha256": "3ce9a61eebfbaea12753eca25e952e40b52f9b51b883fd3f3a9d49f5ffe83ac2"
+        },
+        {
+          "tag": "wall_0",
+          "file": "wall_0.png",
+          "sha256": "334e47d2bcec4606ae858c5caaaf8b773ed08cfe92f0fba4c777f321d479bb13"
+        },
+        {
+          "tag": "wall_1",
+          "file": "wall_1.png",
+          "sha256": "c0e6f35cc287bd63aec857c3f327d23c4a9cc1194d778d8bd837f0c3914b74aa"
+        },
+        {
+          "tag": "wall_2",
+          "file": "wall_2.png",
+          "sha256": "7f84327b5b30af00fab7ff82a720de0b861442084d19debaeb21f92119f415c8"
+        },
+        {
+          "tag": "wall_3",
+          "file": "wall_3.png",
+          "sha256": "883e7c47754879888f0289d9394830a485edde4e87a06361bb116cd665cb0fb2"
+        },
+        {
+          "tag": "wall_4",
+          "file": "wall_4.png",
+          "sha256": "7c4a8fd49a3c44fc008d709bdf35b95826874b64d9981d6fe2646069fc085a84"
+        },
+        {
+          "tag": "wall_5",
+          "file": "wall_5.png",
+          "sha256": "db47b7c103d3d9c1abd788265e9e4133ab72eecd14371f7783209719c91d3f46"
+        }
+      ]
+    }
+  },
+  "files": {
+    "creatures/bat.png": "41378fa558ac65dbb9b40ffce15dcb7d5618aa9ef31135409c335c485d18efce",
+    "creatures/goblin.png": "1785dd26508d5744dbbe5fd68c00146b9a05a4519e3b92d878a40ec2d51016e5",
+    "creatures/player.png": "0506531541d45fd2c426872f239b3a8e05640176a3d72474426334a67aaa36b0",
+    "creatures/rat.png": "3d6cffc1497365b771af693aa814e700b6e67ac0b7411f4af0bf7b98cf5bc152",
+    "creatures/skeleton.png": "6419c6c70866c762a961b57e654f0a061b6e994544c809810de26510c4e509cb",
+    "creatures/slime.png": "2454a96ce002d64af4f46f36c7f05f850e4abf7183e7c740b92c64f8212fae3b",
+    "creatures/demon.png": "28fd460b5c01eb1fc4424dd57ede3e1e9ba5af4bd6a66800a93b4c8aa5ac5482",
+    "creatures/dragon.png": "0ae95a04a4e70c96d6b91f184ffc589e100a37bae8d3c478fd7814c0248614c6",
+    "creatures/ghost.png": "4384f96aab991ef42b2c17b302a193d236c37b062a39400e722a34df218674a4",
+    "creatures/golem.png": "41cc2d29f207c1b699ed0b0476a766b813c2f2382f43489a7af5bf1cd8d0c149",
+    "creatures/lich.png": "2f630f48c741f7c4131b2b91e29b91201c79de6f8698b63e6a260ca9fe93def6",
+    "creatures/minotaur.png": "cf89eca8e9f10e0ce047370331f3b4938af0537c418ca3414a3ac360d793bd5a",
+    "creatures/necromancer.png": "ab6b14dba8a8a2921dd4a43989a26a26c4ab3d5edfd42cbbe8ab846a5d8673ec",
+    "creatures/orc.png": "23467274cff166bd8ee61ad6e8ab2d25428aad677ded980833e5ced7d0929428",
+    "creatures/priest.png": "ec39dec93fcc0bdfef5a05223f875c4da4dc8635cb902bd890995c76d1cdfa9e",
+    "creatures/shieldman.png": "e734c4f18d642152a71a4f5a96589896521f70c18b314ede3a95f1058c4e779a",
+    "creatures/spider.png": "730ae97bd66127937aaa39bff98b56bfac54c5694c8cd8d1d873e8a382d6054f",
+    "creatures/trader.png": "25d57c7b6f9f9e132b9a142cfe5e5092d0a70a2ef0f91c95f5cf2320ca69999c",
+    "creatures/troll.png": "1a8260efefa75a44fa5d64a8921b72e674fc9fa08de6eedf6c6ffd352d25509e",
+    "creatures/vampire.png": "93e5d3e4c9af81b31b67f4fd80ff1bfabb486e9b760aeec3f5a2fb2a3ab4b9af",
+    "creatures/wolf.png": "0bb6af0c81599d2e1671c0ce0361b69d3c661e02aa1a7a5d8c40f0a575ec4395",
+    "creatures/zombie.png": "cea27403e83fe45ab3786c10aae62b28bd8303fc0b99c2078b0e84bec5e40dee",
+    "items/leather_armor.png": "398c66b219b695785a185584efb6cbc60412f8861c067383979815ed67f08639",
+    "items/lucky_charm.png": "538b0ea7fae6c5848c7094c64d1361a2465a274d38c57a166046e461b9ff20e4",
+    "items/rusty_sword.png": "a08401b012e5bb7c81a2f8fc58aae53a0ca84c269d311bad0ad8de7dbd22274d",
+    "items/scout_lens.png": "875088fbdff8323df3a478360522e4f241151f950c7c24754cb0ac8fff193c8b",
+    "items/short_sword.png": "98e4d31536148ffaf6ffa426696d261bde7de2c8dc16706be43bf1cb184ebc57",
+    "items/small_potion.png": "e7a86429ff61f1db332fc71b9df85b7f787043b894a4f959b15b31f17306528c",
+    "items/aegis.png": "2a2a90b6a111439bf627d9d67b4f29085ae629be0673daddc97753984ed01d76",
+    "items/antidote.png": "0db79ecc3126d6b38dd8d522358d19ff4dcccace1b9c9529a14f31301a080750",
+    "items/big_potion.png": "b2448ca98de485392e24563714838680ca2f2c7e52b24c9286661f6a40303447",
+    "items/bone_dagger.png": "029d857152851d436c726f49aca2857e40632fe71a7b93164ad19af354c53548",
+    "items/chainmail.png": "36992b933bbe1736be771c84fb8b60b70d9bcc9213e80da7ef562c54c15f048e",
+    "items/cloth_robe.png": "04b42a1e0bec026c3624cf3363c08dad1b446cd6179ef04d373677810ae07073",
+    "items/crown.png": "8443b8816e36a3436ea3da91e32ae2d2a8353629e05e138b12c096f22e282ef8",
+    "items/dragon_blade.png": "38541e43eddb69bcdffb0c7153b0a41059761f3ca2c2342df82c4f3918cd4f05",
+    "items/dragon_scale.png": "44649fd3644a57b8216f001c7639690ddfbaf151d0ab7a09a185467c951b6509",
+    "items/elixir.png": "76332069a1f0abcd50a6794423086a9c74afdb6cb6089c0d8abacf0e4d0a9911",
+    "items/frost_blade.png": "566b7b376c734d13172e676904c17ea3312cfb0c4bff3d6332c721aba973aebd",
+    "items/greater_elixir.png": "624c315843741c9f5912bc0a898203bca4909e1a6ca7de0712aeeb1edf835b99",
+    "items/guard_amulet.png": "ee582e7681e25be6bf3d1541b139ffc7bcb31283293dd0346fd1900f18b4584f",
+    "items/hero_medal.png": "0e006175af1f2f5bb68a18e3fdd2d332a6dbc6aba21eebaea36a41347b59cd3e",
+    "items/ledger_amulet.png": "1c312af288f8ba4e54fedbb7324afa9692b9469470586fdba58c2a836551e078",
+    "items/mirror_plate.png": "34f45ab649423616fbfdaedf74618244ad11a1735d156657cfb62580016d3537",
+    "items/purifying_draught.png": "cf51a36a9da58781d65baeea69f76aae36571ad419caa15a584aa990ede7db65",
+    "items/ring_power.png": "caab00145230095fecf1eed738564d75f48028162d1c25255ed0591227ed60af",
+    "items/serpent_ward.png": "c104c009a2609b4364895f720d7244d12cbbf909cd13129260dbebde982364d1",
+    "items/spiked_shield.png": "611322fb474596b401ca1cbb215a6eaee5d6c9e9c1b8cef62c07e2dc36614ede",
+    "items/steel_sword.png": "92c735cb4140e7e3c030991673e3f9fc26729d47ca74fee843474f8acb39b19f",
+    "items/trident_precise.png": "f86bb52b7c0edada5e6268ca9984721dab20f9362f3504503176bf1f8f575cfa",
+    "items/vampiric_blade.png": "7f789194878980beaf679140a2fe5aa72f40a0b961326300b6e23c177f5efb08",
+    "objects/chest.png": "68d88849fc875c3ae1eea3ddf2afa6e5c92ac5a6a3ceccee1b177fe7d8ed3d23",
+    "objects/portal.png": "7f8dcd4372743e394d2b775357cd9d67101824b13236556134becb7c594bf6d6",
+    "objects/lever.png": "ec23814b887741f29c708fb57963676864ec11c4f6b387d390cf4234988983a5",
+    "objects/lootBag.png": "30731a3bf6e2ca444d5ce05366a1cd5375fd24f362cf5d607371cdfc66b34485",
+    "objects/ore.png": "913d471d7549d568ade180091fd41751c63670a9363f6198cacede387aafcda3",
+    "objects/rubble.png": "28ddd19e1f03c463310204506d540a4122a57fd6608eb8a798e4604745f34ca9",
+    "objects/sign.png": "cb22deb6b298d4c65e9c7646d5b8b6977f6c76e474ca2eeb66b8eac2830b125c",
+    "objects/anvil.png": "d00d9a18ce012f778ab7f60a835d6a56a029a34bcf2188376eb3b803d8b6d0ac",
+    "objects/bed.png": "cd48000749c7d58af1f41e3c1d87eb947ce5ad4bee0a81da19ff1006b770a8c1",
+    "objects/cauldron.png": "4cb8927346afc2a093b508a9c1e5d45ab8514d03683f3431041c5584d635bd8c",
+    "objects/chair.png": "ce8b554153aba6216abbf09b2ea0aaf27a885ee96d71b123d35cb31625c6df3a",
+    "objects/counter.png": "487fa14ebb400957164b8968ea2f2397faedeeefafbf107ebc7034892b603dc8",
+    "objects/crate.png": "748591a90f713c06f8fbf8914d4ba41e421c25d8461131a65a2ebc7a11bc43bd",
+    "objects/fireplace.png": "28583d4e4d8a49f90df534fed22cb23042f6ad788a83dee4f01b3e7169c53144",
+    "objects/shelf.png": "fdac1df79c4e28ebcde2464082f5903d78c484401ff430fc42313324cf6809ac",
+    "objects/table.png": "dfe619278c9ba3c2ec75ce0d36215a075804aebd31afa031d842fb14d1844a04",
+    "objects/workbench.png": "d46093889e4b88d50a4b6dc90005182dfe02523c52dec316b68257b55fb1aa4a",
+    "floors/01/floor_0.png": "cfeedf35a2bc486684adb43dfd8eb217ab523032137eb78452de6b369ab95e2c",
+    "floors/01/floor_1.png": "4b5a124e0fa76608fa6b3a7686dcb31b67ccb836280b4e0f8ce5ba5ab191f92e",
+    "floors/01/floor_2.png": "8821c1c4a66ee65da8d8186f0c5265c8cf764bf480d8fdac97470f001eb79e72",
+    "floors/01/floor_3.png": "dc14b881bc29ff07e62270039b55b5bef7dd14452782b07cb2d0ce2c209832cd",
+    "floors/01/floor_4.png": "8ccf4f1f2ad505cd4758f19676308fe78dc1c0534aee4c616c8a8cb431a3be2f",
+    "floors/01/floor_5.png": "9d29ffc5734c087c45e4177bdbf1c27f0f2e81728bb429e5ecf38d1caf0edc6d",
+    "floors/01/wall_0.png": "db469db7d09a0a92abe0a380f0613e2a71f22a4bd2c80449eb8f5a546ac97dde",
+    "floors/01/wall_1.png": "b61ba6b8ad5f346c940dba92b7ff0ca4b939f102367388cd5329b1e252b7d575",
+    "floors/01/wall_2.png": "2882b1dd0dbdfa5a7aab7a5cdbb5129bc72f542073a689245207c162b2a34a11",
+    "floors/01/wall_3.png": "8120c59dd36ce220902ef2bf7b9526d3408781925fe128a0cb359eac1a77cd3a",
+    "floors/01/wall_4.png": "24f4baaa4fd00240517ad418586493264188985587a2c8500b909bd83344759c",
+    "floors/01/wall_5.png": "b52895c48f21aed286765c0eeaa1e675528dda49f1ed738d156af92d40ec1ad6",
+    "water/base_0.png": "e65a12c3c2bf0aabe0b80a0388d8e2f84b7b5059a1d943cedbb5d0ed9cc4a8bb",
+    "water/base_1.png": "454d2cbd10c7012da8a05fee07714ba8a41408c07402bb9bf1fd40206fd04cb3",
+    "water/base_2.png": "98ac9388354bd5d21ec7db58ab49240de4b5bb2380415393b0498d5286b6ca49",
+    "water/base_3.png": "356dcdb051f2c6efd529d6484a1fa107699fd78d734987663e9b725f73ea95c8",
+    "water/wave_E_0.png": "5054fbe0d07a0738d671a1990eb6e5e9485de336c5739c49155643c6ff9d7e3a",
+    "water/wave_E_1.png": "c741395d19f6e6b143ab56b612899c2d602d62b9d43e83cddad704905785a7c5",
+    "water/wave_N_0.png": "9844836c1bbf7f762e621e877ad87f2ef94efdad2cb6527b01129ce1b975cfbe",
+    "water/wave_N_1.png": "6133dc23ad178020ed9b70efd02712c0ddebaa116c5eab6b46c655cc620c7e9d",
+    "water/wave_S_0.png": "01335cd16b4bb12ea9a8b9b4ae01ee3970648f46cc465dfeac5ba09f969e9775",
+    "water/wave_S_1.png": "695277631ebea62eb3ec5f158ae389aa8d7b509e74171aebe6011fe4d1026f3d",
+    "water/wave_W_0.png": "14fdccf07bbefa55b182b33d17272ef403a9c4e7ad3150e36d889c6860dff0bf",
+    "water/wave_W_1.png": "55e99edb46b894eb5035f93f9b88d77a96be407e40bf882d73652815382d90f4",
+    "lava/0.png": "6df6752e77d81f8bab4bd8d075f3b7a42b38d7b35559b20deb13c0ee267636c3",
+    "lava/1.png": "b418b95a484781242ae6ad45ce5bb48a69de9e97754aff00e5a19e037f50416a",
+    "lava/2.png": "4bd640ee2b54d9c95020592fe24581c77b20d51f9ab77089f72a2ff3ac4f8354",
+    "lava/3.png": "d5d2293956f80b8b24926a07aa9e0f649fb33f75a4267164c8a77b0067674b1d",
+    "lava/4.png": "e99e35051e3ef5aa7ebbb86101f7bcc1602019cf5db7963edd40f59599576ad2",
+    "lava/5.png": "fa457e0355c0464e60ce8fad6bb97c0ee97e50f50254bbd72a5f2ff828669195",
+    "stairs/down_0.png": "fbb31aaa321175ffeb173991046676a51a7479c90a06b38cc8fbf5f43608ad67",
+    "stairs/down_1.png": "d25b1fe620c18291d93f04bf2925c047d1388519012e0955dd456be97b2f0d34",
+    "stairs/up_0.png": "e91ee7454966a51ddab203402230bead6e6718408d010a4e3d3935cb38d81aee",
+    "stairs/up_1.png": "39e3cabc9e8889f78c96ca1176770e6549366fbc60403e053754b8fb67cd5ceb",
+    "traps/blade.png": "8b84b2e31d936d10b63942ddb01fcfeefa9858526c10394e3f3c33843ec24644",
+    "traps/gas.png": "632f2258c9a60c5116b12847eff93bad92f5cc1cb78a7bae559417beabf39d17",
+    "traps/magical.png": "7ef6d5040fb876b2666af63562786944c7b837578e29fd1584ffb70c650009b4",
+    "traps/net.png": "9e127f1bcf8320444a4848e87622aa2e8185d6c2e8a4ae02b2bfad53ab3e2697",
+    "traps/pit.png": "9285d11e2f952dd4e16ffa46a496e8f39ad1a281f1f2e6bfb47dcf43c5175109",
+    "traps/spikes.png": "d666e3cd673681e78e6e98a15fd5b3b6fa362ea01ceed1857261ba588d732d6f",
+    "doors/0.png": "a2dcc4e57a1c1be10db09eaa83ff18a41e34e25304ab5d36c8017b35dcdc1848",
+    "doors/1.png": "5eb06a8ee79cb48e341c886209e5e536729e62df1367706a5903ba87dc7f1e51",
+    "decor/bones_0.png": "ce47cb7681deadf6030f74f4d0e534daf41cacc48ef890c558a48e5c6e5b49ba",
+    "decor/bones_1.png": "acdacd91a759a9606e178aa87728acdd764e23fa2b726ee3eb7b13aff8930471",
+    "decor/bones_2.png": "7f5d27cb0b5ad3719ad12cd6fba8b0e5d5fcbb24cab00d2685d4775f90f7d5d7",
+    "decor/crystal_0.png": "84c294d0c60cf70e38aa0204effa5e248039450ca5fc915ff78ed0a22d18c351",
+    "decor/crystal_1.png": "2a18806a3499fc482e095ae7cbe1ffd220b86cce24a0f5e3ab12d27a6edae54e",
+    "decor/crystal_2.png": "b779789f8bbd26bc3ca428293bfb603638f7e49bb734862aeadcc7a1091111a4",
+    "decor/crystal_3.png": "84c294d0c60cf70e38aa0204effa5e248039450ca5fc915ff78ed0a22d18c351",
+    "decor/fire_0.png": "812438758e6bc5be0b46dae491c11ba9f08f05995efdc202b95bc0f18af01749",
+    "decor/grass_0.png": "4129c820bcf1cfaca10b2700a3ffa031722e87dcc3e8fa6b35b41f4820eac1e6",
+    "decor/grass_1.png": "b9f8a67c4efc92124805f237eb28de14c7fbc183a160ae4ba468ec71f5955ed0",
+    "decor/grass_2.png": "7ad4bb0ae97e8581e00b6eec705e2b331579a52e767175405c93709535edc8ae",
+    "decor/grass_3.png": "3e228d33b4f42e82bd5a83ef6b42487cb2938856691e5c28e6e30494ee885a05",
+    "decor/grass_4.png": "9ed1cd3964b806996ada250593a44821c1f44d350eb4979a158f96a9940f5ee1",
+    "decor/grass_5.png": "5d3cfbf0071d0546c54b3720b4e026fedb32f260394aac6d8d65ae3f7adaee9f",
+    "decor/lamp_0.png": "3d1a9e4b88b101dbba9c5eee3f785be86578564042be10f4760bed6d05fca44d",
+    "decor/moss_0.png": "b1b42c318f348c771e400f7bf4d549a2b01e7c49a9767d1995015191a795af7d",
+    "decor/moss_1.png": "b558d602812a21fdc5a31410b11a098d170cba4aeb229cd6202c8f696577408f",
+    "decor/moss_2.png": "b8f5b8c291a270fd718571316e86a83652cb779d19980f3ae1cca9318b319447",
+    "decor/moss_3.png": "bce6423a5bde2d2bf6884263b978bce9b84454834ed5b424b1d37363651480f4",
+    "decor/pike_0.png": "c36cbbc474baf16348e70088aaddbbea83e78e972110f7141edb80d0acfa42de",
+    "decor/pike_1.png": "3a012aaf6f5f5aed4419ea09e438f3c5a4fe2abe40ed1a7ec9d9754489a5e017",
+    "decor/rubble_0.png": "88f482e97527737bb574077793eb400d7af597509e42150d305cb57976a0c21b",
+    "decor/rubble_1.png": "1d10e253191c7610ab154e4fb01c9222788adb0bf4cbab6d49ef0a792993297a",
+    "decor/rubble_2.png": "d9211cece1503194cf5801e39864cfacafffcf4ab30b3e5c5dc36b1d113bd03b",
+    "decor/rubble_3.png": "3f4d557fddcd2403e7cc2eb878d0d4fc37841844fba4f8ecbaec5333c33e69af",
+    "decor/rubble_4.png": "db043fce6fe2394c711449cb0640e2e40172eaa0ad2436e25ee3f4194a8477c0",
+    "decor/rubble_5.png": "b6874e5e96c7a8737dcf01ff2ac7f84bf5b8edec497ce1f82e6dc7b109513559",
+    "village/barrel.png": "dfcf3ba384b906cf0f86b8436118b3fbbd28af0173e003f8bdcd2755f347ad60",
+    "village/chimney.png": "f4a8dd510a8c02311abb747af4d2278f36426b211267f76daae09badacfac5f0",
+    "village/fence.png": "71075d73b5b5cf9b7f3342ce20640bf90b3e1c166033142f9bb37b0a65fa9b8c",
+    "village/ground_0.png": "1655f2bbb30fa74b283caa14d868a813b8a3b5f1af893ae7687c8bf0d94f9e56",
+    "village/ground_1.png": "d8f304b8f7d88da992e8224598ef3ad50cbc72484130814848f9eb7b9bbdba53",
+    "village/ground_2.png": "38a329876dd3cb3491b3af54ca83c4c2505cba102709ab397c7cfa6b12596561",
+    "village/ground_3.png": "c30da99e5c8d35cda3bddff91a5dc126912975e28a5e78a39737f8a8d03b0960",
+    "village/npc_base.png": "c04d77d9a9fcbf5a0ec5fb3b32e04fc5b4d4f21b5433fadcd6390153105fb915",
+    "village/roof_blue_eave.png": "9fc1afff982997ed83fda0fced4b5dac6034611a3221c77b927e5109a42ffe88",
+    "village/roof_blue_ridge.png": "3a3d3bc486728767b18cf9e589f80919a3e14feb06e56fca682f28bd118a50c5",
+    "village/roof_blue_slope.png": "2683b26736b282ae39e9380f6d3383d9b7449072a037b767f4375d5cdd47b82b",
+    "village/roof_brown_eave.png": "63e697b0759a64f57f2815a93b0d21ba4416634c99229687312bc756469551f4",
+    "village/roof_brown_ridge.png": "70c9cfbd52bfa814c5bcf5333f5cdd8a68a480dac6bb87efc69804ada0daf240",
+    "village/roof_brown_slope.png": "e0765d678512b81790db04f7a3d24ba828e482d87185a884bf9d5fa638af65f9",
+    "village/roof_green_eave.png": "9ea5a6b07ae3509ca2aeb3a445971a3d6227df00348811e6c406de976975c1b8",
+    "village/roof_green_ridge.png": "1fc5f26fde843575a9180d618e738d825ec3d44c95392ba43985b945fb4741a5",
+    "village/roof_green_slope.png": "1314a8a81283dae2338b306dfff7803490736205728fdf85280dc94618af1a27",
+    "village/roof_red_eave.png": "4fa8d6d25e3dd862bfb88a3f0da3fcb19d7278b348321e3f68075a4bca0f3252",
+    "village/roof_red_ridge.png": "d28e51f6d6e4959b090b0ed3d0d465d216eb2744db62fb8a4be3096c1ef42f11",
+    "village/roof_red_slope.png": "43be8a61b9e98b874d42d259fb145f067a6f88dc63d126206325d34f891424aa",
+    "village/tree.png": "be06db11a5968b1163e9b6bfa08e17e32d81b023d1daa05446c97776f55a0ffb",
+    "village/wall.png": "84b08a574fe96936bdf44ccc92ca471d4e42f9b91507a9dc5ab9287e1b2c3184",
+    "village/window.png": "e85197366b000d18c66b899c2616ebc935b05458e5e441f9425261bbbb9f4047",
+    "village/woodpile.png": "443b6c7a42c3f972c43c31bc2684458a6ef6d4228977777d869c4442660b918a",
+    "village/floor_0.png": "4627ecc3aa16057a561f6fa9e902a97100d4fc8b01c866288d589ca7bc33afa3",
+    "village/floor_1.png": "1a214773e900eb9c46460dab321dad0823638f1f8f1af1434a61205bc3de8c83",
+    "village/floor_2.png": "b9dc2c19a1161b9fa3eb6f09c9b8b3f341a5793ca8f957f37a4b7007bab4e9ed",
+    "village/floor_3.png": "2b2d4a9448c15816cd466ea55950e8380f3e3e90241b79dad5912c8571ee8b86",
+    "village/wall_0.png": "1832bcaccbd1e611fda072148ecc5645bf4123af087bd51297ea42bdca3393ba",
+    "village/wall_1.png": "3e93cde3a4f0030ed3302f2b57e2c305a1acb0fb5829c8cf542595b96041e96d",
+    "floors/02/floor_0.png": "1b441e860f89a18f8006d403c83a2d39054eb9673add5ec853b7964951b9f808",
+    "floors/02/floor_1.png": "a65fe851822fe0d6a0c48d1f0de02c91e4584297020688301710d86e17a86966",
+    "floors/02/floor_2.png": "eae59ca189f92f91dd518b0c37cc148d27095da783894d02d74e43650061ce5d",
+    "floors/02/floor_3.png": "9c50c664595ec48ce923d493c419ebbd0260552e4b6161f958627d8b34d4a93a",
+    "floors/02/floor_4.png": "bb185d4195ca6224e3f3d11d2810c74d81adfa2fe0322488226c4211233833a8",
+    "floors/02/floor_5.png": "19c608cc409baa1ae24f1f555fe66f8eadea7cf456b1ed5139e4c7de9a43294d",
+    "floors/02/wall_0.png": "19e4b5c158a10d0682cbf7215770cf8f34b9a4daafa066541347fa730a37e1ba",
+    "floors/02/wall_1.png": "06ef6f710a34532c333a8234c9941e0752a1e63d69b081f6b85f534caa5a1147",
+    "floors/02/wall_2.png": "3ed82a607aebb78d7ef1c8758730f27f2136720f13f5e6eaff607b81d4b9c93d",
+    "floors/02/wall_3.png": "32082b0607a11809fcec41329f7f6f2ba8ffc371f98d8591bf11658c7f640d7f",
+    "floors/02/wall_4.png": "aba2c3ec173d29a5cb5f7ca48e158e2a436a2c0814e34b82567a9558115d003a",
+    "floors/02/wall_5.png": "7c5a1d40e077befc3efc0da6b38bc7232c7a6ce6c929bf4b2485ff08ef605a1d",
+    "floors/03/floor_0.png": "bbd228ed1cd4d93639aa8ab1a85ad94eb86499b675269fdeb5ca3e12617c7c76",
+    "floors/03/floor_1.png": "51418e72e5066dc9d6e551f52c07b27aab72798a68cded680ed25dc41320be55",
+    "floors/03/floor_2.png": "76ca4eca52784958e96955ad375b3f3d9ed8b9be1ef28919325c4725790d2e00",
+    "floors/03/floor_3.png": "957f3c938c561203a01bd89b8ac91cd3ec6ad977504c33c261698fbaf06ee6b1",
+    "floors/03/floor_4.png": "de5c8120b2ad5c5d5ab055b1ca7c02a95c9616ce3b5c2a7ce8dd9f1cfeede86b",
+    "floors/03/floor_5.png": "d104f7f964f9d5084c7b29a206de081f126c6f32668d1dbb233bd9720bb025d8",
+    "floors/03/wall_0.png": "af645c5c58d80dcaa8ea48e4ebe36178b9fb977f89f2188f12f13d619edcf799",
+    "floors/03/wall_1.png": "81004b2ab5dfd8a5999bc12d5e2ecb73ac2486b214ee85e4e8478d6afd679903",
+    "floors/03/wall_2.png": "fd7dac4c046660f80a42568c81041a94e5977d8982b15caf14862cd2f4d50f9f",
+    "floors/03/wall_3.png": "74b1afc0cc0b8bd4244b42a40369d7fffe52f23e1d24df0f37cc0f7c6b567f30",
+    "floors/03/wall_4.png": "bcce2895ad1d6cc325eee9cc944fbaf596e1caf9d45251d4779c72b2df827f56",
+    "floors/03/wall_5.png": "8bede3f9920e60f402f6ed4b72824df3dd02904d15f0682f7ae0c8ea2e290f98",
+    "floors/04/floor_0.png": "f575225c7d18b183bd8c5c0a837b536ddd9a2bd4c17a9f99b0039e5f99132158",
+    "floors/04/floor_1.png": "3e28368d65b6bc9316348296436463c8821f1305b1cc2316d3f48fe07eb8832f",
+    "floors/04/floor_2.png": "f04a78c8a49e2c348c53a7a694911338e806446ea84397c0c252f2c81ec29d2a",
+    "floors/04/floor_3.png": "aaade70a0a64e21e737b549c32d91e82d41b2f3206b505fdfdf2eca4a557365a",
+    "floors/04/floor_4.png": "9b2677757d32487a690f02cf09e8982dced96b4934e830c6e824527bfc19d8b7",
+    "floors/04/floor_5.png": "e0947c8086ee6babd08df536cfe7e629673d403c6ce5d1e6700d2bca20ef43fe",
+    "floors/04/wall_0.png": "514398953f2e9f44353b15178d5717a2046040ff132dd600946d191f5f496393",
+    "floors/04/wall_1.png": "96dc364fda31aea78f97be09022c730759a4483d46fe6fa0b8dd08d9c4049670",
+    "floors/04/wall_2.png": "3e17632a8469fdc41b657f25e16a6001088cf07e0ac7a559ff9e88f50b0c0c24",
+    "floors/04/wall_3.png": "e326cbe918108e870d4b1fc8db64fabd468849b7b680087f14e8b87321dce7b7",
+    "floors/04/wall_4.png": "80e480572f6bcc84913a6a9b39158adc7fe5718552d4a13ec62da17137e6018b",
+    "floors/04/wall_5.png": "e1b94432da93d1fba08193654d6a5404291505a90b7c085542eda85d2b6e5016",
+    "floors/05/floor_0.png": "cd4d39234928043a597d415c844e479d856f8da2bd3e520ac6c78607e15bc68a",
+    "floors/05/floor_1.png": "7e1812fc3c7e036709b6ad2fd5f89bc5ef56ab850914ed9bbeb503bacec4c761",
+    "floors/05/floor_2.png": "b8fd6b59a5029a79e0eda611a1110326acedf5c8546180b99211f4e6f3ccb121",
+    "floors/05/floor_3.png": "5ceea7431d1eb98f4d72f7cb0435f65cb8c402a971d9f7f2598d2266dbc7d2ab",
+    "floors/05/floor_4.png": "24a54301145c27102853df89a860c062941231888d827cef0748c8c85f94f2a5",
+    "floors/05/floor_5.png": "e5aa5a028aac7e5c9b3f9996fb485d3531b8744494559e4c9415212bb18af98e",
+    "floors/05/wall_0.png": "7bdeee15dd378d9a02acc6df2e2e1c8d89c65230687aa60574fef6213d9a86c6",
+    "floors/05/wall_1.png": "0c525c97028fe4f2ac703c376b0ae6e216e75f077a12b1a98a39e2a41a8465ba",
+    "floors/05/wall_2.png": "cb5354ff1b34171957e17849a841ad2f65f072d30a42b8c2765dfc1ec6000b88",
+    "floors/05/wall_3.png": "a93c4864fe0d180ee1282813264fa548a3aaa38540f4053a6829104fa4789936",
+    "floors/05/wall_4.png": "ca1988debda0d710eae057be6e54ff76a8d0476d9bb06244e5958e68e8ae47bc",
+    "floors/05/wall_5.png": "8c7b767e830046b79533373e9c0cd509833d61ab01ed72289206d2783e3c2582",
+    "floors/06/floor_0.png": "b9f5b69677868d98bbf0dc272b80277eea08d676c1e6197c0c3acc05dde919de",
+    "floors/06/floor_1.png": "7ba15ab92d48b1c540964b9d2310ddfd093008bbc280b6398118be91d45c6ba4",
+    "floors/06/floor_2.png": "b8a5227082f64356b92ed4f69bad34e03385abe9c0317226c02bd1ccfa47e937",
+    "floors/06/floor_3.png": "3eb2ee64fed0efbe633f0e53ff802847df50f47f3a1de2db1402af17e707d3d8",
+    "floors/06/floor_4.png": "3ac374769e4000f0808abd5be9bd5e14fb34e9250466e79593f4d7a314d5d919",
+    "floors/06/floor_5.png": "aedfc54d83d65b775b125cfbac83e25b51a891258fbb1a52dcd88d140f16429a",
+    "floors/06/wall_0.png": "0c25ed61399a2126072c99d66f4f9bd5d03ee5a36179eef9ce047fb8e2e5dd44",
+    "floors/06/wall_1.png": "01552ad13bdd7a048e6bb64e5f49815163b6231f0001b3d5e6dea5fa9153f57f",
+    "floors/06/wall_2.png": "f52f700edf15da81d7f560c2dd186919c250c358d07055a65848e08285b489a3",
+    "floors/06/wall_3.png": "ae091a1fc7c7fb92131b92ebc4ac5832b2787503f34534671aa11760b60ac256",
+    "floors/06/wall_4.png": "a35c59d039d91c9aaf72b45297b7df4dc2578089fbeeb89723b326fbb2c1c9a5",
+    "floors/06/wall_5.png": "ba0b2e2be7aaf3e04aac3a840587abb315c31dc53d42654e35f1dab44578976a",
+    "floors/07/floor_0.png": "1b03c1b32960617cb0e0ef4557dd692022c114c58bd41d8c0eef3512c033c4a6",
+    "floors/07/floor_1.png": "a5b9e58dfb88a272b36fecdd517e795340db805cfb7700798724770ad8bd015c",
+    "floors/07/floor_2.png": "46ed46d8a00f332a55c97c4736fb166e4c7d0facb10506d978547e5e11c81409",
+    "floors/07/floor_3.png": "9f1edf498def1ce33b55f140e0b35302b96fe13ef9701c372b7ef9694cb11f1d",
+    "floors/07/floor_4.png": "d9faa5ec6dd7c009a7bf50a3bdf6c24ccc9629ee14b02ec4090995c5660f08b7",
+    "floors/07/floor_5.png": "3f79ffdb1fe228cbee55bdc102a2548361807b11e97fbaa9ea820fa09105b3c3",
+    "floors/07/wall_0.png": "e5966c82ad037ac4e3683682757e20086380033c581ad2f325d3b19a4e66c9b3",
+    "floors/07/wall_1.png": "6c51330ac1c2bbdb98473c71f5d07d913deba3791c05eb0f12d5640ecb8c04c7",
+    "floors/07/wall_2.png": "6d6f7701555989fcf559d4b63f03fb143e23d9f11a8500cdfaf72c98c4f1c472",
+    "floors/07/wall_3.png": "9d6a49ccea4ebd2764fa2302d6e607d8577023b38e5794707b8fed0c7ed60001",
+    "floors/07/wall_4.png": "4d9146edc6a6822c6691aff5369e04784148f1ef26aa3c65beeb9caf28990137",
+    "floors/07/wall_5.png": "f05e48351e489905c05643f9ccfc661060f9c1e4dbf46ab47766a0faf88a9bc5",
+    "floors/08/floor_0.png": "509a12ca4d04fd74a1538af057916984fcf602be7a4cd6a53440396d2de9371c",
+    "floors/08/floor_1.png": "f8a1db5cc8a59b1cca019f73ecadfe1a29a423f74cf98802848c9643b0be3696",
+    "floors/08/floor_2.png": "688df71a156417e3dce716d3a485a8c03a3c0198b1e986f040153e2991aa8ef2",
+    "floors/08/floor_3.png": "ebee682b82ebc713445102955d1e829c9a3058bce281f50c8ec563f2572026ee",
+    "floors/08/floor_4.png": "3f10995a4fe683a3d3183f1b20d48cf48f262cc4a72f0fba93d90a39b2dfe08f",
+    "floors/08/floor_5.png": "aa8bc3c5e4c2b5cbf2ea78147ba51a350243482defbdfb0efcc2b90b9f40abe0",
+    "floors/08/wall_0.png": "cd75fccbf3f115959db950d59f7bc5e405647ac9a94f830c4ec097d98fb8aca3",
+    "floors/08/wall_1.png": "51fdec21a86a043ddc38c2cc1ef3c153675dacb4f32fe42ce42e975116f062d2",
+    "floors/08/wall_2.png": "20bdabe47786adccf604ec7e3f423c429e94f00fe87316140f667d3c456d3abc",
+    "floors/08/wall_3.png": "777250c4debdcf14d59d2e2700ea7feeb74b805b157e0e60cb9505e252b235ae",
+    "floors/08/wall_4.png": "9c173531be7c7dcc85e2ed09732c59ca6a87ddfcabdc18eeef5734812fecc947",
+    "floors/08/wall_5.png": "0ca829babc501a3d132e12805f19bba18a4782eaf2593014dfb6db550d27e651",
+    "floors/09/floor_0.png": "d04f61f65d6e6a4d7792d9129e4d50b35f285da0e41d116ce3ab9e919e360dd9",
+    "floors/09/floor_1.png": "fb8847c28dc765f26eeee30a2904639a0a506ea5921286ceb0f623fe8e61c47f",
+    "floors/09/floor_2.png": "973de6880fd8ebe9ce293dd7cae136f6cc644a0b00398c2f8bb5352f778cd0e7",
+    "floors/09/floor_3.png": "868ec1576c62f0b393a133d1f9ef4d1d2091341bb661c469795be60a6839e4b7",
+    "floors/09/floor_4.png": "183665254299193365c3e3b839eaad80918e94e09c178fec881334a84218c3ae",
+    "floors/09/floor_5.png": "fafe67a439481eced91ed75be985224c4692ca9bc252a79e74fdba2982671675",
+    "floors/09/wall_0.png": "9dbc5f6ac3e211b78b60f0c882c11c6b5dfa519caadf98322f488664524a8c1e",
+    "floors/09/wall_1.png": "1cb715ff676b610335d4d30de2697c81afdcfdd6df1a2784486a9aacd37b4feb",
+    "floors/09/wall_2.png": "b68af57aa1388ec0efe537130f454112e0bdc496e699b7c10e78cb4f79d59e56",
+    "floors/09/wall_3.png": "b5ec816d007f368afa878ebf172a46da0d63aed960ee7857fecb26fa283d8cbd",
+    "floors/09/wall_4.png": "8810875d2bd9c53c7be180672f4c793326d0086b457a39ddf885f1fe1b04d456",
+    "floors/09/wall_5.png": "a9dcb884b9caf0e661779fb392c87a02b7cfe8abf13d7a08a9c4e2265d3cec5b",
+    "floors/10/floor_0.png": "2468bb9b4e49c9dad58e8efd8a5eafd349efd9881d7632ae81a56f6dc03b0a67",
+    "floors/10/floor_1.png": "858e78c3e61659074c9ac5801fcc955e52556682da6c6d4430eae91bad03ed89",
+    "floors/10/floor_2.png": "741ce0c54ed50f4db0815982a67e45fa7dbaa7371fa77331c9aeaf55196d2fe1",
+    "floors/10/floor_3.png": "490f23e6087aad85b5d47fcb6469eb8e210d809792782955b7d0a98586669d3f",
+    "floors/10/floor_4.png": "dc9caafed8bdc5e139cfc8e2a95c8b17dd92659ff1b7d1981a268da1af50d838",
+    "floors/10/floor_5.png": "3ce9a61eebfbaea12753eca25e952e40b52f9b51b883fd3f3a9d49f5ffe83ac2",
+    "floors/10/wall_0.png": "334e47d2bcec4606ae858c5caaaf8b773ed08cfe92f0fba4c777f321d479bb13",
+    "floors/10/wall_1.png": "c0e6f35cc287bd63aec857c3f327d23c4a9cc1194d778d8bd837f0c3914b74aa",
+    "floors/10/wall_2.png": "7f84327b5b30af00fab7ff82a720de0b861442084d19debaeb21f92119f415c8",
+    "floors/10/wall_3.png": "883e7c47754879888f0289d9394830a485edde4e87a06361bb116cd665cb0fb2",
+    "floors/10/wall_4.png": "7c4a8fd49a3c44fc008d709bdf35b95826874b64d9981d6fe2646069fc085a84",
+    "floors/10/wall_5.png": "db47b7c103d3d9c1abd788265e9e4133ab72eecd14371f7783209719c91d3f46"
+  }
+}

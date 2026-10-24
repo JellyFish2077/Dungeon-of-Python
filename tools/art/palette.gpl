@@ -1,0 +1,42 @@
+GIMP Palette
+Name: PyDungeon
+Columns: 8
+#
+  5   7  13	outline
+ 10  15  26	ink
+ 18  27  43	navy-deep
+ 27  42  68	navy-shadow
+ 41  64  95	navy
+ 63  95 136	steel
+110 143 184	steel-light
+169 193 222	pale-steel
+232 240 250	white
+107  74  30	gold-shadow
+185 130  47	gold
+232 183  91	gold-light
+255 225 160	gold-highlight
+ 74  18  27	red-shadow
+142  34  51	red
+217  74  80	red-light
+ 16  42  27	green-shadow
+ 47 107  63	green
+111 174  90	green-light
+110 102  83	bone-shadow
+184 174 148	bone
+228 220 196	bone-light
+ 41  26  59	purple-shadow
+ 85  52 119	purple
+147 102 184	purple-light
+ 46  32  20	brown-shadow
+ 92  63  39	brown
+143 102  66	brown-light
+176 130  76	leather
+ 42  47  56	stone-shadow
+ 74  82  94	stone
+124 135 148	stone-light
+ 59  66  76	stone-deep
+ 90  98 112	stone-mid
+201 122 130	pink
+122 143  58	olive
+163 179  79	olive-light
+ 58  74  28	olive-shadow

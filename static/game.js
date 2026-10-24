@@ -2047,12 +2047,22 @@
   // свой («campfire»), и без перевода mapIcon вернул бы чужую картинку.
   const PROP_NAMES = {
     tree: "Дерево", fence: "Забор", well: "Колодец", fire: "Костёр",
-    barrel: "Бочка", woodpile: "Поленница", chimney: "Труба"
+    barrel: "Бочка", woodpile: "Поленница", chimney: "Труба",
+    table: "Стол", chair: "Стул", bed: "Кровать", shelf: "Полка",
+    crate: "Ящик", anvil: "Наковальня", fireplace: "Очаг",
+    workbench: "Верстак", cauldron: "Котёл", counter: "Прилавок"
   };
   const PROP_ICONS = {
     tree: "tree", fence: "fence", well: "well", fire: "campfire",
-    barrel: "barrel", woodpile: "woodpile", chimney: "chimney"
+    barrel: "barrel", woodpile: "woodpile", chimney: "chimney",
+    table: "table", chair: "chair", bed: "bed", shelf: "shelf",
+    crate: "crate", anvil: "anvil", fireplace: "fireplace",
+    workbench: "workbench", cauldron: "cauldron", counter: "counter"
   };
+  const INTERIOR_PROPS = new Set([
+    "table", "chair", "bed", "shelf", "crate", "anvil",
+    "fireplace", "workbench", "cauldron", "counter"
+  ]);
 
   function placeName() {    if (G.place === "village") return "Деревня";
     if (G.place === "house") {
@@ -2124,7 +2134,8 @@
     // обычный пол, поэтому без отдельного списка они были бы невидимы.
     const scenery = src.objects.filter((o) =>
       o.kind === "tree" || o.kind === "fence" || o.kind === "well" || o.kind === "fire" ||
-      o.kind === "barrel" || o.kind === "woodpile");
+      o.kind === "barrel" || o.kind === "woodpile" || o.kind === "chimney" ||
+      INTERIOR_PROPS.has(o.kind));
     // Материалы клеток: в деревне по ним рисуется крыша, фасад и окна.
     // В комнатах их нет — там всё как в подземелье, каменным полом.
     const mats = npcPlace === "village" ? villageMaterials(src) : blankMaterials(src.w, src.h);
@@ -2162,19 +2173,9 @@
     // её нет — она появляется в деревне только после постройки.
     const house = villageBuildingByKey(key);
     if (!house || !HOUSE_MAPS[key]) return null;
-    const st = villagePlaceState(HOUSE_MAPS[key], key);
-    // Внутри дома стены — та же кладка, что снаружи: комната из панелей
-    // подземелья выглядела чужой рядом с новым фасадом.
-    const mats = blankMaterials(st.map.w, st.map.h);
-    for (let y = 0; y < st.map.h; y++) {
-      for (let x = 0; x < st.map.w; x++) {
-        if (st.map.grid[y][x] === 0) mats.mat[y][x] = "facade";
-      }
-    }
-    st.mat = mats.mat;
-    st.roofKind = mats.roofKind;
-    st.roofColor = mats.roofColor;
-    return st;
+    // Внутри дома стены и пол берутся из TERRAIN_VILLAGE.interior: это
+    // отдельная деревянная комната, а не фасад с улицы.
+    return villagePlaceState(HOUSE_MAPS[key], key);
   }
 
   // В деревне похода ещё нет, а ходьбе и панели нужен объект героя.
@@ -2238,7 +2239,7 @@
     G.mat = st.mat || null;
     G.roofKind = st.roofKind || null;
     G.roofColor = st.roofColor || null;
-    G.ground = VILLAGE_GROUND;
+    G.ground = kind === "house" ? 11 : VILLAGE_GROUND;
     G.enemies = [];
     G.treasures = [];
     G.lootBags = [];
@@ -3623,7 +3624,7 @@
       G.tileBg = [];
       G.tileObj = [];
       G.tileAnim = [];
-      const theme = (G.ground || 0) % 10;
+      const theme = G.ground || 0;
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const t = document.createElement("div");
@@ -3724,6 +3725,9 @@
       // Пиксель-арт (спрайт или тайл) занимает клетку целиком — см. .ent-px:
       // доля клетки (0.72, 0.9) давала дробный масштаб, и спрайт «мылился».
       const klass = cls + (mapIconIsPixel(iconKey) ? " ent-px" : "");
+      const bobSeed = (x * 13 + y * 7 + iconKey.length) % 11;
+      node.style.setProperty("--idle-delay", (-bobSeed * 0.17).toFixed(2) + "s");
+      node.style.setProperty("--idle-dur", (2.2 + (bobSeed % 4) * 0.23).toFixed(2) + "s");
       const sig = iconKey + "|" + klass + "|" + (color || "");
       if (node.dataset.sig !== sig) {
         node.dataset.sig = sig;
