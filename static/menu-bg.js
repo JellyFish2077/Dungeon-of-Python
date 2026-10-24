@@ -7,11 +7,12 @@
   "use strict";
 
   const W = 960;
-  const H = 600;
-  const COLS = 32;
-  const ROWS = 20;
-  const T = 30;
+  const H = 608;
+  const COLS = 30;
+  const ROWS = 19;
+  const T = 32;
   const SWAP_MS = 8000;
+  const BIOME_THEMES = [0, 2, 4, 6, 9];
 
   const THEMES = [
     { floor: ["#1c2632", "#202b38", "#18222d"], wall: ["#2b3441", "#333e4d", "#202833"], edge: "#455365", glow: "#e8b75b", moss: "#4e7a52" },
@@ -25,6 +26,39 @@
   let started = false;
   let current = 0;
   let layers = [];
+  const tileImages = new Map();
+  let repaintQueued = false;
+
+  // Раньше фон рисовался цветными прямоугольниками. Теперь, если рядом уже
+  // загружены настоящие тайлы (terrain.js), фон собирается из них. Пока
+  // картинки декодируются, остаётся процедурный fallback — меню не мигает
+  // пустотой.
+  function imageFor(uri) {
+    if (!uri || typeof Image === "undefined") return null;
+    let img = tileImages.get(uri);
+    if (!img) {
+      img = new Image();
+      img.decoding = "async";
+      img.onload = () => {
+        if (!active || repaintQueued) return;
+        repaintQueued = true;
+        setTimeout(() => {
+          repaintQueued = false;
+          if (active && typeof paintDungeon === "function") reveal(paintDungeon());
+        }, 30);
+      };
+      img.src = uri;
+      tileImages.set(uri, img);
+    }
+    return img.complete && img.naturalWidth ? img : null;
+  }
+
+  function drawTile(ctx, uri, px, py) {
+    const img = imageFor(uri);
+    if (!img) return false;
+    ctx.drawImage(img, px, py, T, T);
+    return true;
+  }
 
   function el(id) {
     return typeof document !== "undefined" ? document.getElementById(id) : null;
@@ -162,8 +196,12 @@
     canvas.height = H;
     const ctx = canvas.getContext("2d");
     if (!ctx) return "";
+    ctx.imageSmoothingEnabled = false;
     const map = buildMap();
-    const theme = map.theme;
+    const themeIndex = pick(BIOME_THEMES);
+    const theme = THEMES[themeIndex % THEMES.length];
+    const tiles = (typeof TERRAIN_FLOORS !== "undefined" && TERRAIN_FLOORS[themeIndex])
+      ? TERRAIN_FLOORS[themeIndex] : null;
 
     ctx.fillStyle = "#05080d";
     ctx.fillRect(0, 0, W, H);
@@ -185,27 +223,24 @@
         if (!map.floor[y][x]) continue;
         const px = x * T;
         const py = y * T;
-        ctx.fillStyle = pick(theme.floor);
-        ctx.fillRect(px, py, T, T);
-        ctx.fillStyle = "rgba(255, 255, 255, 0.035)";
-        ctx.fillRect(px, py, T, 2);
-        ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
-        ctx.fillRect(px, py + T - 2, T, 2);
-        if (Math.random() < 0.09) {
-          ctx.strokeStyle = "rgba(0, 0, 0, 0.28)";
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.moveTo(px + rint(4, T - 7), py + rint(4, T - 7));
-          ctx.lineTo(px + rint(5, T - 3), py + rint(5, T - 3));
-          ctx.stroke();
+        const uri = tiles && tiles.floor.length
+          ? tiles.floor[((x * 7 + y * 13) % tiles.floor.length + tiles.floor.length) % tiles.floor.length]
+          : "";
+        if (!drawTile(ctx, uri, px, py)) {
+          ctx.fillStyle = pick(theme.floor);
+          ctx.fillRect(px, py, T, T);
+          ctx.fillStyle = "rgba(255, 255, 255, 0.035)";
+          ctx.fillRect(px, py, T, 2);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.22)";
+          ctx.fillRect(px, py + T - 2, T, 2);
         }
-        if (Math.random() < 0.07) {
-          ctx.fillStyle = theme.moss;
-          ctx.globalAlpha = 0.3;
-          ctx.beginPath();
-          ctx.arc(px + rint(5, T - 5), py + rint(5, T - 5), rint(2, 5), 0, Math.PI * 2);
-          ctx.fill();
-          ctx.globalAlpha = 1;
+        if (Math.random() < 0.2 && typeof TERRAIN_DECOR !== "undefined") {
+          const list = TERRAIN_DECOR[pick(["grass", "moss", "bones", "crystal"])];
+          if (list && list.length) {
+            ctx.globalAlpha = 0.9;
+            drawTile(ctx, pick(list), px, py);
+            ctx.globalAlpha = 1;
+          }
         }
       }
     }
@@ -215,6 +250,10 @@
         if (!map.wall[y][x]) continue;
         const px = x * T;
         const py = y * T;
+        const uri = tiles && tiles.wall.length
+          ? tiles.wall[((x * 11 + y * 5) % tiles.wall.length + tiles.wall.length) % tiles.wall.length]
+          : "";
+        if (drawTile(ctx, uri, px, py)) continue;
         ctx.fillStyle = theme.wall[2];
         ctx.fillRect(px, py + 3, T, T - 3);
         ctx.fillStyle = theme.wall[0];
@@ -234,13 +273,17 @@
     const far = map.rooms[map.rooms.length - 1];
     const stairsX = Math.floor(far.x + far.w / 2);
     const stairsY = Math.floor(far.y + far.h / 2);
-    const sx = stairsX * T + 3;
-    const sy = stairsY * T + 3;
-    ctx.fillStyle = "#05080d";
-    ctx.fillRect(sx, sy, T - 6, T - 6);
-    for (let i = 0; i < 4; i += 1) {
-      ctx.fillStyle = i % 2 ? "#596575" : "#3e4857";
-      ctx.fillRect(sx + 2 + i, sy + 4 + i * 5, T - 10 - i * 2, 3);
+    const stairsUri = (typeof TERRAIN_STAIRS !== "undefined" && TERRAIN_STAIRS.down)
+      ? TERRAIN_STAIRS.down[0] : "";
+    if (!drawTile(ctx, stairsUri, stairsX * T, stairsY * T)) {
+      const sx = stairsX * T + 3;
+      const sy = stairsY * T + 3;
+      ctx.fillStyle = "#05080d";
+      ctx.fillRect(sx, sy, T - 6, T - 6);
+      for (let i = 0; i < 4; i += 1) {
+        ctx.fillStyle = i % 2 ? "#596575" : "#3e4857";
+        ctx.fillRect(sx + 2 + i, sy + 4 + i * 5, T - 10 - i * 2, 3);
+      }
     }
 
     const openCells = [];
@@ -261,6 +304,7 @@
     shuffle(openCells);
 
     function chest(x, y) {
+      if (typeof TERRAIN_OBJECTS !== "undefined" && drawTile(ctx, TERRAIN_OBJECTS.chest, x * T, y * T)) return;
       const cx = x * T + 5;
       const cy = y * T + 10;
       ctx.fillStyle = "#5b3b20";
@@ -275,6 +319,9 @@
     }
 
     function barrel(x, y) {
+      const obj = (typeof TERRAIN_VILLAGE !== "undefined" && TERRAIN_VILLAGE.objects)
+        ? TERRAIN_VILLAGE.objects.barrel : "";
+      if (drawTile(ctx, obj, x * T, y * T)) return;
       const cx = x * T + 8;
       const cy = y * T + 8;
       ctx.fillStyle = "#4b3422";
@@ -287,6 +334,8 @@
     }
 
     function bones(x, y) {
+      if (typeof TERRAIN_DECOR !== "undefined" && TERRAIN_DECOR.bones && TERRAIN_DECOR.bones.length
+          && drawTile(ctx, pick(TERRAIN_DECOR.bones), x * T, y * T)) return;
       const cx = x * T + T / 2;
       const cy = y * T + T / 2;
       ctx.strokeStyle = "#a7a18d";
@@ -326,6 +375,10 @@
     openCells.slice(0, 4).forEach(([x, y]) => chest(x, y));
     openCells.slice(4, 9).forEach(([x, y]) => barrel(x, y));
     openCells.slice(9, 15).forEach(([x, y]) => bones(x, y));
+    if (typeof TERRAIN_OBJECTS !== "undefined" && TERRAIN_OBJECTS.portal && openCells[15]) {
+      const [px, py] = openCells[15];
+      drawTile(ctx, TERRAIN_OBJECTS.portal, px * T, py * T);
+    }
 
     // Факелы ставим у стен, чтобы свет читался как настоящий.
     const torches = openCells.filter(([x, y]) => {

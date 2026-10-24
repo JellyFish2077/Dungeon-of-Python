@@ -42,10 +42,9 @@ const VILLAGE_MAP = [
 // Где герой появляется в деревне (после загрузки, смерти и победы).
 const VILLAGE_SPAWN = { x: 4, y: 8 };
 
-// Тема земли деревни: индекс темы из TERRAIN_FLOORS. Взята каменная
-// («Древние руины»): стены домов выходят каменными, а дорожки — плитами.
-// Трава кладётся отдельным слоем декора поверх.
-const VILLAGE_GROUND = 5;
+// Тема земли деревни: служебный индекс 10 — собственный грунт деревни
+// (TERRAIN_VILLAGE.ground), а не один из подземных этажей.
+const VILLAGE_GROUND = 10;
 
 // Значение клетки: пол/стена, код декора и необязательный объект.
 //   floor: 0 — стена, 1 — пол
@@ -78,7 +77,18 @@ const VILLAGE_TILES = {
   "1": { floor: 1, kind: "npc" },
   "2": { floor: 1, kind: "npc" },
   "3": { floor: 1, kind: "npc" },
-  "4": { floor: 1, kind: "npc" }
+  "4": { floor: 1, kind: "npc" },
+  // Мебель внутри домов: клетка непроходима, как и уличная утварь.
+  "t": { floor: 1, kind: "table", blocked: true },
+  "c": { floor: 1, kind: "chair", blocked: true },
+  "b": { floor: 1, kind: "bed", blocked: true },
+  "s": { floor: 1, kind: "shelf", blocked: true },
+  "r": { floor: 1, kind: "crate", blocked: true },
+  "a": { floor: 1, kind: "anvil", blocked: true },
+  "f": { floor: 1, kind: "fireplace", blocked: true },
+  "w": { floor: 1, kind: "workbench", blocked: true },
+  "k": { floor: 1, kind: "cauldron", blocked: true },
+  "n": { floor: 1, kind: "counter", blocked: true }
 };
 
 // Дома деревни. Раньше дом был просто блоком стен — отсюда и «набор
@@ -224,58 +234,58 @@ function villageMaterials(parsed) {
 const HOUSE_MAPS = {
   trader: [
     "#########",
-    "#i#iii#i#",
+    "#s#iii#r#",
     "#i1iiiii#",
     "#iiiiiii#",
-    "#iiiiiii#",
+    "#iiiiini#",
     "#iiiiiii#",
     "####X####"
   ],
   elder: [
     "#########",
-    "#iiiiiii#",
+    "#siiiibi#",
     "#i1iiiii#",
     "#iiiiiii#",
-    "#i###iii#",
+    "#i###itc#",
     "#iiiiiii#",
     "####X####"
   ],
   mentor: [
     "#########",
-    "#iiiiiii#",
+    "#siiiiii#",
     "#i1iiiii#",
     "#iiiiiii#",
-    "#ii###ii#",
+    "#ki###tc#",
     "#iiiiiii#",
     "####X####"
   ],
   // Амбар: кладовка. Полки вдоль стен, к ним и подходят за припасами.
   barn: [
     "#########",
-    "#i#i#i#i#",
+    "#r#r#r#r#",
     "#i1iiiii#",
     "#iiiiiii#",
     "#iiiiiii#",
-    "#iii#iii#",
+    "#rir#irs#",
     "####X####"
   ],
   // Кузница: горн стоит отдельно, чтобы он не перекрывал проход от двери.
   forge: [
     "#########",
-    "#ii#iiii#",
+    "#wii#iii#",
     "#i1iiiii#",
     "#iiiiiii#",
-    "#iiii#ii#",
+    "#fiii#ai#",
     "#iiiiiii#",
     "####X####"
   ],
   // Мастерская: верстак в углу, у стены.
   smith: [
     "#########",
-    "#i###iii#",
+    "#s###iri#",
     "#i1iiiii#",
     "#iiiiiii#",
-    "#iiii#ii#",
+    "#iiii#wi#",
     "#iiiiiii#",
     "####X####"
   ]
