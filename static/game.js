@@ -6302,6 +6302,7 @@
   function openBattle(enemy) {
     // Бой прерывает маршрут, набранный кликом.
     endWalk();
+    cancelBattleClose();
     markCodex("enemies", enemy.key);
     G.battle = {
       enemy,
@@ -7369,7 +7370,38 @@
     }
   }
 
+  let battleCloseTimer = null;
+  let battleFadeTimer = null;
+
+  function cancelBattleClose() {
+    if (battleCloseTimer) clearTimeout(battleCloseTimer);
+    if (battleFadeTimer) clearTimeout(battleFadeTimer);
+    battleCloseTimer = null;
+    battleFadeTimer = null;
+    const overlay = el("battle-overlay");
+    if (overlay) overlay.classList.remove("battle-closing");
+  }
+
+  function scheduleBattleClose() {
+    cancelBattleClose();
+    // Синхронные проверки не должны ждать таймер и закрывать бой за них.
+    if (globalThis.__PYQUIZ_SYNC_FLOORS) return;
+    battleCloseTimer = setTimeout(() => {
+      const b = G.battle;
+      if (!b || b.phase !== "result" || !b.won || b.squadNext ||
+          b.playerDead || !G.player || G.player.hp <= 0) return;
+      const overlay = el("battle-overlay");
+      if (overlay) overlay.classList.add("battle-closing");
+      battleCloseTimer = null;
+      battleFadeTimer = setTimeout(() => {
+        battleFadeTimer = null;
+        continueBattle();
+      }, 420);
+    }, 1800);
+  }
+
   function closeBattle() {
+    cancelBattleClose();
     G.battle = null;
     el("battle-overlay").classList.add("hidden");
     document.body.classList.remove("battling");
@@ -7640,10 +7672,16 @@
       html += battleGroupHtml("Защита", hero.defense, "defense");
       html += battleGroupHtml("Побег", hero.flee, "flee");
     } else {
-      // В фазе разбора выбирать не из чего: одна кнопка «Продолжить» вместо
-      // четырёх категорий, у которых открывать было бы нечего.
-      html += "<div class='battle-cat-wide'>" +
-        "<button class='btn' id='continue-btn'>" + footLabel + "</button></div>";
+      // Победа закрывает окно сама: короткая пауза, затем плавное исчезновение.
+      // Кнопка «Забрать добычу» больше не нужна — мешочек ждёт на карте.
+      if (b.phase === "result" && b.won && !b.squadNext &&
+          !b.playerDead && G.player && G.player.hp > 0) {
+        html += "<div class='battle-cat-wide battle-auto-note'>" +
+          "Бой завершён · добыча в мешочке</div>";
+      } else {
+        html += "<div class='battle-cat-wide'>" +
+          "<button class='btn' id='continue-btn'>" + footLabel + "</button></div>";
+      }
     }
     html += "</div>";
     html += "<div class='effect-list battle-effects' id='battle-effects'></div>";
@@ -7743,7 +7781,15 @@
       el("check-btn").addEventListener("click", checkCode);
       input.focus();
     } else {
-      el("continue-btn").addEventListener("click", continueBattle);
+      const cont = el("continue-btn");
+      if (cont) cont.addEventListener("click", continueBattle);
+    }
+
+    if (b.phase === "result" && b.won && !b.squadNext &&
+        !b.playerDead && G.player && G.player.hp > 0) {
+      scheduleBattleClose();
+    } else {
+      cancelBattleClose();
     }
 
     box.querySelectorAll("button[data-potion]").forEach((btn) => {
@@ -9614,6 +9660,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.8.1",
+      date: "24 октября 2026",
+      title: "Бой закрывается сам",
+      items: [
+        "После победы окно боя показывает итог пару секунд и плавно исчезает — кнопка «Забрать добычу» больше не нужна.",
+        "Кнопка «Убить всех» в панели разработчика теперь оставляет мешочки с добычей на местах всех врагов."
+      ]
+    },
     {
       version: "1.8.0",
       date: "24 октября 2026",
@@ -11737,18 +11792,16 @@ function topicName(key) {
   }
 
   function devKillAll() {
-    (G.enemies || []).forEach((e) => { e.hp = 0; });
-    G.enemies = [];
+    if (G.battle) closeBattle();
+    const foes = (G.enemies || []).slice();
+    foes.forEach((e) => {
+      if (G.enemies.indexOf(e) >= 0) defeatEnemy(e);
+    });
     if (G.stairsDown) G.stairsDown.active = true;
-    if (G.battle) {
-      G.battle = null;
-      el("battle-overlay").classList.add("hidden");
-      document.body.classList.remove("battling");
-    }
     render();
     updateHud();
     updateActionButton();
-    toast("Этаж очищен: врагов нет, лестница открыта");
+    toast("Этаж очищен: врагов нет, на их местах остались мешочки");
   }
 
   function devToStairs() {

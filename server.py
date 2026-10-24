@@ -53,7 +53,7 @@ DATA_DIR = os.path.abspath(os.environ.get("PYQUIZ_DATA_DIR") or BASE_DIR)
 #   MINOR — новые возможности и изменения поведения/баланса;
 #   MAJOR — несовместимые изменения (формат сохранения, API).
 # Формат сохранения G (data.v = 1) версией приложения не является.
-VERSION = "1.8.0"
+VERSION = "1.8.1"
 VERSION_DATE = "2026-10-24"
 
 VERSION_CLIENT_JS = """

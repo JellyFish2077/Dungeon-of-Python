@@ -7209,3 +7209,29 @@ body.game-page .site-head .head-actions {
     font-size: 10px;
   }
 }
+
+/* Победа в бою: окно само гаснет через пару секунд. */
+#battle-overlay {
+  transition: opacity 0.38s ease;
+}
+
+#battle-overlay.battle-closing {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#battle-overlay.battle-closing .battle {
+  transform: translateY(10px) scale(0.985);
+  transition: transform 0.38s ease;
+}
+
+.battle-auto-note {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--parchment-dim);
+  font: 10px/1.4 var(--font-data);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
