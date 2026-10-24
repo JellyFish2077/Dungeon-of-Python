@@ -20,7 +20,7 @@
   function ensureWorker() {
     if (worker) return worker;
     try {
-      worker = new Worker("static/pyodide-worker.js?v=20261024085047");
+      worker = new Worker("static/pyodide-worker.js?v=20261024094501");
     } catch (err) {
       settleBoot(false, String((err && err.message) || err));
       return null;
