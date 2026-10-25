@@ -126,6 +126,9 @@ def main():
         encoding="utf-8",
     )
     print("готово: %s" % PUBLIC)
+    # GitHub Pages не должен прогонять файлы через Jekyll: иначе он
+    # выбрасывает часть статики и ломает пути к Pyodide.
+    (PUBLIC / ".nojekyll").write_text("", encoding="utf-8")
     return 0
 
 
