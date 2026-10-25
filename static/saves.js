@@ -425,6 +425,116 @@
     }
   }
 
+  // Экспорт и импорт — страховка для itch.io и GitHub Pages: localStorage
+  // легко потерять при очистке браузера. Один файл хранит все три слота.
+  function backupData() {
+    return {
+      app: "pydungeon",
+      kind: "saves-backup",
+      v: 1,
+      profile: userName(),
+      exportedAt: new Date().toISOString(),
+      slots: slots.map((slot) => slot ? {
+        id: slot.id,
+        name: slot.name,
+        createdAt: slot.createdAt,
+        updatedAt: slot.updatedAt,
+        snapshot: slot.snapshot
+      } : null)
+    };
+  }
+
+  function exportBackup() {
+    if (!userName()) {
+      setStatus("Сначала войди в профиль.", "error");
+      return;
+    }
+    const text = JSON.stringify(backupData(), null, 2);
+    const stamp = new Date().toISOString().slice(0, 10);
+    const filename = "pydungeon-saves-" + stamp + ".json";
+    try {
+      const blob = new Blob([text], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      sound("correct");
+      setStatus("Резервная копия: " + filename + ".", "ok");
+    } catch (e) {
+      try {
+        navigator.clipboard.writeText(text);
+        sound("correct");
+        setStatus("Файл не скачался — копия сохранена в буфер обмена.", "ok");
+      } catch (err) {
+        sound("wrong");
+        setStatus("Не удалось сохранить резервную копию.", "error");
+      }
+    }
+  }
+
+  function importBackup(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let parsed = null;
+      try {
+        parsed = JSON.parse(String(reader.result || ""));
+      } catch (e) {
+        sound("wrong");
+        setStatus("Это не файл резервной копии PyDungeon.", "error");
+        return;
+      }
+      const incoming = Array.isArray(parsed) ? parsed
+        : (parsed && Array.isArray(parsed.slots) ? parsed.slots : null);
+      if (!incoming) {
+        sound("wrong");
+        setStatus("В файле нет сохранений.", "error");
+        return;
+      }
+      const next = emptySlots();
+      let count = 0;
+      for (let i = 0; i < SLOT_COUNT && i < incoming.length; i += 1) {
+        const item = incoming[i];
+        if (!item || !item.snapshot || item.snapshot.v !== 1) continue;
+        next[i] = {
+          id: "slot-" + (i + 1),
+          name: String(item.name || "Сохранение " + (i + 1)).slice(0, 40),
+          createdAt: Number(item.createdAt) || Date.now(),
+          updatedAt: Number(item.updatedAt) || Date.now(),
+          snapshot: item.snapshot
+        };
+        count += 1;
+      }
+      if (!count) {
+        sound("wrong");
+        setStatus("В файле нет подходящих сохранений.", "error");
+        return;
+      }
+      const who = parsed && parsed.profile ? " («" + parsed.profile + "»)" : "";
+      if (!window.confirm("Импортировать " + count + " сохранений" + who +
+          "? Текущие слоты будут заменены.")) {
+        return;
+      }
+      slots = next;
+      selected = selectedIndex();
+      renaming = -1;
+      persist();
+      sound("correct");
+      setStatus("Импортировано сохранений: " + count + ".", "ok");
+      render();
+    };
+    reader.onerror = () => {
+      sound("wrong");
+      setStatus("Не удалось прочитать файл.", "error");
+    };
+    reader.readAsText(file);
+  }
+
   function init() {
     if (inited) return;
     inited = true;
@@ -438,6 +548,18 @@
     if (closeBtn) closeBtn.addEventListener("click", close);
     const back = $("saves-back");
     if (back) back.addEventListener("click", close);
+    const exportBtn = $("saves-export");
+    if (exportBtn) exportBtn.addEventListener("click", exportBackup);
+    const importBtn = $("saves-import");
+    const importFile = $("saves-import-file");
+    if (importBtn && importFile) {
+      importBtn.addEventListener("click", () => importFile.click());
+      importFile.addEventListener("change", () => {
+        const file = importFile.files && importFile.files[0];
+        importBackup(file);
+        importFile.value = "";
+      });
+    }
     const list = $("saves-list");
     if (list) list.addEventListener("click", onListClick);
     const detail = $("saves-detail");

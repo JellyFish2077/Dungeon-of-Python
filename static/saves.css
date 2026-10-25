@@ -474,3 +474,23 @@
   border-top-color: rgba(214, 168, 75, 0.22);
   background: rgba(7, 11, 18, 0.28);
 }
+
+.saves-foot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 620px) {
+  .saves-foot {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .saves-foot-actions {
+    justify-content: stretch;
+  }
+  .saves-foot-actions .saves-btn {
+    flex: 1 1 auto;
+  }
+}
