@@ -33,8 +33,6 @@ def rewrite_html(text, stamp):
     text = text.replace('<script src="/api/version.js"></script>', '')
     text = text.replace('href="/"', 'href="index.html"')
     text = text.replace('href="/game"', 'href="index.html"')
-    # В standalone нет раздела теста: убираем серверную ссылку из окна входа.
-    text = text.replace('<a class="btn ghost link-btn" href="/quiz">К тесту</a>', '')
     # Локальная инициализация должна идти после auth.js/profile.js и до game.js.
     text = text.replace(
         '<script src="static/auth.js"></script>',

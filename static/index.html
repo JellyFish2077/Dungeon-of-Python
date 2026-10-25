@@ -17,9 +17,9 @@
 
       <nav class="nav">
         <a class="nav-btn" href="/">Главная</a>
-        <a class="nav-btn active" href="/quiz">Тест</a>
+        <a class="nav-btn active" href="/quiz">Проверка</a>
         <a class="nav-btn" href="/game">Подземелье</a>
-        <a class="nav-btn" href="/study">Самоподготовка</a>
+        <a class="nav-btn" href="/study">Практикум</a>
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
@@ -30,7 +30,7 @@
     <section id="screen-start" class="card">
       <h2>Добро пожаловать!</h2>
       <p class="lead">
-        Ответь на вопросы о Python. Не переживай из-за ошибок: цель теста — понять,
+        Ответь на вопросы о Python. Не переживай из-за ошибок: цель проверки — понять,
         что ты уже знаешь, а чему стоит научиться. На каждый вопрос один правильный ответ.
       </p>
 
@@ -42,11 +42,11 @@
 
       <div class="modes" id="modes">
         <div class="mode active" data-mode="practice">
-          <b>Тренажёр</b>
+          <b>Практика</b>
           <span>Показывает правильный ответ и объяснение сразу</span>
         </div>
         <div class="mode" data-mode="test">
-          <b>Тест</b>
+          <b>Проверка</b>
           <span>Ответы и разбор — только в конце</span>
         </div>
       </div>
@@ -80,7 +80,7 @@
         <button class="btn" id="start-btn">Начать</button>
         <a class="btn ghost" href="/" style="text-decoration:none;display:inline-block">Главная</a>
         <a class="btn ghost" href="/game" style="text-decoration:none;display:inline-block">Режим подземелья</a>
-        <a class="btn ghost" href="/study" style="text-decoration:none;display:inline-block">Самоподготовка</a>
+        <a class="btn ghost" href="/study" style="text-decoration:none;display:inline-block">Практикум</a>
       </div>
 
       <ul class="facts">
@@ -144,7 +144,7 @@
 
   <div class="modal-overlay hidden" id="exit-modal">
     <div class="modal">
-      <h3>Выйти из теста?</h3>
+      <h3>Выйти из проверки?</h3>
       <p>Текущий прогресс не сохранится, ответы будут сброшены.</p>
       <div class="modal-actions">
         <button class="btn ghost" id="exit-cancel" type="button">Остаться</button>

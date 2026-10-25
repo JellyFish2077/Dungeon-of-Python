@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Самоподготовка по Python</title>
+  <title>Практикум по Python</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
@@ -17,9 +17,9 @@
 
       <nav class="nav">
         <a class="nav-btn" href="/">Главная</a>
-        <a class="nav-btn" href="/quiz">Тест</a>
+        <a class="nav-btn" href="/quiz">Проверка</a>
         <a class="nav-btn" href="/game">Подземелье</a>
-        <a class="nav-btn active" href="/study">Самоподготовка</a>
+        <a class="nav-btn active" href="/study">Практикум</a>
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
@@ -31,12 +31,12 @@
       <h2>Как заниматься</h2>
       <p class="lead">
         1. Прочитай тему ниже. 2. Потренируйся в блоке «Быстрая практика».
-        3. Пройди тест или тренажёр на главной — за результат дают золото и зелья.
+        3. Пройди проверку на главной — за результат дают золото и зелья.
         4. Забери награды в подземелье под тем же именем.
       </p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
         <a class="btn ghost" href="/" style="text-decoration:none;display:inline-block">Главная</a>
-        <a class="btn ghost" href="/quiz" style="text-decoration:none;display:inline-block">К тесту</a>
+        <a class="btn ghost" href="/quiz" style="text-decoration:none;display:inline-block">К проверке</a>
         <a class="btn ghost" href="/game" style="text-decoration:none;display:inline-block">В подземелье</a>
       </div>
     </section>
@@ -281,7 +281,7 @@
       function refreshRevInfo() {
         const info = $("rev-info");
         if (!profileName) {
-          info.textContent = "Сначала пройди тест — ошибки сохранятся в профиль.";
+          info.textContent = "Сначала пройди проверку — ошибки сохранятся в профиль.";
           return;
         }
         info.textContent = "Профиль: " + profileName + ". Ошибок для повторения: " + errorPool.length + ".";
@@ -432,7 +432,7 @@
         $("pr-score").textContent = parts.join(" · ") + " — занятия сохраняются в профиль";
       }
 
-      // Слабые темы: и практика, и прогоны теста.
+      // Слабые темы: и практика, и прогоны проверки.
       function renderWeakTopics() {
         const box = $("pr-weak-list");
         if (!box) return;
@@ -489,7 +489,7 @@
         scoreAnswer(ok);
       }
 
-      // Проверка кода: показываем каждый тест задания, а не только «не все».
+      // Проверка кода: показываем каждую проверку задания, а не только «не все».
       function renderTests(data) {
         const box = $("pr-tests");
         if (!box) return;
@@ -497,9 +497,9 @@
         if (!list.length) { box.className = "lead hidden"; box.textContent = ""; return; }
         box.className = "lead";
         box.textContent = list.map((t, i) =>
-          "Тест " + (i + 1) + ": " + (t.ok ? "пройден" : "провален") +
+          "Проверка " + (i + 1) + ": " + (t.ok ? "пройдена" : "провалена") +
           (t.ok ? "" : " — ожидалось " + String(t.expected) + ", получено " + String(t.actual))
-        ).join("\n") + "\nПройдено тестов: " + (data.passed || 0) + " из " + (data.total || list.length) + ".";
+        ).join("\n") + "\nПройдено проверок: " + (data.passed || 0) + " из " + (data.total || list.length) + ".";
       }
 
       function runCheck() {
@@ -523,7 +523,7 @@
           const ok = data.ok && data.passed === data.total;
           if (ta) ta.disabled = true;
           renderTests(data);
-          let head = ok ? "" : "Не все тесты пройдены. ";
+          let head = ok ? "" : "Не все проверки пройдены. ";
           if (!data.ok && data.error) {
             head = String(data.error).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + ". ";
           }
@@ -688,7 +688,7 @@
         // Проверка кода выключена на сервере: показываем не задание с
         // нерабочей кнопкой, а понятное объяснение, где код всё же есть.
         $("rc-lead").textContent = "Проверка кода на этом занятии выключена: " +
-          "сервер запущен с ключом --no-code. Задания на код есть в тесте и в подземелье, " +
+          "сервер запущен с ключом --no-code. Задания на код есть в проверке и в подземелье, " +
           "когда проверка включена.";
         $("rc-title").textContent = "Запуск кода недоступен";
         $("rc-task").textContent = "";

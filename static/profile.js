@@ -381,30 +381,30 @@ function walletEmpty(w) {
 
 // --- Достижения ---
 const ACHIEVEMENTS = [
-  { id: "first_step", title: "Первый шаг", desc: "Пройти тест или тренажёр" },
-  { id: "perfectionist", title: "Безупречно", desc: "100% в тесте" },
-  { id: "scholar", title: "Усердный ученик", desc: "Пройти 5 тестов" },
+  { id: "first_step", title: "Первый шаг", desc: "Завершить первый поход" },
+  { id: "perfectionist", title: "Безупречно", desc: "100% верных ответов в походе" },
+  { id: "scholar", title: "Опытный следопыт", desc: "Дойти до 7 этажа" },
   { id: "coder", title: "Кодер", desc: "Решить 10 задач на код" },
-  { id: "regular", title: "Постоянство", desc: "Заниматься 3 дня подряд" },
+  { id: "regular", title: "Постоянство", desc: "Играть 3 дня подряд" },
   { id: "streak10", title: "На волне", desc: "10 верных ответов подряд" },
-  { id: "marathon", title: "Марафонец", desc: "50 заданий в самоподготовке" },
+  { id: "marathon", title: "Глубинный странник", desc: "Дойти до 9 этажа" },
   { id: "survivor", title: "Выживший", desc: "Дойти до 5 этажа" },
-  { id: "dragonslayer", title: "Убийца драконов", desc: "Пройти подземелье" }
+  { id: "dragonslayer", title: "Убийца драконов", desc: "Победить дракона" }
 ];
 
 function earnBadges(profile) {
   const s = profile.stats || { correct: 0, codeSolved: 0, runs: 0, days: [] };
-  const best = (profile.quizRuns || []).reduce((m, r) => Math.max(m, r.percent || 0), 0);
-  const floors = profile.dungeonBest ? profile.dungeonBest.floors : 0;
-  const victory = !!(profile.dungeonBest && profile.dungeonBest.victory);
+  const bestRun = profile.dungeonBest || {};
+  const floors = bestRun.floors || 0;
+  const victory = !!bestRun.victory;
   const check = {
-    first_step: (profile.quizRuns || []).length >= 1,
-    perfectionist: best >= 100,
-    scholar: (profile.quizRuns || []).length >= 5,
+    first_step: !!profile.dungeonBest,
+    perfectionist: (bestRun.percent || 0) >= 100,
+    scholar: floors >= 7,
     coder: s.codeSolved >= 10,
     regular: (s.days || []).length >= 3,
     streak10: (s.bestStreak || 0) >= 10,
-    marathon: (s.studyTotal || 0) >= 50,
+    marathon: floors >= 9,
     survivor: floors >= 5,
     dragonslayer: victory
   };
@@ -418,10 +418,10 @@ function earnBadges(profile) {
   return earned;
 }
 
-// --- Занятия в самоподготовке ---
+// --- Занятия в практикуме ---
 // Каждый ответ в «быстрой практике» доезжает до профиля: счёт дня, серия,
 // разбивка по темам и достижение за число решённых заданий. Раньше страница
-// самоподготовки не писала в профиль вообще — счёт жил до перезагрузки.
+// практикума не писала в профиль вообще — счёт жил до перезагрузки.
 function studyDay() {
   const d = new Date();
   return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") +
@@ -442,7 +442,7 @@ function recordStudy(name, opts) {
     if (o.kind === "code") s.codeSolved = (s.codeSolved || 0) + 1;
     s.studyStreak = (s.studyStreak || 0) + 1;
     if (s.studyStreak > (s.studyBestStreak || 0)) s.studyBestStreak = s.studyStreak;
-    // Серия подряд считается и в тесте, и в практике: достижение одно.
+    // Серия подряд считается и в проверке, и в практике: достижение одно.
     if (s.studyStreak > (s.bestStreak || 0)) s.bestStreak = s.studyStreak;
   } else {
     s.studyStreak = 0;
@@ -464,7 +464,7 @@ function recordStudy(name, opts) {
 
 // --- Синхронизация профиля с сервером (вход — в auth.js, по токену) ---
 
-// Старая версия самоподготовки хранила PIN в localStorage открытым текстом:
+// Старая версия практикума хранила PIN в localStorage открытым текстом:
 // его видел любой, кто садился за тот же компьютер. Вход теперь по токену
 // сессии (auth.js), а оставшийся PIN стираем при первой загрузке страницы.
 try { localStorage.removeItem("pyquiz_pin"); } catch (e) {}
@@ -496,7 +496,7 @@ function applyServerProfile(name, profile) {
   merged.wrongPool = profile.wrongPool || local.wrongPool || [];
   merged.badges = profile.badges || local.badges || {};
   // Поля складываем, а не заменяем: серверная копия может быть старше
-  // локальной и тогда сотрёт счёт самоподготовки.
+  // локальной и тогда сотрёт счёт практикума.
   merged.stats = Object.assign({}, local.stats || {}, profile.stats || {});
   merged.study = profile.study || local.study || { day: "", good: 0, total: 0, topics: {} };
   // Калибровка переезжает между компьютерами вместе с профилем. Дату

@@ -31,9 +31,7 @@
 
       <nav class="nav">
         <a class="nav-btn" href="/">Главная</a>
-        <a class="nav-btn" href="/quiz">Тест</a>
         <a class="nav-btn" href="/game">Подземелье</a>
-        <a class="nav-btn" href="/study">Самоподготовка</a>
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn active" id="nav-profile" href="/profile">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
@@ -117,19 +115,21 @@
 
     function renderStats() {
       const local = getProfile(me.name) || {};
-      const runs = (local.quizRuns || []);
-      const best = runs.reduce((m, r) => Math.max(m, r.percent || 0), 0);
-      const floors = local.dungeonBest ? local.dungeonBest.floors : 0;
-      const win = !!(local.dungeonBest && local.dungeonBest.victory);
-      const studyTotal = (local.stats && local.stats.studyTotal) || 0;
-      const studyBest = (local.stats && local.stats.studyBestStreak) || 0;
+      const bestRun = local.dungeonBest || {};
+      const best = bestRun.percent || 0;
+      const floors = bestRun.floors || 0;
+      const win = !!bestRun.victory;
+      const stats = local.stats || {};
+      const days = (stats.days || []).length;
+      const code = stats.codeSolved || 0;
+      const streak = stats.bestStreak || 0;
       document.getElementById("stats").innerHTML =
-        box(runs.length, "Прохождений теста") +
-        box(best + "%", "Лучший результат") +
+        box(best ? best + "%" : "—", "Лучший поход") +
         box(floors || "—", "Этаж в подземелье") +
         box(win ? "★" : "—", "Победа над драконом") +
-        box(studyTotal || "—", "Заданий в самоподготовке") +
-        box(studyBest ? studyBest + " подряд" : "—", "Лучшая серия практики");
+        box(days || "—", "Дней в игре") +
+        box(code || "—", "Задач на код") +
+        box(streak ? streak + " подряд" : "—", "Лучшая серия");
       document.getElementById("wallet").textContent = "Кошелёк: " + walletText(local.wallet || {gold:0});
       document.getElementById("badges").innerHTML = badgesHtml(local);
     }

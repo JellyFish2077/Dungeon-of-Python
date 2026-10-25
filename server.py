@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Локальный сервер для игры-теста по Python.
+"""Локальный сервер для игры-подземелья по Python.
 
 Запуск:
     python3 server.py                # локальная сеть (0.0.0.0:8000), студенты заходят по IP
@@ -2917,7 +2917,7 @@ class Handler(BaseHTTPRequestHandler):
             ["Имя", "Дата", "Процент", "Уровень", "Правильно", "Всего", "Секунды",
              "Режим", "Из аккаунта"]
         )
-        modes = {"dungeon": "Подземелье", "practice": "Тренажёр", "test": "Тест"}
+        modes = {"dungeon": "Подземелье", "practice": "Практика", "test": "Проверка"}
         for r in data:
             if not isinstance(r, dict):
                 continue
@@ -2934,7 +2934,7 @@ class Handler(BaseHTTPRequestHandler):
                     _cell(r.get("correctCount")),
                     _cell(r.get("total")),
                     _cell(r.get("seconds")),
-                    modes.get(r.get("mode"), "Тест"),
+                    modes.get(r.get("mode"), "Проверка"),
                     "да" if r.get("verified") is True else
                     _cell("нет, вход: " + r["account"]) if isinstance(r.get("account"), str) else "нет",
                 ]
@@ -2999,7 +2999,7 @@ def bind_server(host, port, tries=25):
 
 def main():
     global ALLOW_CODE, DEV_TOOLS
-    parser = argparse.ArgumentParser(description="Сервер игры-теста по Python")
+    parser = argparse.ArgumentParser(description="Сервер игры-подземелья по Python")
     parser.add_argument(
         "--host", default=None, help="адрес привязки (по умолчанию 0.0.0.0 — локальная сеть)"
     )
@@ -3051,16 +3051,13 @@ def main():
             print("      http://<IP-компьютера>:%d/game" % port)
         print()
         print("  На этом компьютере:   http://localhost:%d/game" % port)
-        print("  Самоподготовка:       http://localhost:%d/study" % port)
         print(
             "  Панель преподавателя: http://%s:%d/results"
             % (ips[0] if ips else "localhost", port)
         )
     else:
         print("  Режим: только этот компьютер")
-        print("  Тест:      http://localhost:%d/" % port)
         print("  Подземелье:http://localhost:%d/game" % port)
-        print("  Учёба:     http://localhost:%d/study" % port)
         print("  Результаты:http://localhost:%d/results" % port)
         print()
         print("  Для доступа по сети просто запустите:  python3 server.py")

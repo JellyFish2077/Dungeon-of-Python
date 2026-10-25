@@ -42,9 +42,7 @@
 
       <nav class="nav">
         <a class="nav-btn" href="/">Главная</a>
-        <a class="nav-btn" href="/quiz">Тест</a>
         <a class="nav-btn" href="/game">Подземелье</a>
-        <a class="nav-btn" href="/study">Самоподготовка</a>
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn active" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
@@ -67,14 +65,14 @@
         <table class="data">
           <thead>
             <tr>
-              <th>#</th><th>Имя</th><th>Режим</th><th>Дата</th><th>Результат</th>
-              <th>Старт</th><th>Итог</th><th>Верно</th><th>Время</th><th>Слабые темы</th>
+              <th>#</th><th>Имя</th><th>Дата</th><th>Результат</th>
+              <th>Верно</th><th>Этаж</th><th>Победа</th><th>Время</th><th>Слабые темы</th>
             </tr>
           </thead>
           <tbody id="rows"></tbody>
         </table>
       </div>
-      <div class="empty hidden" id="empty">Пока никто не прошёл тест.</div>
+      <div class="empty hidden" id="empty">Пока нет результатов походов.</div>
       <p class="acc-note">
         <span class="acc ok" style="margin:0">✓</span> — результат прислан из аккаунта ученика с этим именем.
         «Вход: …» — имя набрано вручную, а вошёл другой ученик. Без отметки — имя набрано без входа
@@ -92,7 +90,7 @@
       <h2 style="margin-top:0">Рейтинг</h2>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>#</th><th>Имя</th><th>Лучший тест</th><th>Этаж</th><th>Победа</th></tr></thead>
+          <thead><tr><th>#</th><th>Имя</th><th>Лучший поход</th><th>Этаж</th><th>Победа</th></tr></thead>
           <tbody id="board"></tbody>
         </table>
       </div>
@@ -156,13 +154,12 @@
       return "";
     }
 
-    const MODE_NAMES = { dungeon: "Подземелье", practice: "Тренажёр", test: "Тест" };
-
     let lastData = [];
 
     function render(data) {
       lastData = data;
-      const all = (Array.isArray(data) ? data : []).filter((r) => r && typeof r === "object");
+      const all = (Array.isArray(data) ? data : [])
+        .filter((r) => r && typeof r === "object" && r.mode === "dungeon");
       const onlyAcc = document.getElementById("only-acc").checked;
       data = onlyAcc ? all.filter((r) => r.verified === true) : all;
       const stats = document.getElementById("stats");
@@ -173,7 +170,7 @@
       if (!data.length) {
         stats.innerHTML = "";
         empty.textContent = onlyAcc && all.length ? "Результатов из аккаунтов пока нет."
-          : "Пока никто не прошёл тест.";
+          : "Пока нет результатов походов.";
         empty.classList.remove("hidden");
         // Карта тем и рейтинг тоже пустеют: иначе после фильтра в них
         // оставались бы строки прошлой отрисовки.
@@ -184,33 +181,28 @@
       empty.classList.add("hidden");
 
       const avg = Math.round(data.reduce((s, r) => s + num(r.percent), 0) / data.length);
-      const dist = { novice: 0, basic: 0, confident: 0, advanced: 0 };
-      data.forEach((r) => { const k = (r.level || {}).key; if (k in dist) dist[k]++; });
+      const bestFloor = data.reduce((m, r) => Math.max(m, num((r.dungeon || {}).floorsCleared)), 0);
 
       stats.innerHTML =
-        card(data.length, "Прошли тест") +
-        card(avg + "%", "Средний балл") +
-        card(dist.novice, "Новичков") +
-        card(dist.basic, "Базовый") +
-        card(dist.confident, "Уверенных") +
-        card(dist.advanced, "Продвинутых");
+        card(data.length, "Походов") +
+        card(avg + "%", "Средний результат") +
+        card(bestFloor || "—", "Лучший этаж") +
+        card(data.filter((r) => (r.dungeon || {}).victory).length, "Побед");
 
       renderHeat(data);
       renderBoard(data);
 
       data.slice().reverse().forEach((r, i) => {
-        const lvl = r.level || {};
-        const color = LEVEL_COLORS[lvl.key] || "#64748b";
+        const dungeon = r.dungeon || {};
         const tr = document.createElement("tr");
         tr.innerHTML =
           "<td>" + (i + 1) + "</td>" +
           "<td><b>" + esc(r.name) + "</b>" + accMark(r) + "</td>" +
-          "<td>" + (MODE_NAMES[r.mode] || "Тест") + "</td>" +
           "<td>" + esc(fmtDate(r.date)) + "</td>" +
           "<td><b>" + num(r.percent) + "%</b></td>" +
-          "<td><span class='kn'>" + esc(knowledgeMark(r)) + "</span></td>" +
-          "<td><span class='lvl' style='background:" + color + "'>" + esc(lvl.title || "") + "</span></td>" +
           "<td>" + num(r.correctCount) + "/" + num(r.total) + "</td>" +
+          "<td>" + (num(dungeon.floorsCleared) || "—") + "</td>" +
+          "<td>" + (dungeon.victory ? "★" : "—") + "</td>" +
           "<td>" + fmtTime(r.seconds) + "</td>" +
           "<td>" + esc(weakTopics(r)) + "</td>";
         rows.appendChild(tr);
@@ -250,8 +242,8 @@
         if (!n) return;
         const verified = r.verified === true;
         const key = (verified ? "✓" : "?") + n;
-        const cur = byName[key] || { name: n, verified: verified, quiz: 0, floors: 0, victory: false };
-        if (r.mode !== "dungeon") cur.quiz = Math.max(cur.quiz, num(r.percent));
+        const cur = byName[key] || { name: n, verified: verified, percent: 0, floors: 0, victory: false };
+        cur.percent = Math.max(cur.percent, num(r.percent));
         if (r.dungeon) {
           cur.floors = Math.max(cur.floors, num(r.dungeon.floorsCleared));
           cur.victory = cur.victory || !!r.dungeon.victory;
@@ -259,12 +251,12 @@
         byName[key] = cur;
       });
       const list = Object.keys(byName).map((k) => byName[k])
-        .sort((a, b) => (b.victory - a.victory) || (b.floors - a.floors) || (b.quiz - a.quiz));
+        .sort((a, b) => (b.victory - a.victory) || (b.floors - a.floors) || (b.percent - a.percent));
       const board = document.getElementById("board");
       board.innerHTML = list.map((r, i) =>
         "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b>" +
         (r.verified ? "<span class='acc ok' title='Из аккаунта ученика'>✓</span>" : "") + "</td><td>" +
-        (r.quiz ? r.quiz + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
+        (r.percent ? r.percent + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
         (r.victory ? "★" : "—") + "</td></tr>").join("") ||
         "<tr><td colspan='5' class='empty'>Нет данных.</td></tr>";
     }

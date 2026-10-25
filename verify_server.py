@@ -643,9 +643,9 @@ def check_http(tmp):
         with urllib.request.urlopen(root + "/api/export.csv?pin=" + S.TEACHER_PIN, timeout=30) as resp:
             csv_text = resp.read().decode("utf-8-sig")
         lines = csv_text.splitlines()
-        check(lines[0].endswith(";Режим;Из аккаунта") and any(l.startswith("Оля;") and l.endswith(";Тренажёр;да")
+        check(lines[0].endswith(";Режим;Из аккаунта") and any(l.startswith("Оля;") and l.endswith(";Практика;да")
                                                                for l in lines)
-              and any(l.startswith("Гость;") and l.endswith(";Тест;нет") for l in lines),
+              and any(l.startswith("Гость;") and l.endswith(";Проверка;нет") for l in lines),
               "CSV: новые столбцы в конце — режим и отметка аккаунта", lines[:1] + lines[-2:])
 
         status, _ = call(root, "/api/submit", raw=b"{" + b" " * 300001 + b"}")

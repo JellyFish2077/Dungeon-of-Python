@@ -40,9 +40,7 @@
 
       <nav class="nav">
         <a class="nav-btn active" href="/">Главная</a>
-        <a class="nav-btn" href="/quiz">Тест</a>
         <a class="nav-btn" href="/game">Подземелье</a>
-        <a class="nav-btn" href="/study">Самоподготовка</a>
         <a class="nav-btn" id="nav-friends" href="/friends" style="display:none">Друзья</a>
         <a class="nav-btn" id="nav-profile" href="/profile" style="display:none">Профиль</a>
         <a class="nav-btn" id="nav-teacher" href="/results" style="display:none">Панель учителя</a>
@@ -66,7 +64,7 @@
           <h2>Таблица лидеров</h2>
           <div class="table-wrap" style="overflow-x:auto">
             <table class="lb">
-              <thead><tr><th>#</th><th>Имя</th><th>Лучший тест</th><th>Этаж</th><th>Победа</th><th>Достижения</th></tr></thead>
+              <thead><tr><th>#</th><th>Имя</th><th>Лучший поход</th><th>Этаж</th><th>Победа</th><th>Достижения</th></tr></thead>
               <tbody id="board"></tbody>
             </table>
           </div>
@@ -77,9 +75,7 @@
         <section class="card">
           <h2>Меню</h2>
           <a class="menu-link active" href="/">Главная</a>
-          <a class="menu-link" href="/quiz">Тест и тренажёр</a>
           <a class="menu-link" href="/game">Подземелье</a>
-          <a class="menu-link" href="/study">Самоподготовка</a>
           <a class="menu-link" id="teacher-link" href="/results" style="display:none">Панель учителя</a>
         </section>
 
@@ -100,10 +96,9 @@
       { date: "2026-10-19", text: "Версия 1.2.1: исправлены чужие спрайты на карте — деревня больше не проступает поверх подземелья, а в деревне не копятся двойники игрока и НПС." },
       { date: "2026-10-19", text: "Версия 1.2.0: экран загрузки между этажами и проверка генерации на компьютере игрока — запереть неудачной картой больше нельзя." },
       { date: "2026-10-19", text: "Версия 1.1.0: возврат в деревню без потери лута, продолжение похода после обновления страницы, безопасная проверка кода." },
-      { date: "2026-02-01", text: "Добавлены достижения и повтор ошибок в самоподготовке." },
+      { date: "2026-02-01", text: "Добавлены достижения и повтор ошибок в подземелье." },
       { date: "2026-01-20", text: "В подземелье появились торговец на этаже и призраки ошибок." },
-      { date: "2026-01-10", text: "Проверка «запусти код»: написанный код выполняется на сервере." },
-      { date: "2026-01-02", text: "Раздел самоподготовки: уроки по темам и быстрая практика." }
+      { date: "2026-01-10", text: "Проверка «запусти код»: написанный код выполняется на сервере." }
     ];
 
     function esc(s) {
@@ -128,23 +123,23 @@
     function aggregate() {
       const all = loadProfiles();
       const names = Object.keys(all);
-      let runs = 0, sumPct = 0, pctN = 0, victories = 0, badges = 0;
+      let sumPct = 0, pctN = 0, victories = 0, badges = 0;
       const board = [];
       names.forEach((k) => {
         const p = all[k];
-        const quiz = (p.quizRuns || []).reduce((m, r) => Math.max(m, r.percent || 0), 0);
-        (p.quizRuns || []).forEach((r) => { runs++; sumPct += r.percent || 0; pctN++; });
-        const floors = p.dungeonBest ? p.dungeonBest.floors : 0;
-        const win = !!(p.dungeonBest && p.dungeonBest.victory);
+        const best = p.dungeonBest || {};
+        const percent = best.percent || 0;
+        if (percent) { sumPct += percent; pctN++; }
+        const floors = best.floors || 0;
+        const win = !!best.victory;
         if (win) victories++;
         const bc = Object.keys(p.badges || {}).length;
         badges += bc;
-        board.push({ name: p.name || k, quiz, floors, win, badges: bc });
+        board.push({ name: p.name || k, percent, floors, win, badges: bc });
       });
-      board.sort((a, b) => (b.win - a.win) || (b.floors - a.floors) || (b.quiz - a.quiz));
+      board.sort((a, b) => (b.win - a.win) || (b.floors - a.floors) || (b.percent - a.percent));
       return {
         students: names.length,
-        runs,
         avg: pctN ? Math.round(sumPct / pctN) : 0,
         victories,
         badges,
@@ -156,8 +151,7 @@
       const a = aggregate();
       document.getElementById("stats").innerHTML =
         box(a.students, "Профилей") +
-        box(a.runs, "Пройдено тестов") +
-        box(a.avg + "%", "Средний балл") +
+        box(a.avg + "%", "Средний результат") +
         box(a.victories, "Побед в подземелье") +
         box(a.badges, "Достижений получено");
     }
@@ -167,7 +161,7 @@
       const a = aggregate();
       const rows = a.board.slice(0, 10).map((r, i) =>
         "<tr><td>" + (i + 1) + "</td><td><b>" + esc(r.name) + "</b></td><td>" +
-        (r.quiz ? r.quiz + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
+        (r.percent ? r.percent + "%" : "—") + "</td><td>" + (r.floors || "—") + "</td><td>" +
         (r.win ? "★" : "—") + "</td><td>" + (r.badges || "—") + "</td></tr>").join("");
       document.getElementById("board").innerHTML =
         rows || "<tr><td colspan='6' style='color:#64748b'>Пока нет данных.</td></tr>";

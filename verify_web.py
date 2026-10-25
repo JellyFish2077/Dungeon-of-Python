@@ -261,6 +261,35 @@ def run_checks(browser, base):
 
     page.wait_for_function(
         "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
+
+    # Постоянный HUD: здоровье, опыт, сила, золото и текущая глава видны
+    # прямо на карте, без открытия боковых панелей.
+    check(page.locator("#hero-hud").is_visible(), "постоянный HUD героя виден")
+    check(page.locator("#hud-hp-text").inner_text() == "120/120",
+          "в HUD есть здоровье героя", page.locator("#hud-hp-text").inner_text())
+    check(page.locator("#hud-level").inner_text() == "1" and
+          page.locator("#hud-dmg").inner_text() == "12",
+          "в HUD есть уровень и сила героя")
+    check(page.locator("#hud-story-title").inner_text() == "Крыша для амбара",
+          "в HUD показана текущая глава кампании")
+    check(page.locator("a[href='/quiz'], a[href='/study']").count() == 0,
+          "в игровом интерфейсе нет ссылок на старые учебные разделы")
+
+    # Журнал открывается с сюжета, а не со списка поручений.
+    page.click("#hud-story")
+    page.wait_for_function(
+        "() => !document.getElementById('journal-overlay').classList.contains('hidden')",
+        timeout=10000)
+    journal_text = page.locator("#journal-box").inner_text()
+    check(page.locator(".journal-tab.is-active").get_attribute("data-jtab") == "story",
+          "HUD открывает журнал на вкладке сюжета")
+    check("Печати глубины" in journal_text and "Крыша для амбара" in journal_text,
+          "журнал показывает кампанию и текущую главу")
+    check(page.locator(".story-path-step").count() == 5,
+          "в журнале виден весь путь из пяти глав")
+    page.click("#journal-close")
+    page.wait_for_timeout(200)
+
     opened = page.evaluate("() => window.PyGameMenuAPI.openGuard()")
     page.wait_for_timeout(350)
     check(opened and page.locator("#entrance-overlay").is_visible(),
@@ -389,16 +418,18 @@ def run_checks(browser, base):
         "() => document.getElementById('tutorial-panel') &&"
         " !document.getElementById('tutorial-panel').classList.contains('hidden')",
         timeout=15000)
-    check(page.locator("#tutorial-steps [data-step]").count() == 4,
-          "первый спуск показывает обучение")
+    tutorial_text = page.locator("#tutorial-panel").inner_text()
+    check("WASD" in tutorial_text and "E" in tutorial_text and
+          page.locator("#tutorial-steps").count() == 0,
+          "первый спуск показывает только управление, без списка целей", tutorial_text)
     page.click("#tutorial-skip")
     page.wait_for_timeout(250)
     check(not page.locator("#tutorial-panel").is_visible(),
-          "обучение можно пропустить")
+          "памятку по управлению можно скрыть")
     check(page.evaluate(
         "() => { const u = currentUser();"
         " return !!(u && getProfile(u.name).tutorialDone); }"),
-        "пропуск обучения запоминается")
+        "скрытие памятки запоминается")
 
     page.goto(base + "/", wait_until="domcontentloaded")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)

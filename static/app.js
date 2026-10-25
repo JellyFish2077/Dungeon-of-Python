@@ -4,7 +4,7 @@
   const LETTERS = ["A", "B", "C", "D"];
 
   // Тема и уровень заданий «повтори код» / «напиши код» лежат не в банке,
-  // а в общей таблице task-meta.js — ею же пользуется самоподготовка.
+  // а в общей таблице task-meta.js — ею же пользуется практикум.
   const META = window.TASK_META || {};
   const COPY_TOPICS = META.COPY_TOPICS || {};
   const CODE_TOPICS = META.CODE_TOPICS || {};
@@ -73,7 +73,7 @@
   };
 
   // Сервер запущен с --no-code: задачу «напиши код» проверить некому, и
-  // раньше в тесте она всё равно выпадала, а на «Проверить» приходило
+  // раньше в проверке она всё равно выпадала, а на «Проверить» приходило
   // «отключено на сервере». Флаг приходит скриптом /api/features.js до app.js.
   const codeAllowed = !(window.__PYQUIZ_FEATURES && window.__PYQUIZ_FEATURES.code === false);
 
@@ -247,7 +247,7 @@
     if (!state.order.length) {
       toast(
         state.source === "wrong"
-          ? "В пуле ошибок пока пусто — сначала пройди тест"
+          ? "В пуле ошибок пока пусто — сначала пройди проверку"
           : "По этой теме заданий нет"
       );
       return;
@@ -501,7 +501,7 @@
           }
         }
         recordAnswer(item, code, correct);
-        showAnswerFeedback(item, correct, correct ? "" : "Не все тесты пройдены. ", item.ref.explanation);
+        showAnswerFeedback(item, correct, correct ? "" : "Не все проверки пройдены. ", item.ref.explanation);
       })
       .catch(() => {
         state.locked = false;
@@ -516,14 +516,14 @@
   }
 
   // Сервер не проверил код: выключен (--no-code) или занят. Ученик не ошибся,
-  // поэтому ответ не засчитываем. Раньше такой ответ шёл в тест как неверный
+  // поэтому ответ не засчитываем. Раньше такой ответ шёл в проверку как неверный
   // и снижал процент, который видит учитель.
   function serverDidNotCheck(data, btn, res) {
     state.locked = false;
     if (data.disabled) {
-      // Проверки не будет до конца теста: убираем эту и следующие задачи на код.
+      // Проверки не будет до конца прогона: убираем эту и следующие задачи на код.
       state.order = state.order.filter((it, i) => i < state.index || it.kind !== "code");
-      toast("Проверка кода на сервере выключена — задачи на код убраны из теста");
+      toast("Проверка кода на сервере выключена — задачи на код убраны из проверки");
       if (state.index < state.order.length) {
         renderQuestion();
       } else if (state.answers.length) {
@@ -985,10 +985,10 @@
   function download() {
     const r = state.result;
     const lines = [];
-    lines.push("Результат теста по Python");
+    lines.push("Результат проверки по Python");
     lines.push("Имя: " + r.name);
     lines.push("Дата: " + new Date(r.date).toLocaleString("ru-RU"));
-    lines.push("Режим: " + (r.mode === "practice" ? "Тренажёр" : "Тест"));
+    lines.push("Режим: " + (r.mode === "practice" ? "Практика" : "Проверка"));
     lines.push(
       "Результат: " + r.percent + "% (" + r.correctCount + " из " + r.total + ")"
     );
@@ -1043,7 +1043,7 @@
       const n = wrongItems(name).length;
       hint.textContent = n
         ? "Повтор ошибок: " + n + " заданий. Тема и длина не применяются."
-        : "Пул ошибок пуст — сначала пройди тест или тренажёр.";
+        : "Пул ошибок пуст — сначала пройди проверку.";
       return;
     }
     const all = bankPool();
@@ -1192,7 +1192,7 @@
         if (ts[topic] && ts[topic].total) last[topic] = ts[topic];
       });
     });
-    // Темы, которые ученик тренировал только в самоподготовке, тоже видны.
+    // Темы, которые ученик тренировал только в практикуме, тоже видны.
     const studyTopics = (prof && prof.study && prof.study.topics) || {};
     Object.keys(studyTopics).forEach((topic) => {
       const t = studyTopics[topic];
@@ -1302,7 +1302,7 @@
     el("exit-confirm").addEventListener("click", () => {
       closeExit();
       reset(true);
-      toast("Вы вышли из теста");
+      toast("Вы вышли из проверки");
     });
     el("exit-modal").addEventListener("click", (e) => {
       if (e.target === el("exit-modal")) closeExit();
