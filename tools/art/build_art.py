@@ -44,7 +44,7 @@ SRC = os.path.join(ART, "src")
 CUSTOM = os.path.join(ART, "src_custom")
 STATIC = os.path.join(ROOT, "static")
 
-DECOR_ORDER = ["grass", "moss", "bones", "crystal", "rubble", "lamp", "mushroom", "pike", "fire"]
+DECOR_ORDER = ["grass", "moss", "bones", "crystal", "rubble", "lamp", "pike", "fire"]
 TRAP_ORDER = ["spikes", "pit", "net", "gas", "blade", "magical"]
 WAVE_ORDER = ["E", "N", "S", "W"]
 

@@ -6,8 +6,8 @@
 каждому и возвращает ненулевой код, если что-то упало.
 
     python run_all_checks.py            # всё, что доступно в этой системе
-    python run_all_checks.py --quick    # только проверки на чистом Python
-    python run_all_checks.py --only verify_server check
+    python run_all_checks.py --quick    # проверки контента без браузера
+    python run_all_checks.py --only verify_dungeon verify_web
 
 Проверки, которым нужен node (verify_variants, verify_practice,
 verify_dungeon), без него пропускаются с явной пометкой, а прогон получает
@@ -34,16 +34,13 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, ValueError):
         pass
 
-# Порядок важен: сперва быстрые и не поднимающие сервер, потом тяжёлые.
-# needs: None — чистый Python (входит в --quick), "node" — нужен Node.js,
-# "browser" — нужен Playwright (необязательная проверка).
+# Порядок важен: сперва проверки контента, потом сборка в браузере.
+# needs: "node" — нужен Node.js (входит в --quick), "browser" — нужен
+# Playwright (необязательная проверка, в --quick не входит).
 ALL_CHECKS = [
-    ("check.py", "банк контента и синхронность схемы админки", None),
-    ("verify_server.py", "сервер, профили, песочница", None),
     ("verify_variants.py", "генератор вариантов вопросов", "node"),
     ("verify_practice.py", "генератор практики, прогон кода на Python", "node"),
     ("verify_dungeon.py", "подземелье: 900+ проверок в node", "node"),
-    ("verify_admin.py", "админ-панель: вход, правка, откат", None),
     ("verify_web.py", "публичная веб-сборка (Playwright)", "browser"),
 ]
 
@@ -94,7 +91,7 @@ def main():
 
     checks = ALL_CHECKS
     if args.quick:
-        checks = [c for c in checks if c[2] is None]
+        checks = [c for c in checks if c[2] != "browser"]
     if args.only is not None:
         # nargs="*" разрешает `--only` без имён. Раньше пустой список был
         # ложным и молча запускал ВСЕ проверки, а опечатка в имени давала

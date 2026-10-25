@@ -19,9 +19,9 @@ DIST = ROOT / "dist"
 
 
 def version():
-    text = (ROOT / "server.py").read_text(encoding="utf-8")
-    match = re.search(r'^VERSION = "([^"]+)"', text, re.M)
-    return match.group(1) if match else "0.0.0"
+    text = (ROOT / "static" / "web-boot.js").read_text(encoding="utf-8")
+    match = re.search(r'version:\s*"([^"]+)"', text)
+    return match.group(1).replace("-web", "") if match else "0.0.0"
 
 
 def main():
