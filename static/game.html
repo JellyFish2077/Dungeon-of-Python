@@ -152,6 +152,12 @@
           <span class="action-label">Пропустить ход</span>
           <span class="action-key">Пробел</span>
         </button>
+        <div class="mobile-pad" id="mobile-pad" aria-label="Управление героем">
+          <button class="mobile-pad-key up" type="button" data-move="up" aria-label="Вверх">▲</button>
+          <button class="mobile-pad-key left" type="button" data-move="left" aria-label="Влево">◀</button>
+          <button class="mobile-pad-key down" type="button" data-move="down" aria-label="Вниз">▼</button>
+          <button class="mobile-pad-key right" type="button" data-move="right" aria-label="Вправо">▶</button>
+        </div>
         <canvas class="minimap" id="minimap" width="184" height="132" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
         <div class="log collapsed" id="log"></div>
       </div>
@@ -263,7 +269,6 @@
         <button class="exit-btn" id="entrance-close" type="button" data-tip="Закрыть. Клавиша Escape.">Закрыть</button>
       </div>
       <p class="lead">Внизу ждут вопросы и задачи по Python. Выбери сложность и режим.</p>
-      <p class="lead" id="knowledge-line"></p>
       <label class="check">
         <input type="checkbox" id="claim-box" checked />
         <span class="check-box" aria-hidden="true"></span>
@@ -312,7 +317,6 @@
       <div class="setup-actions">
         <button class="btn" id="begin-btn" type="button">Спуститься</button>
         <button class="btn ghost" id="resume-btn" type="button" style="display:none">Продолжить</button>
-        <button class="btn ghost" id="calibration-btn" type="button">Проверить уровень</button>
       </div>
     </div>
   </div>
@@ -527,7 +531,12 @@
       </div>
       <footer class="saves-foot">
         <span class="saves-status" id="saves-status"></span>
-        <button class="saves-btn ghost" id="saves-back" type="button">Закрыть</button>
+        <div class="saves-foot-actions">
+          <button class="saves-btn ghost" id="saves-export" type="button">Экспорт</button>
+          <button class="saves-btn ghost" id="saves-import" type="button">Импорт</button>
+          <input type="file" id="saves-import-file" accept="application/json,.json" hidden />
+          <button class="saves-btn ghost" id="saves-back" type="button">Закрыть</button>
+        </div>
       </footer>
     </section>
   </div>

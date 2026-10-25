@@ -180,6 +180,16 @@ function codeAnswer(skill, rng) {
 function playBattleStep(skill, rng, state) {
   const b = G.battle;
   if (!b) return "no-battle";
+  // Живой игрок пьёт зелье прямо в бою, когда здоровье падает. Бот раньше
+  // делал это только между боями и потому умирал там, где человек выжил бы.
+  if (G.player.hp < G.player.maxHp * 0.35) {
+    const idx = G.inventory.findIndex((i) => i.slot === "potion");
+    if (idx >= 0) {
+      const before = G.player.hp;
+      API.usePotion(idx);
+      if (G.player.hp > before) return "drink";
+    }
+  }
   if (b.phase !== "question") {
     API.continueBattle();
     return "continue";
@@ -540,7 +550,7 @@ function startGame(opts, rng) {
   // и непроявленное окно выглядит открытым — тогда walkTo и doInteract
   // решают, что поверх карты окно, и деревня проходится вхолостую.
   for (const id of ["end-overlay", "shop-overlay", "battle-overlay", "blessing-overlay", "forge-overlay",
-    "level-loading", "entrance-overlay", "dialog-overlay"]) {
+    "level-loading", "entrance-overlay", "calibration-overlay", "dialog-overlay"]) {
     H.el(id).classList.add("hidden");
   }
   // Деревня перед спуском: ученик приходит с накопленным золотом и тратит
@@ -729,7 +739,9 @@ function playOne(opts, rng, trace) {
     // Затвор глубины: спуска дальше нет, а на этаже больше нечего искать —
     // поход кончен. Так выглядит первый поход ученика: он упирается в
     // запечатанную лестницу, возвращается в деревню и копит на кузницу.
-    if (!API.canDescend() && !G.battle && (G.treasures || []).length === 0) {
+    const reachableChests = (G.treasures || []).some((t) =>
+      API.findPath(G.playerPos, { x: t.x, y: t.y }));
+    if (!API.canDescend() && !G.battle && !reachableChests) {
       seen.toHub += 1;
       seen.sealReturns = (seen.sealReturns || 0) + 1;
       if (trace) console.log("   лестница запечатана — возвращаюсь в деревню за ключом");

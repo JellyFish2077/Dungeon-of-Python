@@ -296,6 +296,9 @@ def run_checks(browser, base):
           "страж открывается отдельным действием")
     focused = page.evaluate("() => document.activeElement && document.activeElement.id")
     check(focused in ("begin-btn", "resume-btn"), "фокус в окне стража", focused)
+    check(page.locator("#calibration-btn").count() == 0 and
+          page.locator("#knowledge-line").count() == 0,
+          "в публичном входе нет проверки знаний")
     page.click("#entrance-close")
     page.wait_for_timeout(200)
 
@@ -330,6 +333,9 @@ def run_checks(browser, base):
         "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
     check("сохранить поход" in page.locator("#saves-subtitle").inner_text().lower(),
           "«Сохранить» открывает меню сохранений")
+    check(page.locator("#saves-export").is_visible() and
+          page.locator("#saves-import").is_visible(),
+          "в окне сохранений есть экспорт и импорт")
     empty_text = page.locator("#saves-list .save-slot.is-empty").first.inner_text()
     check("Записать новое сохранение" in empty_text,
           "пустая ячейка предлагает записать сохранение", empty_text)

@@ -26,63 +26,55 @@
     { key: "dragon", name: "Дракон", color: "#dc2626", hp: 260, dmg: 25, boss: true, ability: "bossrage", abilityText: "Дракон впадает в ярость и усиливает удары" }
   ];
 
-  // Биомы: 3–5 обычных этажей, затем босс. Внутри биома этажи — разные
-  // комнаты одного места, а не отдельные локации.
+  // Пять биомов по два этажа: одна большая комната биома и босс.
+  // Так кампания остаётся короткой: десять этажей, пять боссов.
+  // Пул обычного этажа — объединение старых комнат биома, чтобы не терять
+  // разнообразие врагов после сокращения.
   const BIOMES = [
     {
       key: "caves",
       name: "Пещеры новичка",
       theme: 0,
       floors: [
-        { w: 30, h: 22, count: 8, pool: ["slime", "rat", "bat"], qmin: 1, qmax: 2 },
-        { w: 32, h: 23, count: 9, pool: ["slime", "rat", "goblin"], qmin: 2, qmax: 2 },
-        { w: 34, h: 24, count: 10, pool: ["bat", "goblin", "skeleton"], qmin: 2, qmax: 3 }
+        { w: 32, h: 23, count: 5, pool: ["slime", "rat", "bat", "goblin", "skeleton"], qmin: 1, qmax: 2 }
       ],
-      boss: { key: "goblin", name: "Гоблин-вожак", hp: 200, w: 34, h: 24, qmin: 2, qmax: 3 }
+      boss: { key: "goblin", name: "Гоблин-вожак", hp: 170, w: 34, h: 24, qmin: 2, qmax: 3 }
     },
     {
       key: "catacombs",
       name: "Забытые катакомбы",
       theme: 2,
       floors: [
-        { w: 34, h: 24, count: 10, pool: ["skeleton", "goblin", "bat"], qmin: 2, qmax: 3 },
-        { w: 36, h: 26, count: 11, pool: ["orc", "goblin", "skeleton"], qmin: 3, qmax: 3 },
-        { w: 38, h: 26, count: 12, pool: ["zombie", "spider", "goblin"], qmin: 3, qmax: 4 }
+        { w: 36, h: 26, count: 7, pool: ["skeleton", "goblin", "orc", "zombie", "spider"], qmin: 2, qmax: 3 }
       ],
-      boss: { key: "necromancer", name: "Некромант", hp: 260, w: 36, h: 26, qmin: 3, qmax: 4 }
+      boss: { key: "necromancer", name: "Некромант", hp: 220, w: 36, h: 26, qmin: 3, qmax: 4 }
     },
     {
       key: "ice",
       name: "Ледяные залы",
       theme: 4,
       floors: [
-        { w: 38, h: 26, count: 12, pool: ["wolf", "ghost", "troll"], qmin: 4, qmax: 4 },
-        { w: 40, h: 28, count: 13, pool: ["golem", "skeleton", "shieldman"], qmin: 4, qmax: 4 },
-        { w: 42, h: 28, count: 14, pool: ["golem", "ghost", "wolf"], qmin: 4, qmax: 4 }
+        { w: 40, h: 28, count: 8, pool: ["wolf", "ghost", "troll", "golem", "shieldman"], qmin: 3, qmax: 4 }
       ],
-      boss: { key: "golem", name: "Король големов", hp: 320, w: 38, h: 28, qmin: 4, qmax: 4 }
+      boss: { key: "golem", name: "Король големов", hp: 280, w: 38, h: 28, qmin: 4, qmax: 4 }
     },
     {
       key: "demons",
       name: "Обитель демонов",
       theme: 6,
       floors: [
-        { w: 42, h: 28, count: 14, pool: ["demon", "minotaur", "shieldman"], qmin: 4, qmax: 4 },
-        { w: 44, h: 30, count: 15, pool: ["demon", "vampire", "priest"], qmin: 4, qmax: 4 },
-        { w: 46, h: 30, count: 16, pool: ["lich", "priest", "necromancer"], qmin: 4, qmax: 4 }
+        { w: 44, h: 30, count: 9, pool: ["demon", "minotaur", "shieldman", "vampire", "priest", "lich", "necromancer"], qmin: 4, qmax: 4 }
       ],
-      boss: { key: "demon", name: "Владыка демонов", hp: 380, w: 40, h: 28, qmin: 4, qmax: 4 }
+      boss: { key: "demon", name: "Владыка демонов", hp: 330, w: 40, h: 28, qmin: 4, qmax: 4 }
     },
     {
       key: "lair",
       name: "Логово дракона",
       theme: 9,
       floors: [
-        { w: 44, h: 30, count: 16, pool: ["vampire", "priest", "shieldman"], qmin: 4, qmax: 4 },
-        { w: 46, h: 30, count: 17, pool: ["lich", "demon", "golem"], qmin: 4, qmax: 4 },
-        { w: 48, h: 32, count: 18, pool: ["vampire", "necromancer", "lich"], qmin: 4, qmax: 4 }
+        { w: 46, h: 30, count: 10, pool: ["vampire", "priest", "shieldman", "lich", "demon", "golem", "necromancer"], qmin: 4, qmax: 4 }
       ],
-      boss: { key: "dragon", name: "Дракон", hp: 350, w: 34, h: 24, qmin: 4, qmax: 4 }
+      boss: { key: "dragon", name: "Дракон", hp: 360, w: 34, h: 24, qmin: 4, qmax: 4 }
     }
   ];
 
@@ -243,8 +235,8 @@
   // заставляет бой затягиваться и повышает цену ошибки в задании.
   const SQUAD = {
     from: 3,
-    chance: 0.22,
-    maxSize: 3
+    chance: 0.15,
+    maxSize: 2
   };
 
   // Дальнобойные враги (у вида записан range) бьют с расстояния и не
@@ -321,8 +313,8 @@
   let DEEP_FROM = 5;            // номер этажа (нумерация с нуля), где начинается
   let DEEP_HP_MUL = 0.08;       // прибавка здоровья за каждый этаж глубже
   let DEEP_DMG_MUL = 0.06;      // прибавка урона за каждый этаж глубже
-  // Материалы. Руда и древесина попадаются на мелких этажах, обломки — только
-  // с шестого: второй уровень кузницы нельзя получить, не спускаясь глубоко.
+  // Материалы. Руда и древесина попадаются на мелких этажах, обломки — с
+  // пятого: второй уровень кузницы нельзя получить, не спускаясь глубоко.
   let LOOT_ORE_CHANCE = 0.45;
   let LOOT_WOOD_CHANCE = 0.45;
   let LOOT_SHARD_CHANCE = 0.35;
@@ -714,15 +706,15 @@
   // рядом с настоящей сбивала с толку.
   const FLOOR_DECOR_MIX = [
     [[1, 10], [5, 4], [3, 6], [2, 5]],           // 1. Пещеры новичка
-    [[4, 11], [3, 7], [10, 4], [6, 4]],          // 2. Забытые катакомбы
-    [[3, 8], [10, 6], [4, 5], [2, 4], [7, 3]],   // 3. Логово орков
-    [[2, 9], [6, 8], [5, 5], [1, 4]],            // 4. Гнилые болота
+    [[4, 11], [3, 7], [10, 4], [6, 4]],          // 2. Гоблин-вожак
+    [[3, 8], [10, 6], [4, 5], [2, 4], [7, 3]],   // 3. Забытые катакомбы
+    [[2, 9], [6, 8], [5, 5], [1, 4]],            // 4. Некромант
     [[9, 10], [3, 7], [2, 4]],                   // 5. Ледяные залы
-    [[3, 9], [9, 6], [6, 4], [7, 3]],            // 6. Древние руины
+    [[3, 9], [9, 6], [6, 4], [7, 3]],            // 6. Король големов
     [[4, 8], [3, 6], [7, 5]],                    // 7. Обитель демонов
-    [[4, 10], [3, 7], [10, 4], [6, 3]],          // 8. Проклятый склеп
-    [[9, 9], [3, 6], [7, 4], [4, 3]],            // 9. Тронный зал лича
-    [[4, 8], [3, 6], [7, 5]]                     // 10. Логово дракона
+    [[4, 10], [3, 7], [10, 4], [6, 3]],          // 8. Владыка демонов
+    [[9, 9], [3, 6], [7, 4], [4, 3]],            // 9. Логово дракона
+    [[4, 8], [3, 6], [7, 5]]                     // 10. Дракон
   ];
 
   function floorDecorMix(floorIdx) {
@@ -867,7 +859,7 @@
   // 3,8, а не 3,5: кто вкладывает золото в кузницу, проходит поход на 7–8%
   // быстрее, и на 3,5 «Обычный» у такого ученика укладывался меньше чем в
   // три урока (замер ботом, play_dungeon.js).
-  let ENEMY_HP_MUL = 3.8;
+  let ENEMY_HP_MUL = 1.6;
   // Вход в подземелье мягче: на первом этаже враг толще базового лишь на
   // 60% от ENEMY_HP_MUL, дальше +10% за этаж, с пятого — полностью. В начале
   // герой слабее всего, и длинные бои там превращали первые этажи в стену.
@@ -2933,15 +2925,9 @@
     begin();
   }
 
-  // Кнопка «Спуститься»: перед первым спуском без калибровки сначала
-  // показываем шесть вопросов. После ответа или пропуска начинаем поход.
+  // Кнопка «Спуститься»: сразу начинаем поход. В публичной игре нет
+  // входной проверки знаний; калибровка осталась в classroom-ветке.
   function beginFromEntrance() {
-    const name = accountName();
-    const k = name ? knowledgeFor(name) : null;
-    if (name && (!k || !k.level)) {
-      openCalibration(() => { closeEntrance(); begin(); });
-      return;
-    }
     enterDungeon();
   }
 
@@ -2972,7 +2958,7 @@
     }
     if (!prof.dungeonBest && !pausedRun()) {
       html += "<p class='lead'><b>Первый поход:</b> найди стража у входа, " +
-        "спустись до пятого этажа и вернись к затвору — поход сохранится.</p>";
+        "спустись до шестого этажа и вернись к затвору — поход сохранится.</p>";
     }
     html +=
       "<p class='lead'><b>Амулеты:</b> " +
@@ -5732,7 +5718,7 @@
       }
       // Материалы для построек деревни лежат в тех же сундуках. Что именно
       // попадётся — зависит от глубины: руда с третьего этажа, древесина на
-      // мелких, обломки только с шестого. Так второй уровень кузницы нельзя
+      // мелких, обломки с пятого. Так второй уровень кузницы нельзя
       // получить, не спускаясь глубоко.
       const mat = rollChestLoot(G.floorIndex);
       if (mat) gainLoot(mat.kind, mat.n);
@@ -5747,8 +5733,8 @@
     const kinds = [];
     if (floorIdx >= 2) kinds.push({ kind: "ore", chance: LOOT_ORE_CHANCE });
     if (floorIdx <= 5) kinds.push({ kind: "wood", chance: LOOT_WOOD_CHANCE });
-    if (floorIdx >= 5) kinds.push({ kind: "shard", chance: LOOT_SHARD_CHANCE });
-    // Порядок проверок случайный: иначе на шестом этаже всегда выпадала бы
+    if (floorIdx >= 4) kinds.push({ kind: "shard", chance: LOOT_SHARD_CHANCE });
+    // Порядок проверок случайный: иначе на пятом этаже всегда выпадала бы
     // руда, и обломки стали бы редкостью даже там, где они и есть цель.
     const order = kinds.slice();
     for (let i = order.length - 1; i > 0; i -= 1) {
@@ -5758,6 +5744,10 @@
     for (let i = 0; i < order.length; i += 1) {
       if (Math.random() < order[i].chance) return { kind: order[i].kind, n: 1 };
     }
+    // Кампания короткая: десяти этажей не хватит, если часть сундуков
+    // окажется пустой по материалам. Поэтому сундук всегда отдаёт хотя бы
+    // один материал, а шансы выше лишь выбирают, какой именно.
+    if (order.length) return { kind: order[0].kind, n: 1 };
     return null;
   }
 
@@ -6337,7 +6327,7 @@
       victory();
       return;
     }
-    // Затвор глубины: с шестого этажа спуск запечатан, пока у героя нет
+    // Затвор глубины: на шестом этаже спуск запечатан, пока у героя нет
     // оберега из деревни. Это и есть главный замок игры — первый поход
     // кончается здесь, а не на драконе, и открывает глубину не удача, а
     // восстановленная кузница.
@@ -7097,7 +7087,7 @@
   }
 
   // Ключ со стража лестницы. Первый ключ — от амбара (с третьего этажа),
-  // второй — от дома мастера (с шестого): без спуска деревню не поднять.
+  // второй — от дома мастера (с пятого): без спуска деревню не поднять.
   // Ключ уходит в профиль и переживает смерть, как материалы.
   // Ключ от тайника: лежит на страже этажа, где есть тайник. Ключ походный,
   // а не профильный: тайник есть на каждом этаже свой.
@@ -7113,7 +7103,7 @@
   function dropGuardKey(floorIdx) {
     const want = [];
     if (floorIdx >= 2) want.push("barn");
-    if (floorIdx >= 5) want.push("smith");
+    if (floorIdx >= 4) want.push("smith");
     let key = null;
     for (let i = 0; i < want.length; i += 1) {
       const k = want[i];
@@ -7374,7 +7364,7 @@
     G.stats.kills += 1;
     if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
     // Стражи лестницы держат ключи от построек деревни: ключ от амбара лежит
-    // с третьего этажа, ключ от дома мастера — с шестого. Так деревня растёт
+    // с третьего этажа, ключ от дома мастера — с пятого. Так деревня растёт
     // не только за материалы, но и за спуск: ключ нельзя выпросить в деревне.
     if (e.guard) {
       dropGuardKey(G.floorIndex);
@@ -8972,8 +8962,8 @@ function topicName(key) {
   const KEY_DEFS = {
     barn: { name: "ключ от амбара", opens: "амбар" },
     smith: { name: "ключ от дома мастера", opens: "дом мастера" },
-    seal: { name: "оберег глубины", opens: "шестой этаж" },
-    seal2: { name: "печать мастера", opens: "восьмой этаж" }
+    seal: { name: "оберег глубины", opens: "седьмой этаж" },
+    seal2: { name: "печать мастера", opens: "десятый этаж" }
   };
 
   function keyName(key) {
@@ -8983,7 +8973,7 @@ function topicName(key) {
 
   // --- Развитие деревни ---
   // Что и за что восстанавливается. Материалы падают в подземелье (руда с
-  // третьего этажа, обломки только с шестого), ключи — со стражей лестницы.
+  // третьего этажа, обломки с пятого), ключи — со стражей лестницы.
   // Постройки открывают силу героя, поэтому деревня и есть замок на победу:
   // без кузницы улучшений не купить, без дома мастера не поднять выше третьего.
   // Эффекты описаны функциями: числа берутся в момент показа окна, а не при
@@ -8993,22 +8983,22 @@ function topicName(key) {
     well: {
       name: "Колодец", yard: true,
       effect: () => "+" + Math.round(VILLAGE_WELL_HP) + " здоровья в каждом походе",
-      levels: [{ ore: 6 }, { ore: 10, shard: 4 }]
+      levels: [{ ore: 3 }, { ore: 8, shard: 3 }]
     },
     barn: {
       name: "Амбар",
       effect: () => "+" + Math.round(VILLAGE_BARN_BONUS * 100) + "% находок материалов",
-      levels: [{ wood: 8, key: "barn" }, { wood: 10, ore: 5 }]
+      levels: [{ wood: 4, key: "barn" }, { wood: 8, ore: 4 }]
     },
     forge: {
       name: "Кузница",
       effect: () => "улучшения героя до " + (villageLevel("smith") > 0 ? 3 : 3) + " уровня, II — амулет сверх потолка",
-      levels: [{ ore: 8, wood: 4 }, { shard: 10, ore: 8 }]
+      levels: [{ ore: 4, wood: 2 }, { shard: 8, ore: 6 }]
     },
     smith: {
       name: "Дом мастера",
       effect: () => "улучшения героя до 5 уровня",
-      levels: [{ key: "smith", shard: 5 }, { shard: 12 }]
+      levels: [{ key: "smith", shard: 3 }, { shard: 10 }]
     }
   };
 
@@ -9147,7 +9137,7 @@ function topicName(key) {
       place: "Деревня · дом мастера",
       brief: "Открыть дом мастера и снять вторую печать.",
       text: "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая печать. " +
-        "Ключ держит страж на шестом этаже или глубже; на ремонт нужны обломки.",
+        "Ключ держит страж в ледяных залах; на ремонт нужны обломки.",
       objective: "Открыть дом мастера и вернуться к старосте.",
       doneText: "Дверь открыта. Мастер долго смотрит на печать, потом говорит: " +
         "«Значит, дракон ещё спит». Он отдаёт печать мастера — пропуск к " +
@@ -9191,12 +9181,12 @@ function topicName(key) {
 
   const REPEAT_KEYS = ["guard", "ore", "nomiss"];
 
-  // Затворы на границах биомов: после первого босса нужен оберег, после
-  // второго — печать мастера. Портал на этаже босса возвращает в деревню
-  // за наградой, а не заставляет искать старую лестницу наверх.
+  // Затворы стоят на границе двух последних отрезков: после трёх биомов
+  // (шестой этаж) и перед драконом (десятый). Так у игрока есть время
+  // собрать материалы и пройти три главы до первого затвора.
   const SEALS = [
-    { floor: 4, key: "seal", what: "оберег глубины", from: "кузницу" },
-    { floor: 8, key: "seal2", what: "печать мастера", from: "дом мастера" }
+    { floor: 6, key: "seal", what: "оберег глубины", from: "кузницы" },
+    { floor: 9, key: "seal2", what: "печать мастера", from: "дома мастера" }
   ];
 
   // Затвор для следующего этажа: null, если спуск свободен.
@@ -9836,6 +9826,17 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.9.0",
+      date: "26 октября 2026",
+      title: "Короткий спуск и публичная оболочка",
+      items: [
+        "Пять биомов по два этажа: десять этажей, пять боссов и полный поход примерно на 20–40 минут.",
+        "Затворы глубины стоят на пороге седьмого и десятого этажей; материалы и постройки пересчитаны под короткий забег.",
+        "Вход в подземелье стал короче: без проверки знаний, сразу выбор сложности и режима.",
+        "Сохранения можно выгрузить в файл и загрузить обратно, а на телефоне появился экранный крест."
+      ]
+    },
+    {
       version: "1.8.2",
       date: "24 октября 2026",
       title: "Грибы убраны из декора",
@@ -9899,7 +9900,7 @@ function topicName(key) {
       title: "Справочник, портал и панель P",
       items: [
         "В главном меню и паузе появился «Справочник» с управлением, предметами, НПС и мобами.",
-        "На пятом этаже после зачистки открывается портал в деревню.",
+        "На этаже босса после зачистки открывается портал в деревню.",
         "Панель разработчика открывается по P; «Продолжить поход» снова возвращает на сохранённый этаж."
       ]
     },
@@ -10264,6 +10265,8 @@ function topicName(key) {
     el("end-box").innerHTML =
       "<div class='big-emoji-free victory'>Победа</div>" +
       "<h2 class='victory'>Дракон повержен!</h2>" +
+      "<p class='lead victory-epilogue'><b>" + CAMPAIGN.title + ".</b> " +
+        CAMPAIGN.epilogue + "</p>" +
       runSummaryHtml({ banked: G.victoryBankedAmount, victory: true }) +
       topicReportHtml() +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
@@ -11326,7 +11329,7 @@ function topicName(key) {
   }
 
   // Вернуться в деревню, не заканчивая поход. Без этого игрок запирался:
-  // с шестого этажа спуск запечатан, оберег глубины выдаёт староста в
+  // на шестом этаже спуск запечатан, оберег глубины выдаёт староста в
   // деревне, а пути наверх к деревне из подземелья не было вовсе.
   // Поход при этом не сбрасывается: этаж, золото и снаряжение ждут в
   // сохранении, а продолжить можно у стража у входа.
@@ -11490,7 +11493,8 @@ function topicName(key) {
     el("resume-btn").addEventListener("click", () => loadGame());
     const tutorialSkipBtn = el("tutorial-skip");
     if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", tutorialSkip);
-    el("calibration-btn").addEventListener("click", () => openCalibration(null));
+    const calibrationBtn = el("calibration-btn");
+    if (calibrationBtn) calibrationBtn.addEventListener("click", () => openCalibration(null));
     el("entrance-close").addEventListener("click", closeEntrance);
     // Окно калибровки перерисовывается после каждого ответа, поэтому клики
     // ловим делегированием на оверлее, а не на отдельных кнопках.
@@ -11515,6 +11519,16 @@ function topicName(key) {
       });
     }
     el("village-btn").addEventListener("click", returnToVillage);
+    // Крест на телефоне: те же четыре направления, что и у стрелок.
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target && ev.target.closest ? ev.target.closest("[data-move]") : null;
+      if (!btn) return;
+      const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+      const d = dirs[btn.dataset.move];
+      if (!d) return;
+      ev.preventDefault();
+      move(d[0], d[1]);
+    });
     el("shop-btn").addEventListener("click", () => openShop(false));
     el("action-btn").addEventListener("click", doInteract);
     el("skip-btn").addEventListener("click", skipTurn);
@@ -12893,6 +12907,9 @@ function topicName(key) {
         if (G.battle) return false;
         openEntrance();
         return true;
+      },
+      move: function (dx, dy) {
+        move(Number(dx) || 0, Number(dy) || 0);
       },
       leave: leave
     };

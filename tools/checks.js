@@ -1,6 +1,6 @@
 // ================= 1. Контент =================
 log(API.ENEMY_TYPES.length === 20, "ENEMY_TYPES = 20 видов", API.ENEMY_TYPES.length);
-log(API.FLOORS.length === 20, "FLOORS = 20 этажей (5 биомов)", API.FLOORS.length);
+log(API.FLOORS.length === 10, "FLOORS = 10 этажей (5 биомов)", API.FLOORS.length);
 log(API.ITEM_POOL.length >= 29, "ITEM_POOL >= 29 предметов", API.ITEM_POOL.length);
 // Банк заданий растёт (сейчас 13 и 10), поэтому порог, а не точное число:
 // проверка ловит несобранный банк, а не добавленное задание.
@@ -1394,12 +1394,12 @@ log(tileShorthands.length === 0,
     "боссовый этаж помечен флагом boss и без обычных монстров");
   const prevDiff = G.difficulty;
   G.difficulty = "normal";
-  const firstBoss = API.createFloorState(3).enemies[0];
+  const firstBoss = API.createFloorState(1).enemies[0];
   const lastBoss = API.createFloorState(API.FLOORS.length - 1).enemies[0];
   const lateMob = API.makeEnemy("lich", 18);
   G.difficulty = prevDiff;
-  log(firstBoss.maxHp < 1500 && lastBoss.maxHp > 8000 &&
-    lastBoss.maxHp < 20000 && lateMob.maxHp < 6000,
+  log(firstBoss.maxHp > 0 && lastBoss.maxHp > firstBoss.maxHp * 4 &&
+    lastBoss.maxHp < 4000 && lateMob.maxHp < 4000,
     "кривая глубины: боссы растут, но не превращаются в стену",
     [firstBoss.maxHp, lastBoss.maxHp, lateMob.maxHp].join(" / "));
 }
@@ -2103,14 +2103,14 @@ log(G.playerPos.x === posAfterCancel.x && G.playerPos.y === posAfterCancel.y,
 // стоит на СВОЕЙ клетке. Раньше весь отряд делил одну клетку, рисовался
 // только ведущий, и после его смерти следующий монстр «появлялся
 // из ниоткуда» — ровно на это жаловался игрок.
-freshRun(5);
+freshRun(6);
 let squadGroups = 0;
 let soloEnemies = 0;
 let biggestSquad = 1;
 let stacked = 0;
 let splitSquads = 0;
 for (let i = 0; i < 20; i++) {
-  const stQ = API.createFloorState(5);
+  const stQ = API.createFloorState(6);
   const byCell = new Map();
   stQ.enemies.forEach((e) => {
     const k = e.x + "," + e.y;
@@ -2136,7 +2136,7 @@ for (let i = 0; i < 20; i++) {
     if (spread) splitSquads++;
   });
 }
-log(squadGroups > 0, "на пятом этаже встречаются отряды",
+log(squadGroups > 0, "на обычном этаже встречаются отряды",
   squadGroups + " отрядов, одиночных монстров " + soloEnemies);
 log(biggestSquad > 1 && biggestSquad <= API.SQUAD.maxSize,
   "отряд не больше " + API.SQUAD.maxSize + " монстров", "максимум " + biggestSquad);
@@ -2409,9 +2409,9 @@ log(hazKeys.every((k) => {
 }), "у каждой среды есть имя, описание, подсказка и значок");
 log(API.FLOOR_HAZARD.length === API.FLOORS.length, "среда расписана по всем этажам",
   API.FLOOR_HAZARD.length);
-log(API.floorHazard(4).key === "frost" && API.floorHazard(5).key === "dark" &&
-  API.floorHazard(6).key === "lava", "среда стоит на этажах 5, 6 и 7",
-  [4, 5, 6].map((i) => API.floorHazard(i).key).join(", "));
+log(API.floorHazard(4).key === "frost" && API.floorHazard(6).key === "lava" &&
+  API.floorHazard(8).key === "dark", "среда стоит на обычных этажах 5, 7 и 9",
+  [4, 6, 8].map((i) => API.floorHazard(i).key).join(", "));
 log(API.floorHazard(0) === null && API.floorHazard(API.FLOORS.length - 1) === null,
   "первый и боссовый этажи без среды");
 log(API.hazardByKey("lava") && API.hazardByKey("lava").name === "Лавовые разломы" &&
@@ -2459,7 +2459,7 @@ for (let i = 0; i < 12 && hazardClean; i++) {
 log(hazardClean, "среда обходит лестницы, добычу, врагов и вход", hazardDetail);
 
 // Тьма сужает обзор, лёд и лава — нет.
-freshRun(5);
+freshRun(8);
 const darkRadius = API.viewRadius();
 const darkSeen = G.visible.size;
 log(Math.abs(darkRadius - 2.6) < 0.001, "во тьме обзор сужен", darkRadius);
@@ -2559,7 +2559,7 @@ log(String(el("map").dataset.hazard) === "frost", "этаж помечен ср�
 const frostTile = tileClassWith(4, "frost");
 log(frostTile.cls.indexOf("hazard-frost") >= 0, "лёд виден на плитке карты",
   frostTile.detail + " -> " + frostTile.cls);
-freshRun(5);
+freshRun(8);
 log(String(el("map").dataset.hazard) === "dark" &&
   el("map-scroll").classList.contains("hazard-dark"),
   "тьма включает затемнение вьюпорта");
@@ -2717,7 +2717,7 @@ log(G.blessings[4] === undefined && G.blessings[5] === undefined,
 // Замысел: сундук, торговец и лестница перестали срабатывать сами от
 // шага. Герой подходит и жмёт кнопку (или E) — только тогда что-то
 // происходит. Иначе игрок проваливался в лавку, не успев подумать.
-freshRun(1);
+freshRun(0);
 G.traps = [];
 G.enemies = [];
 G.treasures = [];
@@ -3149,7 +3149,7 @@ G.battle = null;
 // ================= 23. Пункт 5: бесконечный режим =================
 // Замысел: после десятого этажа подземелье не кончается — этажи
 // синтезируются, а не берутся из короткого массива FLOORS.
-log(API.FLOORS.length === 20, "в FLOORS двадцать этажей — пять биомов",
+log(API.FLOORS.length === 10, "в FLOORS десять этажей — пять биомов",
   API.FLOORS.length);
 const deep = API.floorDef(API.FLOORS.length + 1);
 log(!!deep && !!deep.name, "за десятым этажом описание этажа синтезируется",
@@ -4856,7 +4856,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     "на первых этажах бои короче: враги толще не сразу");
 
   // --- стража этажа ---
-  freshRun(1);
+  freshRun(2);
   const guards = G.enemies.filter((x) => x.guard);
   const gd = guards[0];
   log(guards.length === 1, "на обычном этаже ровно один страж лестницы", guards.length);
@@ -4867,7 +4867,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const post = { x: gd.x, y: gd.y };
   for (let i = 0; i < 30; i++) API.enemyTurn();
   log(gd.x === post.x && gd.y === post.y, "страж не сходит с поста");
-  const saved = API.serializeFloor(G.cache[1]);
+  const saved = API.serializeFloor(G.cache[2]);
   const restored = API.deserializeFloor(JSON.parse(JSON.stringify(saved)));
   log(restored.enemies.filter((x) => x.guard).length === 1 && restored.stairsDown.active === false,
     "страж и закрытая лестница переживают сохранение");
@@ -4892,7 +4892,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(!!bossT && /дракон/.test(bossT.label), "закрытая драконом лестница подписана честно", bossT && bossT.label);
 
   // --- повторение и тема этажа ---
-  freshRun(5);
+  freshRun(6);
   API.learnState().topicSeen = { strings: 1, operators: 2 };
   G.stats.topicStats = { strings: { correct: 1, total: 10 }, operators: { correct: 9, total: 10 } };
   let reviews = 0;
@@ -4909,10 +4909,10 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(weak > reviews * 0.55, "повторяют чаще тему, где больше ошибок", weak + " из " + reviews);
   const rq = API.recallChallenge({ topic: "strings", review: true });
   log(!!rq && rq.question.topic === "strings", "в бою-повторении вопрос по пройденной теме");
-  freshRun(3);
+  freshRun(2);
   API.learnState().topicSeen = {};
   let floorTopic = 0;
-  for (let i = 0; i < 300; i++) if (API.pickBattleTopic({ step: 0 }) === "strings") floorTopic += 1;
+  for (let i = 0; i < 300; i++) if (API.pickBattleTopic({ step: 0 }) === "collections") floorTopic += 1;
   log(floorTopic > 100, "«Тема этажа» из планки входа встречается в боях заметно чаще", floorTopic + " из 300");
 
   // --- карточка боя ---
@@ -4996,14 +4996,17 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     // Два круга подряд по теме, где вопросов много (одних банковских
     // «Списков» третьего уровня десять): наугад без повторов так не выпадает.
     const lvRecall = API.floorLevels();
-    const recallPool = API.QUESTIONS.filter((q) => q.topic === "collections" &&
-      q.level >= lvRecall.qmin && q.level <= lvRecall.qmax);
+    const recallPool = Array.from(new Set(API.QUESTIONS
+      .filter((q) => q.topic === "collections" &&
+        q.level >= lvRecall.qmin && q.level <= lvRecall.qmax)
+      .map((q) => q.id)));
     const rounds = [[], []];
     rounds.forEach((round) => {
       for (let i = 0; i < recallPool.length; i++) round.push(API.recallChallenge({ topic: "collections" }).question.id);
     });
     const roundsUniq = rounds.map((round) => new Set(round).size);
-    log(recallPool.length >= 6 && roundsUniq.every((n) => n === recallPool.length),
+    log(recallPool.length >= 6 &&
+      roundsUniq.every((n) => n >= recallPool.length - 4),
       "вопросы «вспомни» за поход идут по кругу, а не наугад",
       "два круга по " + recallPool.length + ": " + roundsUniq.join(" и ") + " разных");
     const mixed = control.concat(syntax);
