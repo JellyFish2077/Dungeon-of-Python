@@ -245,6 +245,8 @@ def run_checks(browser, base):
     page.click("#menu-about")
     check(page.locator("#menu-about-title").inner_text() == "Об игре",
           "«Об игре» открывает справку")
+    check("калибров" not in page.locator("#menu-view-about").inner_text().lower(),
+          "в «Об игре» нет упоминания калибровки")
     page.click("#menu-back-about")
     page.click("#menu-settings")
     check(page.locator("#menu-settings-title").inner_text() == "Настройки",
