@@ -472,7 +472,7 @@
     villageSeen: null
   };
 
-  // Скрытый хук для автотестов: ?debug=1 открывает состояние игры. Только
+  // Скрытый хук для автопроверок: ?debug=1 открывает состояние игры. Только
   // вместе с --dev: иначе любой ученик получал __setFloor, __validateFloor и
   // всё состояние G из адресной строки — это дефект, а не отладка.
   try {
@@ -2404,27 +2404,29 @@
     return html;
   }
 
-  // Квестовый блок старосты: шаг сюжета и повторяемое задание. И то и другое
-  // можно не брать — в подземелье пускают и без квеста, — но с ним деревня
-  // платит золотом и материалами.
+  // Квестовый блок старосты: глава кампании и повторяемое задание. И то и
+  // другое можно не брать — в подземелье пускают и без квеста, — но с ним
+  // деревня платит золотом и материалами.
   function questBlockHtml() {
     const prof = hubProfile();
     if (!prof) return "";
-    let html = "<h3 class='quest-head'>Дела деревни</h3>";
+    let html = "<h3 class='quest-head'>Кампания · " + CAMPAIGN.title + "</h3>";
     const step = storyStep();
     if (!step) {
-      html += "<p class='lead'>«Деревня поднята, герой. Осталась только дорога вниз».</p>";
+      html += "<p class='lead'>«Печати на месте, герой. Осталась только дорога вниз».</p>";
     } else {
       const done = goalDone(step.goal);
+      const chapter = storyChapterNumber(prof.quests.story);
       html += "<div class='build-block'>" +
-        "<div class='hub-card-head'><b>" + step.title + "</b><span class='hub-price'>шаг " +
-        (prof.quests.story + 1) + " из " + STORY_QUESTS.length + "</span></div>" +
-        "<p class='hub-card-note'>" + step.text + "</p>" +
+        "<div class='hub-card-head'><b>Глава " + chapter + ". " + step.title + "</b>" +
+        "<span class='hub-price'>" + (done ? "готова" : "в работе") + "</span></div>" +
+        "<p class='hub-card-note'>" + step.brief + "</p>" +
+        "<p class='hub-card-note'><b>Где:</b> " + step.place + "</p>" +
         "<p class='lead'>Награда: " + rewardText(step.reward) + "</p>" +
         (done
           ? "<button class='btn quest-claim' type='button' data-quest='story' data-goal=\"" +
-            step.key + "\">Забрать награду</button>"
-          : "<span class='hub-stock'>Нужно: " + (goalProgressText(step.goal) || "цель ещё не выполнена") + "</span>") +
+            step.key + "\">Завершить главу</button>"
+          : "<span class='hub-stock'>" + (goalProgressText(step.goal) || "цель ещё не выполнена") + "</span>") +
         "</div>";
     }
     const active = prof.quests.active;
@@ -2484,10 +2486,6 @@
       "Унести можно не больше " + HUB_AMULET_MAX + ".</li>" +
       "<li><b>Карта</b> — клавиша M, зум — колесо мыши.</li>" +
       "</ul>";
-    html += "<div class='setup-actions'>" +
-      "<a class='btn ghost link-btn' href='/quiz'>Пройти тест</a>" +
-      "<a class='btn ghost link-btn' href='/study'>Самоподготовка</a>" +
-      "</div>";
     return html;
   }
 
@@ -2643,9 +2641,15 @@
     // Дверь постройки открывается сразу: спрайт двери уже нарисован, и его
     // надо перерисовать — замок теперь спрашивает профиль.
     G.prog = progressBonus();
+    const chapter = storyStep();
+    if (chapter && chapter.goal === key && goalDone(key)) {
+      log("Сюжет: цель главы " + storyChapterNumber(prof.quests.story) + " «" +
+        chapter.title + "» выполнена. Вернись к старосте.", "floor");
+    }
     render();
     renderVillageInfo();
     updateWalletLine();
+    updateHud();
     if (G.dialogNpc && G.dialogNpc.key === "build:" + key) openBuild(key);
     else if (G.dialogNpc) openDialog(G.dialogNpc);
     return true;
@@ -2671,6 +2675,7 @@
     G.prog = progressBonus();
     renderVillageInfo();
     updateWalletLine();
+    updateHud();
     if (G.dialogNpc) openDialog(G.dialogNpc);
     return true;
   }
@@ -3981,38 +3986,106 @@
     updateActionButton();
   }
 
+  // Цифры постоянного HUD. В подземелье это текущий поход, в деревне — тот
+  // герой, который выйдет в следующий: здоровье с колодцем, сила с кузницей,
+  // золото из банка. Иначе в деревне на виду оставались бы «1 / 1» и ноль.
+  function heroHudStats() {
+    const p = G.player;
+    if (G.place === "dungeon" && G.running && p) {
+      return {
+        level: p.level,
+        hp: p.hp,
+        maxHp: p.maxHp,
+        xp: p.xp,
+        xpNext: p.xpNext,
+        gold: p.gold || 0,
+        dmg: Math.round(p.dmgBase + p.atkBonus),
+        def: Math.round(p.defBonus || 0),
+        name: G.nick || G.name || "Герой",
+        place: placeName()
+      };
+    }
+    const prof = hubProfile();
+    const prog = progressBonus();
+    const maxHp = 120 + prog.hp;
+    return {
+      level: 1,
+      hp: maxHp,
+      maxHp: maxHp,
+      xp: 0,
+      xpNext: XP_BASE,
+      gold: prof ? (prof.wallet.gold || 0) : 0,
+      dmg: 12 + prog.dmg,
+      def: 0,
+      name: G.nick || G.name || accountName() || "Герой",
+      place: placeName()
+    };
+  }
+
   function updateHud() {
     const p = G.player;
-    const hpPct = Math.round((p.hp / p.maxHp) * 100);
+    const hs = heroHudStats();
+    const hpPct = Math.round((hs.hp / hs.maxHp) * 100);
     const hpBar = el("player-hp").parentElement;
+    const liveHud = el("hero-hud");
 
     // Всё, что не менялось с прошлого кадра, не переписываем: иначе браузер
     // на каждом шаге заново размечал панель подземелья.
-    // Цель квеста входит в подпись: без неё строка цели не перерисовалась бы
-    // после взятия задания и после сдачи.
+    // Цель квеста и глава входят в подпись: без них строки не перерисовались
+    // бы после постройки, сдачи задания и перехода сюжета.
     const quest = questLine();
-    const sig = p.hp + "|" + p.maxHp + "|" + p.level + "|" + p.xp + "|" + p.xpNext + "|" +
-      G.floorIndex + "|" + G.enemies.length + "|" + (p.gold || 0) + "|" + (G.nick || G.name || "") +
-      "|" + G.place + "|" + (G.houseKey || "") + "|" + quest;
+    const story = storyHudData();
+    const sig = hs.hp + "|" + hs.maxHp + "|" + hs.level + "|" + hs.xp + "|" + hs.xpNext + "|" +
+      hs.gold + "|" + hs.dmg + "|" + hs.def + "|" + hs.name + "|" + hs.place + "|" +
+      G.floorIndex + "|" + G.enemies.length + "|" + G.place + "|" + (G.houseKey || "") + "|" +
+      quest + "|" + story.kicker + "|" + story.title + "|" + story.ready + "|" + story.done;
     if (G.hudSig !== sig) {
       G.hudSig = sig;
       el("player-hp").style.width = hpPct + "%";
-      hpBar.classList.toggle("low", p.hp / p.maxHp < 0.3);
-      el("player-hp-text").textContent = p.hp + " / " + p.maxHp;
-      el("player-level").textContent = p.level;
-      const xpPct = Math.round((p.xp / p.xpNext) * 100);
+      hpBar.classList.toggle("low", hs.hp / hs.maxHp < 0.3);
+      el("player-hp-text").textContent = hs.hp + " / " + hs.maxHp;
+      el("player-level").textContent = hs.level;
+      const xpPct = Math.round((hs.xp / hs.xpNext) * 100);
       el("player-xp").style.width = clamp(xpPct, 0, 100) + "%";
-      el("player-xp-text").textContent = p.xp + " / " + p.xpNext + " очков";
+      el("player-xp-text").textContent = hs.xp + " / " + hs.xpNext + " очков";
       el("floor-name").textContent = placeName();
       const nickEl = el("hud-nick");
-      if (nickEl) nickEl.textContent = "Герой: " + (G.nick || G.name || "—");
-      el("enemies-left").textContent = "Монстров: " + G.enemies.length;
+      if (nickEl) nickEl.textContent = "Герой: " + (hs.name || "—");
+      el("enemies-left").textContent = G.place === "dungeon"
+        ? "Монстров: " + G.enemies.length
+        : "Монстров: —";
       const questEl = el("quest-line");
       if (questEl) {
         questEl.textContent = quest;
         questEl.classList.toggle("hidden", !quest);
       }
-      el("gold-text").textContent = p.gold || 0;
+      el("gold-text").textContent = hs.gold;
+
+      // Постоянная сводка поверх карты.
+      const set = (id, value) => {
+        const node = el(id);
+        if (node) node.textContent = value;
+      };
+      set("hud-level", hs.level);
+      set("hud-name", hs.name);
+      set("hud-gold", hs.gold);
+      set("hud-hp-text", hs.hp + "/" + hs.maxHp);
+      set("hud-xp-text", hs.xp + "/" + hs.xpNext);
+      set("hud-dmg", hs.dmg);
+      set("hud-def", hs.def);
+      set("hud-place", hs.place);
+      set("hud-story-kicker", story.kicker);
+      set("hud-story-title", story.title);
+      const hudHp = el("hud-hp");
+      if (hudHp) hudHp.style.width = clamp(hpPct, 0, 100) + "%";
+      const hudXp = el("hud-xp");
+      if (hudXp) hudXp.style.width = clamp(xpPct, 0, 100) + "%";
+      if (liveHud) liveHud.classList.toggle("is-low", hs.hp / hs.maxHp < 0.3);
+      const storyBtn = el("hud-story");
+      if (storyBtn) {
+        storyBtn.classList.toggle("is-ready", story.ready);
+        storyBtn.classList.toggle("is-done", story.done);
+      }
       updateEquipBar();
       updateForgeHint();
     }
@@ -4021,7 +4094,7 @@
 
     // Вспышка урона и лечения — отдельно от подписи: она нужна ровно в тот
     // момент, когда здоровье изменилось.
-    if (p._lastHp != null && p.hp !== p._lastHp) {
+    if (p && p._lastHp != null && p.hp !== p._lastHp) {
       const flash = p.hp < p._lastHp ? "hurt" : "heal";
       hpBar.classList.remove("hurt", "heal");
       void hpBar.offsetWidth;
@@ -4029,22 +4102,25 @@
       clearTimeout(hpBar._flashTimer);
       hpBar._flashTimer = setTimeout(() => hpBar.classList.remove(flash), 520);
     }
-    p._lastHp = p.hp;
+    if (p) p._lastHp = p.hp;
 
     scheduleSave();
   }
 
   function refreshStatsPanel() {
     const box = el("stats-combat");
-    if (!box || !G.player) return;
-    const p = G.player;
-    const dmg = Math.round(p.dmgBase + p.atkBonus);
-    const def = Math.round(p.defBonus || 0);
-    const potions = typeof countPotions === "function" ? countPotions() : 0;
-    const charges = G.ability ? (G.ability.left || 0) : 0;
+    if (!box) return;
+    const hs = heroHudStats();
+    const inRun = G.place === "dungeon" && G.running;
+    const prof = hubProfile();
+    const wallet = (prof && prof.wallet) || {};
+    const potions = inRun && typeof countPotions === "function"
+      ? countPotions()
+      : (wallet.small_potion || 0) + (wallet.big_potion || 0);
+    const charges = inRun && G.ability ? (G.ability.left || 0) : abilityCharges();
     box.innerHTML =
-      "<span>Урон <b>" + dmg + "</b></span>" +
-      "<span>Защита <b>" + def + "</b></span>" +
+      "<span>Урон <b>" + hs.dmg + "</b></span>" +
+      "<span>Защита <b>" + hs.def + "</b></span>" +
       "<span>Зелий <b>" + potions + "</b></span>" +
       "<span>Заряды <b>" + charges + "</b></span>";
   }
@@ -6650,7 +6726,7 @@
       p.key = p.t.id;
     });
     if (gen && gen.list) {
-      // Тесты задания генератора рождаются на клиенте, поэтому сервер не
+      // Проверки задания генератора рождаются на клиенте, поэтому сервер не
       // может отличить настоящую проверку от подделки. Пока серверного
       // генератора нет, такие задания на код не выдаются (флаг с сервера).
       const genCode = !(typeof window !== "undefined" && window.__PYQUIZ_FEATURES &&
@@ -8283,7 +8359,7 @@
     return fetch("/api/check", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      // Тесты заданий банка живут на сервере: клиент присылает только номер
+      // Проверки заданий банка живут на сервере: клиент присылает только номер
       // задания. Иначе можно было прислать свои проверки и пройти любую.
       body: JSON.stringify({ code: code, taskId: taskId })
     }).then((r) => r.json());
@@ -8324,7 +8400,7 @@
     // Страховка от неполного ответа сервера: раньше `undefined === undefined`
     // проходило проверку и полный удар начислялся за пустой результат.
     const broken = !!data && !!data.ok && (typeof total !== "number" || typeof passed !== "number");
-    // Задание с клиентскими тестами (генератор) сервер проверить не может:
+    // Задание с клиентскими проверками (генератор) сервер проверить не может:
     // заменяем его, но не отключаем проверку кода для всего похода.
     if (data && data.staleTask) {
       nextChallenge();
@@ -8362,20 +8438,20 @@
       G.stats.codePassed += 1;
       G.stats.streak = (G.stats.streak || 0) + 1;
       addGold(12);
-      applyAttack(codeDamage(), "Код прошёл все тесты! Критический удар!", false, explain, true);
+      applyAttack(codeDamage(), "Код прошёл все проверки! Критический удар!", false, explain, true);
     } else if (passed > 0) {
       // Пункт 3: программа ещё неверна — врагу урона нет, получает герой.
       G.stats.streak = 0;
       applyAttack(
         0,
-        "Часть тестов пройдена (" + passed + "/" + total + "), но программа ещё неверна.",
+        "Часть проверок пройдена (" + passed + "/" + total + "), но программа ещё неверна.",
         true,
         explain,
         false
       );
     } else {
       G.stats.streak = 0;
-      applyAttack(0, "Ни один тест не пройден (0/" + total + ").", true, explain, false);
+      applyAttack(0, "Ни одна проверка не пройдена (0/" + total + ").", true, explain, false);
     }
   }
 
@@ -8626,7 +8702,6 @@ function topicName(key) {
         : "Золота на дорогу не осталось.") + "</p>" +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='to-hub-btn'>В деревню</button>" +
-      "<a class='btn ghost link-btn' href='/'>К тесту</a>" +
       "</div>";
     el("to-hub-btn").addEventListener("click", deathToHub);
   }
@@ -8653,9 +8728,8 @@ function topicName(key) {
   }
 
   // ---------- Первый спуск ----------
-  // Короткое обучение на первом этаже: шаг, сундук, бой и костёр. Это не
-  // модальное окно — игра остаётся играбельной, а подсказка висит сбоку.
-  const TUTORIAL_ORDER = ["move", "chest", "battle", "camp"];
+  // Не список целей, а одна памятка по клавишам. Сюжет и следующие шаги
+  // живут в HUD/журнале; как только игрок сделал первый шаг, памятка уходит.
 
   function tutorialPanelEl() {
     return typeof document !== "undefined" ? el("tutorial-panel") : null;
@@ -8667,70 +8741,21 @@ function topicName(key) {
       G.place === "dungeon" && G.floorIndex === 0 && G.running && !G.dead);
   }
 
-  function tutorialNearest(kind) {
-    const list = kind === "chest" ? (G.treasures || [])
-      : kind === "camp" ? (G.camps || []).filter((c) => !c.used)
-      : (G.enemies || []).filter((e) => !e.boss);
-    let best = null;
-    let bestDist = Infinity;
-    list.forEach((o) => {
-      if (!o || typeof o.x !== "number" || typeof o.y !== "number") return;
-      const d = Math.abs(o.x - G.playerPos.x) + Math.abs(o.y - G.playerPos.y);
-      if (d < bestDist) {
-        best = o;
-        bestDist = d;
-      }
-    });
-    return best;
-  }
-
-  function tutorialDirection(dx, dy) {
-    const ns = dy < 0 ? "север" : dy > 0 ? "юг" : "";
-    const ew = dx < 0 ? "запад" : dx > 0 ? "восток" : "";
-    if (ns && ew) return ns + "о-" + ew;
-    return ns || ew;
-  }
-
   function tutorialHint() {
-    const state = G.tutorial;
-    if (!state) return "";
-    const current = TUTORIAL_ORDER.find((key) => !state[key] &&
-      (key !== "move" || state.moves < 1));
-    if (current === "move") return "WASD или стрелки — сделай первый шаг.";
-    const target = tutorialNearest(current);
-    if (!target) return "Цель ищи рядом.";
-    const dx = target.x - G.playerPos.x;
-    const dy = target.y - G.playerPos.y;
-    const dist = Math.abs(dx) + Math.abs(dy);
-    const where = dist <= 1 ? "рядом" : "в " + dist + " кл. " + tutorialDirection(dx, dy);
-    if (current === "chest") return "Сундук " + where + ". Подойди и нажми E.";
-    if (current === "battle") return "Монстр " + where + ". Войди в него и ответь на вопрос.";
-    return "Костёр " + where + ". Подойди и нажми E, чтобы отдохнуть.";
+    return "WASD или стрелки — идти · E — действие · Пробел — пропустить ход.";
   }
 
   function tutorialRender() {
     const panel = tutorialPanelEl();
     const state = G.tutorial;
     if (!panel || !state) return;
-    const done = {
-      move: state.moves >= 1,
-      chest: !!state.chest,
-      battle: !!state.battle,
-      camp: !!state.camp
-    };
-    const count = TUTORIAL_ORDER.filter((key) => done[key]).length;
+    if (state.moves >= 1) {
+      tutorialFinish(false);
+      return;
+    }
     panel.classList.remove("hidden");
-    const progress = el("tutorial-progress");
-    if (progress) progress.textContent = count + " / " + TUTORIAL_ORDER.length;
-    const current = TUTORIAL_ORDER.find((key) => !done[key]) || "";
-    panel.querySelectorAll("#tutorial-steps [data-step]").forEach((node) => {
-      const key = node.dataset.step;
-      node.classList.toggle("is-done", !!done[key]);
-      node.classList.toggle("is-current", key === current);
-    });
     const hint = el("tutorial-hint");
     if (hint) hint.textContent = tutorialHint();
-    if (!current) tutorialFinish(false);
   }
 
   function tutorialUsedCells() {
@@ -8835,13 +8860,7 @@ function topicName(key) {
       prof.tutorialDone = true;
       try { putProfile(G.name, prof); } catch (e) {}
     }
-    if (skipped) {
-      setMsg("Обучение пропущено. Дальше — лестница вниз.");
-      toast("Обучение пропущено");
-    } else {
-      setMsg("Обучение пройдено. Дальше — лестница вниз.");
-      toast("Обучение пройдено!");
-    }
+    if (skipped) setMsg("Памятка по управлению скрыта.");
   }
 
   function tutorialHide() {
@@ -8856,7 +8875,7 @@ function topicName(key) {
     G.tutorial = { active: true, moves: 0, chest: false, battle: false, camp: false };
     tutorialEnsureObjects();
     tutorialRender();
-    setMsg("Первый спуск: выполни четыре подсказки слева.");
+    setMsg("Управление: WASD — идти, E — действие, Пробел — пропустить ход.");
   }
 
   function tutorialEvent(kind) {
@@ -9072,38 +9091,80 @@ function topicName(key) {
   ];
 
   // --- Квесты ---
-  // Сюжетная цепочка старосты: каждый шаг — постройка или победа. Цель шага
-  // проверяется по состоянию мира (уровень постройки, рекорд), поэтому квесты
-  // не нужно отмечать отдельно — их нельзя забыть «сдать».
-  // Награда выдаётся, когда цель выполнена: староста сам говорит, что пора.
+  // Сюжетная цепочка старосты: каждая глава — опора деревни или победа.
+  // Цель проверяется по состоянию мира (уровень постройки, рекорд), поэтому
+  // главу нельзя забыть «сдать»: староста сам говорит, когда она закрыта.
+  // Поля text/doneText — это сюжет для журнала, а не подсказка по механике.
+  const CAMPAIGN = {
+    title: "Печати глубины",
+    prologue: "Деревня держится на четырёх опорах: амбар, колодец, кузня и дом " +
+      "мастера. Под ними — старый спуск. Когда-то здесь учили первых писцов, " +
+      "а потом заперли то, что не смогли объяснить. Дракон внизу охраняет " +
+      "последнюю дверь.",
+    epilogue: "Печати на месте. Деревня переживёт ещё одну зиму. За последней " +
+      "дверью — тишина, и теперь только тебе решать, стоит ли её открывать."
+  };
+
   const STORY_QUESTS = [
     {
       key: "barn", goal: "barn", title: "Крыша для амбара",
-      text: "Амбар стоит с заколоченной дверью. Ключ держит страж лестницы, " +
-        "древесина лежит в сундуках подземелья.",
+      place: "Деревня · амбар",
+      brief: "Вернуть деревне склад и найти первую печать.",
+      text: "Амбар заколочен с прошлой зимы, и деревня держится на честном " +
+        "слове. В подполе спрятана первая печать; ключ от двери висит на поясе " +
+        "стража лестницы, а доски разбросаны по сундукам подземелья.",
+      objective: "Восстановить амбар и вернуться к старосте.",
+      doneText: "Амбар снова стоит. Под старым полом нашлась печать — тёплая, " +
+        "будто её только что держали в руках. Староста долго молчит, прежде " +
+        "чем сказать: «Одной опорой больше».",
       reward: { gold: 60, ore: 2 }
     },
     {
       key: "well", goal: "well", title: "Вода для деревни",
-      text: "Колодец засыпан. На починку нужна руда — её поднимают с третьего этажа.",
+      place: "Деревня · колодец",
+      brief: "Расчистить колодец и услышать, что говорит глубина.",
+      text: "Колодец засыпан камнем. Беда не в воде: через него деревня слушает " +
+        "глубину и узнаёт, когда просыпаются старые замки. На расчистку нужна руда.",
+      objective: "Восстановить колодец и вернуться к старосте.",
+      doneText: "Вода пошла. В её шуме ясно слышен чужой голос: «Не спускайся " +
+        "дальше». Староста делает вид, что не слышит.",
       reward: { gold: 60, wood: 2 }
     },
     {
       key: "forge", goal: "forge", title: "Разжечь горн",
-      text: "Без кузницы герою не стать сильнее: руда и древесина — на горн. " +
-        "За кузницу деревня даёт оберег глубины — без него шестой этаж запечатан.",
+      place: "Деревня · кузница",
+      brief: "Восстановить кузницу и получить оберег глубины.",
+      text: "Кузница стоит холодной. Пока горн не горит, герой не может укрепить " +
+        "снаряжение, а спуск за четвёртым этажом закрыт без оберега глубины. " +
+        "Нужны руда и древесина.",
+      objective: "Восстановить кузницу и вернуться к старосте.",
+      doneText: "Горн зажжён. Староста вручает оберег глубины: «Это не ключ. " +
+        "Это обещание вернуться».",
       reward: { gold: 80, ore: 3, key: "seal" }
     },
     {
       key: "smith", goal: "smith", title: "Дверь мастера",
-      text: "В запертом доме живёт мастер: он поднимет улучшения до пятого " +
-        "уровня и даст печать мастера — с ней открывается восьмой этаж. " +
-        "Ключ держит страж шестого этажа, на верстак нужны обломки.",
+      place: "Деревня · дом мастера",
+      brief: "Открыть дом мастера и снять вторую печать.",
+      text: "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая печать. " +
+        "Ключ держит страж на шестом этаже или глубже; на ремонт нужны обломки.",
+      objective: "Открыть дом мастера и вернуться к старосте.",
+      doneText: "Дверь открыта. Мастер долго смотрит на печать, потом говорит: " +
+        "«Значит, дракон ещё спит». Он отдаёт печать мастера — пропуск к " +
+        "последнему спуску.",
       reward: { gold: 120, ore: 2, key: "seal2" }
     },
     {
       key: "dragon", goal: "victory", title: "Дракон",
-      text: "Деревня поднята, герой крепок. Пора спуститься к дракону и вернуться с победой.",
+      place: "Подземелье · последний спуск",
+      brief: "Спуститься к дракону и закрыть старый круг.",
+      text: "Опоры стоят, печати собраны. Внизу остался дракон — последний страж " +
+        "старого спуска. Он ждёт не меча, а ответа: достоин ли герой закрыть " +
+        "за собой дверь.",
+      objective: "Победить дракона и вернуться в деревню.",
+      doneText: "Дракон падает. За его спиной нет сокровищ — только дверь, " +
+        "которую больше некому охранять. Ты возвращаешься в деревню с правом " +
+        "закрыть её или открыть.",
       reward: { gold: 200, shard: 2 }
     }
   ];
@@ -9171,6 +9232,44 @@ function topicName(key) {
     const q = questsOf();
     if (!q) return null;
     return STORY_QUESTS[q.story] || null;
+  }
+
+  const STORY_NUMERALS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+
+  // Номер главы нужен и журналу, и строке HUD. Держим его в одном месте,
+  // чтобы «Глава II» не превратилась где-то в «шаг 2».
+  function storyChapterNumber(index) {
+    return STORY_NUMERALS[index] || String(index + 1);
+  }
+
+  function storyDoneCount() {
+    const q = questsOf();
+    return q ? Math.max(0, Math.min(Number(q.story) || 0, STORY_QUESTS.length)) : 0;
+  }
+
+  // Короткая строка для постоянного HUD: какая глава идёт сейчас.
+  // Когда цель закрыта, игрок видит не новую подсказку, а состояние сюжета:
+  // «вернись к старосте». Подробности остаются в журнале.
+  function storyHudData() {
+    const done = storyDoneCount();
+    const step = STORY_QUESTS[done];
+    if (!step) {
+      return {
+        kicker: "Кампания",
+        title: "Печати на месте",
+        ready: false,
+        done: done >= STORY_QUESTS.length
+      };
+    }
+    const ready = goalDone(step.goal);
+    return {
+      kicker: ready
+        ? "Глава " + storyChapterNumber(done) + " · к старосте"
+        : "Глава " + storyChapterNumber(done),
+      title: step.title,
+      ready: ready,
+      done: false
+    };
   }
 
   // Сколько уже собрано к цели шага: «руда 4/8 · древесина 2/4». Без этой
@@ -9250,14 +9349,25 @@ function topicName(key) {
     if (!step || !goalDone(step.goal)) return false;
     const parts = payQuest(step.reward);
     const prof = hubProfile();
+    const chapterIndex = prof.quests.story;
     prof.quests.story += 1;
     prof.quests.done.push(step.key);
     putProfile(hubName(), prof);
     syncProfile(hubName());
-    log("Староста: «" + step.title + "» — сделано. Награда: " + parts.join(", ") + ".", "loot");
-    toast("Награда: " + parts.join(", "));
+    log("Староста: глава " + storyChapterNumber(chapterIndex) + " «" + step.title +
+      "» закрыта. Награда: " + parts.join(", ") + ".", "loot");
+    const next = storyStep();
+    if (next) {
+      log("Сюжет: начинается глава " + storyChapterNumber(prof.quests.story) +
+        " «" + next.title + "». " + next.brief, "floor");
+      toast("Глава " + storyChapterNumber(chapterIndex) + " завершена. Дальше: " + next.title);
+    } else {
+      log("Сюжет: кампания «" + CAMPAIGN.title + "» завершена. " + CAMPAIGN.epilogue, "floor");
+      toast("Кампания завершена: печати на месте");
+    }
     renderVillageInfo();
     updateWalletLine();
+    updateHud();
     return true;
   }
 
@@ -9320,6 +9430,7 @@ function topicName(key) {
     toast("Награда: " + parts.join(", "));
     renderVillageInfo();
     updateWalletLine();
+    updateHud();
     return true;
   }
 
@@ -9336,92 +9447,88 @@ function topicName(key) {
     }
     const step = storyStep();
     if (!step) return "";
-    if (goalDone(step.goal)) return "Староста ждёт награды: " + step.title;
+    const chapter = storyChapterNumber(prof.quests.story);
+    if (goalDone(step.goal)) return "Глава " + chapter + " готова — вернись к старосте";
     const prog = goalProgressText(step.goal);
-    return "Цель: " + step.title + (prog ? " (" + prog + ")" : "");
+    return "Глава " + chapter + ": " + step.title + (prog ? " (" + prog + ")" : "");
   }
 
-  // ---------- Журнал заданий ----------
-  // Журнал — не лог событий. В нём только задания: что в работе, что закрыто
-  // и что было снято. События по-прежнему пишутся в скрытый #log для проверок,
-  // но в интерфейсе его больше нет.
-  let journalTab = "active";
+  // ---------- Журнал кампании ----------
+  // Журнал — не лог событий и не список подсказок. Первая вкладка показывает
+  // сюжет: пролог, текущую главу, её цель и весь путь до финала. Поручения
+  // старосты и закрытые записи лежат отдельно, чтобы не размывать сюжет.
+  // События по-прежнему пишутся в скрытый #log для проверок.
+  let journalTab = "story";
 
-  function journalEntries() {
-    const empty = { active: [], done: [], failed: [] };
+  const JOURNAL_TABS = {
+    story: "Сюжет",
+    tasks: "Поручения",
+    archive: "Архив"
+  };
+
+  function repeatActiveEntry() {
     const prof = hubProfile();
-    if (!prof) return empty;
-    const q = prof.quests || {};
-    const active = [];
-    const done = [];
-    const failed = [];
+    const q = prof && prof.quests;
+    const key = q && q.active;
+    const def = REPEAT_QUESTS[key];
+    if (!def) return null;
+    const now = questProgress();
+    const ready = now >= def.need;
+    return {
+      title: def.title,
+      text: def.text,
+      meta: def.progress + ": " + now + " / " + def.need +
+        " · награда: " + rewardText(def.reward),
+      status: ready ? "Готово к сдаче" : "В работе",
+      kind: "repeat"
+    };
+  }
 
-    const storyDone = Math.max(0, Math.min(Number(q.story) || 0, STORY_QUESTS.length));
-    STORY_QUESTS.slice(0, storyDone).forEach((step) => {
-      done.push({
-        title: step.title,
-        text: step.text,
-        meta: "Награда: " + rewardText(step.reward),
-        status: "Выполнено",
+  function archiveEntries() {
+    const out = [];
+    const prof = hubProfile();
+    if (!prof) return out;
+    const q = prof.quests || {};
+    const done = storyDoneCount();
+    STORY_QUESTS.slice(0, done).forEach((step, index) => {
+      out.push({
+        title: "Глава " + storyChapterNumber(index) + ". " + step.title,
+        text: step.doneText || step.text,
+        meta: step.place + " · награда: " + rewardText(step.reward),
+        status: "Завершено",
         kind: "story"
       });
     });
-
-    const step = storyStep();
-    if (step) {
-      const ready = goalDone(step.goal);
-      active.push({
-        title: step.title,
-        text: step.text,
-        meta: ready ? "Цель выполнена — сдай старосте" : (goalProgressText(step.goal) || "В работе"),
-        status: ready ? "Готово к сдаче" : "В работе",
-        kind: "story"
-      });
-    }
-
-    if (q.active && REPEAT_QUESTS[q.active]) {
-      const def = REPEAT_QUESTS[q.active];
-      const now = questProgress();
-      const ready = now >= def.need;
-      active.push({
-        title: def.title,
-        text: def.text,
-        meta: def.progress + ": " + now + " / " + def.need,
-        status: ready ? "Готово к сдаче" : "В работе",
-        kind: "repeat"
-      });
-    }
-
     REPEAT_KEYS.forEach((key) => {
       const def = REPEAT_QUESTS[key];
       const count = q.repeat && q.repeat[key];
       if (!def || !count) return;
-      done.push({
+      out.push({
         title: def.title,
         text: def.text,
         meta: "Выполнено раз: " + count + " · награда: " + rewardText(def.reward),
         status: "Выполнено ×" + count,
-        kind: "repeat"
+        kind: "repeat",
+        done: true
       });
     });
-
     (q.failed || []).forEach((key) => {
       const def = REPEAT_QUESTS[key];
       if (!def) return;
-      failed.push({
+      out.push({
         title: def.title,
         text: def.text,
         meta: "Задание снято или заменено",
         status: "Провалено",
-        kind: "repeat"
+        kind: "repeat",
+        failed: true
       });
     });
-
-    return { active: active, done: done, failed: failed };
+    return out;
   }
 
-  function journalCard(item, tab) {
-    const cls = tab === "done" ? " is-done" : tab === "failed" ? " is-failed" : "";
+  function journalCard(item) {
+    const cls = item.failed ? " is-failed" : (item.done || item.kind === "story") ? " is-done" : "";
     return "<article class='journal-card" + cls + "'>" +
       "<div class='journal-card-head'><span class='journal-kind'>" +
       (item.kind === "story" ? "Сюжет" : "Поручение") + "</span>" +
@@ -9432,41 +9539,104 @@ function topicName(key) {
       "</article>";
   }
 
+  // Путь кампании: пройденное, текущая глава и то, что ещё впереди. Это не
+  // спойлер квестов, а каркас истории — игроку видно, куда ведёт сюжет.
+  function storyPathHtml() {
+    const done = storyDoneCount();
+    const rows = STORY_QUESTS.map((step, index) => {
+      const isDone = index < done;
+      const isCurrent = index === done;
+      const ready = isCurrent && goalDone(step.goal);
+      const state = isDone ? "is-done" : isCurrent ? "is-current" : "is-locked";
+      const label = isDone ? "Пройдено" : isCurrent ? (ready ? "Готово" : "Сейчас") : "Впереди";
+      return "<li class='story-path-step " + state + (ready ? " is-ready" : "") + "'>" +
+        "<span class='story-path-num'>" + storyChapterNumber(index) + "</span>" +
+        "<div class='story-path-text'><b>" + step.title + "</b><span>" + step.brief + "</span></div>" +
+        "<span class='story-path-state'>" + label + "</span></li>";
+    }).join("");
+    return "<div class='story-path-head'>Путь кампании</div><ol class='story-path'>" + rows + "</ol>";
+  }
+
+  function storyTabHtml() {
+    const done = storyDoneCount();
+    const step = STORY_QUESTS[done];
+    let html = "<div class='story-campaign'>" +
+      "<div class='story-prologue'>" +
+      "<div class='story-kicker'>Кампания «" + CAMPAIGN.title + "»</div>" +
+      "<p>" + CAMPAIGN.prologue + "</p></div>";
+    if (!step) {
+      html += "<article class='story-current is-done'>" +
+        "<div class='story-kicker'>Финал · " + done + " из " + STORY_QUESTS.length + "</div>" +
+        "<h3>Печати на месте</h3>" +
+        "<p class='story-lead'>" + CAMPAIGN.epilogue + "</p></article>";
+    } else {
+      const ready = goalDone(step.goal);
+      const progress = goalProgressText(step.goal);
+      html += "<article class='story-current" + (ready ? " is-ready" : "") + "'>" +
+        "<div class='story-kicker'>Глава " + storyChapterNumber(done) + " из " +
+        STORY_QUESTS.length + " · " + step.place + "</div>" +
+        "<h3>" + step.title + "</h3>" +
+        "<p class='story-lead'>" + step.text + "</p>" +
+        "<div class='story-objective'><span>Цель</span><p>" + step.objective + "</p></div>" +
+        "<div class='story-progress" + (ready ? " is-ready" : "") + "'>" +
+        "<span>" + (ready ? "Цель выполнена — вернись к старосте" : (progress || "Цель в работе")) + "</span>" +
+        "<span>Награда: " + rewardText(step.reward) + "</span></div></article>";
+    }
+    html += storyPathHtml() + "</div>";
+    return html;
+  }
+
+  function tasksTabHtml() {
+    const entry = repeatActiveEntry();
+    if (!entry) {
+      return "<div class='journal-empty'>Поручений нет. Староста выдаёт их в деревне.</div>";
+    }
+    return "<div class='journal-list'>" + journalCard(entry) + "</div>";
+  }
+
+  function archiveTabHtml() {
+    const items = archiveEntries();
+    if (!items.length) return "<div class='journal-empty'>Архив пока пуст.</div>";
+    return "<div class='journal-list'>" + items.map(journalCard).join("") + "</div>";
+  }
+
   function renderJournal() {
     const box = el("journal-box");
     if (!box) return;
-    const entries = journalEntries();
-    if (!["active", "done", "failed"].includes(journalTab)) journalTab = "active";
+    if (!JOURNAL_TABS[journalTab]) journalTab = "story";
+    const done = storyDoneCount();
+    const active = repeatActiveEntry();
+    const archive = archiveEntries();
     const counts = {
-      active: entries.active.length,
-      done: entries.done.length,
-      failed: entries.failed.length
+      story: done + "/" + STORY_QUESTS.length,
+      tasks: active ? 1 : 0,
+      archive: archive.length
     };
-    const labels = { active: "Активные", done: "Выполненные", failed: "Проваленные" };
-    const items = entries[journalTab] || [];
+    let subtitle;
+    if (done >= STORY_QUESTS.length) subtitle = "Кампания завершена · печати на месте";
+    else {
+      const step = STORY_QUESTS[done];
+      subtitle = "Кампания «" + CAMPAIGN.title + "» · глава " +
+        storyChapterNumber(done) + " из " + STORY_QUESTS.length + " · " + step.title;
+    }
     let html = "<div class='battle-head'><div>" +
       "<div class='enemy-name'>Журнал</div>" +
-      "<div class='hud-num'>Задания · " + (counts.active + counts.done + counts.failed) + " всего</div>" +
+      "<div class='hud-num'>" + subtitle + "</div>" +
       "</div><button class='exit-btn' id='journal-close' type='button' " +
       "data-tip='Закрыть журнал. Клавиша Escape.'>Закрыть</button></div>";
     html += "<div class='battle-mid journal-body'>" +
       "<div class='journal-tabs' role='tablist' aria-label='Разделы журнала'>" +
-      ["active", "done", "failed"].map((tab) =>
+      Object.keys(JOURNAL_TABS).map((tab) =>
         "<button class='journal-tab" + (tab === journalTab ? " is-active" : "") +
         "' type='button' role='tab' aria-selected='" + (tab === journalTab) +
-        "' data-jtab='" + tab + "'>" + labels[tab] +
+        "' data-jtab='" + tab + "'>" + JOURNAL_TABS[tab] +
         " <b>" + counts[tab] + "</b></button>"
       ).join("") + "</div>";
-    if (!items.length) {
-      html += "<div class='journal-empty'>" +
-        (journalTab === "active" ? "Активных заданий нет." :
-          journalTab === "done" ? "Выполненных заданий пока нет." :
-            "Проваленных заданий нет.") + "</div>";
-    } else {
-      html += "<div class='journal-list'>" + items.map((item) => journalCard(item, journalTab)).join("") + "</div>";
-    }
+    if (journalTab === "story") html += storyTabHtml();
+    else if (journalTab === "tasks") html += tasksTabHtml();
+    else html += archiveTabHtml();
     html += "</div>";
-    html += "<div class='battle-foot'><span class='foot-note'>Только задания · без событий</span>" +
+    html += "<div class='battle-foot'><span class='foot-note'>Сюжет, поручения и архив</span>" +
       "<span class='win-chip'>Esc — закрыть</span></div>";
     box.innerHTML = html;
 
@@ -9480,7 +9650,8 @@ function topicName(key) {
     });
   }
 
-  function openJournal() {
+  function openJournal(tab) {
+    if (tab && JOURNAL_TABS[tab]) journalTab = tab;
     closeGamePanel();
     renderJournal();
     el("journal-overlay").classList.remove("hidden");
@@ -10098,7 +10269,6 @@ function topicName(key) {
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='to-hub-btn'>В деревню</button>" +
       "<button class='btn ghost' id='abyss-btn'>Спуститься глубже</button>" +
-      "<a class='btn ghost link-btn' href='/'>Пройти тест</a>" +
       "</div>";
     el("end-overlay").classList.remove("hidden");
     el("to-hub-btn").addEventListener("click", victoryToHub);
@@ -11304,6 +11474,8 @@ function topicName(key) {
     document.querySelectorAll(".game-nav [data-panel]").forEach((btn) => {
       btn.addEventListener("click", () => openGamePanel(btn.dataset.panel));
     });
+    const hudStory = el("hud-story");
+    if (hudStory) hudStory.addEventListener("click", () => openJournal("story"));
     document.querySelectorAll("[data-panel-close]").forEach((btn) => {
       btn.addEventListener("click", closeGamePanel);
     });
