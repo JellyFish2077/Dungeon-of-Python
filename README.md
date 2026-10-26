@@ -60,7 +60,8 @@ python tools/package_web.py
 ```
 
 Готовый архив появится в `dist/pydungeon-standalone-*.zip`. В корне архива
-лежит `index.html`; загружать его нужно как HTML-игру.
+лежит `index.html`; загружать его нужно как HTML-игру. Текст страницы,
+обложка и чек-лист публикации лежат в [ITCH.md](ITCH.md).
 
 ## Публикация на GitHub Pages
 
