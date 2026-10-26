@@ -3,7 +3,8 @@
 Тёмное фэнтези-подземелье, где бой — это проверка знаний Python.
 Десять этажей, деревня-хаб, кампания, боссы и сохранения в браузере.
 
-**Играть онлайн:** https://jellyfish2077.github.io/Dungeon-of-Python/
+**Страница игры:** https://jellyfish2077.github.io/Dungeon-of-Python/
+**Играть сразу:** https://jellyfish2077.github.io/Dungeon-of-Python/game.html?menu=1
 
 ## Что внутри
 
