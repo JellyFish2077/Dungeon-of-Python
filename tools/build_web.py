@@ -58,10 +58,24 @@ def rewrite_worker_loader(text, stamp):
 
 
 def rewrite_landing(text, stamp):
-    return text.replace(
+    text = text.replace(
         'game.html?menu=1',
         'game.html?menu=1&v=' + stamp,
     )
+    text = re.sub(
+        r'(static/landing/[^"?#]+\.(?:png|webp|jpg))(")',
+        lambda m: m.group(1) + "?v=" + stamp + m.group(2),
+        text,
+    )
+    version = "1.9.0"
+    try:
+        boot = (STATIC / "web-boot.js").read_text(encoding="utf-8")
+        found = re.search(r'version:\s*"([^"]+)"', boot)
+        if found:
+            version = found.group(1).replace("-web", "")
+    except OSError:
+        pass
+    return text.replace("{{VERSION}}", version)
 
 
 def main():
@@ -108,6 +122,11 @@ def main():
 
     # Itch.io открывает index.html: это стартовый экран с именем и выбором
     # «новая игра / продолжить». Сама игра — game.html.
+    # Скриншоты и другие материалы лендинга.
+    landing_assets = STATIC / "landing"
+    if landing_assets.is_dir():
+        shutil.copytree(landing_assets, PUBLIC / "static" / "landing")
+
     landing = ROOT / "standalone" / "index.html"
     if not landing.exists():
         print("нет standalone/index.html", file=sys.stderr)

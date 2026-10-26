@@ -186,14 +186,20 @@ def run_checks(browser, base):
     page.on("pageerror", lambda e: console_errors.append(str(e)))
     page.on("dialog", lambda d: d.accept())
 
-    # 1. Корень сайта сразу ведёт в главное меню: отдельного landing больше нет.
+    # 1. Публичный лендинг: описание, скриншоты и кнопка входа в игру.
     page.goto(base + "/", wait_until="domcontentloaded")
+    page.wait_for_selector("#landing-play", timeout=15000)
+    check("PyDungeon" in page.title(), "лендинг открывается", page.title())
+    check(page.locator("#landing-play").is_visible() and
+          page.locator(".shot img").count() == 4,
+          "на лендинге есть кнопка «Играть» и четыре скриншота")
+    page.click("#landing-play")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
     check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
     check(page.locator("#menu-overlay").is_visible(),
-          "корень открывает главное меню")
+          "кнопка «Играть» открывает главное меню")
     labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
     check(labels == ["Новая игра", "Загрузить", "Справочник", "Обновления",
                      "Настройки", "Профиль", "Об игре", "Выход"],
@@ -440,6 +446,8 @@ def run_checks(browser, base):
         "скрытие памятки запоминается")
 
     page.goto(base + "/", wait_until="domcontentloaded")
+    page.wait_for_selector("#landing-play", timeout=15000)
+    page.click("#landing-play")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
@@ -466,8 +474,9 @@ def run_checks(browser, base):
           "«Выход в Меню» возвращает главное меню")
     page.click("#menu-exit")
     page.wait_for_url(re.compile(r".*/index\.html\?exit=1$"), timeout=10000)
-    check("Вы вышли" in page.locator("#exit-text").inner_text(),
-          "«Выход» ведёт на страницу завершения")
+    check(page.locator("#exit-banner").is_visible() and
+          "вышел" in page.locator("#exit-banner").inner_text().lower(),
+          "«Выход» ведёт на лендинг с сообщением о завершении")
 
     # 7. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))
