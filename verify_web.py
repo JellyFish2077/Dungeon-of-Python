@@ -193,6 +193,13 @@ def run_checks(browser, base):
     check(page.locator("#landing-play").is_visible() and
           page.locator(".shot img").count() == 4,
           "на лендинге есть кнопка «Играть» и четыре скриншота")
+    landing_text = page.locator("main").inner_text().lower()
+    check("при участии ии" in landing_text and "aseprite" in landing_text,
+          "на лендинге есть колофон об ИИ и графике")
+    check(page.evaluate(
+        "() => document.fonts.check('16px Literata') && "
+        "document.fonts.check('16px \"IBM Plex Mono\"')"),
+        "локальные шрифты лендинга загружены")
     page.click("#landing-play")
     page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
@@ -251,8 +258,11 @@ def run_checks(browser, base):
     page.click("#menu-about")
     check(page.locator("#menu-about-title").inner_text() == "Об игре",
           "«Об игре» открывает справку")
-    check("калибров" not in page.locator("#menu-view-about").inner_text().lower(),
+    about_text = page.locator("#menu-view-about").inner_text().lower()
+    check("калибров" not in about_text,
           "в «Об игре» нет упоминания калибровки")
+    check("при участии ии" in about_text and "dcss" in about_text,
+          "в «Об игре» есть колофон об ИИ и графике")
     page.click("#menu-back-about")
     page.click("#menu-settings")
     check(page.locator("#menu-settings-title").inner_text() == "Настройки",
