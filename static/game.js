@@ -5456,6 +5456,16 @@
     // до них можно дотянуться, не сходя с места.
     const chained = !!(G.player && G.player.snared);
     const held = (icon) => ({ kind: "chained", label: "Цепь не пускает к лестнице", icon: icon });
+    // После босса у лестницы открыт портал в деревню. Он важнее запертой
+    // лестницы: иначе игрок стоит на ступеньке, видит «Спуск запечатан»
+    // и не может вернуться, хотя портал рядом.
+    if (!chained && portalActive() && G.portal && G.playerPos) {
+      const d = Math.abs(G.playerPos.x - G.portal.x) +
+        Math.abs(G.playerPos.y - G.portal.y);
+      if (d <= 1) {
+        return { kind: "portal", label: "Войти в портал в деревню", icon: "✦", obj: G.portal };
+      }
+    }
     const at = (x, y) => {
       // Мешочек с добычей — приоритетнее декора: он лежит на месте врага.
       const bag = lootBagAt(x, y);
@@ -7398,6 +7408,14 @@
     if (G.portal && !G.enemies.length) {
       toast("Портал в деревню открыт");
       log("Этаж зачищен. У лестницы открылся портал в деревню.", "floor");
+      // Если следующий спуск запечатан, объясняем это сразу после зачистки,
+      // пока игрок стоит у портала, а не только по нажатию E на ступеньку.
+      if (!canDescend()) {
+        const message = sealMessage();
+        setMsg(message);
+        log(message, "floor");
+        toast(message, 7000);
+      }
     }
     G.stats.kills += 1;
     if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
