@@ -276,6 +276,17 @@ def run_checks(browser, base):
     check(not page.locator("#menu-overlay").is_visible(), "«Новая игра» закрывает меню")
     check(not page.locator("#entrance-overlay").is_visible(),
           "«Новая игра» не открывает стража автоматически")
+    check(page.locator("#dev-toggle").count() == 0,
+          "в публичной сборке нет кнопки DEV")
+    story = page.locator("#hud-story").inner_text().lower()
+    check("первый спуск" in story and "страж" in story,
+          "первый экран подсказывает цель — стража", story)
+    toast_text = page.locator("#toast").inner_text()
+    toast_layer = page.evaluate(
+        "() => getComputedStyle(document.getElementById('toast')).zIndex")
+    check(page.locator("#toast").is_visible() and "WASD" in toast_text and
+          toast_layer == "80",
+          "при первом входе видна подсказка управления", toast_text)
 
     page.wait_for_function(
         "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)
@@ -288,8 +299,6 @@ def run_checks(browser, base):
     check(page.locator("#hud-level").inner_text() == "1" and
           page.locator("#hud-dmg").inner_text() == "12",
           "в HUD есть уровень и сила героя")
-    check(page.locator("#hud-story-title").inner_text() == "Крыша для амбара",
-          "в HUD показана текущая глава кампании")
     check(page.locator("a[href='/quiz'], a[href='/study']").count() == 0,
           "в игровом интерфейсе нет ссылок на старые учебные разделы")
 
@@ -319,6 +328,8 @@ def run_checks(browser, base):
           "в публичном входе нет проверки знаний")
     page.click("#entrance-close")
     page.wait_for_timeout(200)
+    check(page.locator("#hud-story-title").inner_text() == "Крыша для амбара",
+          "после стража в HUD снова глава кампании")
 
     page.wait_for_function(
         "() => document.querySelectorAll('#map .tile').length > 0", timeout=15000)

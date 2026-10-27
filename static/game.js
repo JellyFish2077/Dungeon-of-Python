@@ -570,6 +570,12 @@
     toast._timer = setTimeout(() => t.classList.remove("show"), ms || 2200);
   }
 
+  function clearToast() {
+    const t = el("toast");
+    if (t) t.classList.remove("show");
+    clearTimeout(toast._timer);
+  }
+
   // Звук необязателен для логики: в node-проверках модуля нет, и игра просто
   // молчит. Ошибку аудио тоже глотаем — она не должна ломать бой.
   function sfx(name) {
@@ -2297,7 +2303,15 @@
 
   function enterVillage(at) {
     tutorialHide();
-    return enterPlace("village", null, at);
+    const ok = enterPlace("village", null, at);
+    // Первый вход: цель и управление должны быть видны, а не лежать
+    // в скрытом aria-live-блоке. Цель живёт в HUD, управление — в тосте.
+    if (ok && isFirstRun() && !G.firstGoalDone) {
+      setTimeout(() => {
+        toast("WASD — идти · E — действие · клик по карте — маршрут", 5200);
+      }, 350);
+    }
+    return ok;
   }
 
   function enterHouse(key) {
@@ -2674,12 +2688,15 @@
 
   // Окно входа в подземелье: статичная вёрстка (сложность, режим, спуск).
   function openEntrance() {
+    // Игрок нашёл стража — подсказка «Первый спуск» больше не нужна.
+    G.firstGoalDone = true;
     markCodex("npcs", "guard");
     renderAbilityPick();
     el("entrance-overlay").classList.remove("hidden");
     updateResumeButton();
     updateWalletLine();
     updateKnowledgeLine();
+    updateHud();
     // Окно — модальное: фокус должен оказаться в нём, а не остаться на
     // кнопке меню или в шапке. «Продолжить» важнее «Спуститься», если поход
     // уже ждёт.
@@ -2922,6 +2939,8 @@
   // чтобы программный запуск не упирался в модальное окно.
   function enterDungeon() {
     closeEntrance();
+    // Подсказка управления относится к деревне; в бою/подземелье она лишняя.
+    clearToast();
     begin();
   }
 
@@ -3428,6 +3447,19 @@
     (G.npcs || []).forEach((n) => {
       if (G.discovered.has(key(n.x, n.y))) dot(n.x, n.y, "#fde68a", 0.8);
     });
+    // Первый спуск: страж виден на мини-карте, даже пока он вне поля зрения.
+    // Без этого игрок стартует в пустой деревне и не знает, куда идти.
+    if (isFirstRun() && !G.firstGoalDone) {
+      const guard = (G.npcs || []).find((n) => n.key === "guard");
+      if (guard) {
+        dot(guard.x, guard.y, "#38bdf8", 1.15);
+        const gx = ox + guard.x * cs + cs / 2;
+        const gy = oy + guard.y * cs + cs / 2;
+        ctx.strokeStyle = "#f6c453";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(gx - 6, gy - 6, 12, 12);
+      }
+    }
     (G.doors || []).forEach((d) => {
       if (G.discovered.has(key(d.x, d.y))) dot(d.x, d.y, doorLocked(d) ? "#64748b" : "#c084fc", 0.7);
     });
@@ -6439,6 +6471,8 @@
     renderBattle();
     el("battle-overlay").classList.remove("hidden");
     document.body.classList.add("battling");
+    // Кнопка действия и «Пропустить ход» не должны висеть поверх боя.
+    updateActionButton();
     requestAnimationFrame(() => {
       if (G.running && G.map) updateCamera();
     });
@@ -9242,6 +9276,9 @@ function topicName(key) {
   // Когда цель закрыта, игрок видит не новую подсказку, а состояние сюжета:
   // «вернись к старосте». Подробности остаются в журнале.
   function storyHudData() {
+    if (isFirstRun() && G.place === "village" && !G.firstGoalDone) {
+      return { kicker: "Первый спуск", title: "Страж входа →", ready: false, done: false };
+    }
     const done = storyDoneCount();
     const step = STORY_QUESTS[done];
     if (!step) {
@@ -11892,6 +11929,8 @@ function topicName(key) {
   }
 
   function devInit() {
+    // Публичная сборка не должна показывать кнопку DEV и открывать панель.
+    if (!devEnabled()) return;
     if (!G.dev) G.dev = { god: false, reveal: false, panel: false, tab: "world" };
     if (!G.dev.tab) G.dev.tab = "world";
 

@@ -631,6 +631,7 @@ table.breakdown td:last-child {
   position: fixed;
   bottom: 22px;
   left: 50%;
+  z-index: 80;
   transform: translateX(-50%);
   background: #0f172a;
   color: #fff;
