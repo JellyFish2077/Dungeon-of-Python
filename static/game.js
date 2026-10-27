@@ -3444,6 +3444,12 @@
     if (G.stairsDown && G.discovered.has(key(G.stairsDown.x, G.stairsDown.y))) {
       dot(G.stairsDown.x, G.stairsDown.y, "#38bdf8", 0.72);
     }
+    // Портал в деревню появляется после босса. Без метки на мини-карте его
+    // приходилось искать вслепую по всему этажу — игрок видел «Спуск
+    // запечатан», но не понимал, куда идти за возвратом.
+    if (portalActive() && G.portal) {
+      dot(G.portal.x, G.portal.y, "#e879f9", 1.05);
+    }
     // НПС и двери деревни — на мини-карте: без них деревня выглядит пустой.
     (G.npcs || []).forEach((n) => {
       if (G.discovered.has(key(n.x, n.y))) dot(n.x, n.y, "#fde68a", 0.8);
@@ -9046,7 +9052,7 @@ function topicName(key) {
     barn: {
       name: "Амбар",
       effect: () => "+" + Math.round(VILLAGE_BARN_BONUS * 100) + "% находок материалов",
-      levels: [{ wood: 4, key: "barn" }, { wood: 8, ore: 4 }]
+      levels: [{ wood: 3, key: "barn" }, { wood: 8, ore: 4 }]
     },
     forge: {
       name: "Кузница",
