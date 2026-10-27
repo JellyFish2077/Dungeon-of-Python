@@ -5719,6 +5719,8 @@
       const message = sealMessage();
       setMsg(message);
       log(message, "floor");
+      // aria-live-блок скрыт; объяснение затвора должно быть видно глазами.
+      toast(message, 7000);
       return;
     }
     if (target.kind === "locked") {
@@ -6364,8 +6366,10 @@
     // кончается здесь, а не на драконе, и открывает глубину не удача, а
     // восстановленная кузница.
     if (!canDescend()) {
-      setMsg(sealMessage());
-      log(sealMessage(), "floor");
+      const message = sealMessage();
+      setMsg(message);
+      log(message, "floor");
+      toast(message, 7000);
       return;
     }
     snapshotCurrent();

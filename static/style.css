@@ -637,7 +637,10 @@ table.breakdown td:last-child {
   color: #fff;
   padding: 12px 20px;
   border-radius: 10px;
+  max-width: min(720px, calc(100vw - 32px));
   font-size: 14px;
+  line-height: 1.45;
+  text-align: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s;
