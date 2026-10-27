@@ -5460,7 +5460,8 @@
     // После босса у лестницы открыт портал в деревню. Он важнее запертой
     // лестницы: иначе игрок стоит на ступеньке, видит «Спуск запечатан»
     // и не может вернуться, хотя портал рядом.
-    if (!chained && portalActive() && G.portal && G.playerPos) {
+    const stairsUsable = !!(G.stairsDown && G.stairsDown.active && canDescend());
+    if (!chained && !stairsUsable && portalActive() && G.portal && G.playerPos) {
       const d = Math.abs(G.playerPos.x - G.portal.x) +
         Math.abs(G.playerPos.y - G.portal.y);
       if (d <= 1) {
