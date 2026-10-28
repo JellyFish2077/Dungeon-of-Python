@@ -51,31 +51,6 @@ python launch_standalone.py
 python -m http.server 8080 --directory standalone/build
 ```
 
-## Сборка для Itch.io
-
-```bash
-python tools/build_web.py
-python tools/fetch_pyodide.py
-python tools/package_web.py
-```
-
-Готовый архив появится в `dist/pydungeon-standalone-*.zip`. В корне архива
-лежит `index.html`; загружать его нужно как HTML-игру. Текст страницы,
-обложка и чек-лист публикации лежат в [ITCH.md](ITCH.md).
-
-## Публикация на GitHub Pages
-
-Публичная сборка лежит в ветке `gh-pages`, в корне ветки. После обновления:
-
-```bash
-python tools/build_web.py
-python tools/fetch_pyodide.py
-```
-
-Содержимое `standalone/build/` копируется в `gh-pages`, затем ветка пушится.
-В настройках Pages выбран источник **Deploy from a branch** → `gh-pages` /
-`/ (root)`. Файл `.nojekyll` обязателен.
-
 ## Проверки
 
 ```bash
