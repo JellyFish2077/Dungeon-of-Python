@@ -8579,3 +8579,17 @@ samp,
 #forge-close::before {
   font-family: var(--font-ui);
 }
+
+/* В бою верхняя плашка «Бой · этаж · враг» дублирует сцену: имя врага,
+   полоса и портрет уже есть ниже. Убираем её только у окна боя. */
+#battle-box > .battle-head {
+  display: none !important;
+}
+
+#battle-box {
+  padding-top: 10px;
+}
+
+#battle-box > .battle-inner {
+  padding-top: 2px;
+}
