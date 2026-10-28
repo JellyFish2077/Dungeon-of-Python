@@ -1171,3 +1171,69 @@ body.reduce-motion *::after {
     padding: 18px 16px;
   }
 }
+
+/* Телефон в горизонтальной ориентации: меню укладывается в невысокий
+   экран без прокрутки, пункты и заголовок становятся компактнее. */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1000px) {
+  .menu-screen {
+    justify-content: flex-start;
+    padding: 10px 16px 14px;
+  }
+
+  #menu-screen[data-mode="main"] .menu-view-main {
+    width: min(700px, calc(100vw - 40px));
+    padding: 14px 20px;
+  }
+
+  .menu-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .menu-logo {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 18px;
+    margin: 0;
+  }
+
+  .menu-title h1 {
+    margin: 0;
+    font-size: clamp(28px, 4.2vw, 38px);
+    line-height: 1;
+  }
+
+  .menu-tagline {
+    display: none;
+  }
+
+  #menu-screen[data-mode="main"] .menu-list {
+    margin-top: 4px;
+  }
+
+  #menu-screen[data-mode="main"] .menu-item {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  #menu-screen[data-mode="main"] .menu-item-note {
+    display: none;
+  }
+
+  #menu-screen[data-mode="main"] .menu-item-quiet {
+    margin-top: 3px;
+  }
+
+  #menu-screen[data-mode="pause"] .menu-view-pause {
+    width: min(440px, calc(100vw - 40px));
+    padding: 16px 18px;
+  }
+
+  #menu-screen[data-mode="pause"] .menu-item {
+    padding: 8px 10px;
+    font-size: 15px;
+  }
+}

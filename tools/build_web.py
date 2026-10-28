@@ -62,6 +62,10 @@ def rewrite_landing(text, stamp):
         'game.html?menu=1',
         'game.html?menu=1&v=' + stamp,
     )
+    text = text.replace(
+        'src="static/fullscreen.js"',
+        'src="static/fullscreen.js?v=' + stamp + '"',
+    )
     text = re.sub(
         r'(static/landing/[^"?#]+\.(?:png|webp|jpg))(")',
         lambda m: m.group(1) + "?v=" + stamp + m.group(2),
@@ -107,6 +111,7 @@ def main():
         "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
         "profile.js", "auth.js", "web-boot.js", "pyodide-check.js",
         "pyodide-worker.js", "audio.js", "menu-bg.js", "menu.js", "saves.js", "game.js",
+        "fullscreen.js",
     ):
         src = STATIC / name
         if not src.exists():

@@ -3328,16 +3328,27 @@
       // Панель с вопросом занимает низ экрана: пару держим в свободной
       // полосе над ней, а не в геометрическом центре окна. Длинное задание
       // поднимает панель — вместе с ней поднимается и точка камеры.
+      // На телефоне в горизонтальной ориентации панель стоит справа:
+      // тогда пара центрируется в левой половине.
+      let anchorX = vw / 2;
       let anchorY = Math.round(vh * 0.32);
       const box = el("battle-box");
       const panel = box && box.querySelector(".battle-panel");
-      if (panel && panel.getBoundingClientRect().height > 40) {
+      let panelSide = false;
+      if (panel) {
         const pr = panel.getBoundingClientRect();
-        const gap = parseFloat(getComputedStyle(panel).bottom) || 0;
-        const panelTop = vh - pr.height - gap;
-        anchorY = Math.max(90, Math.min(anchorY, Math.round((panelTop - 20) * 0.5)));
+        const cs = getComputedStyle(panel);
+        panelSide = cs.right === "0px" && pr.height > vh * 0.8 && pr.width < vw * 0.8;
+        if (panelSide) {
+          anchorX = Math.max(100, (vw - pr.width) / 2);
+          anchorY = Math.round(vh * 0.48);
+        } else if (pr.height > 40) {
+          const gap = parseFloat(cs.bottom) || 0;
+          const panelTop = vh - pr.height - gap;
+          anchorY = Math.max(90, Math.min(anchorY, Math.round((panelTop - 20) * 0.5)));
+        }
       }
-      let tx = vw / 2 - fx * z;
+      let tx = anchorX - fx * z;
       let ty = anchorY - fy * z;
       // В бою не прижимаем камеру к краю карты: важнее держать пару
       // по центру сцены. За краем плиток остаётся тёмная пустота, она
@@ -10099,6 +10110,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.9.5",
+      date: "28 октября 2026",
+      title: "Полный экран и горизонтальный бой",
+      items: [
+        "Игра входит в полноэкранный режим с первого касания или клика; кнопка полного экрана есть на лендинге и в игре.",
+        "На телефоне после входа включается горизонтальная ориентация, а бой перестраивается: карта слева, вопрос и ответы справа.",
+        "Главное меню и лендинг подстраиваются под невысокий горизонтальный экран — без обрезанных пунктов."
+      ]
+    },
+    {
       version: "1.9.4",
       date: "28 октября 2026",
       title: "Бой на карте и лёгкий режим для телефона",
@@ -11232,6 +11253,10 @@ function topicName(key) {
   }
 
   function toggleFullscreen() {
+    if (window.PyFullscreen) {
+      window.PyFullscreen.toggle();
+      return;
+    }
     try {
       if (document.fullscreenElement) {
         const p = document.exitFullscreen();

@@ -215,6 +215,41 @@
       transform: translate(-1px, -1px);
     }
 
+    .fs-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-height: 36px;
+      padding: 7px 10px;
+      border: 1px solid var(--line-light);
+      border-radius: 0;
+      background: transparent;
+      color: var(--paper-dim);
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .fs-btn:hover,
+    .fs-btn[aria-pressed="true"] {
+      color: var(--paper-3);
+      border-color: var(--rust);
+    }
+
+    @media (max-width: 720px) {
+      .fs-btn {
+        min-width: 34px;
+        padding: 0 7px;
+      }
+
+      .fs-btn span[data-fullscreen-label] {
+        display: none;
+      }
+    }
+
     .ghost-btn {
       color: var(--ink);
       border-color: var(--ink);
@@ -988,6 +1023,9 @@
         <a href="#how">Правила</a>
         <a href="#colophon">Колофон</a>
       </nav>
+      <button class="fs-btn" type="button" data-fullscreen-toggle aria-label="Полный экран" aria-pressed="false">
+        <span aria-hidden="true">⛶</span><span data-fullscreen-label>Полный экран</span>
+      </button>
       <a class="head-play" id="head-play" href="game.html?menu=1">Начать спуск</a>
     </div>
   </header>
@@ -1272,6 +1310,7 @@
     </div>
   </footer>
 
+  <script src="static/fullscreen.js"></script>
   <script>
     (function () {
       var exited = new URLSearchParams(window.location.search).get("exit") === "1";
