@@ -661,56 +661,6 @@ body.game-page:has(.stage.village) .tile.unseen {
 
 /* Кнопка действия у объекта на карте: сундук, торговец, лестница.
    Появляется, когда герой стоит на клетке объекта или рядом с ней. */
-/* Экранный крест для телефона. На широком экране не показывается:
-   там удобнее клавиши, а на узком — палец. */
-.mobile-pad {
-  display: none;
-  position: absolute;
-  left: 12px;
-  bottom: 54px;
-  z-index: 30;
-  grid-template-columns: repeat(3, 42px);
-  grid-template-rows: repeat(2, 42px);
-  gap: 4px;
-}
-
-.mobile-pad-key {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 42px;
-  height: 42px;
-  padding: 0;
-  font: inherit;
-  font-size: 16px;
-  color: #e8eef8;
-  background: rgba(10, 18, 30, 0.82);
-  border: 1px solid rgba(214, 168, 75, 0.48);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
-  touch-action: manipulation;
-}
-
-.mobile-pad-key:active {
-  background: rgba(214, 168, 75, 0.3);
-}
-
-.mobile-pad-key.up { grid-column: 2; grid-row: 1; }
-.mobile-pad-key.left { grid-column: 1; grid-row: 2; }
-.mobile-pad-key.down { grid-column: 2; grid-row: 2; }
-.mobile-pad-key.right { grid-column: 3; grid-row: 2; }
-
-@media (max-width: 700px), (pointer: coarse) {
-  .mobile-pad { display: grid; }
-}
-
-body.game-page:has(.overlay:not(.hidden)) .mobile-pad,
-body.game-page.menu-open .mobile-pad,
-body.battling .mobile-pad {
-  display: none;
-}
-
 .action-btn {
   position: absolute;
   left: 50%;
@@ -8635,7 +8585,6 @@ body.battling #minimap,
 body.battling #log,
 body.battling #action-btn,
 body.battling #skip-btn,
-body.battling #mobile-pad,
 body.battling .game-msg,
 body.battling #tutorial-panel,
 body.battling .floor-arrival,
@@ -9217,5 +9166,38 @@ body.battling .battle-panel .squad-note {
   body.battling .battle-scene.strike-hero .fighter-enemy,
   body.battling .battle-scene.strike-enemy .fighter-enemy .battle-portrait::after {
     animation: none;
+  }
+}
+
+/* Телефон и узкий экран: убираем всё, что дороже всего рисуется.
+   Камера не масштабирует карту, у портретов нет фильтров и бесконечных
+   анимаций, туман и угли не двигаются, тень панели не пересчитывается. */
+@media (pointer: coarse), (max-width: 820px) {
+  #map.battle-cam {
+    transition: none;
+  }
+
+  body.battling .battle-stage .fighter {
+    transition: none;
+    will-change: auto;
+  }
+
+  body.battling .battle-stage .battle-portrait {
+    filter: none;
+    animation: none;
+  }
+
+  body.battling #battle-overlay::before,
+  body.battling #battle-overlay::after {
+    animation: none;
+  }
+
+  body.battling .battle-panel {
+    box-shadow: none;
+    transition: transform 0.35s ease;
+  }
+
+  body.battling #screen-game::after {
+    display: none;
   }
 }

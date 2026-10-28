@@ -3322,7 +3322,7 @@
       ? battleFocusPoint()
       : null;
     if (focus) {
-      const z = BATTLE_ZOOM;
+      const z = lightBattleCamera() ? 1 : BATTLE_ZOOM;
       const fx = m.pad + focus.x * m.step + m.cell / 2;
       const fy = m.pad + focus.y * m.step + m.cell / 2;
       // Панель с вопросом занимает низ экрана: пару держим в свободной
@@ -3369,6 +3369,18 @@
   // Насколько камера приближается в бою. Как в макете: карта вырастает
   // в полтора раза, а бойцы остаются на своих клетках под крупными портретами.
   const BATTLE_ZOOM = 1.55;
+
+  // На телефоне масштабирование всей карты — самая дорогая операция: слой
+  // карты вырастает в полтора раза по каждой оси и перерисовывается целиком.
+  // Оставляем только наведение камеры, без scale; крупные портреты и панель
+  // дают тот же эффект боя.
+  function lightBattleCamera() {
+    try {
+      return window.matchMedia("(pointer: coarse)").matches || window.innerWidth <= 820;
+    } catch (e) {
+      return false;
+    }
+  }
 
   function battleFocusPoint() {
     const b = G.battle;
@@ -8982,6 +8994,10 @@ function topicName(key) {
   }
 
   function tutorialHint() {
+    if (typeof window !== "undefined" && window.matchMedia &&
+        window.matchMedia("(pointer: coarse)").matches) {
+      return "Коснись клетки — идти · кнопки внизу — действие и пропуск хода.";
+    }
     return "WASD или стрелки — идти · E — действие · Пробел — пропустить ход.";
   }
 
@@ -9115,7 +9131,7 @@ function topicName(key) {
     G.tutorial = { active: true, moves: 0, chest: false, battle: false, camp: false };
     tutorialEnsureObjects();
     tutorialRender();
-    setMsg("Управление: WASD — идти, E — действие, Пробел — пропустить ход.");
+    setMsg("Управление: " + tutorialHint());
   }
 
   function tutorialEvent(kind) {
@@ -10083,6 +10099,18 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.9.4",
+      date: "28 октября 2026",
+      title: "Бой на карте и лёгкий режим для телефона",
+      items: [
+        "Бой теперь идёт на самой карте: камера наводится на героя и врага, снизу выезжает панель с вопросом.",
+        "Крупные портреты бойцов больше не накладываются, если монстр стоит на той же клетке.",
+        "После победы карта проявляется вместе с затуханием окна — герой не исчезает и не появляется заново.",
+        "На телефоне карта в бою не масштабируется, а лишние анимации и фильтры отключены — стало заметно плавнее.",
+        "Экранный крест убран: идти можно касанием клетки, кнопки действия и пропуска хода остались."
+      ]
+    },
+    {
       version: "1.9.1",
       date: "28 октября 2026",
       title: "Возврат из подземелья и первая глава",
@@ -10101,7 +10129,7 @@ function topicName(key) {
         "Затворы глубины стоят на пороге седьмого и десятого этажей; материалы и постройки пересчитаны под короткий забег.",
         "Вход в подземелье стал короче: без проверки знаний, сразу выбор сложности и режима.",
         "Публичная страница со скриншотами, описанием и кнопкой входа в игру.",
-        "Сохранения можно выгрузить в файл и загрузить обратно, а на телефоне появился экранный крест."
+        "Сохранения можно выгрузить в файл и загрузить обратно, а на телефоне можно идти касанием клетки."
       ]
     },
     {
@@ -11788,15 +11816,6 @@ function topicName(key) {
     }
     el("village-btn").addEventListener("click", returnToVillage);
     // Крест на телефоне: те же четыре направления, что и у стрелок.
-    document.addEventListener("click", (ev) => {
-      const btn = ev.target && ev.target.closest ? ev.target.closest("[data-move]") : null;
-      if (!btn) return;
-      const dirs = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
-      const d = dirs[btn.dataset.move];
-      if (!d) return;
-      ev.preventDefault();
-      move(d[0], d[1]);
-    });
     el("shop-btn").addEventListener("click", () => openShop(false));
     el("action-btn").addEventListener("click", doInteract);
     el("skip-btn").addEventListener("click", skipTurn);
