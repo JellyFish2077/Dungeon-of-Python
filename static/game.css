@@ -8714,7 +8714,7 @@ body.battling .battle-stage .scene-arena {
 
 body.battling .battle-stage .fighter {
   position: absolute;
-  left: 50%;
+  left: 40%;
   top: 32%;
   display: flex;
   flex-direction: column;
@@ -8735,6 +8735,14 @@ body.battling .battle-stage .fighter-enemy {
   padding-left: 0;
   padding-right: 0;
   justify-content: center;
+}
+
+body.battling .battle-stage .fighter-hero {
+  left: 40%;
+}
+
+body.battling .battle-stage .fighter-enemy {
+  left: 60%;
 }
 
 body.battling .battle-stage .battle-portrait {
@@ -9142,6 +9150,14 @@ body.battling .battle-panel .squad-note {
 
   body.battling .battle-stage .fighter {
     top: 28%;
+  }
+
+  body.battling .battle-stage .fighter-hero {
+    left: 38%;
+  }
+
+  body.battling .battle-stage .fighter-enemy {
+    left: 62%;
   }
 
   body.battling .battle-stage .battle-portrait {
