@@ -8251,20 +8251,6 @@ body.game-page .hero-hud-story::after {
    ========================================================= */
 
 @font-face {
-  font-family: "IBM Plex Mono";
-  src: url("landing/fonts/IBMPlexMono-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "IBM Plex Mono";
-  src: url("landing/fonts/IBMPlexMono-Medium.ttf") format("truetype");
-  font-weight: 500;
-  font-display: swap;
-}
-
-@font-face {
   font-family: "Handjet";
   src: url("landing/fonts/Handjet-Bold.ttf") format("truetype");
   font-weight: 700;
@@ -8302,8 +8288,8 @@ body.game-page .hero-hud-story::after {
 :root {
   --font-display: "Golos Text", "Segoe UI", system-ui, sans-serif;
   --font-ui: "Golos Text", "Segoe UI", system-ui, sans-serif;
-  --font-data: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
-  --font-pixel: "Handjet", "IBM Plex Mono", monospace;
+  --font-data: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-pixel: "Handjet", "Golos Text", sans-serif;
 }
 
 /* Кириллица Golos — основной голос интерфейса; Handjet — только крупные
@@ -8546,4 +8532,50 @@ body.game-page .hero-hud-foot {
   padding-top: 9px;
   background: url("ui/divider.png") center top / 100% 5px no-repeat;
   image-rendering: pixelated;
+}
+
+/* ������ ������ ���������: � ���������� �� ������� Segoe UI, Georgia
+   � ������ ������������ ������. Golos Text � ���� �����, Handjet � ������
+   ������� ������� (��������, ����, �������, ��� �����). */
+:root {
+  --display: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-display: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-serif: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-data: "Golos Text", "Segoe UI", system-ui, sans-serif;
+}
+
+body,
+body.game-page,
+button,
+input,
+textarea,
+select,
+option,
+.menu-tagline,
+.saves-head h2 {
+  font-family: var(--font-ui);
+}
+
+/* ��� ������� �������� �� ��������, �� ��� �� ����������. */
+pre,
+code,
+kbd,
+samp,
+.code,
+.q-code,
+.code-editor,
+#code-input,
+#copy-input,
+#copy-sample,
+.test-results,
+.challenge-code {
+  font-family: var(--font-ui) !important;
+}
+
+.overlay > .battle > .battle-head .exit-btn::before,
+#dialog-close::before,
+#shop-close::before,
+#forge-close::before {
+  font-family: var(--font-ui);
 }
