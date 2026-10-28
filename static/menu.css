@@ -1237,3 +1237,27 @@ body.reduce-motion *::after {
     font-size: 15px;
   }
 }
+
+/* Большие мониторы: карточка меню крупнее, чтобы не теряться на 2560 px. */
+@media (min-width: 1800px) {
+  #menu-screen[data-mode="main"] .menu-view-main {
+    width: min(760px, 100%);
+    padding: 38px 40px;
+  }
+
+  #menu-screen[data-mode="main"] .menu-title h1 {
+    font-size: 66px;
+  }
+
+  .menu-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    font-size: 27px;
+  }
+
+  #menu-screen[data-mode="main"] .menu-item {
+    padding: 13px 16px;
+    font-size: 18px;
+  }
+}

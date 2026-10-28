@@ -9310,3 +9310,130 @@ body.battling .battle-panel .squad-note {
     display: none;
   }
 }
+
+/* Большие мониторы: панель и бойцы не должны выглядеть игрушечными
+   на 1920–2560 px. */
+@media (min-width: 1600px) {
+  body.battling .battle-panel {
+    width: min(1360px, 84vw);
+    max-height: min(66vh, 760px);
+    padding: 15px 22px;
+  }
+
+  body.battling .battle-panel .battle-panel-top {
+    gap: 20px;
+  }
+
+  body.battling .battle-panel .combatant .name {
+    font-size: 16px;
+  }
+
+  body.battling .battle-panel .combatant .num {
+    font-size: 13px;
+  }
+
+  body.game-page .battle-panel .combatant .hp-bar {
+    height: 12px;
+    width: clamp(180px, 18vw, 280px);
+  }
+
+  body.battling .battle-panel .round-note {
+    font-size: 10px;
+  }
+
+  body.battling .battle-panel .challenge-q {
+    font-size: 21px;
+  }
+
+  body.battling .battle-panel .option {
+    font-size: 14px;
+    min-height: 48px;
+  }
+
+  body.battling .battle-panel .battle-cat {
+    font-size: 12px;
+    min-height: 44px;
+  }
+
+  body.battling .battle-stage .battle-portrait {
+    width: 168px;
+    height: 168px;
+  }
+
+  body.battling .battle-stage .battle-portrait.boss {
+    width: 200px;
+    height: 200px;
+  }
+
+  body.battling .battle-stage .fighter-hpbar {
+    width: 168px;
+    height: 11px;
+  }
+
+  body.battling .battle-stage .fighter-tag b {
+    font-size: 16px;
+  }
+
+  body.battling .battle-stage .fighter-tag span {
+    font-size: 10px;
+  }
+}
+
+@media (min-width: 2200px) {
+  body.battling .battle-panel {
+    width: min(1660px, 82vw);
+  }
+
+  body.battling .battle-panel .challenge-q {
+    font-size: 26px;
+  }
+
+  body.battling .battle-panel .option {
+    font-size: 16px;
+    min-height: 54px;
+  }
+
+  body.battling .battle-panel .battle-cat {
+    font-size: 13px;
+    min-height: 46px;
+  }
+
+  body.battling .battle-panel .combatant .name {
+    font-size: 18px;
+  }
+
+  body.battling .battle-panel .combatant .num {
+    font-size: 15px;
+  }
+
+  body.game-page .battle-panel .combatant .hp-bar {
+    height: 14px;
+    width: clamp(200px, 19vw, 340px);
+  }
+
+  body.battling .battle-panel .round-note {
+    font-size: 11px;
+  }
+
+  body.battling .battle-stage .battle-portrait {
+    width: 200px;
+    height: 200px;
+  }
+
+  body.battling .battle-stage .battle-portrait.boss {
+    width: 236px;
+    height: 236px;
+  }
+
+  body.battling .battle-stage .fighter-hpbar {
+    width: 200px;
+  }
+
+  body.battling .battle-stage .fighter-tag b {
+    font-size: 19px;
+  }
+
+  body.battling .battle-stage .fighter-tag span {
+    font-size: 11px;
+  }
+}
