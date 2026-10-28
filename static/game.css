@@ -8246,8 +8246,8 @@ body.game-page .hero-hud-story::after {
 }
 
 /* =========================================================
-   Рисованный интерфейс: камень, латунь и уголь.
-   Ассеты собраны в Aseprite (art/ui/make_ui.lua), 9-slice.
+   пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ.
+   пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ Aseprite (art/ui/make_ui.lua), 9-slice.
    ========================================================= */
 
 @font-face {
@@ -8264,11 +8264,91 @@ body.game-page .hero-hud-story::after {
   font-display: swap;
 }
 
-:root {
-  --font-data: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+@font-face {
+  font-family: "Handjet";
+  src: url("landing/fonts/Handjet-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
 }
 
-/* --- HUD: резная каменная табличка --- */
+@font-face {
+  font-family: "Handjet";
+  src: url("landing/fonts/Handjet-Black.ttf") format("truetype");
+  font-weight: 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Golos Text";
+  src: url("landing/fonts/GolosText-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Golos Text";
+  src: url("landing/fonts/GolosText-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Golos Text";
+  src: url("landing/fonts/GolosText-Bold.ttf") format("truetype");
+  font-weight: 700;
+  font-display: swap;
+}
+
+:root {
+  --font-display: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-ui: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", "Cascadia Mono", Consolas, monospace;
+  --font-pixel: "Handjet", "IBM Plex Mono", monospace;
+}
+
+/* РљРёСЂРёР»Р»РёС†Р° Golos вЂ” РѕСЃРЅРѕРІРЅРѕР№ РіРѕР»РѕСЃ РёРЅС‚РµСЂС„РµР№СЃР°; Handjet вЂ” С‚РѕР»СЊРєРѕ РєСЂСѓРїРЅС‹Рµ
+   Р°РєС†РµРЅС‚С‹: СЌС‚Р°Р¶, СѓСЂРѕРІРµРЅСЊ Рё РЅР°Р·РІР°РЅРёРµ РёРіСЂС‹. */
+body.game-page .hero-hud,
+body.game-page .nav-btn,
+body.game-page .head-link,
+body.game-page .action-btn,
+body.game-page .skip-btn,
+.overlay > .battle,
+.overlay > .battle .btn {
+  font-family: var(--font-ui);
+}
+
+body.game-page .hero-hud-val,
+body.game-page .hero-hud-gold,
+body.game-page .hero-hud-foot {
+  font-variant-numeric: tabular-nums;
+}
+
+body.game-page .hero-hud-rank b {
+  font-family: var(--font-pixel);
+  font-size: 21px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.floor-intro-title {
+  font-family: var(--font-pixel);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+#menu-title {
+  font-family: var(--font-pixel);
+  font-weight: 900;
+}
+
+.overlay > .battle > .battle-head .enemy-name {
+  font-family: var(--font-pixel);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* --- HUD: пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ --- */
 body.game-page .hero-hud {
   width: clamp(300px, 26vw, 384px);
   padding: 8px 12px 10px;
@@ -8289,7 +8369,7 @@ body.game-page .hero-hud-story {
   image-rendering: pixelated;
 }
 
-/* --- полосы: вырезанный жёлоб и заливка --- */
+/* --- пїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ --- */
 body.game-page .hero-hud-track {
   height: 11px;
   border: 0;
@@ -8309,7 +8389,7 @@ body.game-page .hero-hud-bar.xp .hero-hud-track > i {
   background: url("ui/bar-xp.png") left center / 24px 100% repeat-x;
 }
 
-/* --- миникарта в резной раме --- */
+/* --- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ --- */
 body.game-page #screen-game .minimap {
   width: 206px;
   height: 154px;
@@ -8321,7 +8401,7 @@ body.game-page #screen-game .minimap {
   image-rendering: pixelated;
 }
 
-/* --- кнопка действия: латунная пластина --- */
+/* --- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ --- */
 body.game-page .action-btn {
   padding: 8px 20px;
   border: 10px solid transparent;
@@ -8357,7 +8437,7 @@ body.game-page .action-btn .action-key {
   background: rgba(8, 19, 31, 0.45);
 }
 
-/* --- иконки навигации: пиксельные, текст остаётся кодом --- */
+/* --- пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ --- */
 body.game-page .nav-btn {
   padding-left: 30px;
   background-repeat: no-repeat;
@@ -8376,7 +8456,7 @@ body.game-page .nav-btn[data-panel="inventory"] { background-image: url("ui/icon
 body.game-page .nav-btn[data-panel="achievements"] { background-image: url("ui/icon-achievements.png"); }
 body.game-page .nav-btn[data-panel="journal"] { background-image: url("ui/icon-journal.png"); }
 
-/* --- виньетка: подземелье не висит в чёрной пустоте --- */
+/* --- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ --- */
 #screen-game::after {
   content: "";
   position: absolute;
@@ -8412,7 +8492,7 @@ body.game-page .nav-btn[data-panel="journal"] { background-image: url("ui/icon-j
   }
 }
 
-/* Кнопка «Пропустить ход» — та же резная пластина, но тёмная. */
+/* пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ. */
 body.game-page .skip-btn {
   padding: 5px 12px;
   border: 7px solid transparent;
@@ -8429,7 +8509,7 @@ body.game-page .skip-btn:hover {
   color: var(--gold-bright);
 }
 
-/* Большие карточки боя, журнала и диалогов — тот же камень. */
+/* пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. */
 .overlay > .battle {
   border: 12px solid transparent;
   border-image: url("ui/panel-dark.png") 16 / 12px stretch;
