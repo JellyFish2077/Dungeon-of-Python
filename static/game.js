@@ -3380,7 +3380,7 @@
     return { x: (px + ex) / 2, y: (py + ey) / 2 };
   }
 
-  // Крупные портреты боя стоят ровно над клетками героя и врага: камера
+  // Крупные портреты боя стоят над клетками героя и врага: камера
   // масштабирует карту, поэтому экранную точку считаем той же формулой.
   function positionBattleFighters() {
     const b = G.battle;
@@ -3396,20 +3396,43 @@
     const z = G.camera.scale || 1;
     const left = rect.left + (scroll.clientLeft || 0);
     const top = rect.top + (scroll.clientTop || 0);
-    const place = (node, x, y) => {
-      const sx = left + G.camera.tx + z * (m.pad + x * m.step + m.cell / 2);
-      const sy = top + G.camera.ty + z * (m.pad + y * m.step + m.cell / 2);
-      node.style.left = Math.round(sx) + "px";
-      node.style.top = Math.round(sy) + "px";
+    const screen = (x, y) => ({
+      x: left + G.camera.tx + z * (m.pad + x * m.step + m.cell / 2),
+      y: top + G.camera.ty + z * (m.pad + y * m.step + m.cell / 2),
+    });
+    const h = screen(G.playerPos.x, G.playerPos.y);
+    const e = screen(b.enemy.x, b.enemy.y);
+    let hx = h.x;
+    let hy = h.y;
+    let ex = e.x;
+    let ey = e.y;
+
+    // Монстр может стоять на клетке героя или почти вплотную: два крупных
+    // портрета тогда полностью накладываются друг на друга (баг «слизь
+    // поверх героя»). Если по горизонтали места мало, разводим пару
+    // зеркально от середины — как дуэль в макете. По вертикали позиции
+    // не трогаем: по диагонали портреты уже не пересекаются.
+    const widthOf = (node) => {
+      const portrait = node.querySelector(".battle-portrait");
+      const tag = node.querySelector(".fighter-tag");
+      const pw = portrait ? portrait.getBoundingClientRect().width : 0;
+      const tw = tag ? tag.getBoundingClientRect().width : 0;
+      return Math.max(pw, tw, 80);
     };
-    place(heroEl, G.playerPos.x, G.playerPos.y);
-    place(enemyEl, b.enemy.x, b.enemy.y);
+    const sepX = Math.max(widthOf(heroEl), widthOf(enemyEl)) + 14;
+    if (Math.abs(ex - hx) < sepX) {
+      const mid = (hx + ex) / 2;
+      hx = mid - sepX / 2;
+      ex = mid + sepX / 2;
+    }
+
+    heroEl.style.left = Math.round(hx) + "px";
+    heroEl.style.top = Math.round(hy) + "px";
+    enemyEl.style.left = Math.round(ex) + "px";
+    enemyEl.style.top = Math.round(ey) + "px";
+
     // Выпад идёт в сторону противника, а не всегда вправо: монстр может
     // стоять слева, сверху или снизу.
-    const hx = left + G.camera.tx + z * (m.pad + G.playerPos.x * m.step + m.cell / 2);
-    const hy = top + G.camera.ty + z * (m.pad + G.playerPos.y * m.step + m.cell / 2);
-    const ex = left + G.camera.tx + z * (m.pad + b.enemy.x * m.step + m.cell / 2);
-    const ey = top + G.camera.ty + z * (m.pad + b.enemy.y * m.step + m.cell / 2);
     const dx = ex - hx;
     const dy = ey - hy;
     const len = Math.hypot(dx, dy) || 1;
