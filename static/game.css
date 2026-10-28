@@ -9201,3 +9201,112 @@ body.battling .battle-panel .squad-note {
     display: none;
   }
 }
+
+/* Телефон в горизонтальной ориентации: вопрос уходит в правую колонку,
+   слева остаётся карта с бойцами. Так на низком экране не приходится
+   делить высоту между сценой и панелью. */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1000px) {
+  body.battling .battle-panel {
+    left: auto;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(56vw, 580px);
+    height: 100%;
+    max-height: none;
+    padding: 10px 14px;
+    border-width: 12px;
+    transform: translateX(calc(100% + 24px));
+  }
+
+  body.battling #battle-box.panel-open .battle-panel {
+    transform: translateX(0);
+  }
+
+  body.battling .battle-panel .battle-panel-top {
+    gap: 8px;
+    padding-bottom: 6px;
+  }
+
+  body.battling .battle-panel .combatant .name {
+    display: none;
+  }
+
+  body.game-page .battle-panel .combatant .hp-bar {
+    width: clamp(70px, 12vw, 130px);
+  }
+
+  body.battling .battle-panel .round-note {
+    font-size: 8px;
+    padding: 4px 6px;
+  }
+
+  body.battling .battle-panel .battle-mid {
+    padding: 8px 0 6px;
+  }
+
+  body.battling .battle-panel .battle-foot {
+    gap: 6px;
+    padding-top: 7px;
+  }
+
+  body.battling .battle-panel .battle-cat-wrap {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+
+  body.battling .battle-panel .battle-cat {
+    min-height: 34px;
+    padding: 4px 3px;
+    font-size: 9px;
+    letter-spacing: 0;
+  }
+
+  body.battling .battle-panel .options {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  body.battling .battle-panel .option {
+    min-height: 42px;
+    padding: 6px 9px;
+    font-size: 13px;
+    line-height: 1.2;
+  }
+
+  body.battling .battle-panel .option .key {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    font-size: 10px;
+  }
+
+  body.battling .battle-panel .challenge-q {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+
+  body.battling .battle-stage .fighter {
+    top: 46%;
+  }
+
+  body.battling .battle-intro {
+    width: calc(100% - min(56vw, 580px));
+    right: auto;
+    padding-top: 3vh;
+  }
+
+  body.battling .battle-intro b {
+    font-size: clamp(20px, 4vw, 34px);
+  }
+
+  body.battling .battle-intro p {
+    font-size: 11.5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 760px) {
+  body.battling .battle-panel .round-note {
+    display: none;
+  }
+}

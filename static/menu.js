@@ -942,6 +942,10 @@
 
   function toggleFullscreen() {
     sound("click");
+    if (window.PyFullscreen) {
+      window.PyFullscreen.toggle();
+      return;
+    }
     try {
       if (document.fullscreenElement) {
         const p = document.exitFullscreen();
