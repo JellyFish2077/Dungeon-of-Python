@@ -127,6 +127,11 @@ def main():
     if landing_assets.is_dir():
         shutil.copytree(landing_assets, PUBLIC / "static" / "landing")
 
+    # Рисованный интерфейс (Aseprite): 9-slice панели, кнопки, полосы.
+    ui_assets = STATIC / "ui"
+    if ui_assets.is_dir():
+        shutil.copytree(ui_assets, PUBLIC / "static" / "ui")
+
     landing = ROOT / "standalone" / "index.html"
     if not landing.exists():
         print("нет standalone/index.html", file=sys.stderr)
