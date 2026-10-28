@@ -371,7 +371,7 @@
     // Предметы декора (колонна, фонтан, обломки) — отдельным слоем поверх пола.
     tileObj: [],
     tileAnim: [],
-    camera: { zoomIndex: null, tx: 0, ty: 0 },
+    camera: { zoomIndex: null, tx: 0, ty: 0, scale: 1 },
     minimapOn: true,
     stairsDown: null,
     stairsUp: null,
@@ -3316,6 +3316,42 @@
     const size = mapSize(m);
     const mapW = size.w;
     const mapH = size.h;
+    // Бой: камера подъезжает к паре «герой и враг». Нижнюю часть экрана
+    // оставляем панели с вопросом, поэтому точку пары держим выше центра.
+    const focus = G.battle && document.body.classList.contains("battling")
+      ? battleFocusPoint()
+      : null;
+    if (focus) {
+      const z = BATTLE_ZOOM;
+      const fx = m.pad + focus.x * m.step + m.cell / 2;
+      const fy = m.pad + focus.y * m.step + m.cell / 2;
+      // Панель с вопросом занимает низ экрана: пару держим в свободной
+      // полосе над ней, а не в геометрическом центре окна. Длинное задание
+      // поднимает панель — вместе с ней поднимается и точка камеры.
+      let anchorY = Math.round(vh * 0.32);
+      const box = el("battle-box");
+      const panel = box && box.querySelector(".battle-panel");
+      if (panel && panel.getBoundingClientRect().height > 40) {
+        const pr = panel.getBoundingClientRect();
+        const gap = parseFloat(getComputedStyle(panel).bottom) || 0;
+        const panelTop = vh - pr.height - gap;
+        anchorY = Math.max(90, Math.min(anchorY, Math.round((panelTop - 20) * 0.5)));
+      }
+      let tx = vw / 2 - fx * z;
+      let ty = anchorY - fy * z;
+      // В бою не прижимаем камеру к краю карты: важнее держать пару
+      // по центру сцены. За краем плиток остаётся тёмная пустота, она
+      // сливается с неисследованной частью этажа.
+      tx = Math.round(tx);
+      ty = Math.round(ty);
+      G.camera.tx = tx;
+      G.camera.ty = ty;
+      G.camera.scale = z;
+      mapEl.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + z + ")";
+      positionBattleFighters();
+      return;
+    }
+    G.camera.scale = 1;
     const cx = m.pad + G.playerPos.x * m.step + m.cell / 2;
     const cy = m.pad + G.playerPos.y * m.step + m.cell / 2;
 
@@ -3328,6 +3364,92 @@
     G.camera.tx = tx;
     G.camera.ty = ty;
     mapEl.style.transform = "translate(" + tx + "px," + ty + "px)";
+  }
+
+  // Насколько камера приближается в бою. Как в макете: карта вырастает
+  // в полтора раза, а бойцы остаются на своих клетках под крупными портретами.
+  const BATTLE_ZOOM = 1.55;
+
+  function battleFocusPoint() {
+    const b = G.battle;
+    if (!b || !b.enemy || !G.playerPos) return null;
+    const px = G.playerPos.x;
+    const py = G.playerPos.y;
+    const ex = Number.isFinite(b.enemy.x) ? b.enemy.x : px;
+    const ey = Number.isFinite(b.enemy.y) ? b.enemy.y : py - 1;
+    return { x: (px + ex) / 2, y: (py + ey) / 2 };
+  }
+
+  // Крупные портреты боя стоят ровно над клетками героя и врага: камера
+  // масштабирует карту, поэтому экранную точку считаем той же формулой.
+  function positionBattleFighters() {
+    const b = G.battle;
+    if (!b || !b.enemy || !G.playerPos) return;
+    const box = el("battle-box");
+    const scroll = el("map-scroll");
+    if (!box || !scroll) return;
+    const heroEl = box.querySelector(".battle-stage .fighter-hero");
+    const enemyEl = box.querySelector(".battle-stage .fighter-enemy");
+    if (!heroEl || !enemyEl) return;
+    const m = mapMetrics();
+    const rect = scroll.getBoundingClientRect();
+    const z = G.camera.scale || 1;
+    const left = rect.left + (scroll.clientLeft || 0);
+    const top = rect.top + (scroll.clientTop || 0);
+    const place = (node, x, y) => {
+      const sx = left + G.camera.tx + z * (m.pad + x * m.step + m.cell / 2);
+      const sy = top + G.camera.ty + z * (m.pad + y * m.step + m.cell / 2);
+      node.style.left = Math.round(sx) + "px";
+      node.style.top = Math.round(sy) + "px";
+    };
+    place(heroEl, G.playerPos.x, G.playerPos.y);
+    place(enemyEl, b.enemy.x, b.enemy.y);
+    // Выпад идёт в сторону противника, а не всегда вправо: монстр может
+    // стоять слева, сверху или снизу.
+    const hx = left + G.camera.tx + z * (m.pad + G.playerPos.x * m.step + m.cell / 2);
+    const hy = top + G.camera.ty + z * (m.pad + G.playerPos.y * m.step + m.cell / 2);
+    const ex = left + G.camera.tx + z * (m.pad + b.enemy.x * m.step + m.cell / 2);
+    const ey = top + G.camera.ty + z * (m.pad + b.enemy.y * m.step + m.cell / 2);
+    const dx = ex - hx;
+    const dy = ey - hy;
+    const len = Math.hypot(dx, dy) || 1;
+    const lx = Math.round((dx / len) * 54);
+    const ly = Math.round((dy / len) * 30);
+    heroEl.style.setProperty("--lunge-x", lx + "px");
+    heroEl.style.setProperty("--lunge-y", ly + "px");
+    enemyEl.style.setProperty("--lunge-x", (-lx) + "px");
+    enemyEl.style.setProperty("--lunge-y", (-ly) + "px");
+  }
+
+  // Вход в бой: экран игры растягивается на всё окно, камера плавно
+  // подъезжает. Переход включается классом только на время боя, чтобы
+  // обычная ходьба не «плыла».
+  function startBattleCamera() {
+    const map = el("map");
+    clearTimeout(endBattleMode.timer);
+    if (map) map.classList.add("battle-cam");
+    measureViewport();
+    updateCamera();
+    requestAnimationFrame(() => {
+      if (!G.battle) return;
+      measureViewport();
+      updateCamera();
+    });
+  }
+
+  // Выход из боя и смерть возвращают обычную камеру. Класс перехода
+  // снимаем после анимации, иначе карта щёлкает на место.
+  function endBattleMode() {
+    document.body.classList.remove("battling");
+    const box = el("battle-box");
+    if (box) box.classList.remove("panel-open", "battle-closing");
+    const map = el("map");
+    if (!map || !G.playerPos || !G.map || !G.map.w) return;
+    map.classList.add("battle-cam");
+    clearTimeout(endBattleMode.timer);
+    endBattleMode.timer = setTimeout(() => map.classList.remove("battle-cam"), 1000);
+    measureViewport();
+    updateCamera();
   }
 
   function updateCamera() {
@@ -6459,6 +6581,10 @@
       qualityMul: 1,
       blockLeft: null,
       quip: typeof enemyQuip === "function" ? enemyQuip(enemy.key) : "",
+      // Первые секунды боя — заставка, пока камера подъезжает. Повторная
+      // отрисовка боя не должна запускать её заново.
+      showIntro: true,
+      introTimer: 0,
       results: null
     };
     const ab = abilityOf(enemy);
@@ -6490,9 +6616,15 @@
     );
     G.battle.rangedCd = 0;
     nextChallenge();
+    const box = el("battle-box");
+    if (box) box.classList.remove("panel-open");
     renderBattle();
     el("battle-overlay").classList.remove("hidden");
     document.body.classList.add("battling");
+    startBattleCamera();
+    requestAnimationFrame(() => {
+      if (G.battle) box.classList.add("panel-open");
+    });
     // Кнопка действия и «Пропустить ход» не должны висеть поверх боя.
     updateActionButton();
     requestAnimationFrame(() => {
@@ -6522,6 +6654,7 @@
     b.qualityMul = 1;
     b.blockLeft = null;
     b.quip = typeof enemyQuip === "function" ? enemyQuip(e.key) : "";
+    b.showIntro = true;
     b.results = null;
     b.squadNext = null;
     b.rangedShot = false;
@@ -7213,7 +7346,7 @@
       target.classList.add("fighter-flash");
       setTimeout(() => target.classList.remove("fighter-flash"), 600);
     }
-    spawnFloat(arena, text, kind, onEnemy ? 76 : 24, 26);
+    spawnFloat(target || arena, text, kind, 50, 4);
     setTimeout(() => scene.classList.remove("strike-enemy", "strike-hero"), 620);
   }
 
@@ -7402,7 +7535,8 @@
     if (dealt) strikeScene(box, "enemy", "-" + dealt, "hit");
     if (taken) {
       strikeScene(box, "hero", "-" + taken, "hurt");
-      shakeEl(box);
+      // Трясём сцену, а не всю панель: вопрос не должен прыгать под руками.
+      shakeEl(box.querySelector(".battle-stage") || box);
     }
     const result = box.querySelector(".battle-feedback");
     if (result) result.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -7538,7 +7672,7 @@
     cancelBattleClose();
     G.battle = null;
     el("battle-overlay").classList.add("hidden");
-    document.body.classList.remove("battling");
+    endBattleMode();
     render();
   }
 
@@ -7556,64 +7690,69 @@
     const heroHp = Math.max(0, Math.min(G.player.hp, heroMax));
     const heroPct = Math.round((heroHp / heroMax) * 100);
     const abilityText = abilityTextOf(e);
+    const heroName = (G.name && String(G.name).trim()) || "Герой";
+    const isCodeTask = b.phase === "question" && b.challenge &&
+      (b.challenge.type === "copy" || b.challenge.type === "code");
     let footLabel = "";
     let html = "";
-    // Шапка боя — та же, что у остальных окон, только без крестика:
-    // бой нельзя закрыть, пока он не закончен.
+    // Бой — не карточка поверх карты, а сцена на самой карте: камера
+    // подъезжает, крупные портреты стоят над клетками бойцов, снизу
+    // выезжает панель с вопросом. Карточку по центру убрали: она закрывала
+    // ту самую карту, ради которой игрок и ходит по подземелью.
+    let roundNote = "Ход героя";
+    if (b.phase !== "question") {
+      if (b.playerDead || G.player.hp <= 0) roundNote = "Поражение";
+      else if (b.won) roundNote = "Победа";
+      else roundNote = b.good ? "Точный ответ" : "Ошибка";
+    }
+    const introSub = b.quip ? "«" + b.quip + "»" : "Ответь верно — и удар будет твоим.";
+    html += "<div class='battle-stage'>";
     html +=
-      "<div class='battle-head'>" +
-      "<div><div class='enemy-name'>Бой</div>" +
-      "<div class='hud-num'>" + floorNameAt(G.floorIndex) + " · " + e.name + "</div></div>" +
-      "<span class='win-chip'>Идёт бой</span>" +
+      "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
+      "<span class='battle-intro-kicker'>" + escText(floorNameAt(G.floorIndex)) +
+      " · этаж " + (G.floorIndex + 1) + "</span>" +
+      "<b>" + escText(e.name) + " преграждает путь</b>" +
+      "<i></i>" +
+      "<p>" + escText(introSub) + "</p>" +
       "</div>";
-    // Окно боя разделено на две области: слева сцена — кто с кем бьётся,
-    // справа задание и свойства боя. Раньше враг, его полоса и твоя полоса
-    // жили в одной шапке, и на саму картинку боя места не оставалось.
-    const heroName = (G.name && String(G.name).trim()) || "Герой";
-    // Окно боя делится на две горизонтальные половины: сверху — кто с кем
-    // бьётся и само задание (это главное, поэтому верхняя половина больше),
-    // снизу — кнопки, разложенные по четырём делам: атака, действие, защита
-    // и побег. Раньше сцена стояла отдельной колонкой слева, и на широком
-    // экране вопрос уезжал вбок, а кнопки терялись в столбце.
     html +=
-      "<div class='battle-inner'>" +
-      "<div class='battle-top'>" +
       "<div class='battle-scene'>" +
       "<div class='scene-arena'>" +
-      // Статы бойца идут вертикальным списком сбоку от портрета: у героя —
-      // слева, у врага — справа, а сами портреты стоят ближе к центру, лицом
-      // друг к другу. Раньше статы лежали под портретом во всю ширину, и
-      // полосы здоровья двух бойцов растягивались в две длинные ленты.
       "<div class='fighter fighter-hero" + (heroHp <= 0 ? " down" : "") + "'>" +
-      "<div class='fighter-stats'>" +
-      "<div class='fighter-name'>" + heroName + "</div>" +
-      "<div class='fighter-rank'>Уровень " + G.player.level + "</div>" +
-      "<div class='hp-bar" + (heroPct <= 30 ? " low" : "") + "'><i style='width:" + heroPct + "%'></i></div>" +
-      "<div class='fighter-hp'>" + heroHp + " / " + heroMax +
-      (G.player.poison > 0 ? " · яд " + G.player.poison : "") + "</div>" +
-      "</div>" +
+      "<div class='fighter-hpbar'><i style='width:" + heroPct + "%'></i></div>" +
       "<div class='battle-portrait hero'>" + spriteImg("player") + "</div>" +
+      "<div class='fighter-tag'><b>" + escText(heroName) + "</b>" +
+      "<span>Уровень " + G.player.level +
+      (G.player.poison > 0 ? " · яд " + G.player.poison : "") + "</span></div>" +
       "</div>" +
-      "<div class='scene-clash'>⚔</div>" +
       "<div class='fighter fighter-enemy" + (e.hp <= 0 ? " down" : "") + "'>" +
+      "<div class='fighter-hpbar enemy'><i style='width:" + hpPct + "%'></i></div>" +
       "<div class='battle-portrait" + (e.boss ? " boss" : "") + "'>" +
       spriteImg(e.key) + "</div>" +
-      "<div class='fighter-stats'>" +
-      "<div class='fighter-name' style='color:" + e.color + "'>" + e.name + "</div>" +
-      "<div class='fighter-rank'>" +
-      (e.boss ? "<span class='enemy-tag'>БОСС</span>" : "") +
-      (e.elite ? "<span class='enemy-tag elite'>ЭЛИТА</span>" : "") +
-      (!e.boss && !e.elite ? "Монстр" : "") +
-      "</div>" +
-      "<div class='hp-bar enemy'><i style='width:" + hpPct + "%'></i></div>" +
-      "<div class='fighter-hp'>" + e.hp + " / " + e.maxHp + "</div>" +
-      // Фраза монстра стоит в его же колонке, под статами.
-      (b.quip ? "<div class='scene-quip'>«" + b.quip + "»</div>" : "") +
-      "</div>" +
+      "<div class='fighter-tag'><b style='color:" + e.color + "'>" + escText(e.name) + "</b>" +
+      "<span>" + (e.boss ? "Босс" : e.elite ? "Элита" : "Монстр") + "</span></div>" +
       "</div>" +
       "</div>" +
       (e.hp <= 0 ? "<div class='scene-banner win'>Победа</div>" : "") +
       (heroHp <= 0 ? "<div class='scene-banner lose'>Ты пал</div>" : "") +
+      "</div>";
+    html += "</div>";
+
+    html += "<div class='battle-panel" + (isCodeTask ? " code-mode" : "") + "'>";
+    html +=
+      "<div class='battle-panel-top'>" +
+      "<div class='combatant hero'>" +
+      "<span class='name'>" + escText(heroName) + "</span>" +
+      "<span class='hp-bar" + (heroPct <= 30 ? " low" : "") + "'>" +
+      "<i style='width:" + heroPct + "%'></i></span>" +
+      "<span class='num'>" + heroHp + " / " + heroMax + "</span>" +
+      "</div>" +
+      "<span class='round-note'>" + roundNote + "</span>" +
+      "<div class='combatant enemy'>" +
+      "<span class='name' style='color:" + e.color + "'>" + escText(e.name) + "</span>" +
+      "<span class='hp-bar enemy'><i style='width:" + hpPct + "%'></i></span>" +
+      "<span class='num'>" + e.hp + " / " + e.maxHp + "</span>" +
+      "</div>" +
       "</div>";
 
     // Вопрос и написанный код живут в прокручиваемой середине: длинное
@@ -7748,8 +7887,6 @@
     }
 
     html += "</div>";
-    // Верх закрыт: дальше идёт нижняя половина — кнопки.
-    html += "</div>";
 
     // Футер: кнопки по четырём категориям, чтобы не приходилось искать
     // «Пропустить» между «Обороной» и зельями. Категория без кнопок не
@@ -7819,8 +7956,8 @@
     }
     html += "</div>";
     html += "<div class='effect-list battle-effects' id='battle-effects'></div>";
-    // Закрываем верхнюю половину и обёртку двух половин.
-    html += "</div></div>";
+    // Панель закрыта: выше неё только сцена с бойцами.
+    html += "</div>";
 
     box.innerHTML = html;
     renderEffectList(el("battle-effects"));
@@ -7925,6 +8062,20 @@
     } else {
       cancelBattleClose();
     }
+
+    // Заставка живёт чуть дольше подлёта камеры и гаснет сама. Повторная
+    // отрисовка (ответ, удар) заставку уже не запускает.
+    if (b.showIntro) {
+      clearTimeout(b.introTimer);
+      b.introTimer = setTimeout(() => {
+        b.showIntro = false;
+        const intro = box.querySelector(".battle-intro");
+        if (intro) intro.classList.add("gone");
+      }, 1250);
+    }
+    requestAnimationFrame(() => {
+      if (G.battle === b) updateCamera();
+    });
 
     box.querySelectorAll("button[data-potion]").forEach((btn) => {
       btn.addEventListener("click", () => useBattlePotion(btn.dataset.potion));
@@ -10266,7 +10417,7 @@ function topicName(key) {
     if (forgeOverlay) forgeOverlay.classList.add("hidden");
     el("battle-overlay").classList.add("hidden");
     el("end-overlay").classList.add("hidden");
-    document.body.classList.remove("battling");
+    endBattleMode();
     // Призрак ошибки несёт пропущенное задание. Этаж пересоздаётся, и живые
     // призраки исчезнут вместе с ним — их задания возвращаем в очередь, иначе
     // ошибка, которую ученику предстояло закрыть, пропадала бы навсегда.
@@ -10498,7 +10649,7 @@ function topicName(key) {
     const modeBtn = el("game-mode").querySelector(".mode.active");
     G.mode = modeBtn && modeBtn.dataset.mode === "endless" ? "endless" : "dungeon";
     G.dead = false;
-    document.body.classList.remove("battling");
+    endBattleMode();
     G.cache = {};
     // Пусто, а не [0]: этаж отмечает посещённым сам activateFloor — после
     // показа эпиграфа, события и совета. С нулём здесь первый этаж считался
@@ -10632,7 +10783,7 @@ function topicName(key) {
     const forgeOverlay = el("forge-overlay");
     if (forgeOverlay) forgeOverlay.classList.add("hidden");
     el("battle-overlay").classList.add("hidden");
-    document.body.classList.remove("battling");
+    endBattleMode();
     // Смерть и победа возвращают в деревню — она и есть хаб между походами.
     enterVillage(null);
     updateWalletLine();
@@ -11324,7 +11475,7 @@ function topicName(key) {
     G.errorQueue = [];
     G.finishedVictory = false;
     G.running = true;
-    document.body.classList.remove("battling");
+    endBattleMode();
     el("difficulty").querySelectorAll(".mode").forEach((m) => {
       m.classList.toggle("active", m.dataset.diff === G.difficulty);
     });
@@ -11428,7 +11579,7 @@ function topicName(key) {
     if (battleOverlay) battleOverlay.classList.add("hidden");
     const blessOverlay = el("blessing-overlay");
     if (blessOverlay) blessOverlay.classList.add("hidden");
-    document.body.classList.remove("battling");
+    endBattleMode();
     const floorLeft = G.floorIndex + 1;
     saveGame();
     enterVillage(null);
@@ -12103,7 +12254,7 @@ function topicName(key) {
     if (G.battle) {
       G.battle = null;
       el("battle-overlay").classList.add("hidden");
-      document.body.classList.remove("battling");
+      endBattleMode();
     }
     if (!returnToVillage()) enterVillage(null);
     toast("DEV: возврат в деревню");
