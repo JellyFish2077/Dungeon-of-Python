@@ -6645,6 +6645,13 @@
     el("battle-overlay").classList.remove("hidden");
     document.body.classList.add("battling");
     startBattleCamera();
+    // Позиции бойцов пересчитываем ещё пару раз: ход на врага и появление
+    // панели меняют раскладку уже после первого кадра.
+    [80, 260, 700].forEach((ms) => {
+      setTimeout(() => {
+        if (G.battle) positionBattleFighters();
+      }, ms);
+    });
     requestAnimationFrame(() => {
       if (G.battle) box.classList.add("panel-open");
     });
