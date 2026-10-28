@@ -3463,7 +3463,7 @@
   // Выход из боя и смерть возвращают обычную камеру. Класс перехода
   // снимаем после анимации, иначе карта щёлкает на место.
   function endBattleMode() {
-    document.body.classList.remove("battling");
+    document.body.classList.remove("battling", "battle-outro");
     const box = el("battle-box");
     if (box) box.classList.remove("panel-open", "battle-closing");
     const map = el("map");
@@ -7678,6 +7678,7 @@
     battleFadeTimer = null;
     const overlay = el("battle-overlay");
     if (overlay) overlay.classList.remove("battle-closing");
+    document.body.classList.remove("battle-outro");
   }
 
   function scheduleBattleClose() {
@@ -7688,6 +7689,10 @@
       const b = G.battle;
       if (!b || b.phase !== "result" || !b.won || b.squadNext ||
           b.playerDead || !G.player || G.player.hp <= 0) return;
+      // Пока окно боя гаснет, возвращаем фигурки на карту: иначе герой
+      // сначала медленно исчезает вместе с окном, и только потом появляется
+      // на карте — выглядит как мигание.
+      document.body.classList.add("battle-outro");
       const overlay = el("battle-overlay");
       if (overlay) overlay.classList.add("battle-closing");
       battleCloseTimer = null;

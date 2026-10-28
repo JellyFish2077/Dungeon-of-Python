@@ -8650,6 +8650,12 @@ body.battling #entities {
   transition: opacity 0.35s ease;
 }
 
+/* Пока окно боя гаснет, фигурки на карте уже проступают: герой не должен
+   исчезнуть вместе с окном и появиться заново. */
+body.battling.battle-outro #entities {
+  opacity: 1;
+}
+
 body.battling #battle-overlay {
   display: block;
   padding: 0;
