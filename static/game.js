@@ -3188,6 +3188,8 @@
     return { ...best[Math.floor(Math.random() * best.length)] };
   }
 
+  let visibilitySig = "";
+
   function computeVisibility() {
     // Деревня открывается по мере обхода, как и подземелье, только радиус
     // больше — см. viewRadius(). Раньше здесь стоял ранний выход, который
@@ -3195,6 +3197,12 @@
     // известна целиком — и на экране, и на мини-карте.
     const { x: px, y: py } = G.playerPos;
     const radius = viewRadius();
+    // HUD и панели перерисовываются чаще, чем герой делает шаг. Пока
+    // позиция, этаж и радиус не изменились, FOV считать заново не нужно.
+    const sig = G.floorIndex + "|" + px + "," + py + "|" + radius + "|" +
+      G.map.w + "x" + G.map.h;
+    if (visibilitySig === sig && G.visible.size) return;
+    visibilitySig = sig;
     G.visible = new Set();
     // Раньше здесь был перебор всех 660 клеток с Math.hypot на каждой:
     // теперь только прямоугольник вокруг героя и квадрат расстояния.
@@ -3321,14 +3329,37 @@
     return best;
   }
 
+  let appliedCellPx = null;
+  let appliedGapInline = "";
+  let appliedPadInline = "";
+
+  function inlineStyleVar(style, name) {
+    if (!style) return "";
+    if (typeof style.getPropertyValue === "function") {
+      return style.getPropertyValue(name) || "";
+    }
+    return (style._vars && style._vars[name]) || "";
+  }
+
   function setZoomCell() {
     // Окно берём из кэша: чтение clientWidth на каждом шаге сбрасывало
     // раскладку карты и давало рывки при ходьбе.
     if (!viewCache.w) measureViewport();
     if (G.camera.zoomIndex == null) G.camera.zoomIndex = defaultZoomIndex();
     G.camera.zoomIndex = clamp(G.camera.zoomIndex, 0, CAM_LEVELS.length - 1);
-    el("map").style.setProperty("--cell", CAM_LEVELS[G.camera.zoomIndex] + "px");
-    metricsCache = null;
+    const cell = CAM_LEVELS[G.camera.zoomIndex];
+    const mapEl = el("map");
+    const gapInline = inlineStyleVar(mapEl.style, "--gap");
+    const padInline = inlineStyleVar(mapEl.style, "--pad");
+    // Масштаб меняется редко; не сбрасываем кэш метрик на каждом шаге.
+    if (appliedCellPx !== cell || appliedGapInline !== gapInline ||
+        appliedPadInline !== padInline) {
+      appliedCellPx = cell;
+      appliedGapInline = gapInline;
+      appliedPadInline = padInline;
+      mapEl.style.setProperty("--cell", cell + "px");
+      metricsCache = null;
+    }
   }
 
   // Размер окна подземелья запоминаем: чтение clientWidth на каждом шаге
@@ -3338,8 +3369,13 @@
   function measureViewport() {
     const vp = el("map-scroll");
     if (!vp) return viewCache;
-    viewCache.w = vp.clientWidth;
-    viewCache.h = vp.clientHeight;
+    const w = vp.clientWidth;
+    const h = vp.clientHeight;
+    if (w !== viewCache.w || h !== viewCache.h) {
+      viewCache.w = w;
+      viewCache.h = h;
+      metricsCache = null;
+    }
     return viewCache;
   }
 
@@ -3546,7 +3582,9 @@
   function updateCamera() {
     setZoomCell();
     positionCamera();
-    drawMinimap();
+    // Не рисуем мини-карту повторно в том же кадре: за ход updateCamera
+    // может вызываться несколько раз.
+    scheduleMinimapDraw();
   }
 
   function toggleMinimap() {
@@ -3563,19 +3601,39 @@
   const MINIMAP_ZOOM_STEP = 0.25;
 
   let miniDrawFrame = 0;
+  let miniDrawTimer = 0;
+  let miniLastDraw = 0;
 
   // Перерисовку после кнопок и слайдера сливаем в один кадр: при перетаскивании
   // слайдера событий много, а canvas не должен пересобираться на каждое.
-  function scheduleMinimapDraw() {
-    if (typeof requestAnimationFrame !== "function") {
+  // Во время ходьбы мини-карте хватает ~15 обновлений в секунду: на телефоне
+  // это заметно дешевле, чем рисовать её каждый кадр.
+  function scheduleMinimapDraw(force) {
+    if (globalThis.__PYQUIZ_SYNC_FLOORS ||
+        typeof requestAnimationFrame !== "function") {
       drawMinimap();
       return;
     }
-    if (miniDrawFrame) return;
-    miniDrawFrame = requestAnimationFrame(function () {
+    if (force && miniDrawTimer) {
+      clearTimeout(miniDrawTimer);
+      miniDrawTimer = 0;
+    }
+    if (miniDrawFrame || miniDrawTimer) return;
+    const wait = force ? 0 : Math.max(0, 70 - (performance.now() - miniLastDraw));
+    const run = function () {
       miniDrawFrame = 0;
+      miniDrawTimer = 0;
+      miniLastDraw = performance.now();
       drawMinimap();
-    });
+    };
+    if (wait > 0) {
+      miniDrawTimer = setTimeout(function () {
+        miniDrawTimer = 0;
+        miniDrawFrame = requestAnimationFrame(run);
+      }, wait);
+    } else {
+      miniDrawFrame = requestAnimationFrame(run);
+    }
   }
 
   function setMinimapZoom(value) {
@@ -3585,7 +3643,7 @@
       MINIMAP_ZOOM_MAX
     );
     updateMinimapZoomButtons();
-    scheduleMinimapDraw();
+    scheduleMinimapDraw(true);
   }
 
   function updateMinimapZoomButtons() {
@@ -3598,13 +3656,19 @@
 
   // Окно мини-карты меняется настройкой размера, а разрешение canvas
   // подстраивается под CSS и devicePixelRatio — иначе картинка мылится.
+  // Размер храним сами: clientWidth на каждом кадре заставлял браузер
+  // пересчитывать layout, и это было заметно при ходьбе.
+  let miniCssSize = { w: 280, h: 210 };
+
   function syncMinimapCanvas(cv) {
     if (!cv) return;
-    const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1);
-    const cssW = cv.clientWidth || cv.width || 280;
-    const cssH = cv.clientHeight || cv.height || 210;
-    const bw = Math.max(120, Math.round(cssW * dpr));
-    const bh = Math.max(90, Math.round(cssH * dpr));
+    const rawDpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    // На телефоне DPR 3 давал canvas 840×630 ради картинки 280×210:
+    // лишние пиксели и тормоза. 1.5 достаточно для чёткости мини-карты.
+    const cap = (typeof window !== "undefined" && window.innerWidth < 900) ? 1.5 : 2;
+    const dpr = Math.min(cap, rawDpr);
+    const bw = Math.max(120, Math.round(miniCssSize.w * dpr));
+    const bh = Math.max(90, Math.round(miniCssSize.h * dpr));
     if (cv.width !== bw || cv.height !== bh) {
       cv.width = bw;
       cv.height = bh;
@@ -3613,9 +3677,10 @@
 
   function applyMinimapSize(px) {
     const size = clamp(Number(px) || 280, 220, 380);
+    miniCssSize = { w: size, h: Math.round(size * 0.75) };
     document.documentElement.style.setProperty("--minimap-w", size + "px");
     document.documentElement.style.setProperty("--minimap-h", Math.round(size * 0.75) + "px");
-    if (G.map) scheduleMinimapDraw();
+    if (G.map) scheduleMinimapDraw(true);
     return size;
   }
 
@@ -3753,7 +3818,7 @@
     });
     // Первый спуск: страж виден на мини-карте, даже пока он вне поля зрения.
     // Без этого игрок стартует в пустой деревне и не знает, куда идти.
-    if (isFirstRun() && !G.firstGoalDone) {
+    if (!G.firstGoalDone && G.place === "village" && isFirstRun()) {
       const guard = (G.npcs || []).find((n) => n.key === "guard");
       if (guard) {
         dot(guard.x, guard.y, "#38bdf8", 1.15);
@@ -3896,7 +3961,7 @@
     positionCamera();
     // «Фонарь» вокруг героя — примета подземелья; в деревне он только мешает.
     if (G.place === "dungeon") updateVignette();
-    drawMinimap();
+    scheduleMinimapDraw();
     updateHud();
     if (G.dev && G.dev.panel) devRender();
   }
@@ -9844,7 +9909,7 @@ function topicName(key) {
   // Когда цель закрыта, игрок видит не новую подсказку, а состояние сюжета:
   // «вернись к старосте». Подробности остаются в журнале.
   function storyHudData() {
-    if (isFirstRun() && G.place === "village" && !G.firstGoalDone) {
+    if (G.place === "village" && !G.firstGoalDone && isFirstRun()) {
       return { kicker: "Первый спуск", title: "Страж входа →", ready: false, done: false };
     }
     const done = storyDoneCount();
