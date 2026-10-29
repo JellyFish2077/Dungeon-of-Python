@@ -9549,6 +9549,17 @@ body.confirm-open {
   --ui-line: rgba(125, 162, 217, 0.24);
 }
 
+/* Иконки верхнего меню больше не рисуются: убираем и старые фоновые PNG,
+   иначе после удаления SVG они проявляются спрайт-листом на всю кнопку. */
+body.game-page .nav-btn[data-panel] {
+  background-image: none !important;
+}
+
+body.game-page .nav-btn.active {
+  border-color: var(--ui-line) !important;
+  background: rgba(125, 162, 217, 0.12) !important;
+}
+
 #menu-screen[data-mode="main"] .menu-view-main,
 #menu-screen[data-mode="main"] .menu-title,
 .menu-view-main,
@@ -9566,11 +9577,26 @@ body.confirm-open {
 .save-slot,
 .saves-list,
 .battle,
+.overlay > .battle,
 .battle .btn,
 .battle-cat,
+.battle-cat-list,
+.battle-panel-top,
+.battle-foot,
+.fighter-tag,
+.round-note,
+.floor-intro-card,
+.nav-btn,
 .confirm-box,
 .panel,
+.panel-head,
+.panel-close,
+.game-panel,
 .side-panel,
+.hero-hud,
+.hero-hud-story,
+.hero-hud-track,
+.hero-hud-foot,
 .tutorial-panel,
 .journal-box,
 .dialog-box,
@@ -9602,7 +9628,9 @@ body.confirm-open {
 .save-slot:focus-visible,
 .save-slot.is-selected,
 .saves-close:hover,
-.saves-close:focus-visible {
+.saves-close:focus-visible,
+.panel-close:hover,
+.panel-close:focus-visible {
   border-color: rgba(143, 179, 232, 0.7) !important;
   background: rgba(125, 162, 217, 0.1) !important;
   box-shadow: none !important;
