@@ -186,31 +186,38 @@ def run_checks(browser, base):
     page.on("pageerror", lambda e: console_errors.append(str(e)))
     page.on("dialog", lambda d: d.accept())
 
-    # 1. Публичный лендинг: описание, скриншоты и кнопка входа в игру.
+    # 1. Корень сайта — сразу игра и главное меню.
     page.goto(base + "/", wait_until="domcontentloaded")
-    page.wait_for_selector("#landing-play", timeout=15000)
-    check("PyDungeon" in page.title(), "лендинг открывается", page.title())
-    check(page.locator("#landing-play").is_visible() and
-          page.locator(".shot img").count() == 4,
-          "на лендинге есть кнопка «Играть» и четыре скриншота")
-    landing_text = page.locator("main").inner_text().lower()
-    check("при участии ии" in landing_text and "aseprite" in landing_text,
-          "на лендинге есть колофон об ИИ и графике")
-    check(page.evaluate(
-        "() => document.fonts.check('16px Literata') && "
-        "document.fonts.check('16px \"IBM Plex Mono\"')"),
-        "локальные шрифты лендинга загружены")
-    page.click("#landing-play")
-    page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
-    check("PyDungeon" in page.title(), "стартовый экран открывается", page.title())
+    check("PyDungeon" in page.title(), "корень сайта открывает игру", page.title())
     check(page.locator("#menu-overlay").is_visible(),
-          "кнопка «Играть» открывает главное меню")
+          "главное меню открыто сразу, без лендинга")
     labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
     check(labels == ["Новая игра", "Загрузить", "Справочник", "Обновления",
-                     "Настройки", "Профиль", "Об игре", "Выход"],
+                     "Настройки", "Профиль", "Об игре"],
           "главное меню — один вертикальный список", labels)
+    check(page.locator("#menu-exit").count() == 0,
+          "пункт «Выход» убран вместе с лендингом")
+    check(page.evaluate(
+        "async () => {"
+        " await Promise.all(["
+        "  document.fonts.load('700 16px \"Golos Text\"'),"
+        "  document.fonts.load('900 16px Handjet')"
+        " ]);"
+        " return document.fonts.check('700 16px \"Golos Text\"') &&"
+        " document.fonts.check('900 16px Handjet');"
+        " }"),
+        "шрифты игры Golos и Handjet загружены")
+    page.click("#menu-about")
+    page.wait_for_function(
+        "() => { const n = document.getElementById('menu-view-about');"
+        " return n && !n.classList.contains('hidden'); }", timeout=10000)
+    about_text = page.locator("#menu-view-about").inner_text().lower()
+    check("при участии ии" in about_text and "aseprite" in about_text,
+          "в «Об игре» есть колофон об ИИ и графике")
+    page.click("#menu-back-about")
+    page.wait_for_timeout(200)
     check(page.locator("#menu-dungeon-bg").is_visible(),
           "фон главного меню — подземелье")
     check(page.locator("#menu-view-main .menu-logo").count() == 0,
@@ -467,9 +474,6 @@ def run_checks(browser, base):
         "скрытие памятки запоминается")
 
     page.goto(base + "/", wait_until="domcontentloaded")
-    page.wait_for_selector("#landing-play", timeout=15000)
-    page.click("#landing-play")
-    page.wait_for_url(re.compile(r".*/game\.html\?menu=1(?:&.*)?$"), timeout=15000)
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
@@ -483,7 +487,7 @@ def run_checks(browser, base):
     check(not page.locator("#menu-overlay").is_visible(),
           "«Загрузить» поднимает сохранение из списка")
 
-    # 6. «Выход в Меню» из паузы и «Выход» из главного меню.
+    # 6. «Выход в Меню» из паузы. Отдельного «Выхода на лендинг» больше нет.
     page.click("#menu-btn")
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
@@ -493,11 +497,8 @@ def run_checks(browser, base):
     page.wait_for_timeout(250)
     check(page.locator("#menu-view-main").is_visible(),
           "«Выход в Меню» возвращает главное меню")
-    page.click("#menu-exit")
-    page.wait_for_url(re.compile(r".*/index\.html\?exit=1$"), timeout=10000)
-    check(page.locator("#exit-banner").is_visible() and
-          "вышел" in page.locator("#exit-banner").inner_text().lower(),
-          "«Выход» ведёт на лендинг с сообщением о завершении")
+    check(page.locator("#menu-exit").count() == 0,
+          "в главном меню нет отдельного выхода с сайта")
 
     # 7. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))

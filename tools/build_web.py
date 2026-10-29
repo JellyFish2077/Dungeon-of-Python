@@ -57,31 +57,6 @@ def rewrite_worker_loader(text, stamp):
     )
 
 
-def rewrite_landing(text, stamp):
-    text = text.replace(
-        'game.html?menu=1',
-        'game.html?menu=1&v=' + stamp,
-    )
-    text = text.replace(
-        'src="static/fullscreen.js"',
-        'src="static/fullscreen.js?v=' + stamp + '"',
-    )
-    text = re.sub(
-        r'(static/landing/[^"?#]+\.(?:png|webp|jpg))(")',
-        lambda m: m.group(1) + "?v=" + stamp + m.group(2),
-        text,
-    )
-    version = "1.9.0"
-    try:
-        boot = (STATIC / "web-boot.js").read_text(encoding="utf-8")
-        found = re.search(r'version:\s*"([^"]+)"', boot)
-        if found:
-            version = found.group(1).replace("-web", "")
-    except OSError:
-        pass
-    return text.replace("{{VERSION}}", version)
-
-
 def main():
     stamp = time.strftime("%Y%m%d%H%M%S", time.gmtime())
     if not STATIC.is_dir():
@@ -105,6 +80,10 @@ def main():
             # CSS лежит рядом с game.html в static/; HTML ссылается на static/.
             shutil.copy2(src, PUBLIC / "static" / name)
 
+    # Корень сайта — сразу игра. game.html остаётся для старых ссылок
+    # и прямого входа в меню.
+    shutil.copy2(PUBLIC / "game.html", PUBLIC / "index.html")
+
     for name in (
         "questions.js", "variants.js", "code-tasks.js", "code-tasks-tests.json",
         "task-meta.js", "practice-variants.js", "items.js", "icons.js",
@@ -125,26 +104,15 @@ def main():
         else:
             shutil.copy2(src, PUBLIC / "static" / name)
 
-    # Itch.io открывает index.html: это стартовый экран с именем и выбором
-    # «новая игра / продолжить». Сама игра — game.html.
-    # Скриншоты и другие материалы лендинга.
-    landing_assets = STATIC / "landing"
-    if landing_assets.is_dir():
-        shutil.copytree(landing_assets, PUBLIC / "static" / "landing")
+    # Шрифты игры. Отдельного лендинга больше нет: корень — сама игра.
+    fonts_assets = STATIC / "fonts"
+    if fonts_assets.is_dir():
+        shutil.copytree(fonts_assets, PUBLIC / "static" / "fonts")
 
     # Рисованный интерфейс (Aseprite): 9-slice панели, кнопки, полосы.
     ui_assets = STATIC / "ui"
     if ui_assets.is_dir():
         shutil.copytree(ui_assets, PUBLIC / "static" / "ui")
-
-    landing = ROOT / "standalone" / "index.html"
-    if not landing.exists():
-        print("нет standalone/index.html", file=sys.stderr)
-        return 1
-    (PUBLIC / "index.html").write_text(
-        rewrite_landing(landing.read_text(encoding="utf-8"), stamp),
-        encoding="utf-8",
-    )
 
     (PUBLIC / "ITCH.txt").write_text(
         "PyDungeon — веб-сборка.\n"

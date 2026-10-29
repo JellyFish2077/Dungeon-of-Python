@@ -8202,35 +8202,35 @@ body.game-page .hero-hud-story::after {
 
 @font-face {
   font-family: "Handjet";
-  src: url("landing/fonts/Handjet-Bold.ttf") format("truetype");
+  src: url("fonts/Handjet-Bold.ttf") format("truetype");
   font-weight: 700;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Handjet";
-  src: url("landing/fonts/Handjet-Black.ttf") format("truetype");
+  src: url("fonts/Handjet-Black.ttf") format("truetype");
   font-weight: 900;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Golos Text";
-  src: url("landing/fonts/GolosText-Regular.ttf") format("truetype");
+  src: url("fonts/GolosText-Regular.ttf") format("truetype");
   font-weight: 400;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Golos Text";
-  src: url("landing/fonts/GolosText-Medium.ttf") format("truetype");
+  src: url("fonts/GolosText-Medium.ttf") format("truetype");
   font-weight: 500;
   font-display: swap;
 }
 
 @font-face {
   font-family: "Golos Text";
-  src: url("landing/fonts/GolosText-Bold.ttf") format("truetype");
+  src: url("fonts/GolosText-Bold.ttf") format("truetype");
   font-weight: 700;
   font-display: swap;
 }

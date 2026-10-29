@@ -2,7 +2,7 @@
 //
 // Два режима одного оверлея: главное меню (непрозрачное, без карты) и пауза
 // (поверх приглушённой игры). В главном — «Новая игра», «Загрузить»,
-// «Настройки», «Профиль», «Об игре», «Выход»; в паузе — «Продолжить»,
+// «Настройки», «Профиль», «Об игре»; в паузе — «Продолжить»,
 // «Сохранить», «Загрузить», «Настройки», «Выход в Меню». Настройки, профиль
 // и справка — такие же пункты списка, а не отдельные кнопки. Меню живёт поверх
 // уже загруженной игры, поэтому классная и публичная сборки используют один
@@ -595,16 +595,6 @@
     openSaves("load");
   }
 
-  function onExit() {
-    sound("click");
-    const game = api();
-    if (game && typeof game.leave === "function") {
-      try { game.leave(); } catch (e) {}
-      return;
-    }
-    window.location.href = isWeb() ? "index.html?exit=1" : "/";
-  }
-
   function openSub(name) {
     returnView = mode === "pause" ? "pause" : "main";
     setView(name);
@@ -647,7 +637,6 @@
       case "settings": sound("click"); openSub("settings"); break;
       case "profile": sound("click"); openSub("account"); break;
       case "about": sound("click"); openSub("about"); break;
-      case "exit": onExit(); break;
       default: break;
     }
   }
