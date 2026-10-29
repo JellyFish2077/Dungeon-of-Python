@@ -9541,3 +9541,86 @@ body.confirm-open {
     width: 100%;
   }
 }
+
+/* ---------- Плоский интерфейс: без золотых рамок ---------- */
+/* Золото остаётся акцентом текста, но окна и кнопки больше не обведены
+   золотой линией: рамки нейтральные, угловые засечки убраны. */
+:root {
+  --ui-line: rgba(125, 162, 217, 0.24);
+}
+
+#menu-screen[data-mode="main"] .menu-view-main,
+#menu-screen[data-mode="main"] .menu-title,
+.menu-view-main,
+.menu-view-pause,
+.menu-view-sub,
+.menu-item,
+.menu-btn,
+.menu-btn.primary,
+.menu-gear,
+.saves-screen,
+.saves-head,
+.saves-btn,
+.saves-close,
+.saves-detail,
+.save-slot,
+.saves-list,
+.battle,
+.battle .btn,
+.battle-cat,
+.confirm-box,
+.panel,
+.side-panel,
+.tutorial-panel,
+.journal-box,
+.dialog-box,
+.shop-box,
+.forge-box {
+  border-color: var(--ui-line) !important;
+}
+
+#menu-screen[data-mode="main"] .menu-view-main,
+.saves-screen,
+.battle,
+.menu-view-sub,
+.confirm-box {
+  border-width: 1px !important;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.55) !important;
+}
+
+#menu-screen[data-mode="main"] .menu-view-main::before,
+#menu-screen[data-mode="main"] .menu-view-main::after {
+  display: none !important;
+}
+
+.menu-item.is-active,
+.menu-item:hover {
+  border-left-color: rgba(143, 179, 232, 0.9) !important;
+}
+
+.save-slot:hover,
+.save-slot:focus-visible,
+.save-slot.is-selected,
+.saves-close:hover,
+.saves-close:focus-visible {
+  border-color: rgba(143, 179, 232, 0.7) !important;
+  background: rgba(125, 162, 217, 0.1) !important;
+  box-shadow: none !important;
+}
+
+.panel .mode.active,
+.mode.active {
+  border-color: rgba(143, 179, 232, 0.7) !important;
+  background: rgba(125, 162, 217, 0.12) !important;
+  box-shadow: none !important;
+}
+
+.btn:focus-visible,
+.menu-item:focus-visible,
+.menu-gear:focus-visible,
+.menu-btn:focus-visible,
+.head-link:focus-visible,
+.nav-btn:focus-visible,
+.saves-btn:focus-visible {
+  outline-color: rgba(160, 196, 245, 0.9) !important;
+}
