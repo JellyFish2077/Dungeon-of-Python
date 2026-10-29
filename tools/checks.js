@@ -4323,6 +4323,31 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     G.floorCheckpoint ? "снимок: уровень " + G.floorCheckpoint.level + ", опыт " + G.floorCheckpoint.xp : "нет снимка");
   globalThis.localStorage.removeItem(API.SAVE_KEY);
 
+  // --- бой переживает перезагрузку страницы ---
+  // Сохраняем не вопрос, а факт боя: после «Продолжить» открывается тот же
+  // враг с тем же здоровьем, а игрок снова видит экран вопроса.
+  freshRun(3);
+  const battleMe = G.name;
+  globalThis.localStorage.setItem("pyquiz_session_v1",
+    JSON.stringify({ name: battleMe, role: "student", token: "" }));
+  const savedBattleEnemy = enemyOnPlayerCell("orc", 400);
+  API.openBattle(savedBattleEnemy);
+  savedBattleEnemy.hp = 123;
+  G.battle.topic = "syntax";
+  G.battle.step = 1;
+  API.saveGame();
+  G.battle = null;
+  API.loadGame();
+  log(!!G.battle && G.battle.enemy && G.battle.enemy.uid === savedBattleEnemy.uid,
+    "«Продолжить» возвращает в бой с тем же врагом");
+  log(!!G.battle && G.battle.enemy.hp === 123,
+    "здоровье врага в бою сохраняется", G.battle ? G.battle.enemy.hp : "нет боя");
+  log(!!G.battle && G.battle.phase === "question",
+    "после загрузки бой снова ждёт ответа");
+  G.battle = null;
+  globalThis.localStorage.removeItem("pyquiz_session_v1");
+  globalThis.localStorage.removeItem(API.SAVE_KEY + ":" + battleMe);
+
   // --- ходьба по физическим клавишам ---
   log(/KeyW: "w"[\s\S]*KeyD: "d"/.test(gameJsText) && /map\[byCode\[e\.code\]\]/.test(gameJsText),
     "WASD работает и в русской раскладке (по e.code)");

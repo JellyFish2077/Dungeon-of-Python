@@ -329,7 +329,27 @@
     else note.textContent = user.role === "teacher" ? "преподаватель" : "ученик";
   }
 
+  function renderContinue() {
+    const btn = $("menu-continue");
+    if (!btn) return;
+    const state = gameStatus();
+    const can = !!(state && (state.paused ||
+      (state.running && (state.place === "dungeon" || state.battle))));
+    btn.classList.toggle("hidden", !can);
+    btn.setAttribute("aria-hidden", can ? "false" : "true");
+    if (!can) return;
+    const note = $("menu-continue-note");
+    if (note) {
+      note.textContent = (state.battle || state.savedBattle)
+        ? "вернуться в бой"
+        : state.paused
+        ? "этаж " + state.floor
+        : "вернуться в игру";
+    }
+  }
+
   function renderMain() {
+    renderContinue();
     renderNew();
     renderLoad();
     renderProfile();
@@ -476,13 +496,26 @@
   }
 
   function onLogout() {
-    if (!window.confirm("Выйти из аккаунта? Поход сохранится.")) return;
-    if (typeof logout === "function") logout();
-    editingName = false;
-    try {
-      sessionStorage.removeItem(AUTOPLAY_KEY);
-    } catch (e) {}
-    window.location.reload();
+    const doLogout = function () {
+      if (typeof logout === "function") logout();
+      editingName = false;
+      try {
+        sessionStorage.removeItem(AUTOPLAY_KEY);
+      } catch (e) {}
+      window.location.reload();
+    };
+    const opts = {
+      title: "Выйти из аккаунта?",
+      text: "Поход сохранится. Вернуться можно будет через «Загрузить».",
+      confirmLabel: "Выйти",
+      cancelLabel: "Остаться",
+      danger: true
+    };
+    if (window.PyConfirm && typeof window.PyConfirm.run === "function") {
+      window.PyConfirm.run(opts, doLogout);
+    } else {
+      doLogout();
+    }
   }
 
   function submitName() {
@@ -639,8 +672,24 @@
     setMode("main");
   }
 
+  function onContinue() {
+    sound("click");
+    const game = api();
+    const state = gameStatus();
+    // Если игра уже открыта за меню (например, вышли в меню из паузы),
+    // просто закрываем меню и возвращаемся в живое состояние.
+    if (state && state.running && (state.place === "dungeon" || state.battle)) {
+      close();
+      return;
+    }
+    if (game && typeof game.resume === "function" && game.resume()) {
+      close();
+    }
+  }
+
   function activateAction(action) {
     switch (action) {
+      case "continue": onContinue(); break;
       case "new": onNew(); break;
       case "load": onLoad(); break;
       case "codex":

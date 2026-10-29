@@ -203,7 +203,7 @@ def run_checks(browser, base):
     check("PyDungeon" in page.title(), "корень сайта открывает игру", page.title())
     check(page.locator("#menu-overlay").is_visible(),
           "главное меню открыто сразу, без лендинга")
-    labels = page.locator("#menu-list .menu-item-label").all_inner_texts()
+    labels = page.locator("#menu-list .menu-item:visible .menu-item-label").all_inner_texts()
     check(labels == ["Новая игра", "Загрузить", "Справочник", "Обновления",
                      "Настройки", "Профиль", "Об игре"],
           "главное меню — один вертикальный список", labels)
@@ -420,6 +420,12 @@ def run_checks(browser, base):
     page.wait_for_timeout(200)
     page.locator("#saves-list .save-slot:not(.is-empty)").nth(1).click()
     page.click("#saves-detail [data-do='delete']")
+    page.wait_for_function(
+        "() => !document.getElementById('confirm-overlay').classList.contains('hidden')",
+        timeout=10000)
+    check(page.locator("#confirm-title").inner_text() == "Удалить сохранение?",
+          "удаление сохранения подтверждается внутренним окном")
+    page.click("#confirm-ok")
     page.wait_for_timeout(250)
     check(page.locator("#saves-list .save-slot:not(.is-empty)").count() == 1,
           "сохранение удаляется")
@@ -509,6 +515,20 @@ def run_checks(browser, base):
     page.goto(base + "/", wait_until="domcontentloaded")
     page.wait_for_function(
         "() => window.PyMenu && window.PyMenu.isOpen()", timeout=15000)
+    check(page.locator("#menu-continue").is_visible(),
+          "после перезагрузки в меню есть «Продолжить»")
+    check("этаж" in page.locator("#menu-continue-note").inner_text().lower(),
+          "«Продолжить» показывает последний этаж")
+    page.click("#menu-continue")
+    page.wait_for_function("() => !window.PyMenu.isOpen()", timeout=15000)
+    page.wait_for_timeout(400)
+    check(page.evaluate("() => window.PyGameMenuAPI.status().place") == "dungeon",
+          "«Продолжить» возвращает в подземелье, а не в деревню")
+    page.click("#menu-btn")
+    page.wait_for_function(
+        "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
+    page.click("#pause-exit")
+    page.wait_for_timeout(250)
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
           "«Загрузить» доступна при сохранении")
     page.click("#menu-load")
@@ -532,6 +552,28 @@ def run_checks(browser, base):
           "«Выход в Меню» возвращает главное меню")
     check(page.locator("#menu-exit").count() == 0,
           "в главном меню нет отдельного выхода с сайта")
+
+    # 6b. Подтверждение — внутреннее окно, а не window.confirm.
+    page.click("#menu-new")
+    page.wait_for_timeout(300)
+    page.evaluate("() => window.PyGameMenuAPI.openGuard()")
+    page.wait_for_function(
+        "() => !document.getElementById('entrance-overlay').classList.contains('hidden')",
+        timeout=10000)
+    page.evaluate("() => { window.__nativeConfirm = 0;"
+                  " window.confirm = () => { window.__nativeConfirm += 1; return true; }; }")
+    page.click("#begin-btn")
+    page.wait_for_function(
+        "() => !document.getElementById('confirm-overlay').classList.contains('hidden')",
+        timeout=10000)
+    check(page.locator("#confirm-title").inner_text() == "Начать новый поход?",
+          "новый поход при существующем спрашивает внутренним окном")
+    check(page.evaluate("() => window.__nativeConfirm === 0"),
+          "браузерный confirm не вызывается")
+    page.click("#confirm-cancel")
+    page.wait_for_timeout(150)
+    check(not page.locator("#confirm-overlay").is_visible(),
+          "отмена закрывает внутреннее подтверждение")
 
     # 7. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))

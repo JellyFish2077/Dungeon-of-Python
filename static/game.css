@@ -9440,3 +9440,104 @@ body.battling .battle-panel .squad-note {
     font-size: 11px;
   }
 }
+
+/* ---------- Внутреннее подтверждение ---------- */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 130;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(3, 7, 13, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+.confirm-overlay.hidden {
+  display: none;
+}
+
+.confirm-box {
+  width: min(540px, 100%);
+  padding: 22px 24px 20px;
+  border: 1px solid rgba(246, 196, 83, 0.55);
+  border-radius: 14px;
+  background:
+    linear-gradient(180deg, rgba(24, 36, 54, 0.98), rgba(10, 18, 31, 0.99));
+  box-shadow:
+    0 24px 70px rgba(0, 0, 0, 0.65),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  font-family: var(--font-ui);
+}
+
+.confirm-kicker {
+  margin-bottom: 6px;
+  color: var(--gold, #f6c453);
+  font: 700 10px/1 var(--font-data);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.confirm-title {
+  margin: 0 0 10px;
+  color: var(--parchment, #eee4cf);
+  font: 700 22px/1.2 var(--font-display);
+}
+
+.confirm-text {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirm-actions .btn {
+  min-width: 130px;
+}
+
+.confirm-actions .btn.danger {
+  border-color: rgba(248, 113, 113, 0.7);
+  background: linear-gradient(180deg, #7f1d1d, #4c1010);
+  color: #fee2e2;
+}
+
+.confirm-actions .btn.danger:hover,
+.confirm-actions .btn.danger:focus-visible {
+  border-color: #fca5a5;
+  background: linear-gradient(180deg, #991b1b, #5f1414);
+}
+
+body.confirm-open {
+  overflow: hidden;
+}
+
+@media (max-width: 700px) {
+  .confirm-overlay {
+    padding: 16px;
+  }
+
+  .confirm-box {
+    padding: 18px 18px 16px;
+  }
+
+  .confirm-title {
+    font-size: 19px;
+  }
+
+  .confirm-actions {
+    flex-direction: column-reverse;
+  }
+
+  .confirm-actions .btn {
+    width: 100%;
+  }
+}

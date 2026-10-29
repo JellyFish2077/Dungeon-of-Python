@@ -495,6 +495,17 @@
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
   const key = (x, y) => x + "," + y;
 
+  // Внутреннее подтверждение. В node-проверках PyConfirm нет: там действие
+  // выполняется сразу, как раньше отвечал подтверждением браузер.
+  function askInGame(opts, onYes) {
+    if (typeof window !== "undefined" && window.PyConfirm &&
+        typeof window.PyConfirm.run === "function") {
+      window.PyConfirm.run(opts, onYes);
+    } else {
+      onYes();
+    }
+  }
+
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -2938,8 +2949,8 @@
   // калибровку спрашивает только кнопка в окне стража (beginFromEntrance),
   // чтобы программный запуск не упирался в модальное окно.
   function enterDungeon() {
-    closeEntrance();
-    // Подсказка управления относится к деревне; в бою/подземелье она лишняя.
+    // Окно стража закрываем только после подтверждения: при отмене игрок
+    // остаётся у входа, а не оказывается в деревне без объяснения.
     clearToast();
     begin();
   }
@@ -5474,11 +5485,20 @@
   function discardItem(index) {
     const item = G.inventory[index];
     if (!item) return;
-    if (!window.confirm("Убрать «" + item.name + "» из инвентаря?")) return;
-    G.inventory.splice(index, 1);
-    log("Убран предмет: " + item.name + ".", "loot");
-    updateHud();
-    renderInventory();
+    askInGame({
+      title: "Убрать предмет?",
+      text: "«" + item.name + "» исчезнет из сумки насовсем.",
+      confirmLabel: "Убрать",
+      cancelLabel: "Оставить",
+      danger: true
+    }, function () {
+      const current = G.inventory[index];
+      if (!current) return;
+      G.inventory.splice(index, 1);
+      log("Убран предмет: " + current.name + ".", "loot");
+      updateHud();
+      renderInventory();
+    });
   }
 
   function unequipItem(slot) {
@@ -6599,7 +6619,7 @@
 
   // ---------- Бой ----------
 
-  function openBattle(enemy) {
+  function openBattle(enemy, restore) {
     // Бой прерывает маршрут, набранный кликом.
     endWalk();
     cancelBattleClose();
@@ -6637,37 +6657,45 @@
       quip: typeof enemyQuip === "function" ? enemyQuip(enemy.key) : "",
       // Первые секунды боя — заставка, пока камера подъезжает. Повторная
       // отрисовка боя не должна запускать её заново.
-      showIntro: true,
+      showIntro: !restore,
       introTimer: 0,
       results: null
     };
-    const ab = abilityOf(enemy);
-    if (ab === "curse" && Math.random() < (enemy.curseChance == null ? 0.35 : enemy.curseChance)) {
-      G.battle.cursed = true;
+    if (restore) {
+      // Продолжение после перезагрузки: не повторяем входные эффекты
+      // (яд, огонь, лечение жрицы), иначе они сработают дважды.
+      G.battle.topic = restore.topic || "";
+      G.battle.step = Math.max(0, (Number(restore.step) || 1) - 1);
+      G.battle.cursed = !!restore.cursed;
+    } else {
+      const ab = abilityOf(enemy);
+      if (ab === "curse" && Math.random() < (enemy.curseChance == null ? 0.35 : enemy.curseChance)) {
+        G.battle.cursed = true;
+      }
+      // Жрица лечит этаж при входе в бой: тактика появляется сама — сначала
+      // лекаря, потом остальных.
+      if (ab === "heal") healFloorAllies(enemy);
+      if (ab === "poison" && !equippedEffect("poisonImmune")) {
+        // Элитный паук добавляет яд сразу двумя ходами.
+        G.player.poison = Math.min(3, (G.player.poison || 0) + 1 + (enemy.poisonBonus || 0));
+      }
+      if (ab === "fire") {
+        // Рост урона от боя к бою не должен копиться в самом поле врага:
+        // держим масштаб рядом с боем, иначе демон после этажа бьёт
+        // в разы сильнее заявленного.
+        enemy.fireScale = (enemy.fireScale || 1) * (enemy.fireMul || 1.15);
+      }
+      // Дальнобойный бьёт слабее, зато не лезет вплотную. Считаем урон от
+      // базы заново: и огонь демона, и прицел мыши должны сходиться
+      // в одном месте, иначе бой с демоном-прицелом бьёт в разы сильнее.
+      if ((enemy.range || 1) > 1) {
+        enemy.shotScale = RANGED.dmgScale;
+      }
+      enemy.dmg = Math.max(
+        1,
+        Math.round(enemy.baseDmg * (enemy.fireScale || 1) * (enemy.shotScale || 1))
+      );
     }
-    // Жрица лечит этаж при входе в бой: тактика появляется сама — сначала
-    // лекаря, потом остальных.
-    if (ab === "heal") healFloorAllies(enemy);
-    if (ab === "poison" && !equippedEffect("poisonImmune")) {
-      // Элитный паук добавляет яд сразу двумя ходами.
-      G.player.poison = Math.min(3, (G.player.poison || 0) + 1 + (enemy.poisonBonus || 0));
-    }
-    if (ab === "fire") {
-      // Рост урона от боя к бою не должен копиться в самом поле врага:
-      // держим масштаб рядом с боем, иначе демон после этажа бьёт
-      // в разы сильнее заявленного.
-      enemy.fireScale = (enemy.fireScale || 1) * (enemy.fireMul || 1.15);
-    }
-    // Дальнобойный бьёт слабее, зато не лезет вплотную. Считаем урон от
-    // базы заново: и огонь демона, и прицел мыши должны сходиться
-    // в одном месте, иначе бой с демоном-прицелом бьёт в разы сильнее.
-    if ((enemy.range || 1) > 1) {
-      enemy.shotScale = RANGED.dmgScale;
-    }
-    enemy.dmg = Math.max(
-      1,
-      Math.round(enemy.baseDmg * (enemy.fireScale || 1) * (enemy.shotScale || 1))
-    );
     G.battle.rangedCd = 0;
     nextChallenge();
     const box = el("battle-box");
@@ -10805,19 +10833,30 @@ function topicName(key) {
       toast("Войди в аккаунт на главной странице");
       return;
     }
-    const known = knowledgeFor(name);
-    G.knowledgeLevel = known && known.level ? known.level : 2;
     // Незаконченный поход затирается при старте нового: startRun делает
     // clearSave(). Раньше это происходило молча, и собранный лут исчезал.
     const paused = pausedRun();
-    if (paused && !window.confirm(
-      "У тебя есть незаконченный поход: этаж " + ((paused.floorIndex || 0) + 1) +
-      ", золото " + ((paused.player && paused.player.gold) || 0) +
-      ". Начать новый поход? Незаконченный будет потерян — " +
-      "продолжить его можно кнопкой «Продолжить поход» в деревне."
-    )) {
+    if (paused) {
+      const start = function () { startRun(name); };
+      askInGame({
+        title: "Начать новый поход?",
+        text: "У тебя уже есть незаконченный поход: этаж " +
+          ((paused.floorIndex || 0) + 1) + ", золото " +
+          ((paused.player && paused.player.gold) || 0) +
+          ". Новый поход начнётся с первого этажа, а текущий будет потерян.",
+        confirmLabel: "Начать новый",
+        cancelLabel: "Оставить текущий",
+        danger: true
+      }, start);
       return;
     }
+    startRun(name);
+  }
+
+  function startRun(name) {
+    closeEntrance();
+    const known = knowledgeFor(name);
+    G.knowledgeLevel = known && known.level ? known.level : 2;
     G.name = name;
     G.nick = dungeonNick(name);
     setLastName(name);
@@ -11481,6 +11520,17 @@ function topicName(key) {
         // мёртвую партию и не знало, к какому состоянию откатывать этаж.
         over: !!G.dead,
         floorCheckpoint: G.floorCheckpoint,
+        // Бой не сохраняем целиком: после перезагрузки открываем его заново
+        // с тем же врагом и его здоровьем. Вопрос будет новый, но игрок
+        // вернётся в бой, а не окажется на карте без объяснения.
+        battle: G.battle && G.battle.enemy && G.battle.phase === "question"
+          ? {
+            enemyUid: G.battle.enemy.uid,
+            topic: G.battle.topic || "",
+            step: G.battle.step || 0,
+            cursed: !!G.battle.cursed
+          }
+          : null,
         floors: Object.keys(G.cache).map((k) => serializeFloor(G.cache[k]))
       };
       const me = accountName();
@@ -11791,27 +11841,16 @@ function topicName(key) {
           floorNameAt(G.floorIndex) + ".", "floor");
         setMsg("Игра восстановлена из сохранения.");
         afterFloor();
+        // Если страницу обновили посреди боя, возвращаем в тот же бой:
+        // враг и его здоровье уже в сохранённом этаже.
+        if (data.battle && data.battle.enemyUid) {
+          const enemy = G.enemies.find((e) =>
+            e.uid === data.battle.enemyUid && e.hp > 0);
+          if (enemy) openBattle(enemy, data.battle);
+        }
       });
     }
     return true;
-  }
-
-  // Обновление страницы не должно выбрасывать из похода в деревню.
-  // Сейв существует только у незаконченного похода: победа и уход в деревню
-  // его удаляют. Поэтому если сейв есть — продолжаем с того же этажа, а
-  // деревня открывается, когда продолжать нечего (или вошёл другой ученик).
-  // Без входа не поднимаем: чужая партия на общем компьютере всплывать
-  // не должна, и начать поход без аккаунта всё равно нельзя.
-  function resumeOnLoad() {
-    if (!accountName()) return false;
-    // Игрок сам ушёл в деревню кнопкой «В деревню»: обновление страницы
-    // не должно утаскивать его обратно в подземелье.
-    if (placeMarker() === "village") return false;
-    // Проигранную партию поднимаем только по кнопке: на экране смерти был
-    // выбор «амулет или в деревню», и обновление страницы не должно решать
-    // за ученика. В деревне кнопка предложит начать этаж заново.
-    if (!pausedRun()) return false;
-    return loadGame();
   }
 
   // Вернуться в деревню, не заканчивая поход. Без этого игрок запирался:
@@ -12325,15 +12364,12 @@ function topicName(key) {
     // отдельно от страницы, чтобы правка не требовала пересборки файлов.
     loadServerBalance();
 
-    // Игра открывается в деревне, только если продолжать нечего: иначе
-    // обновление страницы посреди похода выбрасывало в деревню, а «Продолжить»
-    // пряталось в окне стража — со стороны это выглядело как сброс прогресса.
-    const resumed = resumeOnLoad();
-    if (!resumed) enterVillage(null);
-    // Стартовое меню — первый экран. После входа страница перезагружается,
-    // и PyMenu.boot сам пропускает меню, если игрок уже нажал «Играть».
+    // Обновление страницы всегда возвращает в главное меню. Поход не
+    // поднимаем за спиной: игрок сам решает, нажать «Продолжить» или начать
+    // новый. Иначе после F5 он неожиданно оказывался в бою.
+    enterVillage(null);
     if (window.PyMenu && typeof window.PyMenu.boot === "function") {
-      window.PyMenu.boot({ resumed: resumed });
+      window.PyMenu.boot({ resumed: false });
     }
     devInit();
   });
@@ -12729,13 +12765,20 @@ function topicName(key) {
       return;
     }
     if (action === "wipe") {
-      if (!window.confirm("Удалить сохранение похода и вернуться в деревню?")) return;
-      clearSave();
-      G.dead = false;
-      G.running = false;
-      enterVillage(null);
-      updateResumeButton();
-      toast("Сохранение похода удалено");
+      askInGame({
+        title: "Удалить сохранение похода?",
+        text: "Текущий поход будет удалён, герой вернётся в деревню.",
+        confirmLabel: "Удалить",
+        cancelLabel: "Отмена",
+        danger: true
+      }, function () {
+        clearSave();
+        G.dead = false;
+        G.running = false;
+        enterVillage(null);
+        updateResumeButton();
+        toast("Сохранение похода удалено");
+      });
     }
   }
 
@@ -13343,6 +13386,7 @@ function topicName(key) {
           paused: !!paused && !paused.over,
           running: !!G.running,
           battle: !!G.battle,
+          savedBattle: !!(paused && paused.battle),
           place: place,
           floor: floor,
           gold: gold,

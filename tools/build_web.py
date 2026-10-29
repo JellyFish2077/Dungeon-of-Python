@@ -89,8 +89,8 @@ def main():
         "task-meta.js", "practice-variants.js", "items.js", "icons.js",
         "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
         "profile.js", "auth.js", "web-boot.js", "pyodide-check.js",
-        "pyodide-worker.js", "audio.js", "menu-bg.js", "menu.js", "saves.js", "game.js",
-        "fullscreen.js",
+        "pyodide-worker.js", "audio.js", "menu-bg.js", "confirm.js", "menu.js",
+        "saves.js", "game.js", "fullscreen.js",
     ):
         src = STATIC / name
         if not src.exists():

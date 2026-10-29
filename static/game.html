@@ -366,7 +366,12 @@
         </header>
 
         <nav class="menu-list" id="menu-list" aria-label="Главное меню">
-          <button class="menu-item is-active" id="menu-new" type="button" data-action="new">
+          <button class="menu-item hidden" id="menu-continue" type="button" data-action="continue">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Продолжить</span>
+            <span class="menu-item-note" id="menu-continue-note">последний поход</span>
+          </button>
+          <button class="menu-item" id="menu-new" type="button" data-action="new">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Новая игра</span>
             <span class="menu-item-note" id="menu-new-note">стража у входа</span>
@@ -545,6 +550,19 @@
     </section>
   </div>
 
+  <div class="confirm-overlay hidden" id="confirm-overlay" role="dialog"
+       aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <div class="confirm-box">
+      <div class="confirm-kicker">PyDungeon</div>
+      <h2 class="confirm-title" id="confirm-title">Подтверждение</h2>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button class="btn ghost" id="confirm-cancel" type="button">Отмена</button>
+        <button class="btn" id="confirm-ok" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <!-- Памятка первого спуска: только клавиши, без списка целей.
@@ -577,6 +595,7 @@
   <script src="/static/auth.js"></script>
   <script src="/static/audio.js"></script>
   <script src="/static/menu-bg.js"></script>
+  <script src="/static/confirm.js"></script>
   <script src="/static/menu.js"></script>
   <script src="/static/saves.js"></script>
   <script src="/static/fullscreen.js"></script>
