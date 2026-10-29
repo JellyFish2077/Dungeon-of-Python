@@ -1,12 +1,11 @@
-/* Полноэкранный режим по умолчанию.
+/* Полноэкранный режим по кнопке.
  *
- * Браузер разрешает requestFullscreen только из жеста пользователя, поэтому
- * на первой странице мы ждём первый тап/клик/клавишу и разворачиваем игру.
- * Если человек сам вышел из полного экрана, на этой странице больше не
- * навязываем режим: следующая страница снова попробует один раз.
+ * Автоматически ничего не открываем: браузеры разрешают requestFullscreen
+ * только из жеста пользователя, а навязывать режим при первом клике не нужно.
+ * Кнопка есть на лендинге, в шапке игры и в настройках.
  *
- * На телефоне после входа в fullscreen просим горизонтальную ориентацию.
- * iOS Safari не умеет element fullscreen — там просто остаётся обычный
+ * На телефоне после ручного входа в fullscreen просим горизонтальную
+ * ориентацию. iOS Safari не умеет element fullscreen — там остаётся обычный
  * полноэкранный лейаут страницы.
  */
 (function () {
@@ -14,13 +13,8 @@
 
   const doc = document;
   const root = doc.documentElement;
-  // Playwright и другие автопроверки не должны неожиданно уходить в fullscreen:
-  // ручная кнопка остаётся, а автоматический вход отключаем только для них.
-  const automated = !!(navigator && navigator.webdriver);
   let pending = false;
   let wasOn = !!doc.fullscreenElement;
-  let optedOut = false;
-  let listenersOn = false;
 
   function supported() {
     return !!(doc.fullscreenEnabled && root.requestFullscreen);
@@ -67,7 +61,7 @@
   }
 
   async function enter() {
-    if (!supported() || isOn() || pending || optedOut) return false;
+    if (!supported() || isOn() || pending) return false;
     pending = true;
     try {
       await root.requestFullscreen({ navigationUI: "hide" });
@@ -91,53 +85,12 @@
   }
 
   async function toggle() {
-    if (isOn()) {
-      optedOut = true;
-      return exit();
-    }
-    optedOut = false;
-    return enter();
-  }
-
-  function explicitTarget(ev) {
-    const t = ev && ev.target;
-    if (!t || !t.closest) return false;
-    return !!t.closest("#fullscreen-btn, #set-fullscreen, [data-fullscreen-toggle]");
-  }
-
-  function firstGesture(ev) {
-    if (explicitTarget(ev)) {
-      // Кнопка полного экрана сама вызовет toggle; не входим и не выходим дважды.
-      detach();
-      return;
-    }
-    if (optedOut || isOn()) return;
-    enter().then((ok) => {
-      if (ok || optedOut) detach();
-    });
-  }
-
-  function attach() {
-    if (listenersOn || !supported()) return;
-    listenersOn = true;
-    window.addEventListener("pointerdown", firstGesture, true);
-    window.addEventListener("keydown", firstGesture, true);
-  }
-
-  function detach() {
-    if (!listenersOn) return;
-    listenersOn = false;
-    window.removeEventListener("pointerdown", firstGesture, true);
-    window.removeEventListener("keydown", firstGesture, true);
+    return isOn() ? exit() : enter();
   }
 
   doc.addEventListener("fullscreenchange", () => {
     const on = isOn();
-    if (!on && wasOn) {
-      // Вышли через Esc или системную кнопку: уважаем выбор до перезагрузки.
-      optedOut = true;
-      unlockOrientation();
-    }
+    if (!on && wasOn) unlockOrientation();
     wasOn = on;
     if (on) lockLandscape();
     syncUI();
@@ -151,14 +104,9 @@
     toggle();
   });
 
-  // Первый жест на странице. Дальше слушатели снимаются.
-  if (!automated) attach();
   syncUI();
   if (doc.readyState === "loading") {
-    doc.addEventListener("DOMContentLoaded", () => {
-      if (!automated) attach();
-      syncUI();
-    });
+    doc.addEventListener("DOMContentLoaded", syncUI);
   }
 
   window.PyFullscreen = {
