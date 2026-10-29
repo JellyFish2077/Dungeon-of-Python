@@ -210,6 +210,12 @@ def run_checks(browser, base):
     check(page.locator("#menu-exit").count() == 0,
           "пункт «Выход» убран вместе с лендингом")
     check(page.evaluate(
+        "() => Array.from(document.querySelectorAll('.nav-btn')).every((b) => {"
+        " const s = getComputedStyle(b);"
+        " return s.justifyContent === 'center' && s.backgroundImage === 'none';"
+        " })"),
+        "верхние кнопки без фоновых иконок, текст по центру")
+    check(page.evaluate(
         "async () => {"
         " await Promise.all(["
         "  document.fonts.load('700 16px \"Golos Text\"'),"
@@ -297,6 +303,12 @@ def run_checks(browser, base):
     # Дожидаемся крупных ассетов, прежде чем уходить в деревню.
     page.wait_for_load_state("load", timeout=15000)
     page.click("#menu-new")
+    page.wait_for_function(
+        "() => !document.getElementById('confirm-overlay').classList.contains('hidden')",
+        timeout=10000)
+    check(page.locator("#confirm-title").inner_text() == "Начать новую игру?",
+          "«Новая игра» спрашивает подтверждение")
+    page.click("#confirm-ok")
     page.wait_for_timeout(400)
     check(not page.locator("#menu-overlay").is_visible(), "«Новая игра» закрывает меню")
     check(not page.locator("#entrance-overlay").is_visible(),
@@ -555,6 +567,21 @@ def run_checks(browser, base):
 
     # 6b. Подтверждение — внутреннее окно, а не window.confirm.
     page.click("#menu-new")
+    page.wait_for_function(
+        "() => !document.getElementById('confirm-overlay').classList.contains('hidden')",
+        timeout=10000)
+    check(page.locator("#confirm-title").inner_text() == "Начать новую игру?",
+          "«Новая игра» подтверждается внутренним окном")
+    page.click("#confirm-cancel")
+    page.wait_for_timeout(150)
+    check(not page.locator("#confirm-overlay").is_visible() and
+          page.locator("#menu-view-main").is_visible(),
+          "отмена новой игры оставляет меню открытым")
+
+    # Возвращаемся в деревню, сохраняя поход: так у стража снова будет
+    # незаконченный поход для проверки второго подтверждения.
+    page.evaluate("() => { window.PyMenu.close();"
+                  " window.PyGameMenuAPI.village(); }")
     page.wait_for_timeout(300)
     page.evaluate("() => window.PyGameMenuAPI.openGuard()")
     page.wait_for_function(

@@ -3208,11 +3208,35 @@
       for (let x = x0; x <= x1; x++) {
         const dx = x - px;
         if (dx * dx + dy2 > r2) continue;
+        // Радиус — не зрение: стена закрывает всё, что за ней. Свою клетку
+        // и саму стену на линии оставляем видимыми, иначе карта мигает.
+        if ((dx !== 0 || dy !== 0) && !hasLineOfSight(px, py, x, y)) continue;
         const k = key(x, y);
         G.visible.add(k);
         G.discovered.add(k);
       }
     }
+    // Стены по краю видимого пола тоже показываем: иначе вокруг комнаты
+    // остаются чёрные зубцы, хотя пол уже открыт.
+    const wallEdge = new Set();
+    G.visible.forEach((k) => {
+      const parts = k.split(",");
+      const vx = Number(parts[0]);
+      const vy = Number(parts[1]);
+      for (let oy = -1; oy <= 1; oy += 1) {
+        for (let ox = -1; ox <= 1; ox += 1) {
+          if (!ox && !oy) continue;
+          const nx = vx + ox;
+          const ny = vy + oy;
+          if (nx < 0 || ny < 0 || nx >= G.map.w || ny >= G.map.h) continue;
+          if (wallAt(nx, ny)) wallEdge.add(key(nx, ny));
+        }
+      }
+    });
+    wallEdge.forEach((k) => {
+      G.visible.add(k);
+      G.discovered.add(k);
+    });
     // Открытое в деревне запоминаем на сеанс — см. G.villageSeen.
     if (G.place !== "dungeon") G.villageSeen = new Set(G.discovered);
   }
@@ -6408,7 +6432,8 @@
       if (e.guard) {
         const reach = e.range || 1;
         const d = Math.hypot(e.x - px, e.y - py);
-        if (d <= reach && (reach === 1 || hasLineOfSight(e.x, e.y, px, py))) return e;
+        // Страж тоже не бьёт через стену: иначе он «видит» героя углом.
+        if (d <= reach && hasLineOfSight(e.x, e.y, px, py)) return e;
         continue;
       }
       const leader = squadLeaderOf(e);
@@ -6422,8 +6447,8 @@
         // ведущего, а ведущий в узком коридоре упирался в него же: отряд
         // замирал, и до героя не доходил никто.
         const reach = e.range || 1;
-        if (Math.hypot(e.x - px, e.y - py) <= reach) {
-          if (reach > 1 && !hasLineOfSight(e.x, e.y, px, py)) continue;
+        if (Math.hypot(e.x - px, e.y - py) <= reach &&
+            hasLineOfSight(e.x, e.y, px, py)) {
           return e;
         }
         if (Math.hypot(leader.x - e.x, leader.y - e.y) <= 1.5) continue;
@@ -6436,10 +6461,13 @@
       // Дальнобойный держит дистанцию: если подошёл вплотную — отходит
       // на свою дальность и бьёт оттуда, а не лезет на героя.
       if (range > 1 && dist <= range) {
-        // Стена между монстром и героем: стрелять нельзя, надо обойти.
+        // Стена между монстром и героем: стрелять нельзя и вести героя
+        // сквозь стену тоже нельзя. Дальнобойный теряет цель и бродит.
         if (!hasLineOfSight(e.x, e.y, px, py)) {
-          const around = stepToward(e, px, py);
-          if (around) moveEnemyTo(e, around.x, around.y);
+          if (Math.random() < 0.25) {
+            const w = wander(e);
+            if (w) moveEnemyTo(e, w.x, w.y);
+          }
           continue;
         }
         if (dist < range) {
@@ -6450,7 +6478,10 @@
         }
         return e;
       }
-      if (dist > AGGRO_RADIUS + range - 1) {
+      // Без прямой видимости монстр не начинает преследование: стена
+      // действительно скрывает героя, а не только блокирует выстрел.
+      if (dist > AGGRO_RADIUS + range - 1 ||
+          !hasLineOfSight(e.x, e.y, px, py)) {
         if (abilityOf(e) === "phasing" && Math.random() < (e.phaseChance == null ? 0.25 : e.phaseChance)) {
           if (phaseTeleport(e)) continue;
         }
@@ -12677,15 +12708,33 @@ function topicName(key) {
   }
 
   function devStoryReset() {
-    const prof = hubProfile();
-    if (!prof) return;
-    prof.quests.story = 0;
-    prof.quests.done = [];
-    putProfile(hubName(), prof);
-    syncProfile(hubName());
+    if (!resetStoryCampaign()) return;
     renderVillageInfo();
     updateHud();
     toast("Сюжет сброшен");
+  }
+
+  // Новая игра начинает кампанию заново. Деревня, материалы и постройки
+  // остаются: это постоянная мета-прогрессия, а не сюжетный прогресс.
+  // Печати убираем, иначе новый сюжет сразу перескочил бы затворы.
+  function resetStoryCampaign() {
+    const prof = hubProfile();
+    if (!prof) return false;
+    prof.quests = prof.quests || {};
+    prof.quests.story = 0;
+    prof.quests.done = [];
+    prof.quests.active = "";
+    prof.quests.repeat = {};
+    prof.quests.failed = [];
+    prof.quests.progress = {};
+    if (prof.loot && Array.isArray(prof.loot.keys)) {
+      prof.loot.keys = prof.loot.keys.filter((k) => k !== "seal" && k !== "seal2");
+    }
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.firstGoalDone = false;
+    G.questProgress = { n: 0 };
+    return true;
   }
 
   function devXp() {
@@ -13447,6 +13496,26 @@ function topicName(key) {
       village: function () {
         if (G.place !== "dungeon" || G.battle) return false;
         return returnToVillage();
+      },
+      newCampaign: function () {
+        // «Новая игра» сбрасывает именно сюжет, а не деревню: материалы,
+        // постройки и покупки остаются. Печати уходят вместе с сюжетом.
+        if (G.battle) return false;
+        if (!resetStoryCampaign()) return false;
+        clearSave();
+        G.battle = null;
+        G.dead = false;
+        G.running = false;
+        G.floorIndex = 0;
+        G.floorCheckpoint = null;
+        G.cache = {};
+        G.visited = new Set([0]);
+        enterVillage(null);
+        renderVillageInfo();
+        updateHud();
+        updateResumeButton();
+        setMsg("Новая игра: сюжет начат заново. Поговори со стражем у входа.");
+        return true;
       },
       newRun: function () {
         // Из боя в «Новую игру» не уходят: иначе это бесплатный побег.

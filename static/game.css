@@ -9555,6 +9555,12 @@ body.game-page .nav-btn[data-panel] {
   background-image: none !important;
 }
 
+body.game-page .nav-btn {
+  justify-content: center;
+  gap: 0;
+  text-align: center;
+}
+
 body.game-page .nav-btn.active {
   border-color: var(--ui-line) !important;
   background: rgba(125, 162, 217, 0.12) !important;

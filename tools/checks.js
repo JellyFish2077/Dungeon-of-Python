@@ -2873,6 +2873,21 @@ fakeMap([
 log(API.hasLineOfSight(0, 0, 1, 1) === false,
   "диагональ через стык двух стен закрыта");
 
+// Игрок тоже не видит сквозь стену: радиус — не рентген.
+freshRun(1);
+fakeMap([
+  [1, 1, 1, 1, 1],
+  [1, 1, 0, 1, 1],
+  [1, 1, 1, 1, 1]
+]);
+G.playerPos = { x: 0, y: 1 };
+G.discovered = new Set();
+API.computeVisibility();
+log(G.visible.has("1,1"), "ближняя клетка видна");
+log(G.visible.has("2,1"), "сама стена видна");
+log(!G.visible.has("3,1") && !G.visible.has("4,1"),
+  "за стеной игрок не видит клетки");
+
 // Дальнобойный за стеной не начинает бой, а идёт в обход.
 freshRun(1);
 G.traps = [];
@@ -2909,6 +2924,30 @@ openBat.y = 1;
 G.enemies = [openBat];
 log(API.enemyTurn() === openBat,
   "на открытой линии дальнобойный бьёт с той же дистанции");
+
+// Ближний монстр за стеной не идёт на героя: без прямой видимости он
+// не должен знать, где тот стоит.
+freshRun(1);
+G.traps = [];
+G.treasures = [];
+G.traders = [];
+fakeMap([
+  [1, 1, 1, 1, 1],
+  [1, 0, 1, 1, 1],
+  [1, 1, 1, 1, 1]
+]);
+G.playerPos = { x: 0, y: 1 };
+const wallOrc = API.makeEnemy("orc", 1);
+wallOrc.x = 3;
+wallOrc.y = 1;
+G.enemies = [wallOrc];
+const wallRandom = Math.random;
+Math.random = () => 0.99;
+const wallAttacker = API.enemyTurn();
+Math.random = wallRandom;
+log(!wallAttacker && wallOrc.x === 3 && wallOrc.y === 1,
+  "ближний за стеной не преследует героя",
+  wallAttacker ? wallAttacker.name : wallOrc.x + "," + wallOrc.y);
 
 // ================= 21. Пункт 3: за что дают урон =================
 // Замысел: ошибка не должна ранить врага, а переписывание кода —
@@ -5793,6 +5832,28 @@ log(API.claimStory() && getProfile(G.name).quests.story === 1,
 log(getProfile(G.name).wallet.gold > walletBeforeQuest,
   "и приносит золото в банк деревни",
   walletBeforeQuest + " -> " + getProfile(G.name).wallet.gold);
+
+// Новая игра начинает кампанию заново, но не стирает деревню.
+const beforeNewGame = getProfile(G.name);
+beforeNewGame.quests.story = API.STORY_QUESTS.length;
+beforeNewGame.quests.done = ["barn", "well", "forge"];
+beforeNewGame.quests.active = "ore";
+beforeNewGame.quests.repeat = { ore: 2 };
+beforeNewGame.loot.keys = ["seal", "seal2", "barn"];
+beforeNewGame.village.barn = 2;
+putProfile(G.name, beforeNewGame);
+log(API.resetStoryCampaign() === true &&
+  getProfile(G.name).quests.story === 0 &&
+  getProfile(G.name).quests.done.length === 0 &&
+  getProfile(G.name).quests.active === "",
+  "новая игра сбрасывает сюжетную кампанию");
+const afterNewGame = getProfile(G.name);
+log(afterNewGame.loot.keys.indexOf("seal") < 0 &&
+  afterNewGame.loot.keys.indexOf("seal2") < 0,
+  "печати сбрасываются вместе с сюжетом");
+log(afterNewGame.village.barn === 2,
+  "постройки деревни при сбросе сюжета остаются");
+resetProgress();
 
 // Повторяемое задание: прогресс считается в походе, награда — у старосты.
 API.takeRepeatQuest("ore");
