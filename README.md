@@ -86,4 +86,5 @@ standalone/
 
 ## Лицензия
 
-См. [LICENSE](LICENSE).
+См. [LICENSE](LICENSE) и [CREDITS.md](CREDITS.md): шрифты OFL,
+тайлы DCSS (CC0), Pyodide (MPL-2.0).

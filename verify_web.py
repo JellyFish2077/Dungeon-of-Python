@@ -12,13 +12,15 @@
 Запуск:
     python verify_web.py
     python verify_web.py --browser msedge   # Edge вместо Chromium
+    python verify_web.py --browser firefox  # Firefox
+    python verify_web.py --browser webkit   # Safari/WebKit
     python verify_web.py --rebuild          # пересобрать standalone/build
 
 Нужен Playwright:
     pip install playwright
     playwright install chromium
 На Windows Chromium можно не скачивать: --browser msedge использует
-установленный Edge.
+установленный Edge. Для Firefox/WebKit: playwright install firefox webkit.
 
 Код возврата: 0 — зелёный, 1 — есть сбои, 3 — проверка не выполнена
 (нет Playwright или браузера). 3 в run_all_checks.py считается
@@ -111,6 +113,10 @@ def serve():
 
 def launch(pw, name):
     """Браузер для проверки. None — Playwright есть, но браузера нет."""
+    if name in ("firefox", "ff"):
+        return pw.firefox.launch(headless=True)
+    if name in ("webkit", "safari"):
+        return pw.webkit.launch(headless=True)
     if name in ("msedge", "edge"):
         return pw.chromium.launch(channel="msedge", headless=True)
     try:
@@ -131,7 +137,8 @@ TASK_ID = "attack_power"
 def main():
     ap = argparse.ArgumentParser(description="Smoke-проверка веб-сборки PyDungeon")
     ap.add_argument("--browser", default="chromium",
-                    choices=["chromium", "msedge", "edge"],
+                    choices=["chromium", "msedge", "edge", "firefox", "ff",
+                             "webkit", "safari"],
                     help="какой браузер запускать (по умолчанию Chromium)")
     ap.add_argument("--rebuild", action="store_true",
                     help="пересобрать standalone/build перед проверкой")
@@ -158,8 +165,9 @@ def main():
                 print("Пропуск: браузер не запускается: %s" % exc)
                 return 3
             if browser is None:
-                print("Пропуск: нет ни Chromium от Playwright, ни Edge.")
+                print("Пропуск: браузер Playwright не найден.")
                 print("  python -m playwright install chromium   # или --browser msedge")
+                print("  python -m playwright install firefox webkit")
                 return 3
             try:
                 run_checks(browser, base)
@@ -180,7 +188,9 @@ def run_checks(browser, base):
     page = ctx.new_page()
     api_requests = []
     console_errors = []
+    missing = []
     page.on("request", lambda r: api_requests.append(r.url) if "/api/" in r.url else None)
+    page.on("response", lambda r: missing.append(r.url) if r.status == 404 else None)
     page.on("console",
             lambda m: console_errors.append(m.text) if m.type == "error" else None)
     page.on("pageerror", lambda e: console_errors.append(str(e)))
@@ -209,6 +219,14 @@ def run_checks(browser, base):
         " document.fonts.check('900 16px Handjet');"
         " }"),
         "шрифты игры Golos и Handjet загружены")
+    code_font = page.evaluate(
+        "() => { const p = document.createElement('pre');"
+        " p.className = 'code'; p.textContent = 'print(1)';"
+        " document.body.appendChild(p);"
+        " const f = getComputedStyle(p).fontFamily.toLowerCase();"
+        " p.remove(); return f; }")
+    check("mono" in code_font or "consolas" in code_font or "courier" in code_font,
+          "код набран моноширинным шрифтом", code_font)
     page.click("#menu-about")
     page.wait_for_function(
         "() => { const n = document.getElementById('menu-view-about');"
@@ -362,8 +380,11 @@ def run_checks(browser, base):
         ".filter((n) => n.offsetParent !== null).length")
     check(pause_notes == 0, "кнопки паузы без подписей")
     check(pause_labels == ["Продолжить", "Сохранить", "Загрузить",
-                           "Настройки", "Справочник", "Выход в Меню"],
-          "меню паузы — шесть пунктов", pause_labels)
+                           "Настройки", "Справочник", "В деревню",
+                           "Выход в Меню"],
+          "меню паузы — семь пунктов", pause_labels)
+    check(not page.locator("#pause-village").is_visible(),
+          "в деревне пункт «В деревню» скрыт")
     page.click("#pause-save")
     page.wait_for_function(
         "() => window.PySaves && window.PySaves.isOpen()", timeout=10000)
@@ -449,6 +470,8 @@ def run_checks(browser, base):
         {"code": BAD_CODE, "task": TASK_ID})
     check(bad.get("ok") and 0 < bad.get("passed", 0) < bad.get("total", 1),
           "неверное решение не проходит всё", bad)
+    check(page.evaluate("() => window.__PYQUIZ_CODE_WARM === true"),
+          "после первой проверки Python помечен тёплым")
 
     # 5. Поход создаёт сейв, «Продолжить» его поднимает.
     page.evaluate("() => window.__PYQUIZ_WEB_API.begin()")
@@ -468,6 +491,16 @@ def run_checks(browser, base):
     page.wait_for_timeout(250)
     check(not page.locator("#tutorial-panel").is_visible(),
           "памятку по управлению можно скрыть")
+    page.click("#menu-btn")
+    page.wait_for_timeout(200)
+    check(page.locator("#pause-village").is_visible(),
+          "в подземелье из паузы можно выйти в деревню")
+    page.click("#pause-village")
+    page.wait_for_timeout(350)
+    check(not page.locator("#menu-overlay").is_visible() and
+          page.evaluate("() => window.PyGameMenuAPI.status().place") == "village",
+          "«В деревню» закрывает паузу и возвращает в деревню")
+    page.wait_for_timeout(150)
     check(page.evaluate(
         "() => { const u = currentUser();"
         " return !!(u && getProfile(u.name).tutorialDone); }"),
@@ -503,9 +536,20 @@ def run_checks(browser, base):
     # 7. Сборка без сервера.
     check(not api_requests, "нет запросов к /api/*", ", ".join(api_requests[:3]))
 
-    # favicon — не ошибка сборки, его отсутствие допустимо.
-    real_errors = [e for e in console_errors if "favicon" not in e.lower()]
+    # Без локального Pyodide воркер штатно уходит на CDN: 404 на
+    # static/pyodide/pyodide.js — ожидаемый шаг, а не поломка сборки.
+    pyodide_fallback = bool(missing) and all(
+        "/static/pyodide/" in u for u in missing)
+    real_errors = [
+        e for e in console_errors
+        if "favicon" not in e.lower()
+        and not (pyodide_fallback and "Failed to load resource" in e and "404" in e)
+    ]
     check(not real_errors, "в консоли нет ошибок", " | ".join(real_errors[:3]))
+    # Локальный Pyodide не обязателен: без него воркер уходит на CDN.
+    real_missing = [u for u in missing if "/static/pyodide/" not in u]
+    check(not real_missing, "все ресурсы сборки загрузились",
+          " | ".join(real_missing[:3]))
 
 
 if __name__ == "__main__":

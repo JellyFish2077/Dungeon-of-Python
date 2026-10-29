@@ -493,13 +493,56 @@ log(G.player.hp === poorHp && G.battle.phase === "question",
   "с малым здоровьем пропуск не срабатывает", G.player.hp + " HP");
 G.battle = null;
 
-// В задачах на код пропуска нет: там своя кнопка проверки.
+// В задачах на код тоже можно не запираться: есть подсказка и пропуск,
+// но это отдельные кнопки — «Пропустить вопрос» из MC-вопроса сюда не течёт.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
 API.renderBattle();
-log(!/skip-question-btn/.test(el("battle-box").innerHTML),
-  "в «повтори код» кнопки пропуска нет — только проверка");
+const copyFoot = el("battle-box").innerHTML;
+log(/skip-code-btn/.test(copyFoot), "в «повтори код» есть кнопка пропуска");
+log(/code-hint-btn/.test(copyFoot), "в «повтори код» есть подсказка");
+log(!/skip-question-btn/.test(copyFoot),
+  "в «повтори код» нет MC-кнопки пропуска — только своя");
+G.player.hp = 500;
+const copyHintHp = G.player.hp;
+API.useCodeHint();
+log(G.player.hp === copyHintHp - 10 && G.battle.challenge.hintUsed === true,
+  "подсказка к коду стоит 10 HP и помечает попытку",
+  "HP " + copyHintHp + " → " + G.player.hp);
+log(/Подсказка:/.test(G.battle.challenge.notice || ""),
+  "подсказка к «повтори код» показывает пояснение к образцу",
+  G.battle.challenge.notice);
+G.battle = null;
+
+// Пропуск задания с кодом: цена — HP, враг не бьёт, разбор показывается.
+freshRun(3);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
+API.renderBattle();
+G.player.hp = 500;
+const codeSkipEnemyHp = G.battle.enemy.hp;
+const codeSkipWrong = G.stats.wrong;
+API.skipCodeQuestion();
+log(G.battle.phase === "result", "пропуск кода завершает ход", G.battle.phase);
+log(G.player.hp === 500 - API.skipCost(), "пропуск кода стоит здоровья",
+  "стало " + G.player.hp);
+log(G.battle.enemy.hp === codeSkipEnemyHp, "за пропуск кода враг не бьёт");
+log(G.stats.wrong === codeSkipWrong + 1, "пропуск кода портит процент похода");
+log(/Пропущено/.test(el("battle-box").innerHTML), "пропуск кода показывает разбор");
+G.battle = null;
+
+// Подсказка к «напиши функцию» берёт expected, а не undefined.
+freshRun(3);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+G.battle.challenge = { type: "code", task: API.CODE_TASKS[0], code: API.CODE_TASKS[0].starter };
+API.renderBattle();
+API.useCodeHint();
+const codeHint = G.battle.challenge.notice || "";
+log(/attack_power\(10, 5\)/.test(codeHint) && /15/.test(codeHint) &&
+    !/undefined/.test(codeHint),
+  "подсказка к функции показывает первую проверку с ожидаемым значением",
+  codeHint);
 G.battle = null;
 
 // минотавр копит силу

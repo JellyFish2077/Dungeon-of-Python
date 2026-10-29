@@ -8493,6 +8493,9 @@ body.game-page .hero-hud-foot {
   --font-ui: "Golos Text", "Segoe UI", system-ui, sans-serif;
   --font-serif: "Golos Text", "Segoe UI", system-ui, sans-serif;
   --font-data: "Golos Text", "Segoe UI", system-ui, sans-serif;
+  /* Только для кода: HUD и подписи остаются Golos. */
+  --font-mono: ui-monospace, SFMono-Regular, "Cascadia Mono",
+    Consolas, "Liberation Mono", monospace;
 }
 
 body,
@@ -8512,7 +8515,6 @@ pre,
 code,
 kbd,
 samp,
-.code,
 .q-code,
 .code-editor,
 #code-input,
@@ -8520,7 +8522,8 @@ samp,
 #copy-sample,
 .test-results,
 .challenge-code {
-  font-family: var(--font-ui) !important;
+  font-family: var(--font-mono, Consolas, "Courier New", monospace) !important;
+  font-variant-ligatures: none;
 }
 
 .overlay > .battle > .battle-head .exit-btn::before,

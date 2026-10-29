@@ -341,6 +341,14 @@
     const state = gameStatus();
     const load = $("pause-load");
     const note = $("pause-load-note");
+    const village = $("pause-village");
+    // Выход в деревню имеет смысл только из подземелья и не во время боя.
+    // В деревне пункт просто скрыт, чтобы не обещать переход на месте.
+    if (village) {
+      const canLeave = !!(state && state.place === "dungeon" && !state.battle);
+      village.classList.toggle("hidden", !canLeave);
+      village.setAttribute("aria-hidden", canLeave ? "false" : "true");
+    }
     const can = !!state;
     if (load) {
       load.classList.toggle("is-disabled", !can);
@@ -610,6 +618,15 @@
     openSaves("load");
   }
 
+  function onPauseVillage() {
+    sound("click");
+    const game = api();
+    if (game && typeof game.village === "function" && game.village()) {
+      // returnToVillage уже сохранил поход и перевёл героя в деревню.
+      close();
+    }
+  }
+
   function onPauseExit() {
     sound("click");
     const game = api();
@@ -647,6 +664,7 @@
       case "save": onPauseSave(); break;
       case "load": onPauseLoad(); break;
       case "settings": sound("click"); openSub("settings"); break;
+      case "village": onPauseVillage(); break;
       case "codex":
         sound("click");
         if (window.PyCodex && typeof window.PyCodex.open === "function") window.PyCodex.open();
