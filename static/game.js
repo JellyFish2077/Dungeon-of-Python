@@ -7975,6 +7975,9 @@
       if (b.explanation) {
         html += "<div class='battle-explain'><b>Пояснение:</b> " + b.explanation + "</div>";
       }
+      if (b.won && b.restored) {
+        html += "<div class='battle-note'>Добыча осталась на земле — подбери её на карте.</div>";
+      }
       if (b.results) {
         html += "<div class='test-results'>";
         // Текст ошибки и значения пришли из программы ученика: экранируем,
@@ -7998,7 +8001,7 @@
         : b.squadNext
         ? "В бой с " + b.squadNext.name
         : b.won
-        ? "Забрать добычу"
+        ? "Продолжить"
         : "Следующий вопрос";
     }
 
@@ -8095,7 +8098,7 @@
       if (b.phase === "result" && b.won && !b.squadNext && !b.restored &&
           !b.playerDead && G.player && G.player.hp > 0) {
         html += "<div class='battle-cat-wide battle-auto-note'>" +
-          "Бой завершён · добыча в мешочке</div>";
+          "Бой завершён · добыча осталась на земле</div>";
       } else {
         html += "<div class='battle-cat-wide'>" +
           "<button class='btn' id='continue-btn'>" + footLabel + "</button></div>";
@@ -11473,7 +11476,7 @@ function topicName(key) {
     const btn = el("fullscreen-btn");
     if (!btn) return;
     const on = !!document.fullscreenElement;
-    btn.textContent = on ? "⤢" : "⛶";
+    btn.textContent = on ? "Выйти" : "Экран";
     btn.title = on ? "Выйти из полноэкранного режима (F11)" : "На весь экран (F11)";
     btn.setAttribute("aria-label", on ? "Выйти из полноэкранного режима" : "На весь экран");
   }
