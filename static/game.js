@@ -6667,6 +6667,26 @@
       G.battle.topic = restore.topic || "";
       G.battle.step = Math.max(0, (Number(restore.step) || 1) - 1);
       G.battle.cursed = !!restore.cursed;
+      if (restore.phase === "result") {
+        // Возвращаем именно экран итога: сообщение, разбор и кнопку
+        // «Следующий вопрос» / «Забрать добычу».
+        G.battle.phase = "result";
+        G.battle.challenge = null;
+        G.battle.feedback = restore.feedback || "";
+        G.battle.explanation = restore.explanation || "";
+        G.battle.good = !!restore.good;
+        G.battle.won = !!restore.won;
+        G.battle.playerDead = !!restore.playerDead;
+        G.battle.results = restore.results || null;
+        // Восстановленный итог не закрываем таймером: игрок сам нажмёт
+        // «Забрать добычу» / «Следующий вопрос».
+        G.battle.restored = true;
+        const nextUid = Number(restore.squadNextUid) || 0;
+        G.battle.squadNext = nextUid
+          ? (G.battle.squad || []).find((x) => x.uid === nextUid) ||
+            G.enemies.find((x) => x.uid === nextUid) || null
+          : null;
+      }
     } else {
       const ab = abilityOf(enemy);
       if (ab === "curse" && Math.random() < (enemy.curseChance == null ? 0.35 : enemy.curseChance)) {
@@ -6697,7 +6717,9 @@
       );
     }
     G.battle.rangedCd = 0;
-    nextChallenge();
+    // Для восстановленного итога новый вопрос не генерируем: игрок должен
+    // увидеть тот же результат и сам нажать «Продолжить».
+    if (!(restore && restore.phase === "result")) nextChallenge();
     const box = el("battle-box");
     if (box) box.classList.remove("panel-open");
     renderBattle();
@@ -7747,7 +7769,7 @@
     battleCloseTimer = setTimeout(() => {
       const b = G.battle;
       if (!b || b.phase !== "result" || !b.won || b.squadNext ||
-          b.playerDead || !G.player || G.player.hp <= 0) return;
+          b.playerDead || b.restored || !G.player || G.player.hp <= 0) return;
       // Пока окно боя гаснет, возвращаем фигурки на карту: иначе герой
       // сначала медленно исчезает вместе с окном, и только потом появляется
       // на карте — выглядит как мигание.
@@ -8070,7 +8092,7 @@
     } else {
       // Победа закрывает окно сама: короткая пауза, затем плавное исчезновение.
       // Кнопка «Забрать добычу» больше не нужна — мешочек ждёт на карте.
-      if (b.phase === "result" && b.won && !b.squadNext &&
+      if (b.phase === "result" && b.won && !b.squadNext && !b.restored &&
           !b.playerDead && G.player && G.player.hp > 0) {
         html += "<div class='battle-cat-wide battle-auto-note'>" +
           "Бой завершён · добыча в мешочке</div>";
@@ -11520,15 +11542,27 @@ function topicName(key) {
         // мёртвую партию и не знало, к какому состоянию откатывать этаж.
         over: !!G.dead,
         floorCheckpoint: G.floorCheckpoint,
-        // Бой не сохраняем целиком: после перезагрузки открываем его заново
-        // с тем же врагом и его здоровьем. Вопрос будет новый, но игрок
-        // вернётся в бой, а не окажется на карте без объяснения.
-        battle: G.battle && G.battle.enemy && G.battle.phase === "question"
+        // Бой сохраняем и в фазе вопроса, и в фазе итога. Итог нельзя
+        // выбрасывать: игрок перезагружает страницу, видит «Продолжить»,
+        // а возвращается на карту без результата боя.
+        battle: G.battle && G.battle.enemy &&
+          (G.battle.phase === "question" || G.battle.phase === "result")
           ? {
             enemyUid: G.battle.enemy.uid,
+            // Копия нужна для победы: враг уже удалён из G.enemies, но
+            // экран итога всё ещё должен его показывать.
+            enemy: Object.assign({}, G.battle.enemy),
+            phase: G.battle.phase,
             topic: G.battle.topic || "",
             step: G.battle.step || 0,
-            cursed: !!G.battle.cursed
+            cursed: !!G.battle.cursed,
+            feedback: G.battle.feedback || "",
+            explanation: G.battle.explanation || "",
+            good: !!G.battle.good,
+            won: !!G.battle.won,
+            playerDead: !!G.battle.playerDead,
+            results: G.battle.results || null,
+            squadNextUid: G.battle.squadNext ? G.battle.squadNext.uid : 0
           }
           : null,
         floors: Object.keys(G.cache).map((k) => serializeFloor(G.cache[k]))
@@ -11841,12 +11875,14 @@ function topicName(key) {
           floorNameAt(G.floorIndex) + ".", "floor");
         setMsg("Игра восстановлена из сохранения.");
         afterFloor();
-        // Если страницу обновили посреди боя, возвращаем в тот же бой:
-        // враг и его здоровье уже в сохранённом этаже.
+        // Если страницу обновили посреди боя, возвращаем в тот же бой.
+        // Для победы врага уже нет в G.enemies — берём его копию из сейва.
         if (data.battle && data.battle.enemyUid) {
-          const enemy = G.enemies.find((e) =>
-            e.uid === data.battle.enemyUid && e.hp > 0);
-          if (enemy) openBattle(enemy, data.battle);
+          let enemy = G.enemies.find((e) => e.uid === data.battle.enemyUid);
+          if (!enemy && data.battle.enemy) enemy = data.battle.enemy;
+          if (enemy && (data.battle.phase === "result" || enemy.hp > 0)) {
+            openBattle(enemy, data.battle);
+          }
         }
       });
     }
