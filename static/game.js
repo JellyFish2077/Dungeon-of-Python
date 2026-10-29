@@ -7968,6 +7968,37 @@
           "' id='check-btn' data-tip=\"" +
           tipAttr("Отправить написанный код на проверку. Ответ решает силу удара.") +
           "\">Проверить и атаковать</button>");
+        // У кода нет вариантов, но игрок не должен запираться в задании:
+        // подсказка показывает первую проверку, пропуск стоит здоровья.
+        if (!b.challenge.hintUsed) {
+          const free = equippedEffect("hintFree");
+          const freeLeft = free && free.charges
+            ? Math.max(0, free.charges - (G.player.freeHints || 0)) : 0;
+          const hintLabel = b.cursed
+            ? "Подсказка не работает"
+            : freeLeft > 0
+            ? "Подсказка (бесплатно, " + (G.player.freeHints || 0) + "/" + free.charges + ")"
+            : "Подсказка (−10 HP)";
+          atkBtns.push(
+            "<button class='btn ghost" + (b.cursed ? " idle" : "") +
+            "' id='code-hint-btn' type='button' data-tip=\"" +
+            tipAttr(b.cursed
+              ? "Проклятие лича: подсказка не работает, и тратить на неё здоровье не нужно."
+              : ctype === "copy"
+              ? "Подсказка по образцу: пояснит, что делает код. Стоит 10 здоровья."
+              : "Подсказка покажет первую проверку задачи и стоит 10 здоровья.") +
+            "\">" + hintLabel + "</button>");
+        }
+        const codeSkipPrice = skipCost();
+        const codePoor = G.player.hp <= codeSkipPrice;
+        atkBtns.push(
+          "<button class='btn ghost" + (codePoor ? " idle" : "") +
+          "' id='skip-code-btn' type='button' data-tip=\"" +
+          tipAttr(codePoor
+            ? "Здоровья меньше, чем стоит пропуск (" + codeSkipPrice + " HP). Выпей зелье или попробуй ещё."
+            : "Пропустить задание: уйдёт " + codeSkipPrice + " здоровья — и сразу. " +
+              "Враг за это не бьёт, разбор покажется ниже.") +
+          "\">Пропустить вопрос (−" + codeSkipPrice + " HP)</button>");
       } else {
         // «Вспомни»: подсказка (если её ещё не брали) и пропуск вопроса.
         // Пропуск стоит здоровья и не даёт врагу ударить: платишь только
@@ -8122,6 +8153,14 @@
       if (cont) cont.addEventListener("click", continueBattle);
     }
 
+    if (b.phase === "question" &&
+        (b.challenge.type === "code" || b.challenge.type === "copy")) {
+      const ch = el("code-hint-btn");
+      if (ch) ch.addEventListener("click", useCodeHint);
+      const sc = el("skip-code-btn");
+      if (sc) sc.addEventListener("click", skipCodeQuestion);
+    }
+
     if (b.phase === "result" && b.won && !b.squadNext &&
         !b.playerDead && G.player && G.player.hp > 0) {
       scheduleBattleClose();
@@ -8259,6 +8298,35 @@
         LETTERS[c.view ? c.view.answer : item.answer] + ".",
       false,
       item.explanation,
+      false
+    );
+    updateHud();
+  }
+
+  // Пропуск задания с кодом. В отличие от вопроса с вариантами, правильного
+  // ответа-буквы здесь нет: показываем разбор после хода. Цена та же — HP,
+  // враг не бьёт, попытка уходит в статистику темы.
+  function skipCodeQuestion() {
+    const b = G.battle;
+    if (!b || b.phase !== "question" || b.busy) return;
+    const c = b.challenge;
+    if (!c || (c.type !== "code" && c.type !== "copy")) return;
+    const cost = skipCost();
+    if (G.player.hp <= cost) {
+      toast("Мало здоровья, чтобы пропустить вопрос");
+      return;
+    }
+    if (!devGod()) G.player.hp -= cost;
+    G.stats.wrong += 1;
+    G.stats.streak = 0;
+    countTaskTopic(c.type, c.task, false);
+    log("Задание пропущено: −" + cost + " здоровья. Разбор — ниже.", "hurt");
+    setQuality("partial");
+    applyAttack(
+      0,
+      "Пропущено: −" + cost + " HP. Разбор — ниже.",
+      false,
+      c.task.explanation,
       false
     );
     updateHud();
@@ -8440,12 +8508,10 @@
       if (c.type === "code" || c.type === "copy") {
         // Для задания с кодом «прозрение» показывает первую проверку: это
         // и есть подсказка — раньше её для кода не было вовсе.
-        const tests = ((c.task && c.task.tests) || (c.view && c.view.tests) || []);
-        const first = tests[0];
-        b.revealed = first
-          ? "Проверка: " + first.call + " должно дать " + first.expect
-          : "У этой задачи нет проверок — напиши решение и нажми «Проверить».";
-        toast("Прозрение: видна первая проверка");
+        if (c.hintUsed) { toast("Подсказка уже взята"); return; }
+        c.hintUsed = true;
+        c.notice = codeHintText(c);
+        toast(c.type === "copy" ? "Прозрение: подсказка по образцу" : "Прозрение: видна первая проверка");
       } else {
         const item = c.question || c.task;
         if (!item || !item.options) { toast("Здесь подсказывать нечего"); return; }
@@ -8520,6 +8586,56 @@
       toast("Талисман: подсказка бесплатна (" + G.player.freeHints + "/" + free.charges + ")");
       effectFlash("Талисман · бесплатная подсказка");
     }
+    updateHud();
+    renderBattle();
+  }
+
+  // Подсказка для заданий с кодом и «повтори код». В MC-вопросе подсказка
+  // убирает два варианта, а здесь вариантов нет: для функции показываем
+  // первую проверку, для переписывания — пояснение к образцу.
+  function codeHintText(c) {
+    if (!c) return "";
+    if (c.type === "copy") {
+      return "Подсказка: " + (c.task.explanation ||
+        "Перепиши код по строкам и проверь отступы.");
+    }
+    const tests = ((c.task && c.task.tests) || (c.view && c.view.tests) || []);
+    const first = tests[0];
+    if (!first) {
+      return "У этой задачи нет проверок — напиши решение и нажми «Проверить».";
+    }
+    // В банке code-tasks.js поле называется expected; expect оставлен
+    // запасным вариантом для старых сгенерированных заданий.
+    const expected = first.expected != null ? first.expected : first.expect;
+    return "Проверка: " + first.call + " должно дать " + expected;
+  }
+
+  function useCodeHint() {
+    const b = G.battle;
+    if (!b || b.phase !== "question" || b.busy) return;
+    const c = b.challenge;
+    if (!c || (c.type !== "code" && c.type !== "copy")) return;
+    if (c.hintUsed) { toast("Подсказка уже взята"); return; }
+    if (b.cursed) {
+      toast("Проклятие лича: подсказка не работает");
+      return;
+    }
+    const free = equippedEffect("hintFree");
+    const isFree = !!(free && free.charges && (G.player.freeHints || 0) < free.charges);
+    if (!isFree && G.player.hp <= 10) {
+      toast("Мало здоровья для подсказки");
+      return;
+    }
+    if (!isFree && !devGod()) G.player.hp -= 10;
+    if (isFree) G.player.freeHints = (G.player.freeHints || 0) + 1;
+    G.stats.hintsUsed = (G.stats.hintsUsed || 0) + 1;
+    c.hintUsed = true;
+    c.notice = codeHintText(c);
+    // Подсказка больше не считается точным ответом: удар будет слабее,
+    // серия верных ответов сгорает — так же, как в обычном вопросе.
+    setQuality("hinted");
+    G.stats.streak = 0;
+    toast(isFree ? "Талисман: подсказка бесплатна" : "Подсказка взята");
     updateHud();
     renderBattle();
   }
@@ -8641,8 +8757,28 @@
     if (b.phase !== "question" || b.busy) return;
     b.busy = true;
     const btn = el("check-btn");
+    // Первый запуск Pyodide долгий: без честной подписи «Проверяем...»
+    // выглядит как зависшая кнопка. Повторные проверки быстрые.
+    const warm = typeof window !== "undefined" && window.__PYQUIZ_CODE_WARM === true;
+    const label = warm ? "Проверяем..." : "Запускаю Python...";
     btn.disabled = true;
-    btn.textContent = "Проверяем...";
+    btn.textContent = label;
+    if (!warm) {
+      toast("Первый запуск Python в браузере может занять до 30 секунд", 6000);
+    }
+    const started = Date.now();
+    if (b.codeTimer) clearInterval(b.codeTimer);
+    b.codeTimer = setInterval(function () {
+      if (!b.busy || G.battle !== b) {
+        clearInterval(b.codeTimer);
+        b.codeTimer = null;
+        return;
+      }
+      const sec = Math.floor((Date.now() - started) / 1000);
+      if (btn.isConnected) {
+        btn.textContent = label + (sec >= 2 ? " " + sec + " с" : "");
+      }
+    }, 1000);
 
     requestCodeCheck(b.challenge.code, b.challenge.task.id)
       .then(
@@ -8662,6 +8798,10 @@
   function applyCodeResult(data, battle) {
     const b = battle || G.battle;
     if (!b || G.battle !== b) return;
+    if (b.codeTimer) {
+      clearInterval(b.codeTimer);
+      b.codeTimer = null;
+    }
     b.busy = false;
     const c = b.challenge;
     if (!c || c.type !== "code" || b.phase !== "question") return;
@@ -8686,8 +8826,10 @@
         nextChallenge();
         b.challenge.notice = "Проверка кода на сервере выключена — вместо задачи на код другое задание. Ход не потерян.";
       } else {
-        c.notice = (broken ? "Сервер вернул неполный результат проверки." : (data && data.error) ||
-          "Сервер проверки кода недоступен.") + " Ход не засчитан — нажми «Проверить» ещё раз.";
+        const web = typeof window !== "undefined" && window.__PYQUIZ_WEB === true;
+        c.notice = (broken ? "Проверка вернула неполный результат." : (data && data.error) ||
+          (web ? "Python в браузере не запустился." : "Сервер проверки кода недоступен.")) +
+          " Ход не засчитан — нажми «Проверить» ещё раз.";
       }
       renderBattle();
       return;
@@ -9410,7 +9552,7 @@ function topicName(key) {
       place: "Деревня · кузница",
       brief: "Восстановить кузницу и получить оберег глубины.",
       text: "Кузница стоит холодной. Пока горн не горит, герой не может укрепить " +
-        "снаряжение, а спуск за четвёртым этажом закрыт без оберега глубины. " +
+        "снаряжение, а спуск после шестого этажа закрыт без оберега глубины. " +
         "Нужны руда и древесина.",
       objective: "Восстановить кузницу и вернуться к старосте.",
       doneText: "Горн зажжён. Староста вручает оберег глубины: «Это не ключ. " +
@@ -9496,9 +9638,11 @@ function topicName(key) {
       ? "Сначала подними деревню: амбар, колодец, кузница. "
       : "";
     return "Спуск запечатан: нужен " + s.what + ". Его выдают в деревне у " +
-      s.from + ". " + chain + "Вернись в деревню порталом на этаже босса. " +
-      "Если не хватает материалов, обыщи старые этажи: сундуки и жилы там ещё целы. " +
-      "Поход сохранится — продолжишь с этого этажа.";
+      s.from + ". " + chain +
+      "Вернись в деревню порталом на этаже босса или через паузу → «В деревню». " +
+      "Поход сохранится — продолжишь с этого этажа. Если старые этажи уже " +
+      "обысканы, начни новый поход: материалы и ключи останутся в профиле, " +
+      "но текущий спуск начнётся заново.";
   }
 
   function questsOf() {

@@ -10,17 +10,36 @@
   let seq = 0;
   const pending = new Map();
   const bootWaiters = [];
+  // Флаг для интерфейса: первый запуск Pyodide долгий, повторные — быстрые.
+  window.__PYQUIZ_CODE_WARM = false;
 
   function settleBoot(ok, reason) {
     booted = ok;
+    if (ok) window.__PYQUIZ_CODE_WARM = true;
     if (!ok) fatal = reason || "Pyodide не загрузился";
     while (bootWaiters.length) bootWaiters.shift()(booted);
+  }
+
+  // Сброс после неудачной загрузки: без него fatal оставался навсегда,
+  // и «Проверить» до перезагрузки страницы только повторял ошибку.
+  function reset() {
+    booted = false;
+    fatal = "";
+    window.__PYQUIZ_CODE_WARM = false;
+    pending.forEach(function (resolve) {
+      resolve({ ok: false, unavailable: true,
+        error: "Проверка Python перезапущена", results: [] });
+    });
+    pending.clear();
+    while (bootWaiters.length) bootWaiters.shift()(false);
+    try { if (worker) worker.terminate(); } catch (e) {}
+    worker = null;
   }
 
   function ensureWorker() {
     if (worker) return worker;
     try {
-      worker = new Worker("static/pyodide-worker.js?v=20261029093859");
+      worker = new Worker("static/pyodide-worker.js?v=20261029112235");
     } catch (err) {
       settleBoot(false, String((err && err.message) || err));
       return null;
@@ -56,16 +75,22 @@
 
   function boot() {
     if (booted) return Promise.resolve(true);
-    if (fatal) return Promise.resolve(false);
+    // Прошлая попытка не удалась: даём мосту второй шанс, иначе кнопка
+    // «Проверить» навсегда возвращала бы ту же ошибку.
+    if (fatal) reset();
     ensureWorker();
     if (!worker) return Promise.resolve(false);
     return new Promise(function (resolve) {
       bootWaiters.push(resolve);
-      // Первая загрузка Pyodide из CDN может быть долгой; дальше проверки
-      // ограничены восемью секундами.
+      // Первая загрузка Pyodide может быть долгой (локальный Pyodide на
+      // медленном канале — десятки секунд); дальше проверки ограничены
+      // восемью секундами.
       setTimeout(function () {
-        if (!booted && !fatal) settleBoot(false, "Pyodide не загрузился за 25 секунд");
-      }, 25000);
+        if (booted || fatal) return;
+        settleBoot(false, "Pyodide не загрузился за 45 секунд");
+        try { if (worker) worker.terminate(); } catch (e) {}
+        worker = null;
+      }, 45000);
     });
   }
 
@@ -102,4 +127,5 @@
   }
 
   window.__PYQUIZ_CHECK_CODE = check;
+  window.__PYQUIZ_RESET_CODE_CHECK = reset;
 })();
