@@ -4345,6 +4345,26 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(!!G.battle && G.battle.phase === "question",
     "после загрузки бой снова ждёт ответа");
   G.battle = null;
+
+  // Итог боя — тоже состояние боя. Раньше result не сохранялся, и
+  // «Продолжить» после победы/поражения возвращал на карту.
+  freshRun(3);
+  const resultEnemy = enemyOnPlayerCell("orc", 400);
+  API.openBattle(resultEnemy);
+  resultEnemy.hp = 1;
+  API.applyAttack(999, "Победа в вопросе", false, "Разбор итога", true);
+  log(G.battle.phase === "result" && G.battle.won === true,
+    "итог победы выставляется до сохранения");
+  API.saveGame();
+  G.battle = null;
+  API.loadGame();
+  log(!!G.battle && G.battle.phase === "result" && G.battle.won === true,
+    "«Продолжить» возвращает на экран итога боя");
+  log(!!G.battle && /Победа в вопросе/.test(G.battle.feedback || ""),
+    "текст итога боя сохраняется", G.battle ? G.battle.feedback : "нет боя");
+  log(!!G.battle && G.battle.restored === true,
+    "восстановленный итог не закрывается сам — ждёт кнопку");
+  G.battle = null;
   globalThis.localStorage.removeItem("pyquiz_session_v1");
   globalThis.localStorage.removeItem(API.SAVE_KEY + ":" + battleMe);
 
