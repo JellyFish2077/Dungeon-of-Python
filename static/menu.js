@@ -602,21 +602,33 @@
     }
     const state = gameStatus();
     if (state && state.battle) return;
-    const game = api();
-    if (game && typeof game.newRun === "function") {
-      let ok = true;
-      try {
-        ok = game.newRun();
-      } catch (e) {
-        ok = false;
+    const startNew = function () {
+      const game = api();
+      if (game && typeof game.newCampaign === "function") {
+        let ok = true;
+        try {
+          ok = game.newCampaign();
+        } catch (e) {
+          ok = false;
+        }
+        // Не закрываем меню, если игра не смогла вернуться в деревню.
+        if (ok === false) return;
       }
-      // Не закрываем меню, если игра не смогла открыть стража: иначе игрок
-      // остался бы в пустой деревне без окна спуска.
-      if (ok === false) return;
+      close();
+    };
+    const opts = {
+      title: "Начать новую игру?",
+      text: "Сюжетная кампания начнётся заново: главы, журнал и печати. " +
+        "Деревня, материалы и постройки останутся. Текущий поход будет потерян.",
+      confirmLabel: "Начать заново",
+      cancelLabel: "Отмена",
+      danger: true
+    };
+    if (window.PyConfirm && typeof window.PyConfirm.run === "function") {
+      window.PyConfirm.run(opts, startNew);
+    } else {
+      startNew();
     }
-    // Стража открывает newRun(); меню закрываем после, чтобы close() не успел
-    // вернуть фокус раньше окна стража.
-    close();
   }
 
   function openSaves(nextMode) {
