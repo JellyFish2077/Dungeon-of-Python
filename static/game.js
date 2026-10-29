@@ -373,6 +373,8 @@
     tileAnim: [],
     camera: { zoomIndex: null, tx: 0, ty: 0, scale: 1 },
     minimapOn: true,
+    // 1 — весь этаж в окне; больше — приближение вокруг героя.
+    minimapZoom: 1,
     stairsDown: null,
     stairsUp: null,
     portal: null,
@@ -3551,7 +3553,54 @@
     G.minimapOn = !G.minimapOn;
     const cv = el("minimap");
     if (cv) cv.classList.toggle("off", !G.minimapOn);
+    const controls = el("minimap-controls");
+    if (controls) controls.classList.toggle("off", !G.minimapOn);
     if (G.minimapOn) drawMinimap();
+  }
+
+  const MINIMAP_ZOOM_MIN = 1;
+  const MINIMAP_ZOOM_MAX = 2.5;
+  const MINIMAP_ZOOM_STEP = 0.25;
+
+  function setMinimapZoom(value) {
+    G.minimapZoom = clamp(
+      Number(value) || MINIMAP_ZOOM_MIN,
+      MINIMAP_ZOOM_MIN,
+      MINIMAP_ZOOM_MAX
+    );
+    updateMinimapZoomButtons();
+    drawMinimap();
+  }
+
+  function updateMinimapZoomButtons() {
+    const zoom = G.minimapZoom == null ? 1 : G.minimapZoom;
+    const out = el("minimap-zoom-out");
+    const plus = el("minimap-zoom-in");
+    if (out) out.disabled = zoom <= MINIMAP_ZOOM_MIN + 0.001;
+    if (plus) plus.disabled = zoom >= MINIMAP_ZOOM_MAX - 0.001;
+  }
+
+  // Окно мини-карты меняется настройкой размера, а разрешение canvas
+  // подстраивается под CSS и devicePixelRatio — иначе картинка мылится.
+  function syncMinimapCanvas(cv) {
+    if (!cv) return;
+    const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1);
+    const cssW = cv.clientWidth || cv.width || 280;
+    const cssH = cv.clientHeight || cv.height || 210;
+    const bw = Math.max(120, Math.round(cssW * dpr));
+    const bh = Math.max(90, Math.round(cssH * dpr));
+    if (cv.width !== bw || cv.height !== bh) {
+      cv.width = bw;
+      cv.height = bh;
+    }
+  }
+
+  function applyMinimapSize(px) {
+    const size = clamp(Number(px) || 280, 220, 380);
+    document.documentElement.style.setProperty("--minimap-w", size + "px");
+    document.documentElement.style.setProperty("--minimap-h", Math.round(size * 0.75) + "px");
+    if (G.map) drawMinimap();
+    return size;
   }
 
   // Статический слой мини-карты (открытые клетки) собирается в отдельный
@@ -3573,7 +3622,9 @@
   }
 
   function minimapBase(w, h, cw, ch, cs, ox, oy) {
-    const stamp = G.floorIndex + "|" + w + "x" + h + "|" + cw + "x" + ch + "|" + G.discovered.size;
+    const stamp = G.floorIndex + "|" + w + "x" + h + "|" + cw + "x" + ch +
+      "|" + cs.toFixed(2) + "|" + ox.toFixed(1) + "," + oy.toFixed(1) +
+      "|" + G.discovered.size;
     if (miniCache.stamp === stamp && miniCache.canvas) return miniCache.canvas;
     let off = null;
     try {
@@ -3593,6 +3644,7 @@
   function drawMinimap() {
     const cv = el("minimap");
     if (!cv || cv.classList.contains("off") || !G.map) return;
+    syncMinimapCanvas(cv);
     const ctx = cv.getContext("2d");
     const w = G.map.w;
     const h = G.map.h;
@@ -3600,9 +3652,17 @@
     const cw = cv.width;
     const ch = cv.height;
     ctx.clearRect(0, 0, cw, ch);
-    const cs = Math.min(cw / w, ch / h);
-    const ox = (cw - cs * w) / 2;
-    const oy = (ch - cs * h) / 2;
+    const zoom = clamp(G.minimapZoom == null ? 1 : G.minimapZoom,
+      MINIMAP_ZOOM_MIN, MINIMAP_ZOOM_MAX);
+    const cs = Math.min(cw / w, ch / h) * zoom;
+    // При приближении держим героя в центре, но не показываем пустоту
+    // за краем карты: рамка окна остаётся заполненной.
+    let ox = cw / 2 - (G.playerPos.x + 0.5) * cs;
+    let oy = ch / 2 - (G.playerPos.y + 0.5) * cs;
+    if (cs * w <= cw) ox = (cw - cs * w) / 2;
+    else ox = clamp(ox, cw - cs * w, 0);
+    if (cs * h <= ch) oy = (ch - cs * h) / 2;
+    else oy = clamp(oy, ch - cs * h, 0);
     const dot = (x, y, color, scale) => {
       const s = scale == null ? 0.62 : scale;
       ctx.fillStyle = color;
@@ -11571,6 +11631,7 @@ function topicName(key) {
         cameraZoom: G.camera.zoomIndex,
         // Размер клетки в px: номер ступени зависит от шкалы, а px — нет.
         cameraCell: G.camera.zoomIndex == null ? null : CAM_LEVELS[G.camera.zoomIndex],
+        minimapZoom: G.minimapZoom || 1,
         mode: G.mode || "dungeon",
         // Без этих двух полей «Продолжить» после смерти поднимало бы
         // мёртвую партию и не знало, к какому состоянию откатывать этаж.
@@ -11827,6 +11888,9 @@ function topicName(key) {
       ? { items: data.codex.items || {}, npcs: data.codex.npcs || {}, enemies: data.codex.enemies || {} }
       : { items: {}, npcs: {}, enemies: {} };
     G.blessings = data.blessings || {};
+    G.minimapZoom = clamp(Number(data.minimapZoom) || 1,
+      MINIMAP_ZOOM_MIN, MINIMAP_ZOOM_MAX);
+    updateMinimapZoomButtons();
     G.blessingOffer = null;
     G.mode = data.mode || "dungeon";
     G.floorCheckpoint = data.floorCheckpoint || null;
@@ -12119,6 +12183,15 @@ function topicName(key) {
     el("skip-btn").addEventListener("click", skipTurn);
     el("forge-btn").addEventListener("click", openForge);
     el("minimap").addEventListener("click", toggleMinimap);
+    const miniOut = el("minimap-zoom-out");
+    if (miniOut) {
+      miniOut.addEventListener("click", () => setMinimapZoom(G.minimapZoom - MINIMAP_ZOOM_STEP));
+    }
+    const miniIn = el("minimap-zoom-in");
+    if (miniIn) {
+      miniIn.addEventListener("click", () => setMinimapZoom(G.minimapZoom + MINIMAP_ZOOM_STEP));
+    }
+    updateMinimapZoomButtons();
     // Плашки снаряжения в сводке снимают вещь нажатием: отдельного списка
     // «Экипировано» в колонке больше нет, чтобы не повторять одно и то же.
     document.addEventListener("click", (ev) => {
@@ -13486,6 +13559,7 @@ function topicName(key) {
       captureSnapshot: captureSnapshot,
       exportLegacy: exportLegacy,
       loadSnapshot: loadSnapshot,
+      setMinimapSize: applyMinimapSize,
       save: function () {
         if (G.battle) return false;
         if (G.place === "village") return saveVillage();

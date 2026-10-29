@@ -15,7 +15,9 @@
 
   const SETTINGS_KEY = "pyquiz_settings_v1";
   const AUTOPLAY_KEY = "pyquiz_menu_autoplay";
-  const DEFAULTS = { sound: true, volume: 0.6, reduceMotion: false };
+  const DEFAULTS = { sound: true, volume: 0.6, reduceMotion: false, minimapSize: 280 };
+  const MINIMAP_MIN = 220;
+  const MINIMAP_MAX = 380;
 
   let settings = loadSettings();
   let inited = false;
@@ -72,6 +74,12 @@
     return Math.max(0, Math.min(1, n));
   }
 
+  function clampMinimapSize(value) {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return DEFAULTS.minimapSize;
+    return Math.max(MINIMAP_MIN, Math.min(MINIMAP_MAX, Math.round(n / 10) * 10));
+  }
+
   function loadSettings() {
     try {
       const raw = localStorage.getItem(SETTINGS_KEY);
@@ -81,6 +89,7 @@
         if (typeof data.sound === "boolean") out.sound = data.sound;
         if (data.volume != null) out.volume = clampVolume(data.volume);
         if (typeof data.reduceMotion === "boolean") out.reduceMotion = data.reduceMotion;
+        if (data.minimapSize != null) out.minimapSize = clampMinimapSize(data.minimapSize);
       }
       return out;
     } catch (e) {
@@ -112,6 +121,19 @@
     if (out) out.textContent = Math.round(settings.volume * 100) + "%";
     const motion = $("set-motion");
     if (motion) motion.checked = !!settings.reduceMotion;
+    const minimapSize = clampMinimapSize(settings.minimapSize);
+    const mini = $("set-minimap-size");
+    if (mini) mini.value = String(minimapSize);
+    const miniOut = $("set-minimap-size-out");
+    if (miniOut) miniOut.textContent = minimapSize + " px";
+    const api = window.PyGameMenuAPI;
+    if (api && typeof api.setMinimapSize === "function") {
+      api.setMinimapSize(minimapSize);
+    } else {
+      document.documentElement.style.setProperty("--minimap-w", minimapSize + "px");
+      document.documentElement.style.setProperty("--minimap-h",
+        Math.round(minimapSize * 0.75) + "px");
+    }
   }
 
   function savedName() {
@@ -979,6 +1001,13 @@
     if (motion) {
       motion.addEventListener("change", (e) => {
         settings.reduceMotion = !!e.target.checked;
+        saveSettings();
+      });
+    }
+    const minimapSize = $("set-minimap-size");
+    if (minimapSize) {
+      minimapSize.addEventListener("input", (e) => {
+        settings.minimapSize = clampMinimapSize(e.target.value);
         saveSettings();
       });
     }
