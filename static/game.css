@@ -9560,6 +9560,33 @@ body.game-page .nav-btn.active {
   background: rgba(125, 162, 217, 0.12) !important;
 }
 
+/* Золотые рамки HUD, боя и внутренних панелей нарисованы border-image
+   из panel-dark/panel-small/minimap-frame. Цвет border их не отменяет:
+   убираем сам border-image и оставляем тонкий нейтральный контур. */
+body.game-page .hero-hud,
+body.game-page .hero-hud-story,
+body.game-page #screen-game .minimap,
+.overlay > .battle,
+body.battling .battle-panel,
+body.battling .battle-panel .battle-cat,
+body.battling .battle-panel .battle-cat-list {
+  border: 1px solid var(--ui-line) !important;
+  border-image: none !important;
+}
+
+/* У кнопок действий рамка была декоративной: убираем её совсем. */
+body.game-page .action-btn,
+body.game-page .skip-btn {
+  border: 0 !important;
+  border-image: none !important;
+}
+
+body.game-page .action-btn:hover,
+body.game-page .action-btn:active,
+body.game-page .skip-btn:hover {
+  border-image-source: none !important;
+}
+
 #menu-screen[data-mode="main"] .menu-view-main,
 #menu-screen[data-mode="main"] .menu-title,
 .menu-view-main,
@@ -9622,6 +9649,16 @@ body.game-page .nav-btn.active {
 .menu-item.is-active,
 .menu-item:hover {
   border-left-color: rgba(143, 179, 232, 0.9) !important;
+}
+
+#menu-screen[data-mode="main"] .menu-item.is-active,
+#menu-screen[data-mode="pause"] .menu-item.is-active {
+  background: linear-gradient(
+    90deg,
+    rgba(125, 162, 217, 0.18) 0%,
+    rgba(125, 162, 217, 0.04) 68%,
+    rgba(0, 0, 0, 0) 100%
+  ) !important;
 }
 
 .save-slot:hover,
