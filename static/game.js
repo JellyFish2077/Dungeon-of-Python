@@ -10118,6 +10118,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.9.8",
+      date: "29 октября 2026",
+      title: "Без лендинга",
+      items: [
+        "Корень сайта теперь сразу открывает игру и главное меню.",
+        "Отдельная рекламная страница удалена; скриншоты перенесены в материалы для Itch.",
+        "Пункт «Выход» убран из главного меню — сайт больше не ведёт на лендинг."
+      ]
+    },
+    {
       version: "1.9.7",
       date: "29 октября 2026",
       title: "Полный экран по кнопке",
@@ -10901,24 +10911,6 @@ function topicName(key) {
     enterVillage(null);
     updateWalletLine();
     updateResumeButton();
-  }
-
-  // «Выйти» — это выход в главное меню сайта, а не возврат в деревню. Раньше
-  // кнопка звала reset(), а он возвращает в деревню: стоя в деревне, ученик
-  // нажимал и не видел ничего — «кнопка не работает».
-  function leave() {
-    // В деревне без сохранённого похода терять нечего: не показываем системный
-    // confirm на пустом месте. Если поход идёт или ждёт в сейве — спрашиваем.
-    const hasRun = (G.place === "dungeon" && G.running) || !!pausedRun();
-    if (hasRun && !window.confirm(
-      "Выйти на стартовый экран? Поход сохранится, его можно будет продолжить."
-    )) {
-      return;
-    }
-    // Сохраняем только поход: в деревне сохранять нечего, там сейв не пишется.
-    if (G.running) saveGame();
-    window.location.href = (typeof window !== "undefined" && window.__PYQUIZ_WEB)
-      ? "index.html?exit=1" : "/";
   }
 
   // ---------- Сохранение / загрузка ----------
@@ -11859,7 +11851,6 @@ function topicName(key) {
       if (t.closest("#calib-again")) { restartCalibration(); return; }
       if (t.closest("#calib-close")) { closeCalibration(); }
     });
-    el("leave-btn").addEventListener("click", leave);
     const menuBtn = el("menu-btn");
     if (menuBtn) {
       menuBtn.addEventListener("click", () => {
@@ -13253,8 +13244,7 @@ function topicName(key) {
       },
       move: function (dx, dy) {
         move(Number(dx) || 0, Number(dy) || 0);
-      },
-      leave: leave
+      }
     };
   }
 
