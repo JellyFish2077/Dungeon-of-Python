@@ -325,17 +325,30 @@
   }
 
   function removeSelected() {
-    const slot = slots[selected];
+    const index = selected;
+    const slot = slots[index];
     if (!slot) return;
-    if (!window.confirm("Удалить «" + slot.name + "»? Это действие нельзя отменить.")) {
-      return;
+    const doRemove = function () {
+      if (!slots[index]) return;
+      slots[index] = null;
+      persist();
+      selected = selectedIndex();
+      renaming = -1;
+      setStatus("Сохранение удалено.", "ok");
+      render();
+    };
+    const opts = {
+      title: "Удалить сохранение?",
+      text: "«" + slot.name + "» будет удалено. Это действие нельзя отменить.",
+      confirmLabel: "Удалить",
+      cancelLabel: "Отмена",
+      danger: true
+    };
+    if (window.PyConfirm && typeof window.PyConfirm.run === "function") {
+      window.PyConfirm.run(opts, doRemove);
+    } else {
+      doRemove();
     }
-    slots[selected] = null;
-    persist();
-    selected = selectedIndex();
-    renaming = -1;
-    setStatus("Сохранение удалено.", "ok");
-    render();
   }
 
   function onDetailClick(e) {
@@ -516,17 +529,28 @@
         return;
       }
       const who = parsed && parsed.profile ? " («" + parsed.profile + "»)" : "";
-      if (!window.confirm("Импортировать " + count + " сохранений" + who +
-          "? Текущие слоты будут заменены.")) {
-        return;
+      const doImport = function () {
+        slots = next;
+        selected = selectedIndex();
+        renaming = -1;
+        persist();
+        sound("correct");
+        setStatus("Импортировано сохранений: " + count + ".", "ok");
+        render();
+      };
+      const opts = {
+        title: "Импортировать сохранения?",
+        text: "Сохранений: " + count + who +
+          ". Текущие слоты будут заменены.",
+        confirmLabel: "Импортировать",
+        cancelLabel: "Отмена",
+        danger: true
+      };
+      if (window.PyConfirm && typeof window.PyConfirm.run === "function") {
+        window.PyConfirm.run(opts, doImport);
+      } else {
+        doImport();
       }
-      slots = next;
-      selected = selectedIndex();
-      renaming = -1;
-      persist();
-      sound("correct");
-      setStatus("Импортировано сохранений: " + count + ".", "ok");
-      render();
     };
     reader.onerror = () => {
       sound("wrong");

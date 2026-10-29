@@ -10,10 +10,10 @@
   <meta property="og:description" content="Рогалик-экспедиция: десять этажей, пять боссов и вопросы по Python вместо кубика." />
   <meta property="og:type" content="website" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
-  <link rel="stylesheet" href="static/style.css?v=20261029112235" />
-  <link rel="stylesheet" href="static/game.css?v=20261029112235" />
-  <link rel="stylesheet" href="static/menu.css?v=20261029112235" />
-  <link rel="stylesheet" href="static/saves.css?v=20261029112235" />
+  <link rel="stylesheet" href="static/style.css?v=20261029114620" />
+  <link rel="stylesheet" href="static/game.css?v=20261029114620" />
+  <link rel="stylesheet" href="static/menu.css?v=20261029114620" />
+  <link rel="stylesheet" href="static/saves.css?v=20261029114620" />
 </head>
 <body class="game-page">
   <header class="site-head">
@@ -366,7 +366,12 @@
         </header>
 
         <nav class="menu-list" id="menu-list" aria-label="Главное меню">
-          <button class="menu-item is-active" id="menu-new" type="button" data-action="new">
+          <button class="menu-item hidden" id="menu-continue" type="button" data-action="continue">
+            <span class="menu-item-mark" aria-hidden="true">▶</span>
+            <span class="menu-item-label">Продолжить</span>
+            <span class="menu-item-note" id="menu-continue-note">последний поход</span>
+          </button>
+          <button class="menu-item" id="menu-new" type="button" data-action="new">
             <span class="menu-item-mark" aria-hidden="true">▶</span>
             <span class="menu-item-label">Новая игра</span>
             <span class="menu-item-note" id="menu-new-note">стража у входа</span>
@@ -545,6 +550,19 @@
     </section>
   </div>
 
+  <div class="confirm-overlay hidden" id="confirm-overlay" role="dialog"
+       aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-text">
+    <div class="confirm-box">
+      <div class="confirm-kicker">PyDungeon</div>
+      <h2 class="confirm-title" id="confirm-title">Подтверждение</h2>
+      <p class="confirm-text" id="confirm-text"></p>
+      <div class="confirm-actions">
+        <button class="btn ghost" id="confirm-cancel" type="button">Отмена</button>
+        <button class="btn" id="confirm-ok" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <!-- Памятка первого спуска: только клавиши, без списка целей.
@@ -561,26 +579,27 @@
   </aside>
 
 
-    <script src="static/questions.js?v=20261029112235"></script>
-  <script src="static/variants.js?v=20261029112235"></script>
-  <script src="static/code-tasks.js?v=20261029112235"></script>
-  <script src="static/task-meta.js?v=20261029112235"></script>
-  <script src="static/practice-variants.js?v=20261029112235"></script>
-  <script src="static/items.js?v=20261029112235"></script>
-  <script src="static/icons.js?v=20261029112235"></script>
-<script src="static/sprites.js?v=20261029112235"></script>
-<script src="static/terrain.js?v=20261029112235"></script>
-  <script src="static/dungeon-content.js?v=20261029112235"></script>
-  <script src="static/village-content.js?v=20261029112235"></script>
-  <script src="static/profile.js?v=20261029112235"></script>
-  <script src="static/auth.js?v=20261029112235"></script>
-  <script src="static/web-boot.js?v=20261029112235"></script>
-  <script src="static/pyodide-check.js?v=20261029112235"></script>
-  <script src="static/audio.js?v=20261029112235"></script>
-  <script src="static/menu-bg.js?v=20261029112235"></script>
-  <script src="static/menu.js?v=20261029112235"></script>
-  <script src="static/saves.js?v=20261029112235"></script>
-  <script src="static/fullscreen.js?v=20261029112235"></script>
-  <script src="static/game.js?v=20261029112235"></script>
+    <script src="static/questions.js?v=20261029114620"></script>
+  <script src="static/variants.js?v=20261029114620"></script>
+  <script src="static/code-tasks.js?v=20261029114620"></script>
+  <script src="static/task-meta.js?v=20261029114620"></script>
+  <script src="static/practice-variants.js?v=20261029114620"></script>
+  <script src="static/items.js?v=20261029114620"></script>
+  <script src="static/icons.js?v=20261029114620"></script>
+<script src="static/sprites.js?v=20261029114620"></script>
+<script src="static/terrain.js?v=20261029114620"></script>
+  <script src="static/dungeon-content.js?v=20261029114620"></script>
+  <script src="static/village-content.js?v=20261029114620"></script>
+  <script src="static/profile.js?v=20261029114620"></script>
+  <script src="static/auth.js?v=20261029114620"></script>
+  <script src="static/web-boot.js?v=20261029114620"></script>
+  <script src="static/pyodide-check.js?v=20261029114620"></script>
+  <script src="static/audio.js?v=20261029114620"></script>
+  <script src="static/menu-bg.js?v=20261029114620"></script>
+  <script src="static/confirm.js?v=20261029114620"></script>
+  <script src="static/menu.js?v=20261029114620"></script>
+  <script src="static/saves.js?v=20261029114620"></script>
+  <script src="static/fullscreen.js?v=20261029114620"></script>
+  <script src="static/game.js?v=20261029114620"></script>
   </body>
 </html>
