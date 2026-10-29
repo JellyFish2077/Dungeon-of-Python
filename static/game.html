@@ -151,7 +151,11 @@
           <span class="action-label">Пропустить ход</span>
           <span class="action-key">Пробел</span>
         </button>
-        <canvas class="minimap" id="minimap" width="184" height="132" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
+        <canvas class="minimap" id="minimap" width="280" height="210" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
+        <div class="minimap-controls" id="minimap-controls" role="group" aria-label="Масштаб мини-карты">
+          <button class="minimap-zoom-btn" id="minimap-zoom-out" type="button" aria-label="Уменьшить масштаб мини-карты" title="Уменьшить масштаб">−</button>
+          <button class="minimap-zoom-btn" id="minimap-zoom-in" type="button" aria-label="Увеличить масштаб мини-карты" title="Увеличить масштаб">+</button>
+        </div>
         <div class="log collapsed" id="log"></div>
       </div>
       <!-- Постоянная сводка героя: здоровье, опыт, сила и текущая глава.
@@ -468,6 +472,12 @@
             <span>Громкость</span>
             <output id="set-volume-out" for="set-volume">60%</output>
             <input type="range" id="set-volume" min="0" max="100" step="5" />
+          </label>
+
+          <label class="menu-range" for="set-minimap-size">
+            <span>Размер мини-карты</span>
+            <output id="set-minimap-size-out" for="set-minimap-size">280 px</output>
+            <input type="range" id="set-minimap-size" min="220" max="380" step="10" />
           </label>
 
           <label class="menu-toggle" for="set-motion">

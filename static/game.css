@@ -9593,6 +9593,69 @@ body.game-page .skip-btn:hover {
   border-image-source: none !important;
 }
 
+/* ---------- Мини-карта: размер и масштаб ---------- */
+body.game-page #screen-game .minimap {
+  width: var(--minimap-w, 280px) !important;
+  height: var(--minimap-h, 210px) !important;
+}
+
+body.game-page .minimap-controls {
+  position: absolute;
+  top: calc(68px + var(--minimap-h, 210px) + 6px);
+  left: 12px;
+  z-index: 7;
+  display: flex;
+  gap: 6px;
+}
+
+body.game-page .minimap-controls.off {
+  display: none;
+}
+
+body.game-page .minimap-zoom-btn {
+  width: 28px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--ui-line);
+  border-radius: 6px;
+  background: rgba(9, 18, 32, 0.9);
+  color: #cbd5e1;
+  font: 700 16px/1 var(--font-ui);
+  cursor: pointer;
+}
+
+body.game-page .minimap-zoom-btn:hover,
+body.game-page .minimap-zoom-btn:focus-visible {
+  border-color: rgba(143, 179, 232, 0.7);
+  background: rgba(125, 162, 217, 0.14);
+  color: #eef5ff;
+  outline: none;
+}
+
+body.game-page .minimap-zoom-btn:disabled {
+  opacity: 0.38;
+  cursor: default;
+}
+
+body.game-page .minimap-zoom-btn:disabled:hover {
+  border-color: var(--ui-line);
+  background: rgba(9, 18, 32, 0.9);
+  color: #cbd5e1;
+}
+
+body.battling .minimap-controls {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 700px) {
+  body.game-page .minimap-controls {
+    display: none;
+  }
+}
+
 #menu-screen[data-mode="main"] .menu-view-main,
 #menu-screen[data-mode="main"] .menu-title,
 .menu-view-main,

@@ -298,6 +298,8 @@ def run_checks(browser, base):
     page.click("#menu-settings")
     check(page.locator("#menu-settings-title").inner_text() == "Настройки",
           "«Настройки» открывают настройки")
+    check(page.locator("#set-minimap-size").count() == 1,
+          "в настройках есть слайдер размера мини-карты")
     page.click("#menu-back-settings")
 
     # Дожидаемся крупных ассетов, прежде чем уходить в деревню.
@@ -315,6 +317,14 @@ def run_checks(browser, base):
           "«Новая игра» не открывает стража автоматически")
     check(page.locator("#dev-toggle").count() == 0,
           "в публичной сборке нет кнопки DEV")
+    check(page.locator("#minimap").is_visible() and
+          page.locator("#minimap-controls").is_visible() and
+          page.locator("#minimap-zoom-in").is_visible() and
+          page.locator("#minimap-zoom-out").is_visible(),
+          "у увеличенной мини-карты есть кнопки + и −")
+    page.wait_for_function(
+        "() => { const h = document.getElementById('hero-hud');"
+        " return !!h && h.offsetParent !== null; }", timeout=10000)
     story = page.locator("#hud-story").inner_text().lower()
     check("первый спуск" in story and "страж" in story,
           "первый экран подсказывает цель — стража", story)

@@ -4629,6 +4629,19 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   G.equipment.accessory = null;
   const offOp = opacity();
   log(hiddenOp === 0 && !hiddenMini, "без линзы враг вне поля зрения скрыт и на карте, и на мини-карте");
+
+  // Мини-карта: масштаб кнопками и размер окна настройкой.
+  freshRun(1);
+  API.setMinimapZoom(2);
+  log(G.minimapZoom === 2, "мини-карта приближается кнопкой +", String(G.minimapZoom));
+  API.setMinimapZoom(99);
+  log(G.minimapZoom === 2.5, "приближение мини-карты не уходит за предел", String(G.minimapZoom));
+  API.setMinimapZoom(0);
+  log(G.minimapZoom === 1, "мини-карта возвращается к виду всего этажа", String(G.minimapZoom));
+  log(API.applyMinimapSize(340) === 340, "размер окна мини-карты меняется настройкой", "340 px");
+  log(API.applyMinimapSize(999) === 380 && API.applyMinimapSize(1) === 220,
+    "размер мини-карты зажат в разумных пределах");
+
   log(lensOp > 0 && lensOp < 1 && lensMini, "линза разведчика показывает врага за стенами — полупрозрачным и на мини-карте",
     "прозрачность " + lensOp);
   log(offOp === 0, "сняли линзу — враг снова скрыт");
