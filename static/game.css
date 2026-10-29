@@ -9597,6 +9597,7 @@ body.game-page .skip-btn:hover {
 body.game-page #screen-game .minimap {
   width: var(--minimap-w, 280px) !important;
   height: var(--minimap-h, 210px) !important;
+  cursor: default;
 }
 
 body.game-page .minimap-controls {

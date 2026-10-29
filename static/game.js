@@ -12182,7 +12182,8 @@ function topicName(key) {
     el("action-btn").addEventListener("click", doInteract);
     el("skip-btn").addEventListener("click", skipTurn);
     el("forge-btn").addEventListener("click", openForge);
-    el("minimap").addEventListener("click", toggleMinimap);
+    // Клик по самой мини-карте ничего не скрывает: раньше он случайно
+    // выключал карту, и вернуть её можно было только клавишей M.
     const miniOut = el("minimap-zoom-out");
     if (miniOut) {
       miniOut.addEventListener("click", () => setMinimapZoom(G.minimapZoom - MINIMAP_ZOOM_STEP));
