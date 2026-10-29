@@ -322,6 +322,9 @@ def run_checks(browser, base):
           page.locator("#minimap-zoom-in").is_visible() and
           page.locator("#minimap-zoom-out").is_visible(),
           "у увеличенной мини-карты есть кнопки + и −")
+    page.locator("#minimap").click()
+    check(page.locator("#minimap").is_visible(),
+          "клик по мини-карте не скрывает её")
     page.wait_for_function(
         "() => { const h = document.getElementById('hero-hud');"
         " return !!h && h.offsetParent !== null; }", timeout=10000)
