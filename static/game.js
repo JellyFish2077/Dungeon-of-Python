@@ -3562,6 +3562,22 @@
   const MINIMAP_ZOOM_MAX = 2.5;
   const MINIMAP_ZOOM_STEP = 0.25;
 
+  let miniDrawFrame = 0;
+
+  // Перерисовку после кнопок и слайдера сливаем в один кадр: при перетаскивании
+  // слайдера событий много, а canvas не должен пересобираться на каждое.
+  function scheduleMinimapDraw() {
+    if (typeof requestAnimationFrame !== "function") {
+      drawMinimap();
+      return;
+    }
+    if (miniDrawFrame) return;
+    miniDrawFrame = requestAnimationFrame(function () {
+      miniDrawFrame = 0;
+      drawMinimap();
+    });
+  }
+
   function setMinimapZoom(value) {
     G.minimapZoom = clamp(
       Number(value) || MINIMAP_ZOOM_MIN,
@@ -3569,7 +3585,7 @@
       MINIMAP_ZOOM_MAX
     );
     updateMinimapZoomButtons();
-    drawMinimap();
+    scheduleMinimapDraw();
   }
 
   function updateMinimapZoomButtons() {
@@ -3599,7 +3615,7 @@
     const size = clamp(Number(px) || 280, 220, 380);
     document.documentElement.style.setProperty("--minimap-w", size + "px");
     document.documentElement.style.setProperty("--minimap-h", Math.round(size * 0.75) + "px");
-    if (G.map) drawMinimap();
+    if (G.map) scheduleMinimapDraw();
     return size;
   }
 
@@ -3621,18 +3637,23 @@
     }
   }
 
-  function minimapBase(w, h, cw, ch, cs, ox, oy) {
-    const stamp = G.floorIndex + "|" + w + "x" + h + "|" + cw + "x" + ch +
-      "|" + cs.toFixed(2) + "|" + ox.toFixed(1) + "," + oy.toFixed(1) +
+  // База рисуется один раз в собственном разрешении и не зависит от окна,
+  // масштаба и положения героя. При зуме её просто растягиваем drawImage —
+  // иначе каждый шаг масштаба перерисовывал весь этаж.
+  const MINI_BASE_CELL = 8;
+
+  function minimapBase(w, h) {
+    const cs = MINI_BASE_CELL;
+    const stamp = G.floorIndex + "|" + w + "x" + h + "|" + cs +
       "|" + G.discovered.size;
     if (miniCache.stamp === stamp && miniCache.canvas) return miniCache.canvas;
     let off = null;
     try {
       off = document.createElement("canvas");
-      off.width = cw;
-      off.height = ch;
+      off.width = Math.max(1, w * cs);
+      off.height = Math.max(1, h * cs);
       const c = typeof off.getContext === "function" ? off.getContext("2d") : null;
-      if (c) paintMiniCells(c, w, h, cs, ox, oy);
+      if (c) paintMiniCells(c, w, h, cs, 0, 0);
       else off = null;
     } catch (err) {
       off = null;
@@ -3674,9 +3695,14 @@
       );
     };
 
-    const base = minimapBase(w, h, cw, ch, cs, ox, oy);
-    if (base) ctx.drawImage(base, 0, 0);
-    else paintMiniCells(ctx, w, h, cs, ox, oy);
+    const base = minimapBase(w, h);
+    if (base) {
+      // Пиксель-арт: без сглаживания при растяжении.
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(base, ox, oy, w * cs, h * cs);
+    } else {
+      paintMiniCells(ctx, w, h, cs, ox, oy);
+    }
 
     // Ярким тоном — только то, что герой видит прямо сейчас.
     const vr = Math.ceil(viewRadius());
