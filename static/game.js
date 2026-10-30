@@ -5577,26 +5577,6 @@
       "<div class='inv-stats' id='inv-stats'>" + inventoryStatsInner() + "</div></div>";
     G.invStatsSig = inventoryStatsSig();
 
-    // Снаряжение показываем и здесь: инвентарь должен быть самодостаточным,
-    // а не отправлять игрока в боковую сводку. Нажатие на слот снимает вещь.
-    html += "<div class='inv-section'><h3>Снаряжение</h3><div class='inv-equip'>";
-    [["weapon", "Оружие"], ["armor", "Броня"], ["accessory", "Амулет"]].forEach(([slot, label]) => {
-      const item = G.equipment ? G.equipment[slot] : null;
-      if (!item) {
-        html += "<div class='inv-equip-slot is-empty'><span>" + label +
-          "</span><b>Пусто</b><em>Нет предмета</em></div>";
-        return;
-      }
-      const rarity = RARITY[item.rarity] || { color: "#94a3b8" };
-      html += "<button class='inv-equip-slot' type='button' data-unequip='" + slot +
-        "' data-tip=\"" + tipAttr("<b>" + item.name + "</b><br>" +
-          (itemBonusText(item) || "Без бонусов") + "<br>Нажми, чтобы снять.") +
-        "\" style='border-left-color:" + rarity.color + "'>" +
-        "<span>" + label + "</span><b>" + itemPic(item, rarity.color) + item.name +
-        "</b><em>" + itemBonusText(item) + "</em></button>";
-    });
-    html += "</div></div>";
-
     // Комплекты: видно, что уже работает и одной вещи до чего не хватает.
     const setCounted = setCounts();
     const setKeys = Object.keys(setCounted);
