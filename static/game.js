@@ -375,6 +375,8 @@
     minimapOn: true,
     // 1 — весь этаж в окне; больше — приближение вокруг героя.
     minimapZoom: 1,
+    // Фильтр сумки: всё, снаряжение или зелья.
+    inventoryFilter: "all",
     stairsDown: null,
     stairsUp: null,
     portal: null,
@@ -5575,8 +5577,25 @@
       "<div class='inv-stats' id='inv-stats'>" + inventoryStatsInner() + "</div></div>";
     G.invStatsSig = inventoryStatsSig();
 
-    // Надетое здесь не повторяем: те же три плашки стоят в закреплённой
-    // сводке, а снять вещь можно нажатием на плашку.
+    // Снаряжение показываем и здесь: инвентарь должен быть самодостаточным,
+    // а не отправлять игрока в боковую сводку. Нажатие на слот снимает вещь.
+    html += "<div class='inv-section'><h3>Снаряжение</h3><div class='inv-equip'>";
+    [["weapon", "Оружие"], ["armor", "Броня"], ["accessory", "Амулет"]].forEach(([slot, label]) => {
+      const item = G.equipment ? G.equipment[slot] : null;
+      if (!item) {
+        html += "<div class='inv-equip-slot is-empty'><span>" + label +
+          "</span><b>Пусто</b><em>Нет предмета</em></div>";
+        return;
+      }
+      const rarity = RARITY[item.rarity] || { color: "#94a3b8" };
+      html += "<button class='inv-equip-slot' type='button' data-unequip='" + slot +
+        "' data-tip=\"" + tipAttr("<b>" + item.name + "</b><br>" +
+          (itemBonusText(item) || "Без бонусов") + "<br>Нажми, чтобы снять.") +
+        "\" style='border-left-color:" + rarity.color + "'>" +
+        "<span>" + label + "</span><b>" + itemPic(item, rarity.color) + item.name +
+        "</b><em>" + itemBonusText(item) + "</em></button>";
+    });
+    html += "</div></div>";
 
     // Комплекты: видно, что уже работает и одной вещи до чего не хватает.
     const setCounted = setCounts();
@@ -5598,11 +5617,34 @@
       html += "</div>";
     }
 
-    html += "<div class='inv-section'><h3>Сумка</h3>";
-    if (G.inventory.length === 0) {
-      html += "<div class='inv-empty'>Пока пусто. Ищи сундуки и побеждай монстров.</div>";
+    const filter = ["all", "gear", "potion"].indexOf(G.inventoryFilter) >= 0
+      ? G.inventoryFilter : "all";
+    const stacks = stackedInventory();
+    const countOf = (kind) => stacks.reduce((n, s) => {
+      const isPotion = s.item.slot === "potion";
+      return n + (kind === "all" || (kind === "potion" ? isPotion : !isPotion)
+        ? s.count : 0);
+    }, 0);
+    const shown = stacks.filter((s) => {
+      if (filter === "all") return true;
+      return filter === "potion" ? s.item.slot === "potion" : s.item.slot !== "potion";
+    });
+    html += "<div class='inv-section inv-bag'><div class='inv-head'><h3>Сумка</h3>" +
+      "<div class='inv-tabs' role='tablist' aria-label='Фильтр сумки'>" +
+      "<button class='inv-tab" + (filter === "all" ? " is-active" : "") +
+      "' type='button' role='tab' data-inv-filter='all'>Всё " + countOf("all") + "</button>" +
+      "<button class='inv-tab" + (filter === "gear" ? " is-active" : "") +
+      "' type='button' role='tab' data-inv-filter='gear'>Снаряжение " + countOf("gear") + "</button>" +
+      "<button class='inv-tab" + (filter === "potion" ? " is-active" : "") +
+      "' type='button' role='tab' data-inv-filter='potion'>Зелья " + countOf("potion") + "</button>" +
+      "</div></div>";
+    if (shown.length === 0) {
+      const empty = filter === "gear" ? "Снаряжения в сумке нет."
+        : filter === "potion" ? "Зелий в сумке нет."
+        : "Пока пусто. Ищи сундуки и побеждай монстров.";
+      html += "<div class='inv-empty'>" + empty + "</div>";
     } else {
-      stackedInventory().forEach((stack) => {
+      shown.forEach((stack) => {
         const item = stack.item;
         const i = stack.index;
         const count = stack.count;
@@ -5645,6 +5687,12 @@
     html += "</div>";
 
     box.innerHTML = html;
+    box.querySelectorAll("[data-inv-filter]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        G.inventoryFilter = btn.dataset.invFilter || "all";
+        renderInventory();
+      });
+    });
     box.querySelectorAll("button[data-item]").forEach((btn) => {
       btn.addEventListener("click", () => {
         const i = Number(btn.dataset.item);

@@ -215,6 +215,9 @@ def run_checks(browser, base):
         " return s.justifyContent === 'center' && s.backgroundImage === 'none';"
         " })"),
         "верхние кнопки без фоновых иконок, текст по центру")
+    nav_labels = page.locator("#game-nav .nav-btn").all_inner_texts()
+    check(nav_labels == ["Этаж", "Инвентарь", "Журнал"],
+          "в верхнем меню остались Этаж, Инвентарь и Журнал", nav_labels)
     check(page.evaluate(
         "async () => {"
         " await Promise.all(["
@@ -330,6 +333,18 @@ def run_checks(browser, base):
         ".backgroundColor !== 'rgba(0, 0, 0, 0)'"),
         "под мини-картой и кнопками есть полупрозрачный фон")
     page.locator("#minimap").click()
+    page.click('[data-panel="inventory"]')
+    page.wait_for_function(
+        "() => document.getElementById('panel-inventory')"
+        ".classList.contains('is-open')", timeout=10000)
+    check(page.locator("#panel-inventory .inv-tab").count() == 3,
+          "в инвентаре есть фильтры: всё, снаряжение, зелья")
+    check(page.locator("#panel-inventory .inv-equip-slot").count() == 3,
+          "в инвентаре видны три слота снаряжения")
+    page.click('#panel-inventory [data-inv-filter="potion"]')
+    check("Зелья" in page.locator("#panel-inventory .inv-tab.is-active").inner_text(),
+          "фильтр зелий переключается")
+    page.click("#panel-inventory .panel-close")
     check(page.locator("#minimap").is_visible(),
           "клик по мини-карте не скрывает её")
     page.wait_for_function(
