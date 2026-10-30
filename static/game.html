@@ -151,10 +151,12 @@
           <span class="action-label">Пропустить ход</span>
           <span class="action-key">Пробел</span>
         </button>
-        <canvas class="minimap" id="minimap" width="280" height="210" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
-        <div class="minimap-controls" id="minimap-controls" role="group" aria-label="Масштаб мини-карты">
-          <button class="minimap-zoom-btn" id="minimap-zoom-out" type="button" aria-label="Уменьшить масштаб мини-карты" title="Уменьшить масштаб">−</button>
-          <button class="minimap-zoom-btn" id="minimap-zoom-in" type="button" aria-label="Увеличить масштаб мини-карты" title="Увеличить масштаб">+</button>
+        <div class="minimap-dock" id="minimap-dock">
+          <canvas class="minimap" id="minimap" width="280" height="210" data-tip="Мини-карта этажа: где герой, лестница и живые монстры. Клавиша M."></canvas>
+          <div class="minimap-controls" id="minimap-controls" role="group" aria-label="Масштаб мини-карты">
+            <button class="minimap-zoom-btn" id="minimap-zoom-out" type="button" aria-label="Уменьшить масштаб мини-карты" title="Уменьшить масштаб">−</button>
+            <button class="minimap-zoom-btn" id="minimap-zoom-in" type="button" aria-label="Увеличить масштаб мини-карты" title="Увеличить масштаб">+</button>
+          </div>
         </div>
         <div class="log collapsed" id="log"></div>
       </div>

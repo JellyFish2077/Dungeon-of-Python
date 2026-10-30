@@ -3589,10 +3589,10 @@
 
   function toggleMinimap() {
     G.minimapOn = !G.minimapOn;
+    const dock = el("minimap-dock");
+    if (dock) dock.classList.toggle("off", !G.minimapOn);
     const cv = el("minimap");
     if (cv) cv.classList.toggle("off", !G.minimapOn);
-    const controls = el("minimap-controls");
-    if (controls) controls.classList.toggle("off", !G.minimapOn);
     if (G.minimapOn) drawMinimap();
   }
 

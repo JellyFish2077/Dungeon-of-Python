@@ -322,6 +322,13 @@ def run_checks(browser, base):
           page.locator("#minimap-zoom-in").is_visible() and
           page.locator("#minimap-zoom-out").is_visible(),
           "у увеличенной мини-карты есть кнопки + и −")
+    zoom_width = page.evaluate(
+        "() => document.getElementById('minimap-zoom-in').getBoundingClientRect().width")
+    check(zoom_width > 60, "кнопки масштаба длинные, по краям карты", zoom_width)
+    check(page.evaluate(
+        "() => getComputedStyle(document.getElementById('minimap-dock'))"
+        ".backgroundColor !== 'rgba(0, 0, 0, 0)'"),
+        "под мини-картой и кнопками есть полупрозрачный фон")
     page.locator("#minimap").click()
     check(page.locator("#minimap").is_visible(),
           "клик по мини-карте не скрывает её")
