@@ -1309,14 +1309,7 @@ body.reduce-motion *::after {
   text-shadow: 0 2px 14px rgba(4, 7, 11, 0.7);
 }
 
-/* Затемнение под списком: этаж остаётся виден, но буквы не тонут в тайлах. */
-#menu-overlay.menu-main .menu-screen::before {
-  background:
-    radial-gradient(44% 48% at 50% 47%, rgba(6, 9, 13, 0.62) 0%,
-      rgba(6, 9, 13, 0.3) 62%, transparent 84%),
-    linear-gradient(180deg, rgba(6, 9, 13, 0.46) 0%, rgba(6, 9, 13, 0.12) 32%,
-      rgba(6, 9, 13, 0.2) 70%, rgba(6, 9, 13, 0.62) 100%);
-}
+/* Затемнение под списком не нужно: фон должен быть виден полностью. */
 
 /* Подзаголовок: мелкий обычный шрифт, чтобы не рябило рядом с пикселями. */
 #menu-view-main .menu-tagline-main {
