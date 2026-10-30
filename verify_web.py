@@ -249,16 +249,31 @@ def run_checks(browser, base):
           "фон главного меню — подземелье")
     check(page.locator("#menu-view-main .menu-logo").count() == 0,
           "логотип в главном меню убран")
-    check(page.locator("#menu-view-main .menu-tagline").count() == 0 and
+    check(page.locator("#menu-view-main .menu-tagline-main").count() == 1 and
           page.locator("#menu-hint").count() == 0,
-          "под заголовком и внизу нет подписей")
+          "под заголовком один подзаголовок, внизу подписей нет")
+    menu_style = page.evaluate(
+        "() => {"
+        " const view = getComputedStyle(document.getElementById('menu-view-main'));"
+        " const title = getComputedStyle(document.getElementById('menu-title'));"
+        " const item = getComputedStyle(document.getElementById('menu-new'));"
+        " return {"
+        "  title: title.fontFamily.toLowerCase(),"
+        "  item: item.fontFamily.toLowerCase(),"
+        "  card: view.backgroundColor,"
+        "  border: view.borderTopWidth"
+        " };"
+        " }")
+    check("handjet" in menu_style["title"] and "handjet" in menu_style["item"] and
+          menu_style["card"] == "rgba(0, 0, 0, 0)" and menu_style["border"] == "0px",
+          "главное меню набрано Handjet, без карточки", menu_style)
     menu_box = page.locator("#menu-list").bounding_box()
     menu_notes = page.evaluate(
         "() => Array.from(document.querySelectorAll('#menu-list .menu-item-note'))"
         ".filter((n) => n.offsetParent !== null).length")
-    check(menu_box and menu_box["x"] < 240 and menu_notes == 0,
-          "кнопки главного меню без подписей, меню слева",
-          menu_box and menu_box["x"])
+    menu_center = menu_box["x"] + menu_box["width"] / 2 if menu_box else -1
+    check(menu_box and abs(menu_center - 640) <= 2 and menu_notes == 0,
+          "кнопки главного меню без подписей, меню по центру", round(menu_center, 1))
     check(page.locator("#menu-load").get_attribute("aria-disabled") == "false",
           "«Загрузить» открывает меню сохранений")
     page.click("#menu-load")
