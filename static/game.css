@@ -9594,34 +9594,56 @@ body.game-page .skip-btn:hover {
 }
 
 /* ---------- Мини-карта: размер и масштаб ---------- */
-body.game-page #screen-game .minimap {
-  width: var(--minimap-w, 280px) !important;
+body.game-page .minimap-dock {
+  position: absolute;
+  top: 68px;
+  left: 12px;
+  z-index: 6;
+  width: var(--minimap-w, 280px);
+  box-sizing: content-box;
+  padding: 6px;
+  border: 1px solid rgba(125, 162, 217, 0.22);
+  border-radius: 12px;
+  background: rgba(4, 8, 16, 0.58);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+}
+
+body.game-page .minimap-dock.off {
+  display: none;
+}
+
+body.game-page .minimap-dock .minimap {
+  position: static !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  width: 100% !important;
   height: var(--minimap-h, 210px) !important;
+  display: block;
+  z-index: auto;
   cursor: default;
 }
 
 body.game-page .minimap-controls {
-  position: absolute;
-  top: calc(68px + var(--minimap-h, 210px) + 6px);
-  left: 12px;
-  z-index: 7;
   display: flex;
+  justify-content: space-between;
   gap: 6px;
-}
-
-body.game-page .minimap-controls.off {
-  display: none;
+  margin-top: 6px;
 }
 
 body.game-page .minimap-zoom-btn {
-  width: 28px;
-  height: 24px;
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  height: 26px;
   display: grid;
   place-items: center;
   padding: 0;
   border: 1px solid var(--ui-line);
-  border-radius: 6px;
-  background: rgba(9, 18, 32, 0.9);
+  border-radius: 7px;
+  background: rgba(9, 18, 32, 0.72);
   color: #cbd5e1;
   font: 700 16px/1 var(--font-ui);
   cursor: pointer;
@@ -9630,7 +9652,7 @@ body.game-page .minimap-zoom-btn {
 body.game-page .minimap-zoom-btn:hover,
 body.game-page .minimap-zoom-btn:focus-visible {
   border-color: rgba(143, 179, 232, 0.7);
-  background: rgba(125, 162, 217, 0.14);
+  background: rgba(125, 162, 217, 0.16);
   color: #eef5ff;
   outline: none;
 }
@@ -9642,17 +9664,17 @@ body.game-page .minimap-zoom-btn:disabled {
 
 body.game-page .minimap-zoom-btn:disabled:hover {
   border-color: var(--ui-line);
-  background: rgba(9, 18, 32, 0.9);
+  background: rgba(9, 18, 32, 0.72);
   color: #cbd5e1;
 }
 
-body.battling .minimap-controls {
+body.battling .minimap-dock {
   opacity: 0;
   pointer-events: none;
 }
 
 @media (max-width: 700px) {
-  body.game-page .minimap-controls {
+  body.game-page .minimap-dock {
     display: none;
   }
 }
