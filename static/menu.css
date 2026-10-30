@@ -1309,7 +1309,14 @@ body.reduce-motion *::after {
   text-shadow: 0 2px 14px rgba(4, 7, 11, 0.7);
 }
 
-/* Затемнение под списком не нужно: фон должен быть виден полностью. */
+/* Затемнение как в макете: карта видна, но текст читается. */
+#menu-overlay.menu-main .menu-screen::before {
+  background:
+    radial-gradient(56% 50% at 50% 47%, rgba(6, 9, 13, 0.5) 0%,
+      rgba(6, 9, 13, 0.22) 58%, transparent 84%),
+    linear-gradient(180deg, rgba(6, 9, 13, 0.5) 0%, rgba(6, 9, 13, 0.32) 42%,
+      rgba(6, 9, 13, 0.56) 100%);
+}
 
 /* Подзаголовок: мелкий обычный шрифт, чтобы не рябило рядом с пикселями. */
 #menu-view-main .menu-tagline-main {
@@ -1350,11 +1357,14 @@ body.reduce-motion *::after {
   display: none;
 }
 
+/* Без плашки под пунктом: выбранная строка отличается только цветом текста.
+   Ниже в game.css есть слой со скином и !important — перебиваем его. */
 #menu-screen[data-mode="main"] .menu-item.is-active,
 #menu-screen[data-mode="main"] .menu-item:hover:not(.is-active):not(.is-disabled) {
-  border: 0;
+  border: 0 !important;
   color: #f0f5fc;
-  background: rgba(143, 179, 232, 0.07);
+  background: none !important;
+  box-shadow: none !important;
 }
 
 #menu-screen[data-mode="main"] .menu-item:focus-visible {
