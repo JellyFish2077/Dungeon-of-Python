@@ -9685,6 +9685,36 @@ body.battling .minimap-dock {
 }
 
 /* ---------- Инвентарь: фильтры сумки ---------- */
+body.game-page #journal-box,
+body.game-page .journal-tabs,
+body.game-page .journal-tab,
+body.game-page .journal-card {
+  border-color: var(--ui-line) !important;
+  border-image: none !important;
+}
+
+body.game-page #journal-box {
+  border-width: 1px !important;
+}
+
+body.game-page .journal-tab.is-active {
+  border-color: rgba(143, 179, 232, 0.8) !important;
+  background: rgba(125, 162, 217, 0.16) !important;
+  color: #eef5ff !important;
+}
+
+body.game-page .journal-card {
+  border-left-color: rgba(143, 179, 232, 0.75) !important;
+}
+
+body.game-page .journal-card.is-done {
+  border-left-color: var(--moss) !important;
+}
+
+body.game-page .journal-card.is-failed {
+  border-left-color: var(--ember) !important;
+}
+
 body.game-page .inv-head {
   display: flex;
   align-items: center;
