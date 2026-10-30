@@ -339,8 +339,8 @@ def run_checks(browser, base):
         ".classList.contains('is-open')", timeout=10000)
     check(page.locator("#panel-inventory .inv-tab").count() == 3,
           "в инвентаре есть фильтры: всё, снаряжение, зелья")
-    check(page.locator("#panel-inventory .inv-equip-slot").count() == 3,
-          "в инвентаре видны три слота снаряжения")
+    check(page.locator("#panel-inventory .inv-equip-slot").count() == 0,
+          "в сумке нет дублирующих ячеек снаряжения")
     page.click('#panel-inventory [data-inv-filter="potion"]')
     check("Зелья" in page.locator("#panel-inventory .inv-tab.is-active").inner_text(),
           "фильтр зелий переключается")
