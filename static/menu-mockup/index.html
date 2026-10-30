@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PyDungeon — макет главного меню</title>
+<style>
+  @font-face { font-family: "Golos Text"; src: url("../fonts/GolosText-Regular.ttf"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Golos Text"; src: url("../fonts/GolosText-Medium.ttf"); font-weight: 500; font-display: swap; }
+  @font-face { font-family: "Golos Text"; src: url("../fonts/GolosText-Bold.ttf"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Handjet"; src: url("../fonts/Handjet-Bold.ttf"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Handjet"; src: url("../fonts/Handjet-Black.ttf"); font-weight: 900; font-display: swap; }
+
+  :root {
+    --bg: #0b0f14;
+    --paper: #dbe3ee;
+    --text: #b9c6d8;
+    --muted: #78879a;
+    --dim: #4d5d70;
+    --accent: #8fb3e8;
+    --line: rgba(143, 179, 232, 0.16);
+    --mono: ui-monospace, "Cascadia Mono", "Consolas", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { height: 100%; margin: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--paper);
+    font-family: "Golos Text", system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  button { font: inherit; color: inherit; }
+
+  /* ---------- Фон: живой этаж подземелья ---------- */
+
+  .bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #0a0e13;
+    transition: opacity 0.2s;
+  }
+
+  .bg-layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    background-position: center;
+    background-size: cover;
+    filter: saturate(0.85) brightness(0.95);
+    transition: opacity 1.4s ease;
+  }
+
+  .bg-layer.is-on { opacity: 1; }
+
+  /* Затемнение: текст должен читаться на любом этаже, но карта остаётся видна. */
+  .bg-scrim {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(6, 9, 13, 0.5) 0%, rgba(6, 9, 13, 0.32) 42%,
+                      rgba(6, 9, 13, 0.56) 100%),
+      radial-gradient(72% 62% at 50% 48%, rgba(6, 9, 13, 0.24) 0%, rgba(6, 9, 13, 0.46) 100%);
+  }
+
+  body.no-bg .bg { opacity: 0; }
+
+  /* Мягкая тень под текстом: карта видна, но строки не теряются на тайлах. */
+  .shade {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background: radial-gradient(56% 50% at 50% 47%,
+      rgba(6, 9, 13, 0.5) 0%, rgba(6, 9, 13, 0.22) 58%, transparent 84%);
+  }
+
+  [data-variant="b"] .shade {
+    background: linear-gradient(90deg,
+      rgba(6, 9, 13, 0.84) 0%, rgba(6, 9, 13, 0.64) 32%,
+      rgba(6, 9, 13, 0.24) 54%, transparent 72%);
+  }
+
+  body.no-bg .shade { display: none; }
+
+  .screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    padding: 48px 24px;
+    overflow: auto;
+  }
+
+  .screen > .menu {
+    position: relative;
+    z-index: 1;
+  }
+
+  .menu { width: min(380px, 86vw); }
+
+  .brand h1 {
+    margin: 0;
+    color: #eef3fa;
+    font-size: clamp(34px, 4.6vw, 46px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-shadow: 0 2px 14px rgba(4, 7, 11, 0.7);
+  }
+
+  .tagline {
+    margin: 10px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 8px rgba(4, 7, 11, 0.8);
+  }
+
+  .list { display: flex; flex-direction: column; }
+
+  .item {
+    position: relative;
+    display: block;
+    width: 100%;
+    padding: 9px 0;
+    border: 0;
+    background: none;
+    color: var(--text);
+    font: 600 19px/1.2 "Golos Text", system-ui, sans-serif;
+    text-align: left;
+    cursor: pointer;
+    text-shadow: 0 1px 6px rgba(4, 7, 11, 0.65);
+    transition: color 0.12s, background 0.12s, padding 0.12s;
+  }
+
+  .item:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .item .note { display: none; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translate(-50%, 8px);
+    padding: 8px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #10161f;
+    color: var(--text);
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.16s, transform 0.16s;
+  }
+
+  .toast.is-on { opacity: 1; transform: translate(-50%, 0); }
+
+  /* ---------- Переключатель макетов ---------- */
+
+  .switcher {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .switcher span {
+    color: var(--dim);
+    font: 500 10px/1 var(--mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .switcher button {
+    min-height: 28px;
+    padding: 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font: 500 11px/1 var(--mono);
+    cursor: pointer;
+    transition: color 0.12s, border-color 0.12s, background 0.12s;
+  }
+
+  .switcher button:hover { color: var(--text); }
+
+  .switcher button.is-active {
+    border-color: rgba(143, 179, 232, 0.6);
+    background: rgba(143, 179, 232, 0.1);
+    color: #eaf1fb;
+  }
+
+  .hint {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    color: var(--dim);
+    font: 500 10px/1.4 var(--mono);
+  }
+
+  /* ============================================================
+     A. Тихий список — по центру, без подписей и рамок
+     ============================================================ */
+
+  [data-variant="a"] .menu { text-align: center; }
+  [data-variant="a"] .brand { margin-bottom: 30px; }
+  [data-variant="a"] .tagline { margin-top: 12px; }
+
+  [data-variant="a"] .item {
+    padding: 8px 10px;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 19px;
+    text-align: center;
+  }
+
+  [data-variant="a"] .item:hover,
+  [data-variant="a"] .item.is-active {
+    color: #f0f5fc;
+    background: rgba(143, 179, 232, 0.07);
+  }
+
+  /* ============================================================
+     B. Консоль — слева, номера и подписи моноширинным
+     ============================================================ */
+
+  [data-variant="b"] .screen {
+    place-items: center start;
+    padding-left: clamp(28px, 12vw, 176px);
+  }
+
+  [data-variant="b"] .menu { width: min(540px, 84vw); }
+
+  [data-variant="b"] .brand { margin-bottom: 26px; }
+
+  [data-variant="b"] .brand h1 {
+    font: 700 32px/1 var(--mono);
+    letter-spacing: -0.02em;
+  }
+
+  [data-variant="b"] .tagline {
+    margin-top: 10px;
+    font: 400 11px/1.4 var(--mono);
+    letter-spacing: 0;
+  }
+
+  [data-variant="b"] .item {
+    display: grid;
+    grid-template-columns: 30px 190px minmax(0, 1fr);
+    align-items: baseline;
+    gap: 4px;
+    padding: 6px 0;
+    color: var(--text);
+    font: 500 16px/1.5 "Golos Text", system-ui, sans-serif;
+  }
+
+  [data-variant="b"] .item::before {
+    content: attr(data-n);
+    color: var(--dim);
+    font: 500 11px/1 var(--mono);
+  }
+
+  [data-variant="b"] .item .note {
+    display: block;
+    color: var(--dim);
+    font: 400 11px/1.4 var(--mono);
+    white-space: nowrap;
+  }
+
+  [data-variant="b"] .item:hover,
+  [data-variant="b"] .item.is-active {
+    color: #f0f5fc;
+  }
+
+  [data-variant="b"] .item:hover::before,
+  [data-variant="b"] .item.is-active::before {
+    color: var(--accent);
+  }
+
+  [data-variant="b"] .item:hover .note,
+  [data-variant="b"] .item.is-active .note {
+    color: var(--muted);
+  }
+
+  /* ============================================================
+     C. Крупный — большая строка, тонкие разделители
+     ============================================================ */
+
+  [data-variant="c"] .menu { width: min(560px, 88vw); }
+  [data-variant="c"] .brand { margin-bottom: 34px; }
+
+  [data-variant="c"] .brand h1 {
+    font-size: clamp(52px, 7vw, 78px);
+    letter-spacing: -0.035em;
+  }
+
+  [data-variant="c"] .tagline {
+    margin-top: 14px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--dim);
+  }
+
+  [data-variant="c"] .item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 15px 2px;
+    border-top: 1px solid var(--line);
+    color: #c6d2e2;
+    font: 500 20px/1.2 "Golos Text", system-ui, sans-serif;
+  }
+
+  [data-variant="c"] .item:last-child { border-bottom: 1px solid var(--line); }
+
+  [data-variant="c"] .item::after {
+    content: "";
+    width: 0;
+    height: 1px;
+    background: var(--accent);
+    transition: width 0.16s;
+  }
+
+  [data-variant="c"] .item:hover,
+  [data-variant="c"] .item.is-active {
+    padding-left: 12px;
+    color: #f0f5fc;
+  }
+
+  [data-variant="c"] .item:hover::after,
+  [data-variant="c"] .item.is-active::after { width: 24px; }
+
+  /* ============================================================
+     Пиксельный текст: Handjet из самой игры
+     ============================================================ */
+
+  body.pixel-font .brand h1,
+  body.pixel-font .item {
+    font-family: "Handjet", "Golos Text", system-ui, sans-serif;
+    font-weight: 900;
+  }
+
+  body.pixel-font[data-variant="a"] .brand h1 {
+    font-size: clamp(48px, 6.4vw, 66px);
+    letter-spacing: 0.01em;
+    line-height: 0.9;
+  }
+
+  body.pixel-font[data-variant="a"] .item {
+    font-size: 24px;
+    font-weight: 900;
+    letter-spacing: 0.015em;
+  }
+
+  body.pixel-font[data-variant="b"] .brand h1 {
+    font-size: 46px;
+    font-weight: 700;
+    line-height: 0.9;
+  }
+
+  body.pixel-font[data-variant="b"] .item {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+  }
+
+  body.pixel-font[data-variant="c"] .brand h1 {
+    font-size: clamp(68px, 9vw, 100px);
+    line-height: 0.84;
+  }
+
+  body.pixel-font[data-variant="c"] .item {
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: 0.015em;
+  }
+</style>
+</head>
+<body data-variant="a" class="pixel-font">
+
+<div class="bg" aria-hidden="true">
+  <div class="bg-layer" id="menu-dungeon-a"></div>
+  <div class="bg-layer" id="menu-dungeon-b"></div>
+  <div class="bg-scrim"></div>
+</div>
+
+<div class="screen">
+  <div class="shade" aria-hidden="true"></div>
+  <main class="menu">
+    <header class="brand">
+      <h1>PyDungeon</h1>
+      <p class="tagline">подземелье, где код — оружие</p>
+    </header>
+
+    <nav class="list" id="list" aria-label="Главное меню">
+      <button class="item" type="button" data-n="01" data-action="continue">Продолжить<span class="note">сохранённый поход</span></button>
+      <button class="item" type="button" data-n="02" data-action="new">Новая игра<span class="note">с начала</span></button>
+      <button class="item" type="button" data-n="03" data-action="load">Загрузить<span class="note">слоты</span></button>
+      <button class="item" type="button" data-n="04" data-action="codex">Справочник<span class="note">правила и код</span></button>
+      <button class="item" type="button" data-n="05" data-action="updates">Обновления<span class="note">что нового</span></button>
+      <button class="item" type="button" data-n="06" data-action="settings">Настройки<span class="note">звук и вид</span></button>
+      <button class="item" type="button" data-n="07" data-action="profile">Профиль<span class="note">игрок</span></button>
+      <button class="item" type="button" data-n="08" data-action="about">Об игре<span class="note">v1.9.8</span></button>
+    </nav>
+  </main>
+</div>
+
+<div class="switcher" aria-label="Варианты макета">
+  <span>макет</span>
+  <button type="button" data-variant-btn="a" class="is-active">1 тихий</button>
+  <button type="button" data-variant-btn="b">2 консоль</button>
+  <button type="button" data-variant-btn="c">3 крупный</button>
+  <button type="button" id="bg-toggle" aria-pressed="true">фон вкл</button>
+  <button type="button" id="font-toggle" aria-pressed="true">текст пиксель</button>
+</div>
+
+<div class="hint">↑ ↓ выбрать · Enter открыть · 1 2 3 макет · B фон · F шрифт</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="../terrain.js"></script>
+<script src="../menu-bg.js"></script>
+
+<script>
+(function () {
+  const items = Array.from(document.querySelectorAll(".item"));
+  const toast = document.getElementById("toast");
+  let active = 0;
+  let toastTimer = 0;
+
+  function paint() {
+    items.forEach((item, i) => {
+      const on = i === active;
+      item.classList.toggle("is-active", on);
+      item.setAttribute("aria-current", on ? "true" : "false");
+    });
+  }
+
+  function showToast(text) {
+    toast.textContent = text;
+    toast.classList.add("is-on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("is-on"), 1400);
+  }
+
+  function setVariant(name) {
+    document.body.dataset.variant = name;
+    document.querySelectorAll("[data-variant-btn]").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.variantBtn === name);
+    });
+  }
+
+  const bgToggle = document.getElementById("bg-toggle");
+  const bg = window.PyMenuBackground;
+
+  function setBackground(on) {
+    document.body.classList.toggle("no-bg", !on);
+    bgToggle.setAttribute("aria-pressed", on ? "true" : "false");
+    bgToggle.textContent = on ? "фон вкл" : "фон выкл";
+    bgToggle.classList.toggle("is-active", on);
+    if (!bg) return;
+    if (on) bg.show();
+    else bg.hide();
+  }
+
+  bgToggle.addEventListener("click", () => {
+    setBackground(document.body.classList.contains("no-bg"));
+  });
+
+  const fontToggle = document.getElementById("font-toggle");
+
+  function setPixelFont(on) {
+    document.body.classList.toggle("pixel-font", on);
+    fontToggle.setAttribute("aria-pressed", on ? "true" : "false");
+    fontToggle.textContent = on ? "текст пиксель" : "текст обычный";
+    fontToggle.classList.toggle("is-active", on);
+  }
+
+  fontToggle.addEventListener("click", () => {
+    setPixelFont(!document.body.classList.contains("pixel-font"));
+  });
+
+  if (bg) bg.show();
+
+  items.forEach((item, i) => {
+    item.addEventListener("mouseenter", () => { active = i; paint(); });
+    item.addEventListener("focus", () => { active = i; paint(); });
+    item.addEventListener("click", () => {
+      active = i;
+      paint();
+      showToast("Макет: «" + item.firstChild.textContent.trim() + "»");
+    });
+  });
+
+  document.querySelectorAll("[data-variant-btn]").forEach((btn) => {
+    btn.addEventListener("click", () => setVariant(btn.dataset.variantBtn));
+  });
+
+  document.addEventListener("keydown", (event) => {
+    const key = event.key;
+    if (key === "ArrowDown" || key === "ArrowUp") {
+      event.preventDefault();
+      active = (active + (key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      paint();
+      items[active].focus();
+      return;
+    }
+    if (key === "Enter" || key === " ") {
+      event.preventDefault();
+      items[active].click();
+      return;
+    }
+    if (["1", "2", "3"].indexOf(key) >= 0) {
+      setVariant(["a", "b", "c"][Number(key) - 1]);
+      return;
+    }
+    if (key === "b" || key === "B" || key === "и" || key === "И") {
+      setBackground(document.body.classList.contains("no-bg"));
+      return;
+    }
+    if (key === "f" || key === "F" || key === "а" || key === "А") {
+      setPixelFont(!document.body.classList.contains("pixel-font"));
+    }
+  });
+
+  paint();
+})();
+</script>
+</body>
+</html>
