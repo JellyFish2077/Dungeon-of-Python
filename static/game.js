@@ -486,7 +486,7 @@
     return { entry, gate };
   }
 
-  function genShortestPath(entry, gate, cw, ch) {
+  function genShortestPath(entry, gate, cw, ch, blocked) {
     const start = genCellKey(entry);
     const goal = genCellKey(gate);
     const queue = [{ cx: entry.cx, cy: entry.cy }];
@@ -498,6 +498,7 @@
         const next = { cx: cur.cx + dx, cy: cur.cy + dy };
         if (next.cx < 0 || next.cy < 0 || next.cx >= cw || next.cy >= ch) continue;
         const k = genCellKey(next);
+        if (blocked && blocked.has(k)) continue;
         if (parent.has(k)) continue;
         parent.set(k, cur);
         queue.push(next);
@@ -513,11 +514,12 @@
   }
 
   function genSpineStyle(biome) {
+    if (biome === "demons") return "radial";
     if (biome === "catacombs" || biome === "ice" || biome === "lair") return "straight";
     return "organic";
   }
 
-  function genSpineWalk(path, used, gate, want, cw, ch, rng, style) {
+  function genSpineWalk(path, used, gate, want, cw, ch, rng, style, blocked) {
     const last = path[path.length - 1];
     if (path.length === want) return genCellKey(last) === genCellKey(gate);
     if (genCellKey(last) === genCellKey(gate)) return false;
@@ -529,12 +531,23 @@
       if (next.cx < 0 || next.cy < 0 || next.cx >= cw || next.cy >= ch) continue;
       const k = genCellKey(next);
       if (used.has(k)) continue;
+      if (blocked && blocked.has(k)) continue;
       // Врата — только последняя клетка: зайти в них раньше нельзя.
       if (k === genCellKey(gate) && path.length + 1 !== want) continue;
-      // Лёгкий сдвиг к центру: без него путь часто липнет к краю карты,
-      // и все ветки остаются с одной стороны. Случайность сохраняется.
-      const edgeDist = Math.min(next.cx, next.cy, cw - 1 - next.cx, ch - 1 - next.cy);
-      let score = edgeDist + rng() * 1.2;
+      // Для демонов хребет идёт кольцом вокруг центрального разлома:
+      // комнаты встают по кругу, а не прорезают карту насквозь.
+      let score;
+      if (style === "radial") {
+        const cx = (cw - 1) / 2;
+        const cy = (ch - 1) / 2;
+        const ring = Math.max(1.2, Math.min(cw, ch) / 2 - 1);
+        score = -Math.abs(Math.hypot(next.cx - cx, next.cy - cy) - ring) + rng() * 1.1;
+      } else {
+        // Лёгкий сдвиг к центру: без него путь часто липнет к краю карты,
+        // и все ветки остаются с одной стороны. Случайность сохраняется.
+        const edgeDist = Math.min(next.cx, next.cy, cw - 1 - next.cx, ch - 1 - next.cy);
+        score = edgeDist + rng() * 1.2;
+      }
       if (style === "straight" && prevDir) {
         if (dx === prevDir[0] && dy === prevDir[1]) score += 2.4;
         else if (dx === -prevDir[0] && dy === -prevDir[1]) score -= 1.2;
@@ -545,7 +558,7 @@
     for (const option of options) {
       path.push(option.next);
       used.add(option.k);
-      if (genSpineWalk(path, used, gate, want, cw, ch, rng, style)) return true;
+      if (genSpineWalk(path, used, gate, want, cw, ch, rng, style, blocked)) return true;
       path.pop();
       used.delete(option.k);
     }
@@ -555,7 +568,7 @@
   // Самоизбегающий путь ровно из targetLen клеток. 300 попыток с
   // локальным RNG; если не вышло — кратчайший путь (валидатор этапа 1
   // отбракует слишком короткий хребет).
-  function genSpinePath(entry, gate, targetLen, cw, ch, rng, style) {
+  function genSpinePath(entry, gate, targetLen, cw, ch, rng, style, blocked) {
     const total = cw * ch;
     const minLen = genCellDist(entry, gate) + 1;
     let want = Math.max(minLen, Math.min(total, Math.floor(Number(targetLen) || minLen)));
@@ -568,9 +581,10 @@
     for (let attempt = 0; attempt < 300; attempt += 1) {
       const path = [{ cx: entry.cx, cy: entry.cy }];
       const used = new Set([genCellKey(entry)]);
-      if (genSpineWalk(path, used, gate, want, cw, ch, rng, style)) return path;
+      if (blocked) blocked.forEach((k) => used.add(k));
+      if (genSpineWalk(path, used, gate, want, cw, ch, rng, style, blocked)) return path;
     }
-    return genShortestPath(entry, gate, cw, ch);
+    return genShortestPath(entry, gate, cw, ch, blocked);
   }
 
   // Логические комнаты и связи. Геометрия (тайлы) появится на этапе 1.5:
@@ -624,7 +638,7 @@
 
   // Ветки-стебли: растут от внутренних комнат хребта, не касаются друг
   // друга и хребта, кроме точки крепления. Возвращает массив стеблей.
-  function genGrowBranches(spine, branchBudget, cw, ch, rng) {
+  function genGrowBranches(spine, branchBudget, cw, ch, rng, blocked) {
     const budget = Math.max(0, Math.floor(Number(branchBudget) || 0));
     if (!budget || spine.length < 3) return [];
     const spineKeys = new Set(spine.map(genCellKey));
@@ -653,6 +667,7 @@
           if (cell.cx < 0 || cell.cy < 0 || cell.cx >= cw || cell.cy >= ch) return false;
           const k = genCellKey(cell);
           if (spineKeys.has(k) || branchKeys.has(k)) return false;
+          if (blocked && blocked.has(k)) return false;
           const onSpine = adjacentCount(cell, spineKeys);
           const onBranch = adjacentCount(cell, branchKeys);
           // Первая клетка крепится к хребту; соседство с другой веткой
@@ -972,6 +987,19 @@
     return "rect";
   }
 
+  // Демоны: в центре крупной сетки остаётся разлом. Комнаты обходят его
+  // по кольцу, а не прорезают насквозь.
+  function genRiftCells(biome, cw, ch) {
+    if (biome !== "demons") return null;
+    const out = new Set();
+    const cx = Math.floor(cw / 2);
+    const cy = Math.floor(ch / 2);
+    // Один центральный «разлом»: этого достаточно, чтобы хребет обходил
+    // центр по кольцу, но веткам остаётся место для островов.
+    if (cx >= 0 && cy >= 0 && cx < cw && cy < ch) out.add(cx + "," + cy);
+    return out;
+  }
+
   function genRoomRect(cell, shape, rng) {
     const frame = genCellRect(cell);
     let w;
@@ -982,6 +1010,11 @@
     } else if (shape === "cross") {
       w = 6;
       h = 5;
+    } else if (shape === "island") {
+      // Остров меньше клетки: вокруг комнаты остаётся пролив, а не стена
+      // вплотную. Мосты-коридоры соединяют острова через этот пролив.
+      w = 6;
+      h = 4;
     } else {
       w = genInt(rng, 6, 7);
       h = genInt(rng, 4, 5);
@@ -1026,6 +1059,13 @@
       corners.forEach(([x, y]) => {
         if (rng() < 0.45) grid[y][x] = 0;
       });
+    } else if (room.shape === "island") {
+      // Скруглённый остров: углы срезаны всегда, поэтому комната не
+      // выглядит прямоугольной коробкой и лучше читается как остров.
+      grid[r.y][r.x] = 0;
+      grid[r.y][r.x + r.w - 1] = 0;
+      grid[r.y + r.h - 1][r.x] = 0;
+      grid[r.y + r.h - 1][r.x + r.w - 1] = 0;
     } else if (room.shape === "cross") {
       for (let dy = 0; dy < 2; dy += 1) {
         for (let dx = 0; dx < 2; dx += 1) {
@@ -1586,16 +1626,23 @@
     const rng = genRng(seed);
     const coarse = genCoarse(f.w, f.h);
     const ends = genPickEnds(coarse.cw, coarse.ch, rng);
+    // Радиальные острова — правило кампании v2. В десятиэтажной v1
+    // демонический этаж остаётся прежним, иначе старые сейвы и арены
+    // получают другую планировку.
+    const radial = f.campaign === 2 && f.biome === "demons";
+    const blocked = radial ? genRiftCells(f.biome, coarse.cw, coarse.ch) : null;
+    const style = radial ? "radial"
+      : (f.biome === "demons" ? "organic" : genSpineStyle(f.biome));
     const spineTarget = Math.max(4,
       Math.round(f.roomTarget * (1 - f.optionalShare)));
     const spine = genSpinePath(ends.entry, ends.gate, spineTarget,
-      coarse.cw, coarse.ch, rng, genSpineStyle(f.biome));
+      coarse.cw, coarse.ch, rng, style, blocked);
     // Длину хребта может сдвинуть чётность, поэтому ветки считаем от
     // целевой доли, а не от фактической длины: иначе доля веток падает.
     const branchTarget = Math.max(1,
       Math.round(f.roomTarget * f.optionalShare));
     const branches = genGrowBranches(spine, branchTarget,
-      coarse.cw, coarse.ch, rng);
+      coarse.cw, coarse.ch, rng, blocked);
     const plan = {
       version: 2,
       index,
@@ -1822,6 +1869,7 @@
     map: null,
     enemies: [],
     treasures: [],
+    tributes: [],
     lootBags: [],
     traders: [],
     equipment: { weapon: null, armor: null, accessory: null },
@@ -2555,6 +2603,7 @@
       stairsUp: index > 0 ? { x: gen.start.x, y: gen.start.y } : null,
       enemies: [],
       treasures: [],
+      tributes: [],
       lootBags: [],
       traders: [],
       traps: [],
@@ -3194,8 +3243,36 @@
     state.nodes = (state.nodes || []).concat(placePlanNodes(state, index, used, free));
     state.levers = (state.levers || []).concat(placePlanLever(state, used));
     state.signs = placePlanSigns(state, used);
+    state.tributes = placePlanTributes(state, f, index, used, free);
     placePlanHazards(state, index, used);
     return state;
+  }
+
+  // Дань дракону: кучи золота на двух этажах логова. Всего их пять —
+  // три на «Тёмной анфиладе», две в «Сокровищнице». Сумма фиксированная,
+  // чтобы игрок видел цену сделки, а не играл в лотерею.
+  function placePlanTributes(state, f, index, used, free) {
+    if (f.campaign !== 2 || f.biome !== "lair" || f.boss) return [];
+    const count = index === 12 ? 3 : (index === 13 ? 2 : 0);
+    if (!count) return [];
+    const out = [];
+    const grid = state.map.grid;
+    for (const spot of free) {
+      if (out.length >= count) break;
+      if (!spot || used.has(key(spot.x, spot.y))) continue;
+      if (!grid[spot.y] || grid[spot.y][spot.x] !== 1) continue;
+      if (Math.abs(spot.x - state.playerPos.x) +
+          Math.abs(spot.y - state.playerPos.y) < 3) continue;
+      used.add(key(spot.x, spot.y));
+      out.push({
+        uid: ++G.uid,
+        x: spot.x,
+        y: spot.y,
+        gold: 60 + Math.floor(Math.random() * 61),
+        taken: false
+      });
+    }
+    return out;
   }
 
   // Страж этажа: случайный вид из пула этажа, крепче обычного, на свободной
@@ -4072,6 +4149,7 @@
     G.stairsUp = state.stairsUp;
     G.enemies = state.enemies;
     G.treasures = state.treasures;
+    G.tributes = state.tributes || [];
     G.lootBags = state.lootBags || [];
     G.traders = state.traders || [];
     G.traps = state.traps || [];
@@ -4320,7 +4398,8 @@
     };
     if (!G.stats) {
       G.stats = { correct: 0, wrong: 0, codePassed: 0, codeTried: 0, copyPassed: 0,
-        copyTried: 0, hintsUsed: 0, goldEarned: 0, topicStats: {}, floorsCleared: 0, kills: 0 };
+        copyTried: 0, hintsUsed: 0, goldEarned: 0, tributeTaken: 0,
+        topicStats: {}, floorsCleared: 0, kills: 0 };
     }
     // В деревне героя нет, но панель деревни показывает, с чем он уйдёт
     // в подземелье: улучшения читаются из того же progressBonus.
@@ -4373,6 +4452,7 @@
     G.ground = kind === "house" ? 11 : VILLAGE_GROUND;
     G.enemies = [];
     G.treasures = [];
+    G.tributes = [];
     G.lootBags = [];
     G.traders = [];
     G.traps = [];
@@ -5292,6 +5372,11 @@
         (G.stairsDown && !G.stairsDown.active && !floorDef(index).boss
           ? "<p class='floor-hint'>Лестницу вниз охраняет страж: победи его, чтобы спуститься.</p>"
           : "");
+    }
+    const tribute = Math.min(5, (G.stats && G.stats.tributeTaken) || 0);
+    if (tribute > 0 && floorDef(index).biome === "lair") {
+      extra += "<p class='floor-hazard'>✦ Дракон помнит дань: " + tribute +
+        " из 5. В третьей фазе он будет крепче.</p>";
     }
     showFloorTitle(index, extra);
     const ev = typeof floorEvent === "function" ? floorEvent(index, campaign) : null;
@@ -6373,6 +6458,13 @@
     G.treasures.forEach((t) => {
       const vis = G.visible.has(key(t.x, t.y));
       place("treasure-" + t.uid, t.x, t.y, vis, "treasure", "ent-treasure", null, "Сундук", 2);
+    });
+
+    (G.tributes || []).forEach((t) => {
+      if (t.taken) return;
+      const vis = G.visible.has(key(t.x, t.y));
+      place("tribute-" + t.uid, t.x, t.y, vis, "lootBag", "ent-tribute", null,
+        "Куча золота · дань дракону", 2);
     });
 
     (G.traders || []).forEach((t) => {
@@ -7518,6 +7610,39 @@
     return true;
   }
 
+  // Дань дракону: золото сейчас, но дракон запоминает вора. Счётчик
+  // хранится в stats и переживает сохранение; в третьей фазе он усиливает
+  // дракона. Первая куча — с отдельным предупреждением.
+  function takeTribute(tribute) {
+    if (!tribute || tribute.taken) return false;
+    const idx = (G.tributes || []).indexOf(tribute);
+    if (idx < 0) return false;
+    G.tributes.splice(idx, 1);
+    const taken = Math.min(5, ((G.stats && G.stats.tributeTaken) || 0) + 1);
+    G.stats.tributeTaken = taken;
+    addGold(tribute.gold);
+    const first = taken === 1;
+    log("Дань дракону: +" + tribute.gold + " золота. Взято " + taken + " из 5.", "loot");
+    setMsg(first
+      ? "Дань дракону: дракон почувствует вора и станет сильнее в третьей фазе."
+      : "Дань дракону: " + taken + " из 5. Дракон запомнил.");
+    toast(first
+      ? "Ты взял дань. Дракон станет сильнее в третьей фазе."
+      : "+" + tribute.gold + " золота · дань " + taken + "/5", 4200);
+    render();
+    updateHud();
+    updateActionButton();
+    scheduleSave();
+    return true;
+  }
+
+  // Прибавка дракона за дань: не больше пяти куч, +4% HP и +2% урона
+  // за каждую. Вынесено отдельно, чтобы бой и проверки считали одинаково.
+  function tributeBossBonus(count) {
+    const n = Math.max(0, Math.min(5, Math.floor(Number(count) || 0)));
+    return { count: n, hpPct: n * 0.04, dmgPct: n * 0.02 };
+  }
+
   function countPotions() {
     return G.inventory.filter((i) => i.slot === "potion").length;
   }
@@ -8042,6 +8167,13 @@
       if (bag) {
         return { kind: "loot", label: "Подобрать мешочек с добычей", icon: "✦", obj: bag };
       }
+      const tribute = (G.tributes || []).find((t) => t.x === x && t.y === y && !t.taken);
+      if (tribute) {
+        return {
+          kind: "tribute", icon: "✦", obj: tribute,
+          label: "Взять дань: " + tribute.gold + " золота (дракон станет сильнее)"
+        };
+      }
       // НПС и двери — объекты деревни и домов.
       const npc = (G.npcs || []).find((n) => n.x === x && n.y === y);
       if (npc) return { kind: "npc", label: npc.name, icon: "☺", obj: npc };
@@ -8259,6 +8391,10 @@
     }
     if (target.kind === "loot") {
       pickupLootBag(target.obj);
+      return;
+    }
+    if (target.kind === "tribute") {
+      takeTribute(target.obj);
       return;
     }
     if (target.kind === "vault") {
@@ -9978,6 +10114,15 @@
         e.dmg = Math.round(e.dmg * 1.5);
         if (ability === "bossrage") {
           e.nextDmgMul = Math.max(e.nextDmgMul || 1, 1.25);
+          const tribute = tributeBossBonus(G.stats && G.stats.tributeTaken);
+          if (tribute.count > 0) {
+            const beforeMax = e.maxHp;
+            e.maxHp = Math.round(e.maxHp * (1 + tribute.hpPct));
+            e.hp = Math.min(e.maxHp, e.hp + (e.maxHp - beforeMax));
+            e.dmg = Math.round(e.dmg * (1 + tribute.dmgPct));
+            parts.push("Дракон чувствует дань: +" + Math.round(tribute.hpPct * 100) +
+              "% HP и +" + Math.round(tribute.dmgPct * 100) + "% урона.");
+          }
         }
         parts.push("Враг впадает в ярость!");
       }
@@ -11493,6 +11638,8 @@ function topicName(key) {
       ["Код", code],
       ["Повторение кода", copy],
     ];
+    const tribute = Math.min(5, s.tributeTaken || 0);
+    if (tribute > 0) rows.push(["Дань дракону", tribute + " из 5"]);
     let html = "<h3 class='run-title'>Итог похода</h3>" +
       "<div class='run-summary'>";
     rows.forEach((row) => {
@@ -13337,6 +13484,7 @@ function topicName(key) {
       copyTried: 0,
       hintsUsed: 0,
       goldEarned: 0,
+      tributeTaken: 0,
       topicStats: {},
       floorsCleared: 0,
       kills: 0,
@@ -13596,6 +13744,9 @@ function topicName(key) {
         y: e.y
       })),
       treasures: st.treasures.map((t) => ({ uid: t.uid, x: t.x, y: t.y, item: t.item })),
+      tributes: (st.tributes || []).map((t) => ({
+        uid: t.uid, x: t.x, y: t.y, gold: t.gold, taken: !!t.taken
+      })),
       lootBags: (st.lootBags || []).map((b) => ({
         uid: b.uid, x: b.x, y: b.y, gold: b.gold || 0,
         items: (b.items || []).map((item) => Object.assign({}, item))
@@ -13641,6 +13792,7 @@ function topicName(key) {
         )
       ),
       treasures: (o.treasures || []).map((t) => Object.assign({}, t)),
+      tributes: (o.tributes || []).map((t) => Object.assign({ taken: false }, t)),
       lootBags: (o.lootBags || []).map((b) => ({
         uid: b.uid, x: b.x, y: b.y, gold: b.gold || 0,
         items: (b.items || []).map((item) => Object.assign({}, item))
@@ -14186,7 +14338,7 @@ function topicName(key) {
       }
     }
     G.stats = Object.assign(
-      { streak: 0, bestStreak: 0, perfectHits: 0, eliteKills: 0 },
+      { streak: 0, bestStreak: 0, perfectHits: 0, eliteKills: 0, tributeTaken: 0 },
       data.stats || {}
     );
     G.visited = new Set(data.visited || [0]);

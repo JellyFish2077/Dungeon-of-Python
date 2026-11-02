@@ -6971,6 +6971,70 @@ if (vault) {
   log(buildBad === 0, "buildCheckedFloor: 15 этажей v2 без отказов", buildBad);
 }
 
+// Этап 4: радиальные острова демонов.
+{
+  const at = API.FLOORS_V2.findIndex((f) => f.biome === "demons" && !f.boss);
+  const f = API.FLOORS_V2[at];
+  const coarse = API.genCoarse(f.w, f.h);
+  const cx = Math.floor(coarse.cw / 2);
+  const cy = Math.floor(coarse.ch / 2);
+  let bad = 0;
+  for (let seed = 0; seed < 20; seed += 1) {
+    const gen = API.generateFloorV2(f, at, { seed });
+    const rooms = gen.plan.rooms || [];
+    if (!rooms.every((room) => room.shape === "island")) bad += 1;
+    if (rooms.some((room) => room.cell &&
+      room.cell.cx === cx && room.cell.cy === cy)) bad += 1;
+    if (API.genValidatePlan(gen.plan, gen.grid).length) bad += 1;
+  }
+  log(bad === 0, "демоны: острова вокруг центрального разлома", bad);
+}
+
+// Этап 4: дань дракону.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  const lairA = API.createFloorState(12);
+  const lairB = API.createFloorState(13);
+  const tributesOk = (state, want) => {
+    const list = state.tributes || [];
+    return list.length === want && list.every((t) =>
+      state.map.grid[t.y] && state.map.grid[t.y][t.x] === 1 &&
+      t.gold >= 60 && t.gold <= 120);
+  };
+  log(tributesOk(lairA, 3) && tributesOk(lairB, 2),
+    "дань: 3 кучи в анфиладе и 2 в сокровищнице, на полу",
+    (lairA.tributes || []).length + " + " + (lairB.tributes || []).length);
+  const round = API.deserializeFloor(API.serializeFloor(lairA));
+  log((round.tributes || []).length === 3 &&
+    round.tributes[0].gold === lairA.tributes[0].gold,
+    "дань переживает сохранение");
+
+  const t0 = API.tributeBossBonus(0);
+  const t3 = API.tributeBossBonus(3);
+  const t9 = API.tributeBossBonus(9);
+  log(t0.hpPct === 0 && Math.abs(t3.hpPct - 0.12) < 1e-9 &&
+    Math.abs(t3.dmgPct - 0.06) < 1e-9 && t9.count === 5,
+    "дань: +4% HP и +2% урона за кучу, максимум 5",
+    "3 кучи = " + Math.round(t3.hpPct * 100) + "% HP, " +
+    Math.round(t3.dmgPct * 100) + "% урона");
+
+  freshRun(0);
+  API.setCampaign(2);
+  API.activateFloor(12);
+  G.stats.tributeTaken = 0;
+  G.player.gold = 0;
+  const before = G.tributes.length;
+  const first = G.tributes[0];
+  const took = API.takeTribute(first);
+  log(took && G.stats.tributeTaken === 1 && G.player.gold >= 60 &&
+    G.tributes.length === before - 1,
+    "первая куча даёт золото и отмечает дань",
+    G.player.gold + " золота, дань " + G.stats.tributeTaken + "/5");
+  API.setCampaign(1);
+}
+
 // Этап 2: содержимое стоит по ролям комнат.
 {
   freshRun(0);
