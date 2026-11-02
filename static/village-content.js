@@ -7,6 +7,7 @@
 //   #  стена дома (не пройти)      .  трава                  p  дорожка
 //   T  дерево (не пройти)          F  забор (не пройти)      W  колодец (не пройти)
 //   C  костёр (пройти можно)       D  дверь в дом            d  запертая дверь
+//   S  табличка/указатель (пройти можно, текст — в VILLAGE_SIGNS)
 //   i  пол внутри дома (в деревне не встречается)
 //   G  страж у входа в подземелье (это НПС, а не препятствие)
 //   E  вход в подземелье (клетка под стражем)
@@ -21,26 +22,56 @@
 // состояние деревни в профиле.
 
 const VILLAGE_MAP = [
-  "TTTTTTTTTTTTTTTTTTTTTTTTTT",
-  "T........................T",
-  "T........................T",
-  "T.#####..#####...####....T",
-  "T.#####..#####...####....T",
-  "T.#####..#####...####....T",
-  "T.##D##..##D##...#d##....T",
-  "Tppppppppppppppppppppppp#T",
-  "TpppppppppppWppCpppppppp#T",
-  "T..#####..#####.####.....T",
-  "T..#####..#####.####TTT..T",
-  "T..#####..#####.#d##.....T",
-  "T..##D##..##d##.l........T",
-  "Tppppppppppppppppppppppp#T",
-  "T..FFF...................T",
-  "TTTTTTTTTTTTTTTTTTTTTTTTTT"
+  "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+  "T.........T........T.........T",
+  "T..#####.FFFFFFFFFFFF.#####..T",
+  "TT.#####.F.T.T..T.T.F.#####.TT",
+  "To.#####.F.T.o..o.T.F.#####o.T",
+  "T..##D##.FFFFF..FFFFF.##D##..T",
+  "T.pppppppppppppppppppppSpppppT",
+  "T#####pppppppppppppppppp#####T",
+  "T#####ppppppppWppCpppppp#####T",
+  "T#####pppppppoprctcppppp#####T",
+  "T##D##pppppppppppppppppp##d##T",
+  "T.ppppppSppppppppppppSppppppST",
+  "T.p#####pFFFFF..FFFFFp#####p.T",
+  "TTp#####pF.T.l..l.T.Fp#####paT",
+  "Tlp#####pF.To....oT.Fp#####poT",
+  "T.p##d##pFFFFF..FFFFFp##d##pTT",
+  "TTppppppppppppppppppppppppppTT",
+  "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
 ];
 
 // Где герой появляется в деревне (после загрузки, смерти и победы).
-const VILLAGE_SPAWN = { x: 4, y: 8 };
+const VILLAGE_SPAWN = { x: 25, y: 6 };
+
+// Указатели деревни. Одна доска у входа и таблички у недостроенных домов.
+// Текст живёт здесь, а «S» в раскладке только ставит табличку на клетку:
+// так надпись можно править, не трогая карту.
+const VILLAGE_SIGNS = [
+  {
+    x: 23, y: 6, title: "Указатель", subtitle: "Деревня",
+    text: "Банк ↑ · Староста ↖ · Торговец ↙ · Подземелье →"
+  },
+  {
+    x: 8, y: 11, title: "Строится", subtitle: "Амбар",
+    text: "Амбар заколочен: нужны доски и ключ со стража лестницы.",
+    building: "barn", builtTitle: "Открыто", builtSubtitle: "Амбар",
+    builtText: "Амбар снова открыт: материалы на складе."
+  },
+  {
+    x: 21, y: 11, title: "Строится", subtitle: "Кузница",
+    text: "Кузница ждёт руду и дерево — тогда в ней снова застучат молоты.",
+    building: "forge", builtTitle: "Открыто", builtSubtitle: "Кузница",
+    builtText: "Кузница работает: горн разожжён."
+  },
+  {
+    x: 28, y: 11, title: "Строится", subtitle: "Дом мастера",
+    text: "Дом мастера пуст: сначала подними кузницу и найди печать мастера.",
+    building: "smith", builtTitle: "Открыто", builtSubtitle: "Дом мастера",
+    builtText: "Мастер снова за верстаком."
+  }
+];
 
 // Тема земли деревни: служебный индекс 10 — собственный грунт деревни
 // (TERRAIN_VILLAGE.ground), а не один из подземных этажей.
@@ -70,6 +101,7 @@ const VILLAGE_TILES = {
   "d": { floor: 0, kind: "locked" },
   // Дверь комнаты (внутри дома) — наоборот, проходимая: с неё игрок выходит.
   "X": { floor: 1, kind: "door" },
+  "S": { floor: 1, decor: 1, kind: "sign" },
   "G": { floor: 1, decor: 1, kind: "guard" },
   "E": { floor: 1, decor: 1, kind: "entrance" },
   // Маркеры НПС в раскладках: «1» — место жителя. Кто именно там стоит —
@@ -98,22 +130,24 @@ const VILLAGE_TILES = {
 // обязан с ними совпадать — это проверяется при загрузке, поэтому опечатка
 // падает сразу и с понятным текстом, а не тихо рисует дом мимо.
 //   door — координаты двери; она же задаёт, где фасад (с той стороны дом
-//   выходит на улицу). exit — клетка двери внутри комнаты.
+//   выходит на улицу). В деревне дверь всегда на нижней стене (y === y1):
+//   тогда фасад смотрит вниз, а крыша стоит над ним, а не под ним.
+//   exit — клетка двери внутри комнаты.
 const VILLAGE_HOUSES = {
-  trader: {
-    name: "Дом торговца", roof: "red",
-    box: { x0: 2, y0: 3, x1: 6, y1: 6 },
-    door: { x: 4, y: 6 }, exit: { x: 4, y: 6 }
-  },
   elder: {
     name: "Дом старосты", roof: "blue",
-    box: { x0: 9, y0: 3, x1: 13, y1: 6 },
-    door: { x: 11, y: 6 }, exit: { x: 4, y: 6 }
+    box: { x0: 3, y0: 2, x1: 7, y1: 5 },
+    door: { x: 5, y: 5 }, exit: { x: 4, y: 6 }
   },
-  mentor: {
-    name: "Дом наставника", roof: "green",
-    box: { x0: 3, y0: 9, x1: 7, y1: 12 },
-    door: { x: 5, y: 12 }, exit: { x: 4, y: 6 }
+  bank: {
+    name: "Банк", roof: "green",
+    box: { x0: 22, y0: 2, x1: 26, y1: 5 },
+    door: { x: 24, y: 5 }, exit: { x: 4, y: 6 }
+  },
+  trader: {
+    name: "Дом торговца", roof: "red",
+    box: { x0: 1, y0: 7, x1: 5, y1: 10 },
+    door: { x: 3, y: 10 }, exit: { x: 4, y: 6 }
   }
 };
 
@@ -126,15 +160,15 @@ const VILLAGE_HOUSES = {
 const VILLAGE_SEALED = [
   {
     key: "barn", name: "Амбар", roof: "brown", locked: true,
-    box: { x0: 17, y0: 3, x1: 20, y1: 6 }, door: { x: 18, y: 6 }, exit: { x: 4, y: 6 }
+    box: { x0: 3, y0: 12, x1: 7, y1: 15 }, door: { x: 5, y: 15 }, exit: { x: 4, y: 6 }
   },
   {
     key: "smith", name: "Дом мастера", roof: "brown", locked: true,
-    box: { x0: 10, y0: 9, x1: 14, y1: 12 }, door: { x: 12, y: 12 }, exit: { x: 4, y: 6 }
+    box: { x0: 24, y0: 7, x1: 28, y1: 10 }, door: { x: 26, y: 10 }, exit: { x: 4, y: 6 }
   },
   {
     key: "forge", name: "Кузница", roof: "brown", locked: true,
-    box: { x0: 16, y0: 9, x1: 19, y1: 11 }, door: { x: 17, y: 11 }, exit: { x: 4, y: 6 }
+    box: { x0: 22, y0: 12, x1: 26, y1: 15 }, door: { x: 24, y: 15 }, exit: { x: 4, y: 6 }
   }
 ];
 
@@ -160,7 +194,8 @@ function villageBuildingList() {
 //   "roof"   — крыша дома; у неё есть вид (конёк/скат/свес) и цвет дома
 //   "facade" — стена дома со стороны улицы
 //   "window" — окно на фасаде
-function villageMaterials(parsed) {
+function villageMaterials(parsed, built) {
+  built = built || {};
   const w = parsed.w, h = parsed.h;
   const mat = [], roofKind = [], roofColor = [];
   const props = [];
@@ -218,6 +253,28 @@ function villageMaterials(parsed) {
     // Труба на дальней от фасада стороне крыши: с ней дом перестаёт быть
     // плоским прямоугольником.
     props.push({ x: box.x1 - 1, y: far, kind: "chimney" });
+    // Леса у недостроенных домов: подмостки по углам фасада. Это только
+    // вид — дом и так непроходим, а новые тайлы для строек не нужны.
+    if (b.locked && !built[b.key]) {
+      props.push({ x: box.x0, y: facadeY, kind: "scaffold" });
+      props.push({ x: box.x1, y: facadeY, kind: "scaffold" });
+      props.push({ x: box.x0, y: near, kind: "scaffold" });
+      props.push({ x: box.x1, y: near, kind: "scaffold" });
+    } else if (b.locked) {
+      // Постройка поднята: леса убраны, у фасада появились припасы.
+      // Кузница ещё и топится — огонёк у её стены.
+      if (b.key === "barn") {
+        props.push({ x: box.x0, y: facadeY, kind: "crate" });
+        props.push({ x: box.x1, y: facadeY, kind: "barrel" });
+      } else if (b.key === "forge") {
+        props.push({ x: box.x0, y: facadeY, kind: "barrel" });
+        props.push({ x: box.x1, y: facadeY, kind: "crate" });
+        props.push({ x: box.x1 + 2, y: box.y0, kind: "fire" });
+      } else if (b.key === "smith") {
+        props.push({ x: box.x0, y: facadeY, kind: "crate" });
+        props.push({ x: box.x1, y: facadeY, kind: "barrel" });
+      }
+    }
   });
   return { mat: mat, roofKind: roofKind, roofColor: roofColor, props: props };
 }
@@ -234,58 +291,58 @@ function villageMaterials(parsed) {
 const HOUSE_MAPS = {
   trader: [
     "#########",
-    "#s#iii#r#",
-    "#i1iiiii#",
-    "#iiiiiii#",
-    "#iiiiini#",
+    "#siiiirr#",
+    "#rii1iis#",
+    "#inninni#",
+    "#iciiiti#",
     "#iiiiiii#",
     "####X####"
   ],
   elder: [
     "#########",
-    "#siiiibi#",
-    "#i1iiiii#",
+    "#siiiiib#",
     "#iiiiiii#",
-    "#i###itc#",
+    "#i1tttii#",
+    "#ficicis#",
     "#iiiiiii#",
     "####X####"
   ],
-  mentor: [
+  bank: [
     "#########",
-    "#siiiiii#",
-    "#i1iiiii#",
+    "#siiii#r#",
+    "#tci1i#r#",
+    "#inninni#",
     "#iiiiiii#",
-    "#ki###tc#",
-    "#iiiiiii#",
+    "#riiiiic#",
     "####X####"
   ],
   // Амбар: кладовка. Полки вдоль стен, к ним и подходят за припасами.
   barn: [
     "#########",
-    "#r#r#r#r#",
-    "#i1iiiii#",
-    "#iiiiiii#",
-    "#iiiiiii#",
-    "#rir#irs#",
+    "#riririr#",
+    "#siiiiir#",
+    "#iiitiii#",
+    "#iii1iii#",
+    "#risiirs#",
     "####X####"
   ],
-  // Кузница: горн стоит отдельно, чтобы он не перекрывал проход от двери.
+  // Кузница: горн и наковальня рядом, кузнец между ними.
   forge: [
     "#########",
-    "#wii#iii#",
-    "#i1iiiii#",
+    "#wiiiiir#",
+    "#ifi1ais#",
     "#iiiiiii#",
-    "#fiii#ai#",
+    "#ikiiiri#",
     "#iiiiiii#",
     "####X####"
   ],
-  // Мастерская: верстак в углу, у стены.
+  // Мастерская: верстак за спиной мастера, стол и ящики по краям.
   smith: [
     "#########",
-    "#s###iri#",
-    "#i1iiiii#",
-    "#iiiiiii#",
-    "#iiii#wi#",
+    "#siiiiir#",
+    "#riiiiis#",
+    "#iiiwiii#",
+    "#iti1iri#",
     "#iiiiiii#",
     "####X####"
   ]
@@ -296,13 +353,14 @@ const HOUSE_MAPS = {
 // Маркер «1» в комнатах ставится там, где стоит житель: сам он берётся отсюда,
 // поэтому координаты жителя и маркера должны совпадать.
 const VILLAGE_NPCS = [
-  { key: "guard", name: "Страж входа", place: "village", at: { x: 21, y: 7 } },
-  { key: "trader", name: "Торговец", place: "trader", at: { x: 2, y: 3 } },
-  { key: "elder", name: "Староста", place: "elder", at: { x: 2, y: 2 } },
-  { key: "mentor", name: "Наставник", place: "mentor", at: { x: 2, y: 2 } },
-  { key: "blacksmith", name: "Кузнец", place: "forge", at: { x: 2, y: 2 } },
-  { key: "master", name: "Мастер", place: "smith", at: { x: 2, y: 2 } },
-  { key: "storekeeper", name: "Кладовщик", place: "barn", at: { x: 2, y: 2 } }
+  { key: "guard", name: "Страж входа", place: "village", at: { x: 27, y: 6 } },
+  { key: "trader", name: "Торговец", place: "trader", at: { x: 4, y: 2 } },
+  { key: "elder", name: "Староста", place: "elder", at: { x: 2, y: 3 } },
+  { key: "mentor", name: "Наставник", place: "village", at: { x: 10, y: 8 } },
+  { key: "banker", name: "Казначей", place: "bank", at: { x: 4, y: 2 } },
+  { key: "blacksmith", name: "Кузнец", place: "forge", at: { x: 4, y: 2 } },
+  { key: "master", name: "Мастер", place: "smith", at: { x: 4, y: 4 } },
+  { key: "storekeeper", name: "Кладовщик", place: "barn", at: { x: 4, y: 4 } }
 ];
 
 // Разбор раскладки в ту же форму, что отдаёт generateMap в game.js:
@@ -327,7 +385,24 @@ function villageParseMap(rows) {
       if (!tile) throw new Error("деревня: незнакомый символ «" + rows[y][x] + "» в " + x + "," + y);
       gr.push(tile.floor);
       dr.push(tile.decor || 0);
-      if (tile.kind) objects.push({ x: x, y: y, kind: tile.kind, blocked: !!tile.blocked });
+      if (tile.kind) {
+        const obj = { x: x, y: y, kind: tile.kind, blocked: !!tile.blocked };
+        // Табличка без текста — это опечатка в карте: лучше упасть сразу.
+        if (tile.kind === "sign") {
+          const sign = VILLAGE_SIGNS.filter((s) => s.x === x && s.y === y)[0];
+          if (!sign) {
+            throw new Error("деревня: у таблички в " + x + "," + y + " нет текста");
+          }
+          obj.title = sign.title;
+          obj.subtitle = sign.subtitle;
+          obj.text = sign.text;
+          obj.building = sign.building;
+          obj.builtTitle = sign.builtTitle;
+          obj.builtSubtitle = sign.builtSubtitle;
+          obj.builtText = sign.builtText;
+        }
+        objects.push(obj);
+      }
     }
     grid.push(gr);
     decor.push(dr);

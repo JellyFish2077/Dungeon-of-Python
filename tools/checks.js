@@ -1,6 +1,7 @@
 // ================= 1. Контент =================
 log(API.ENEMY_TYPES.length === 20, "ENEMY_TYPES = 20 видов", API.ENEMY_TYPES.length);
-log(API.FLOORS.length === 10, "FLOORS = 10 этажей (5 биомов)", API.FLOORS.length);
+log(API.FLOORS_V1.length === 10, "FLOORS_V1 = 10 этажей (5 биомов)", API.FLOORS_V1.length);
+log(API.FLOORS_V2.length === 15, "FLOORS_V2 = 15 этажей (5 биомов)", API.FLOORS_V2.length);
 log(API.ITEM_POOL.length >= 29, "ITEM_POOL >= 29 предметов", API.ITEM_POOL.length);
 // Банк заданий растёт (сейчас 13 и 10), поэтому порог, а не точное число:
 // проверка ловит несобранный банк, а не добавленное задание.
@@ -12,8 +13,10 @@ log(API.QUESTIONS.length >= 85, "QUESTIONS >= 85", API.QUESTIONS.length);
 log(!!API.TERRAIN_DECOR_NAMES && !!API.TERRAIN_DECOR_NAMES[10], "новые декорации 6..10 загружены",
   API.TERRAIN_DECOR_NAMES ? Object.keys(API.TERRAIN_DECOR_NAMES).length + " видов" : "нет");
 log(API.TRAP_TYPES.length === 6, "TRAP_TYPES = 6 ловушек", API.TRAP_TYPES.length);
-log(API.FLOOR_EPILOGUES.length === 10, "эпиграфов на 10 этажей", API.FLOOR_EPILOGUES.length);
-log(API.FLOOR_EVENTS.length === 10, "событий на 10 этажей", API.FLOOR_EVENTS.length);
+log(API.FLOOR_EPILOGUES_V1.length === 10, "эпиграфов на 10 этажей v1", API.FLOOR_EPILOGUES_V1.length);
+log(API.FLOOR_EPILOGUES_V2.length === 15, "эпиграфов на 15 этажей v2", API.FLOOR_EPILOGUES_V2.length);
+log(API.FLOOR_EVENTS_V1.length === 10, "событий на 10 этажей v1", API.FLOOR_EVENTS_V1.length);
+log(API.FLOOR_EVENTS_V2.length === 15, "событий на 15 этажей v2", API.FLOOR_EVENTS_V2.length);
 const withQuips = API.ENEMY_TYPES.filter((t) => (API.ENEMY_QUIPS[t.key] || []).length);
 log(withQuips.length === 20, "реплики есть у всех 20 врагов", withQuips.length);
 
@@ -218,8 +221,9 @@ const leverFloor = tries(30, () => {
 });
 log(leverFloor >= 0, "рядом с тайником стоит рычаг");
 quietFloor(4);
-if ((G.levers || []).length) {
-  const lever = G.levers[0];
+const vaultLever = (G.levers || []).find((l) => API.vaultByUid(l.vault));
+if (vaultLever) {
+  const lever = vaultLever;
   const vaultOfLever = API.vaultByUid(lever.vault);
   G.playerPos = { x: lever.x, y: lever.y - 1 };
   API.openLever(lever);
@@ -266,11 +270,16 @@ const leverFloor2 = tries(30, () => {
   return (G.levers || []).length > 0;
 });
 quietFloor(4);
-if ((G.levers || []).length) {
-  const lv = G.levers[0];
+const shockLever = (G.levers || []).find((l) => {
+  if (!l.shortcut) return !!API.vaultByUid(l.vault);
+  const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
+  return sc && sc.kind === "collapse";
+});
+if (shockLever) {
+  const lv = shockLever;
   G.playerPos = { x: lv.x, y: lv.y };
   const lvTarget = API.interactTarget();
-  log(/тайник/i.test(lvTarget.label), "в подписи рычага сказано про тайник", lvTarget.label);
+  log(/рычаг|обвал|тайник/i.test(lvTarget.label), "в подписи рычага сказано, что он делает", lvTarget.label);
   API.openLever(lv);
   const lvHtml = el("dialog-box").innerHTML;
   log(/не убьёт/i.test(lvHtml) && /током/i.test(lvHtml),
@@ -2450,8 +2459,10 @@ log(hazKeys.every((k) => {
   const h = API.HAZARD_TYPES[k];
   return h.key === k && h.name && h.text && h.hint && h.icon;
 }), "у каждой среды есть имя, описание, подсказка и значок");
-log(API.FLOOR_HAZARD.length === API.FLOORS.length, "среда расписана по всем этажам",
-  API.FLOOR_HAZARD.length);
+log(API.FLOOR_HAZARD_V1.length === API.FLOORS_V1.length, "среда v1 расписана по всем этажам",
+  API.FLOOR_HAZARD_V1.length);
+log(API.FLOOR_HAZARD_V2.length === API.FLOORS_V2.length, "среда v2 расписана по всем этажам",
+  API.FLOOR_HAZARD_V2.length);
 log(API.floorHazard(4).key === "frost" && API.floorHazard(6).key === "lava" &&
   API.floorHazard(8).key === "dark", "среда стоит на обычных этажах 5, 7 и 9",
   [4, 6, 8].map((i) => API.floorHazard(i).key).join(", "));
@@ -3231,8 +3242,10 @@ G.battle = null;
 // ================= 23. Пункт 5: бесконечный режим =================
 // Замысел: после десятого этажа подземелье не кончается — этажи
 // синтезируются, а не берутся из короткого массива FLOORS.
-log(API.FLOORS.length === 10, "в FLOORS десять этажей — пять биомов",
-  API.FLOORS.length);
+log(API.FLOORS_V1.length === 10, "в FLOORS_V1 десять этажей — пять биомов",
+  API.FLOORS_V1.length);
+log(API.FLOORS_V2.length === 15, "в FLOORS_V2 пятнадцать этажей — пять биомов",
+  API.FLOORS_V2.length);
 const deep = API.floorDef(API.FLOORS.length + 1);
 log(!!deep && !!deep.name, "за десятым этажом описание этажа синтезируется",
   deep && deep.name);
@@ -3737,6 +3750,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(v8 > v0, "тот же предмет в глубине продаётся дороже", v0 + " -> " + v8);
   freshRun(0);
   G.shopTrader = true;
+  G.traderFloor = null;
   const ware = { kind: "random", slot: "weapon", price: 40 };
   const w0 = API.warePrice(ware);
   G.floorIndex = 8;
@@ -5392,6 +5406,19 @@ API.enterVillage(null);
 log(G.place === "village", "герой входит в деревню", G.place);
 log(G.map && G.map.w === API.VILLAGE_MAP[0].length && G.map.h === API.VILLAGE_MAP.length,
   "карта деревни собрана из раскладки", G.map && (G.map.w + "x" + G.map.h));
+log(G.map && G.map.w === 30 && G.map.h === 18,
+  "карта деревни 30×18 — под площадь и широкие дорожки", G.map && (G.map.w + "x" + G.map.h));
+log(API.villageBuildingList().length === 6,
+  "в деревне шесть зданий", String(API.villageBuildingList().length));
+log(API.VILLAGE_NPCS.length === 8,
+  "в деревне восемь жителей", String(API.VILLAGE_NPCS.length));
+const facadeBad = API.villageBuildingList().filter((b) => b.door.y !== b.box.y1);
+log(facadeBad.length === 0,
+  "у всех домов фасад снизу — дома не перевёрнуты",
+  facadeBad.map((b) => b.key).join("; ") || "все фасады смотрят на юг");
+log(G.discovered.size === G.map.h * G.map.w,
+  "в деревне открыта вся карта для мини-карты",
+  G.discovered.size + " из " + (G.map.h * G.map.w));
 log(G.map.grid[G.playerPos.y][G.playerPos.x] === 1, "герой появился на проходимой клетке");
 log(G.enemies.length === 0 && G.traps.length === 0 && !G.hazard,
   "в деревне нет монстров, ловушек и среды");
@@ -5419,19 +5446,103 @@ const reachBad = [];
 log(reachBad.length === 0, "от точки появления достижимы все НПС и двери",
   reachBad.join("; ") || "всё достижимо");
 
+// Подпись двери называет здание: «Войти: Банк», а не «Войти в дом».
+const doorLabelBad = [];
+Object.keys(API.VILLAGE_HOUSES).forEach((hkey) => {
+  const h = API.VILLAGE_HOUSES[hkey];
+  const front = {
+    x: h.door.x,
+    y: h.door.y === h.box.y0 ? h.door.y - 1 : h.door.y + 1
+  };
+  if (!walkableAt(front)) {
+    doorLabelBad.push(hkey + ": нет клетки перед дверью");
+    return;
+  }
+  G.playerPos = { x: front.x, y: front.y };
+  const t = API.interactTarget();
+  if (!t || t.kind !== "door" || String(t.label).indexOf(h.name) < 0) {
+    doorLabelBad.push(hkey + ": " + (t && t.label));
+  }
+});
+log(doorLabelBad.length === 0, "подпись двери называет здание",
+  doorLabelBad.join("; ") || "все двери подписаны");
+
+// Указатель у входа и таблички у строек: текст берётся из VILLAGE_SIGNS,
+// а «S» в раскладке только ставит табличку на клетку.
+log(API.VILLAGE_SIGNS.length >= 4, "на карте есть указатель и таблички строек",
+  String(API.VILLAGE_SIGNS.length));
+const signBad = API.VILLAGE_SIGNS.filter((s) => {
+  const tile = API.VILLAGE_MAP[s.y] && API.VILLAGE_MAP[s.y][s.x];
+  return tile !== "S" || !s.text;
+});
+log(signBad.length === 0, "каждая табличка стоит на клетке «S» и имеет текст",
+  signBad.map((s) => s.x + "," + s.y).join("; ") || "все таблички на месте");
+const board = API.VILLAGE_SIGNS.find((s) => /Указатель/.test(s.title || ""));
+G.playerPos = { x: board.x, y: board.y };
+const boardTarget = API.interactTarget();
+log(!!boardTarget && boardTarget.kind === "sign", "у входа можно прочитать указатель",
+  boardTarget && boardTarget.kind);
+API.doInteract();
+const boardText = el("dialog-box").innerHTML;
+log(/Банк/.test(boardText) && /Староста/.test(boardText) &&
+  /Торговец/.test(boardText) && /Подземелье/.test(boardText),
+  "указатель перечисляет банк, старосту, торговца и подземелье");
+API.closeDialog();
+
+const sealSignBad = API.VILLAGE_SEALED.filter((b) =>
+  !API.VILLAGE_SIGNS.some((s) => s.subtitle === b.name && /Строит/.test(s.title || "")));
+log(sealSignBad.length === 0, "у каждого недостроенного дома есть табличка «Строится»",
+  sealSignBad.map((b) => b.name).join("; ") || "все стройки подписаны");
+const scaffoldBad = API.VILLAGE_SEALED.filter((b) => {
+  const n = (G.scenery || []).filter((o) => o.kind === "scaffold" &&
+    o.x >= b.box.x0 && o.x <= b.box.x1 && o.y >= b.box.y0 && o.y <= b.box.y1).length;
+  return n < 2;
+});
+log(scaffoldBad.length === 0, "у недостроенных домов стоят декоративные леса",
+  scaffoldBad.map((b) => b.name).join("; ") || "леса у всех трёх строек");
+const signReachBad = API.VILLAGE_SIGNS.filter((s) =>
+  !walkableAt({ x: s.x, y: s.y }) ||
+  API.findPath(API.VILLAGE_SPAWN, { x: s.x, y: s.y }) === null);
+log(signReachBad.length === 0, "к каждой табличке можно подойти от входа",
+  signReachBad.map((s) => s.x + "," + s.y).join("; ") || "все таблички доступны");
+
+// Запертая дверь тоже называет постройку, а не просто «дверь заперта».
+const lockedLabelBad = [];
+API.VILLAGE_SEALED.forEach((b) => {
+  const front = {
+    x: b.door.x,
+    y: b.door.y === b.box.y0 ? b.door.y - 1 : b.door.y + 1
+  };
+  if (!walkableAt(front)) {
+    lockedLabelBad.push(b.name + ": нет клетки перед дверью");
+    return;
+  }
+  G.playerPos = { x: front.x, y: front.y };
+  const t = API.interactTarget();
+  if (!t || t.kind !== "build" || String(t.label).indexOf(b.name) < 0) {
+    lockedLabelBad.push(b.name + ": " + (t && t.label));
+  }
+});
+log(lockedLabelBad.length === 0, "запертая дверь называет постройку",
+  lockedLabelBad.join("; ") || "все три стройки подписаны");
+
 // Дом непроходим целиком: стены и сама дверь — часть стены. Внутрь ведёт
 // только взаимодействие с дверью; шагом через проём попасть нельзя.
 // Координаты берём из данных, а не числами: правка карты не должна ломать
 // проверку — она должна проверять правило.
 const traderDoor = API.VILLAGE_HOUSES.trader.door;
-const inFront = { x: traderDoor.x, y: traderDoor.y + 1 };
+const traderBox = API.VILLAGE_HOUSES.trader.box;
+const inFront = {
+  x: traderDoor.x,
+  y: traderDoor.y === traderBox.y0 ? traderDoor.y - 1 : traderDoor.y + 1
+};
 log(G.map.grid[traderDoor.y][traderDoor.x] === 0,
   "дверь дома — часть стены, а не проём", G.map.grid[traderDoor.y][traderDoor.x]);
 log(G.map.grid[inFront.y] && G.map.grid[inFront.y][inFront.x] === 1,
   "перед дверью есть клетка улицы", inFront.x + "," + inFront.y);
 G.playerPos = { x: inFront.x, y: inFront.y };
 const stepFrom = G.playerPos.x + "," + G.playerPos.y;
-API.move(0, -1);
+API.move(0, traderDoor.y > inFront.y ? 1 : -1);
 log(G.playerPos.x + "," + G.playerPos.y === stepFrom,
   "шагом в дом не войти", G.playerPos.x + "," + G.playerPos.y);
 log(G.place === "village", "и шаг в стену внутрь не переносит", G.place);
@@ -5527,6 +5638,49 @@ Object.keys(API.VILLAGE_HOUSES).forEach((key) => {
 log(houseBad.length === 0,
   "в каждом доме из двери есть выход, а все клетки комнаты достижимы",
   houseBad.join("; ") || "все " + Object.keys(API.VILLAGE_HOUSES).length + " дома проходимы");
+
+// Проверка с учётом мебели: клетка пола под мебелью проходит по grid, но
+// actual move() её не пропускает. Считаем только реально проходимые клетки
+// и проверяем, что дверь, житель и каждая такая клетка связаны.
+const houseWalkBad = [];
+Object.keys(API.HOUSE_MAPS).forEach((key) => {
+  API.enterHouse(key);
+  const exit = API.villageBuildingByKey(key).exit;
+  const npc = (G.npcs || [])[0];
+  const w = G.map.w, h = G.map.h;
+  const walk = (x, y) => !!(G.map.grid[y] && G.map.grid[y][x] === 1 &&
+    !API.cellBlocked(x, y));
+  if (!walk(exit.x, exit.y)) houseWalkBad.push(key + ": дверь не проходима");
+  const seen = new Set([exit.x + "," + exit.y]);
+  const queue = [[exit.x, exit.y]];
+  while (queue.length) {
+    const cur = queue.shift();
+    [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+      const nx = cur[0] + dx, ny = cur[1] + dy;
+      if (nx < 0 || ny < 0 || nx >= w || ny >= h || !walk(nx, ny)) return;
+      const k = nx + "," + ny;
+      if (seen.has(k)) return;
+      seen.add(k);
+      queue.push([nx, ny]);
+    });
+  }
+  let total = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) if (walk(x, y)) total++;
+  }
+  if (seen.size !== total) {
+    houseWalkBad.push(key + ": проходимо " + seen.size + " из " + total);
+  }
+  if (npc && !seen.has(npc.x + "," + npc.y)) {
+    houseWalkBad.push(key + ": житель отрезан мебелью");
+  }
+  if (npc && !walk(npc.x, npc.y + 1)) {
+    houseWalkBad.push(key + ": перед жителем нет клетки");
+  }
+});
+log(houseWalkBad.length === 0,
+  "мебель не отрезает проход: от двери можно дойти до жителя и до каждой клетки",
+  houseWalkBad.join("; ") || Object.keys(API.HOUSE_MAPS).length + " комнат проверено");
 API.enterVillage(null);
 
 // Каждая непостроенная постройка должна быть заперта: у кузницы однажды
@@ -5568,6 +5722,41 @@ if (lockedDoor) {
   }
 }
 
+// Живая деревня: после постройки леса и «Строится» должны исчезнуть,
+// а у фасада — появиться припасы. Проверяем все три восстанавливаемых дома.
+resetProgress();
+API.enterVillage(null);
+const sealBox = (key) => API.VILLAGE_SEALED.find((b) => b.key === key);
+const scaffoldCount = (key) => {
+  const b = sealBox(key);
+  return (G.scenery || []).filter((o) => o.kind === "scaffold" &&
+    o.x >= b.box.x0 && o.x <= b.box.x1 &&
+    o.y >= b.box.y0 && o.y <= b.box.y1).length;
+};
+const signAtCell = (x, y) => (G.scenery || [])
+  .find((o) => o.kind === "sign" && o.x === x && o.y === y);
+log(scaffoldCount("barn") > 0 && signAtCell(8, 11).title === "Строится",
+  "до постройки амбар стоит в лесах и подписан «Строится»");
+log(payFor("barn"), "амбар восстанавливается");
+log(scaffoldCount("barn") === 0 && signAtCell(8, 11).title === "Открыто",
+  "после постройки леса убраны, табличка сменилась на «Открыто»");
+log((G.scenery || []).some((o) => o.kind === "crate" && o.x === 3 && o.y === 15),
+  "у фасада амбара появились припасы");
+G.playerPos = { x: 5, y: 16 };
+const openBarn = API.interactTarget();
+log(!!openBarn && openBarn.kind === "door" && /Амбар/.test(openBarn.label),
+  "дверь амбара открылась для входа", openBarn && openBarn.label);
+
+log(payFor("forge"), "кузница восстанавливается");
+log(scaffoldCount("forge") === 0 && signAtCell(21, 11).title === "Открыто",
+  "у кузницы убраны леса, табличка «Открыто»");
+log((G.scenery || []).some((o) => o.kind === "fire" && o.x === 28 && o.y === 12),
+  "у кузницы появился огонёк — горн топится");
+
+log(payFor("smith"), "дом мастера восстанавливается");
+log(scaffoldCount("smith") === 0 && signAtCell(28, 11).title === "Открыто",
+  "у дома мастера убраны леса, табличка «Открыто»");
+
 // В деревне видно, с чем герой пойдёт вниз: зелья из кошелька и купленное
 // снаряжение. Раньше панель была пустой — renderInventory вызывался только
 // на спуске, и ученик не видел ни сумки, ни надетого.
@@ -5603,7 +5792,7 @@ log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
   "в деревне сейв похода не пишется");
 
 // Окна жителей: у стража — вход в подземелье, у торговца — лавка,
-// у старосты — банк и рекорд, у наставника — памятка.
+// у казначея — банк и рекорд, у старосты — сюжет и поручения.
 API.enterVillage(null);
 const guardNpc = (G.npcs || []).find((n) => n.key === "guard");
 const guardFront = [[0, 1], [0, -1], [-1, 0], [1, 0]]
@@ -5651,20 +5840,28 @@ const headBad = ["shop-box", "forge-box", "dialog-box", "entrance-box"].filter((
 log(headBad.length === 0, "шапки окон не сжимаются — кнопка «Закрыть» не пропадает",
   headBad.join(", ") || "все окна на месте");
 
-// Староста: банк, амулеты и рекорд.
+// Банк: казначей, баланс, амулеты и рекорд.
+API.enterHouse("bank");
+const bNpc = G.npcs.find((n) => n.key === "banker");
+G.playerPos = { x: bNpc.x, y: bNpc.y + 1 };
+API.doInteract();
+log(/Банк деревни/.test(el("dialog-box").innerHTML), "казначей показывает банк");
+log(/Рекорд/.test(el("dialog-box").innerHTML), "и рекорд");
+API.closeDialog();
+
+// Староста: поручения и сюжет, без банка.
 API.enterHouse("elder");
 const eNpc = G.npcs.find((n) => n.key === "elder");
 G.playerPos = { x: eNpc.x, y: eNpc.y + 1 };
 API.doInteract();
-log(/Банк деревни/.test(el("dialog-box").innerHTML), "староста показывает банк");
-log(/Рекорд/.test(el("dialog-box").innerHTML), "и рекорд");
+log(/Глава|Поручени|Следующий шаг/.test(el("dialog-box").innerHTML),
+  "староста открывает сюжет и поручения");
 API.closeDialog();
 
-// Наставник: памятка и ссылки.
-API.enterHouse("mentor");
+// Наставник стоит на площади, а не в отдельном доме.
+API.enterVillage(null);
 const mNpc = G.npcs.find((n) => n.key === "mentor");
-G.playerPos = { x: mNpc.x, y: mNpc.y + 1 };
-API.doInteract();
+API.openDialog(mNpc);
 log(/Как играть/.test(el("dialog-box").innerHTML), "наставник показывает памятку");
 API.closeDialog();
 API.enterVillage(null);
@@ -6066,11 +6263,23 @@ log(new Set(npcUris).size === npcUris.length,
   "спрайты жителей разные, а не один и тот же",
   "разных картинок: " + new Set(npcUris).size + " из " + npcUris.length);
 
-// Двор: бочка, поленница, забор, колодец и костёр имеют тайлы, а не заглушки.
-const yardMissing = ["barrel", "woodpile", "fence", "well", "campfire", "chimney"]
+// Двор: бочка, поленница, забор, колодец, костёр, указатель и мебель
+// имеют тайлы, а не заглушки.
+const yardMissing = ["barrel", "woodpile", "fence", "well", "campfire", "chimney",
+  "sign", "table", "chair", "crate", "anvil"]
   .filter((k) => !API.mapIcon(k) || API.mapIcon(k).indexOf("<svg") === 0);
 log(yardMissing.length === 0, "у двора настоящие тайлы, а не схематичные значки",
   yardMissing.join(", ") || "всё тайлами");
+
+// Декор не только объявлен, но и стоит на карте: деревья, заборы, бочки,
+// поленницы, мебель у костра и наковальня у кузницы.
+const decorWanted = ["tree", "fence", "barrel", "woodpile", "sign",
+  "table", "chair", "crate", "anvil"];
+const decorHave = new Set((G.scenery || []).map((o) => o.kind));
+const decorMissing = decorWanted.filter((k) => !decorHave.has(k));
+log(decorMissing.length === 0,
+  "в деревне есть уличный декор: деревья, заборы, бочки, поленницы и мебель",
+  decorMissing.join(", ") || "все виды декора на карте");
 
 // Лавка торговца, банк и потолок амулетов — те же функции, что и раньше.
 // Банк возвращаем к исходной сумме: покупки в окнах выше уже тратили золото.
@@ -6291,7 +6500,7 @@ if (vault) {
   log(!busy, "перед дверью тайника ничего не мешает нажать E",
     "клетка " + from.x + "," + from.y);
 
-  const lever = (G.levers || [])[0];
+  const lever = (G.levers || []).find((l) => l.vault === vault.uid);
   log(!!lever && !!API.findPath(G.playerPos, lever),
     "рычаг тайника достижим и связан с комнатой");
   if (lever) {
@@ -6491,6 +6700,576 @@ if (vault) {
   const alive = API.runSummaryHtml({ keepGold: true });
   log(alive.includes("Золото сейчас") && alive.includes("17"),
     "итог: амулет показывает золото в походе");
+}
+
+// Генератор v2: примитивы и хребет.
+{
+  const a = API.genRng(42);
+  const b = API.genRng(42);
+  log(a() === b() && a() === b(), "genRng: один сид — одна последовательность");
+  const coarse = API.genCoarse(56, 36);
+  log(coarse.cw === 6 && coarse.ch === 5, "genCoarse: 56×36 — сетка 6×5",
+    JSON.stringify(coarse));
+  const last = API.genCellRect({ cx: 5, cy: 4 });
+  log(last.x + last.w <= 56 && last.y + last.h <= 36,
+    "genCellRect: последняя клетка не выходит за карту",
+    JSON.stringify(last));
+
+  let endsBad = 0;
+  for (const [w, h] of [[40, 28], [44, 30], [50, 32], [56, 36], [32, 23]]) {
+    const c = API.genCoarse(w, h);
+    const need = Math.max(4, Math.floor((c.cw + c.ch) * 0.45));
+    for (let seed = 0; seed < 50; seed++) {
+      const { entry, gate } = API.genPickEnds(c.cw, c.ch, API.genRng(seed));
+      if (!entry || !gate || API.genCellDist(entry, gate) < need) endsBad += 1;
+    }
+  }
+  log(endsBad === 0, "genPickEnds: вход и врата далеко друг от друга", endsBad);
+
+  let spineBad = 0;
+  for (const [w, h, target] of [[40, 28, 7], [44, 30, 9], [56, 36, 11], [32, 23, 5]]) {
+    const c = API.genCoarse(w, h);
+    for (let seed = 0; seed < 50; seed++) {
+      const { entry, gate } = API.genPickEnds(c.cw, c.ch, API.genRng(seed));
+      const path = API.genSpinePath(entry, gate, target, c.cw, c.ch,
+        API.genRng(seed + 1000));
+      const keys = new Set(path.map(API.genCellKey));
+      const adjacent = path.every((cell, i) =>
+        i === 0 || API.genCellDist(path[i - 1], cell) === 1);
+      const starts = API.genCellKey(path[0]) === API.genCellKey(entry);
+      const finishes = API.genCellKey(path[path.length - 1]) === API.genCellKey(gate);
+      if (keys.size !== path.length || !adjacent || !starts || !finishes ||
+          Math.abs(path.length - target) > 1) spineBad += 1;
+    }
+  }
+  log(spineBad === 0, "genSpinePath: путь без петель, от входа к вратам", spineBad);
+}
+
+// Ветки и роли: проверяем логический граф без геометрии.
+{
+  function planIssues(f, index, campaign, seeds) {
+    const coarse = API.genCoarse(f.w, f.h);
+    const target = Math.max(4, Math.round(f.roomTarget * (1 - f.optionalShare)));
+    const branchBudget = f.roomTarget - target;
+    let bad = 0;
+    for (let seed = 0; seed < seeds; seed++) {
+      const ends = API.genPickEnds(coarse.cw, coarse.ch, API.genRng(seed));
+      const spine = API.genSpinePath(ends.entry, ends.gate, target,
+        coarse.cw, coarse.ch, API.genRng(seed + 101));
+      const branches = API.genGrowBranches(spine, branchBudget,
+        coarse.cw, coarse.ch, API.genRng(seed + 202));
+      const plan = { rooms: [], edges: [], spine: [] };
+      API.genBuildRooms(plan, spine, branches);
+      API.genAssignRoles(plan, f, index, API.genRng(seed + 303));
+      const spineKeys = new Set(spine.map(API.genCellKey));
+      const branchCells = branches.reduce((all, stem) => all.concat(stem.cells), []);
+      const branchKeys = new Set(branchCells.map(API.genCellKey));
+      const byId = {};
+      plan.rooms.forEach((room) => { byId[room.id] = room; });
+      let diffJunctions = 0;
+      plan.rooms.filter((room) => room.role === "junction").forEach((room) => {
+        const i = room.spineIndex;
+        const a = byId[plan.spine[i - 1]];
+        const b = byId[plan.spine[i + 1]];
+        if (a && b && a.role !== b.role) diffJunctions += 1;
+      });
+      const limits = {
+        vault: plan.rooms.filter((room) => room.role === "vault").length,
+        rest: plan.rooms.filter((room) => room.role === "rest").length,
+        elite: plan.rooms.filter((room) => room.role === "elite").length,
+        secret: plan.rooms.filter((room) => room.role === "secret").length
+      };
+      const hasTreasure = plan.rooms.some((room) => room.role === "treasure");
+      const hasResource = plan.rooms.some((room) => room.role === "resource");
+      const stemsOk = branches.every((stem) =>
+        stem.cells.length >= 1 && stem.cells.length <= 3);
+      const noOverlap = branchCells.every((cell) => !spineKeys.has(API.genCellKey(cell)));
+      // На плотной сетке 50×32 (17 комнат на 20 клеток) один сид из
+      // полусотни может не добрать одну ветку — buildCheckedFloor
+      // пересоздаст этаж. Валидатор всё равно потребует долю 35–45%.
+      if (branchCells.length < Math.max(1, branchBudget - 1)
+        || branchKeys.size !== branchCells.length
+        || !stemsOk || !noOverlap
+        || diffJunctions < f.minJunctions
+        || limits.vault > 1 || limits.rest > 1
+        || limits.elite > (Number(f.eliteCap) || 0)
+        || limits.secret > 1
+        || !hasTreasure || !hasResource) bad += 1;
+    }
+    return bad;
+  }
+
+  let v2Bad = 0;
+  for (const [i, f] of API.FLOORS_V2.entries()) {
+    if (f.boss) continue;
+    v2Bad += planIssues(f, i, 2, 30);
+  }
+  log(v2Bad === 0, "v2: ветки, роли, лимиты и развилки сходятся", v2Bad);
+
+  let v1Bad = 0;
+  for (const [i, f] of API.FLOORS_V1.entries()) {
+    if (f.boss) continue;
+    v1Bad += planIssues(f, i, 1, 30);
+  }
+  log(v1Bad === 0, "v1: ветки и роли сходятся на старых картах", v1Bad);
+}
+
+// Геометрия: комнаты, коридоры, петли и декор.
+{
+  function reachable(grid, start, w, h) {
+    const seen = new Set([start.x + "," + start.y]);
+    const queue = [start];
+    for (let head = 0; head < queue.length; head += 1) {
+      const p = queue[head];
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+        const x = p.x + dx;
+        const y = p.y + dy;
+        if (x < 1 || y < 1 || x >= w - 1 || y >= h - 1) return;
+        const k = x + "," + y;
+        if (seen.has(k) || grid[y][x] !== 1) return;
+        seen.add(k);
+        queue.push({ x, y });
+      });
+    }
+    return seen;
+  }
+
+  let geoBad = 0;
+  let loops = 0;
+  for (const [i, f] of API.FLOORS_V2.entries()) {
+    if (f.boss) continue;
+    const coarse = API.genCoarse(f.w, f.h);
+    const target = Math.max(4, Math.round(f.roomTarget * (1 - f.optionalShare)));
+    for (let seed = 0; seed < 5; seed += 1) {
+      const ends = API.genPickEnds(coarse.cw, coarse.ch, API.genRng(seed));
+      const spine = API.genSpinePath(ends.entry, ends.gate, target,
+        coarse.cw, coarse.ch, API.genRng(seed + 71));
+      const branches = API.genGrowBranches(spine, f.roomTarget - target,
+        coarse.cw, coarse.ch, API.genRng(seed + 72));
+      const plan = {
+        version: 2, biome: f.biome, campaign: f.campaign,
+        w: f.w, h: f.h, rooms: [], edges: [], spine: []
+      };
+      API.genBuildRooms(plan, spine, branches);
+      API.genAssignRoles(plan, f, i, API.genRng(seed + 73));
+      API.genAddLoops(plan, API.genRng(seed + 74));
+      const geo = API.genCarve(plan, f.w, f.h, i, API.genRng(seed + 75));
+      loops += plan.edges.filter((edge) => edge.kind === "loop").length;
+      const seen = reachable(geo.grid, geo.start, f.w, f.h);
+      const centersOk = plan.rooms.every((room) =>
+        geo.grid[room.center.y][room.center.x] === 1 &&
+        seen.has(room.center.x + "," + room.center.y));
+      const endsOk = geo.grid[geo.start.y][geo.start.x] === 1 &&
+        geo.grid[geo.end.y][geo.end.x] === 1;
+      const decorOk = geo.decor.every((row, y) => row.every((code, x) =>
+        code === 0 || geo.grid[y][x] === 1)) &&
+        geo.decor[geo.start.y][geo.start.x] === 0 &&
+        geo.decor[geo.end.y][geo.end.x] === 0;
+      if (!centersOk || !endsOk || !decorOk) geoBad += 1;
+    }
+  }
+  log(geoBad === 0, "v2: комнаты и коридоры связны, декор только на полу", geoBad);
+  log(loops > 0, "v2: петли добавляются", loops);
+}
+
+// Валидатор, статистика и детерминизм плана.
+{
+  const f = API.FLOORS_V2[0];
+  const a = API.generateFloorV2(f, 0, { seed: 42 });
+  const b = API.generateFloorV2(f, 0, { seed: 42 });
+  log(API.genPlanSignature(a.plan) === API.genPlanSignature(b.plan),
+    "genPlanSignature: один сид — один план");
+  log(API.genValidatePlan(a.plan, a.grid).length === 0,
+    "genValidatePlan: годный план проходит",
+    API.genValidatePlan(a.plan, a.grid).join("; "));
+  log(a.plan.stats.rooms === a.plan.rooms.length &&
+    a.plan.stats.spine === a.plan.spine.length &&
+    a.plan.stats.branch > 0,
+    "genPlanStats: комнаты, хребет и ветки посчитаны",
+    JSON.stringify(a.plan.stats));
+
+  let planBad = 0;
+  for (const [i, floor] of API.FLOORS_V2.entries()) {
+    if (floor.boss) continue;
+    for (let seed = 0; seed < 10; seed += 1) {
+      const gen = API.generateFloorV2(floor, i, { seed });
+      if (API.genValidatePlan(gen.plan, gen.grid).length) planBad += 1;
+    }
+  }
+  log(planBad === 0, "v2: 100 планов проходят genValidatePlan", planBad);
+
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  const st = API.createFloorState(0);
+  log(!!st.plan && API.validateFloorState(st).length === 0,
+    "createFloorState: GEN_V2 даёт план и проходит проверку");
+  const saved = API.serializeFloor(st);
+  log(!Object.prototype.hasOwnProperty.call(saved, "plan") &&
+    !JSON.stringify(saved).includes("rooms"),
+    "plan не сериализуется");
+  API.setGenV2(false);
+  const legacy = API.createFloorState(0);
+  log(!legacy.plan, "без GEN_V2 план не создаётся");
+  API.setGenV2(true);
+  API.setCampaign(1);
+}
+
+// 1500 карт, детерминизм и производительность.
+{
+  const tables = [
+    { campaign: 1, floors: API.FLOORS_V1 },
+    { campaign: 2, floors: API.FLOORS_V2 }
+  ];
+  let total = 0;
+  let bad = 0;
+  const times = [];
+  for (const table of tables) {
+    for (const [i, f] of table.floors.entries()) {
+      if (f.boss) continue;
+      for (let seed = 0; seed < 100; seed += 1) {
+        const started = performance.now();
+        const gen = API.generateFloorV2(f, i, { seed });
+        times.push(performance.now() - started);
+        total += 1;
+        if (API.genValidatePlan(gen.plan, gen.grid).length) bad += 1;
+      }
+    }
+  }
+  times.sort((a, b) => a - b);
+  const p95 = times[Math.floor(times.length * 0.95)] || 0;
+  const max = times[times.length - 1] || 0;
+  log(total === 1500, "1500 карт: 1000 v2 + 500 v1", total);
+  log(bad === 0, "1500 карт проходят валидатор", bad);
+  log(p95 < 50 && max < 120, "p95 генерации < 50 мс, max < 120 мс",
+    "p95 " + p95.toFixed(1) + ", max " + max.toFixed(1));
+
+  let det = 0;
+  for (const table of tables) {
+    for (const [i, f] of table.floors.entries()) {
+      if (f.boss) continue;
+      const a = API.generateFloorV2(f, i, { seed: 4242 });
+      const b = API.generateFloorV2(f, i, { seed: 4242 });
+      if (API.genPlanSignature(a.plan) !== API.genPlanSignature(b.plan)) det += 1;
+    }
+  }
+  log(det === 0, "детерминизм: один сид — один план на всех этажах", det);
+
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let buildBad = 0;
+  for (let i = 0; i < API.FLOORS_V2.length; i += 1) {
+    const state = API.buildCheckedFloor(i);
+    const f = API.floorDef(i);
+    if (API.validateFloorState(state).length) buildBad += 1;
+    if (!f.boss && !state.plan) buildBad += 1;
+    if (f.boss && state.plan) buildBad += 1;
+  }
+  API.setGenV2(true);
+  API.setCampaign(1);
+  log(buildBad === 0, "buildCheckedFloor: 15 этажей v2 без отказов", buildBad);
+}
+
+// Этап 2: содержимое стоит по ролям комнат.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let bad = 0;
+  let floors = 0;
+  for (const [index, floor] of API.FLOORS_V2.entries()) {
+    if (floor.boss) continue;
+    for (let seed = 0; seed < 5; seed += 1) {
+      const state = API.createFloorState(index);
+      if (!state.plan) { bad += 1; continue; }
+      floors += 1;
+      const roleAt = {};
+      state.plan.rooms.forEach((room) => {
+        (room.cells || []).forEach((cell) => {
+          roleAt[cell.x + "," + cell.y] = room.role;
+        });
+      });
+      const enemyRoles = ["combat", "ambush", "elite", "hazard_hall"];
+      const riskRoles = ["treasure", "ambush", "hazard_hall", "crossing", "combat"];
+      let enemyRooms = 0;
+      state.enemies.forEach((enemy) => {
+        if (enemy.guard) {
+          const role = roleAt[enemy.x + "," + enemy.y];
+          if (role && role !== "gate") bad += 1;
+          return;
+        }
+        const role = roleAt[enemy.x + "," + enemy.y];
+        if (enemyRoles.indexOf(role) < 0) bad += 1;
+        else enemyRooms += 1;
+      });
+      if (!enemyRooms) bad += 1;
+      state.camps.forEach((camp) => {
+        if (roleAt[camp.x + "," + camp.y] !== "rest") bad += 1;
+      });
+      state.traps.forEach((trap) => {
+        const role = roleAt[trap.x + "," + trap.y];
+        if (role && riskRoles.indexOf(role) < 0) bad += 1;
+      });
+      state.treasures.forEach((chest) => {
+        const role = roleAt[chest.x + "," + chest.y];
+        if (role && ["treasure", "secret", "vault"].indexOf(role) < 0) bad += 1;
+      });
+      state.nodes.forEach((node) => {
+        const role = roleAt[node.x + "," + node.y];
+        if (role && ["resource", "vault"].indexOf(role) < 0) bad += 1;
+      });
+      state.signs.forEach((sign) => {
+        const role = roleAt[sign.x + "," + sign.y];
+        if (role && role !== "lore") bad += 1;
+      });
+      state.levers.forEach((lever) => {
+        if (lever.shortcut) return;
+        const role = roleAt[lever.x + "," + lever.y];
+        if (role && ["lore", "junction"].indexOf(role) < 0) bad += 1;
+      });
+      const vaultRoom = state.plan.rooms.find((room) => room.role === "vault");
+      if (vaultRoom && state.vaults[0] && state.vaults[0].planned) {
+        const role = roleAt[state.vaults[0].door.x + "," + state.vaults[0].door.y];
+        if (role !== "vault") bad += 1;
+      }
+    }
+  }
+  API.setGenV2(true);
+  API.setCampaign(1);
+  log(bad === 0, "этап 2: враги, лут и ловушки стоят по ролям", bad + " из " + floors);
+}
+
+// Этап 3: биомные правила планировки и среды.
+{
+  function turnsOf(path) {
+    let turns = 0;
+    let last = null;
+    for (let i = 1; i < path.length; i += 1) {
+      const d = (path[i].cx - path[i - 1].cx) + "," +
+        (path[i].cy - path[i - 1].cy);
+      if (last && d !== last) turns += 1;
+      last = d;
+    }
+    return turns;
+  }
+  function avgTurns(index, style, seeds) {
+    const f = API.FLOORS_V2[index];
+    const c = API.genCoarse(f.w, f.h);
+    const target = Math.round(f.roomTarget * (1 - f.optionalShare));
+    let sum = 0;
+    for (let seed = 0; seed < seeds; seed += 1) {
+      const ends = API.genPickEnds(c.cw, c.ch, API.genRng(seed));
+      const path = API.genSpinePath(ends.entry, ends.gate, target,
+        c.cw, c.ch, API.genRng(seed + 1), style);
+      sum += turnsOf(path);
+    }
+    return sum / seeds;
+  }
+  log(avgTurns(3, "straight", 40) < avgTurns(0, "organic", 40),
+    "катакомбы прямолинейнее пещер",
+    avgTurns(3, "straight", 40).toFixed(1) + " < " +
+    avgTurns(0, "organic", 40).toFixed(1));
+
+  let caveLoops = 0;
+  for (let seed = 0; seed < 20; seed += 1) {
+    const f = API.FLOORS_V2[0];
+    const g = API.generateFloorV2(f, 0, { seed });
+    caveLoops += g.plan.edges.filter((edge) => edge.kind === "loop").length;
+  }
+  log(caveLoops >= 40, "пещеры: 2–3 петли на этаж", caveLoops + " на 20 карт");
+
+  let niches = 0;
+  for (let seed = 0; seed < 10; seed += 1) {
+    const f = API.FLOORS_V2[3];
+    const g = API.generateFloorV2(f, 3, { seed });
+    g.plan.rooms.forEach((room) => {
+      if (!room.rect) return;
+      niches += (room.cells || []).filter((cell) =>
+        cell.x < room.rect.x || cell.x >= room.rect.x + room.rect.w ||
+        cell.y < room.rect.y || cell.y >= room.rect.y + room.rect.h).length;
+    });
+  }
+  log(niches > 0, "катакомбы: склепы-ниши вырублены", niches);
+
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let hazardBad = 0;
+  let hazardCells = 0;
+  for (const index of [6, 9]) {
+    for (let seed = 0; seed < 10; seed += 1) {
+      const state = API.createFloorState(index);
+      const roleAt = {};
+      state.plan.rooms.forEach((room) => {
+        (room.cells || []).forEach((cell) => {
+          roleAt[cell.x + "," + cell.y] = room.role;
+        });
+      });
+      for (let y = 0; y < state.map.h; y += 1) {
+        for (let x = 0; x < state.map.w; x += 1) {
+          if (!state.hazard[y][x]) continue;
+          hazardCells += 1;
+          const role = roleAt[x + "," + y];
+          if (role && ["crossing", "hazard_hall", "combat"].indexOf(role) < 0) {
+            hazardBad += 1;
+          }
+        }
+      }
+    }
+  }
+  log(hazardBad === 0 && hazardCells > 0,
+    "лёд и лава только в залах, переправах и опасных комнатах",
+    hazardCells + " клеток, " + hazardBad + " не туда");
+  const darkState = API.createFloorState(12);
+  log(darkState.hazard.every((row) => row.every((cell) => !cell)),
+    "логово: тьма глобальная, клеточной среды нет");
+  API.setGenV2(true);
+  API.setCampaign(1);
+}
+
+// Этап 3.2: короткие пути — обвал и хрупкий мост.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+
+  freshRun(0);
+  const caveLever = (G.levers || []).find((l) => {
+    const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
+    return sc && sc.kind === "collapse";
+  });
+  const caveSc = caveLever && (G.shortcuts || []).find((s) =>
+    s.uid === caveLever.shortcut);
+  let caveOk = false;
+  if (caveLever && caveSc) {
+    API.openLever(caveLever);
+    API.answerLever(caveLever, caveLever.view.answer);
+    const cell = caveSc.cells[0];
+    caveOk = caveSc.open && G.map.grid[cell.y][cell.x] === 1;
+  }
+  log(caveOk, "пещеры: верный ответ расчищает обвал");
+
+  freshRun(7);
+  const bridgeLever = (G.levers || []).find((l) => {
+    const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
+    return sc && sc.kind === "bridge";
+  });
+  const bridgeSc = bridgeLever && (G.shortcuts || []).find((s) =>
+    s.uid === bridgeLever.shortcut);
+  let bridgeOk = false;
+  if (bridgeLever && bridgeSc) {
+    API.openLever(bridgeLever);
+    const wrong = (bridgeLever.view.answer + 1) % bridgeLever.view.options.length;
+    API.answerLever(bridgeLever, wrong);
+    const cell = bridgeSc.cells[0];
+    const safe = API.findPath(G.playerPos, G.stairsDown);
+    bridgeOk = !bridgeSc.open && G.map.grid[cell.y][cell.x] === 0 && !!safe;
+  }
+  log(bridgeOk, "лёд: неверный ответ рушит мост, но обход остаётся");
+
+  const saved = API.serializeFloor(G.cache[G.floorIndex]);
+  const restored = API.deserializeFloor(JSON.parse(JSON.stringify(saved)));
+  log((restored.shortcuts || []).length === (G.shortcuts || []).length &&
+    restored.levers.some((l) => l.shortcut),
+    "короткие пути переживают сохранение");
+
+  API.setGenV2(true);
+  API.setCampaign(1);
+}
+
+// Этап 3.2: склеп с четырьмя дверями и локальная тьма.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let four = 0;
+  for (let seed = 0; seed < 10; seed += 1) {
+    const g = API.generateFloorV2(API.FLOORS_V2[3], 3, { seed });
+    if (g.plan.rooms.some((room) => room.meta && room.meta.doors >= 4)) four += 1;
+  }
+  log(four > 0, "катакомбы: склеп с четырьмя дверями", four + " из 10");
+
+  freshRun(3);
+  const crypt = (G.crypts || [])[0];
+  let darkInside = false;
+  let darkOutside = false;
+  if (crypt) {
+    G.playerPos = { x: crypt.x, y: crypt.y };
+    darkInside = API.darknessActive();
+    const outside = [];
+    for (let y = 0; y < G.map.h && !outside.length; y += 1) {
+      for (let x = 0; x < G.map.w; x += 1) {
+        if (G.map.grid[y][x] !== 1) continue;
+        if ((G.crypts || []).some((c) => c.x === x && c.y === y)) continue;
+        outside.push({ x, y });
+        break;
+      }
+    }
+    if (outside.length) {
+      G.playerPos = outside[0];
+      darkOutside = API.darknessActive();
+    }
+  }
+  log(darkInside && !darkOutside,
+    "тьма в катакомбах только в склепах", darkInside + " / " + darkOutside);
+
+  freshRun(12);
+  log(API.darknessActive(), "в логове тьма на всём этаже");
+  API.setGenV2(true);
+  API.setCampaign(1);
+}
+
+// Торговец: один раз на входе в биом, ассортимент не обновляется.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let traderBad = 0;
+  for (const [index, floor] of API.FLOORS_V2.entries()) {
+    const state = API.createFloorState(index);
+    const want = floor.depth === 1 ? 1 : 0;
+    if (state.traders.length !== want) traderBad += 1;
+  }
+  log(traderBad === 0, "торговец только на первом этаже биома", traderBad);
+
+  freshRun(0);
+  G.shopTrader = true;
+  G.traderFloor = 0;
+  const before = API.shopOffers().map((offer) =>
+    [offer.kind, offer.item && offer.item.id, offer.price]);
+  G.shopStock = null;
+  const after = API.shopOffers().map((offer) =>
+    [offer.kind, offer.item && offer.item.id, offer.price]);
+  log(JSON.stringify(before) === JSON.stringify(after),
+    "ассортимент торговца не обновляется при повторном входе");
+  const save = API.buildSaveData();
+  log(!!save && save.traderFloor === 0, "этаж торговца сохраняется",
+    save && save.traderFloor);
+  API.setGenV2(true);
+  API.setCampaign(1);
+}
+
+// Кампания v2: таблица, арены и контент живут отдельно от v1.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  log(API.activeFloors() === API.FLOORS_V2, "v2: активна таблица FLOORS_V2");
+  const first = API.floorDef(0);
+  log(first.campaign === 2 && first.w === 40 && first.roomTarget === 11,
+    "v2: первый этаж 40×28 и бюджет 11 комнат",
+    JSON.stringify({ w: first.w, h: first.h, rooms: first.roomTarget }));
+  const firstBoss = API.floorDef(2);
+  log(firstBoss.boss === true && firstBoss.w === 30 && firstBoss.h === 22,
+    "v2: первая арена 30×22", firstBoss.w + "×" + firstBoss.h);
+  const st = API.createFloorState(0);
+  log(st.map.w === 40 && st.map.h === 28 && st.enemies.length > 0,
+    "v2: этаж создаётся старой геометрией", st.enemies.length + " врагов");
+  log(API.floorHazard(2, 2) === null && API.floorHazard(3, 2) &&
+    API.floorHazard(3, 2).key === "dark",
+    "v2: у арены нет среды, у катакомб тьма");
+  API.setCampaign(1);
+  log(API.activeFloors() === API.FLOORS_V1, "v1: таблица возвращается");
 }
 
 freshRun(0);
