@@ -4868,6 +4868,13 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(/body\.battling \.battle-panel \.option \{[\s\S]*?background: rgba\(233, 239, 248, 0\.015\) !important/.test(quietCss),
     "варианты ответа — тонкие строки, а не крупные карточки");
 
+  // Подсказки при наведении: ни всплывающей карточки, ни нативных title.
+  const gameHtmlSrc = fs.readFileSync(path.join(dir, "game.html"), "utf8");
+  log(!/initTips|className = "tip/.test(gameSrc3) && !/\.tip \{/.test(gameCss),
+    "всплывающие подсказки при наведении отключены");
+  log(!/\stitle=/.test(gameSrc3) && !/\stitle=/.test(gameHtmlSrc),
+    "у элементов интерфейса и карты нет нативных title-подсказок");
+
   log(API.itemPic(API.ITEM_POOL[0], "#fff").indexOf("item-ico-px") >= 0 &&
     API.itemPic({ id: "нет_такого", slot: "weapon" }, "#fff").indexOf("<svg") >= 0,
     "itemPic: картинка вещи, а для неизвестной вещи — прежняя иконка слота");

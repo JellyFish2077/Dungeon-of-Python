@@ -521,7 +521,7 @@ function applyServerProfile(name, profile) {
 function badgesHtml(profile) {
   return ACHIEVEMENTS.map((a) => {
     const on = !!(profile.badges && profile.badges[a.id]);
-    return "<span title='" + a.desc + "' style='display:inline-block;margin:2px 6px 2px 0;padding:3px 9px;" +
+    return "<span style='display:inline-block;margin:2px 6px 2px 0;padding:3px 9px;" +
       "border-radius:999px;font-size:12px;border:1px solid " + (on ? "#f6c453" : "#334155") + ";" +
       "color:" + (on ? "#f6c453" : "#64748b") + "'>" + (on ? "★ " : "☆ ") + a.title + "</span>";
   }).join("");
