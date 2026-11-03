@@ -68,9 +68,12 @@
 
 ```
 tools/art/aseprite/creatures.aseprite    player, slime, rat, bat, skeleton, goblin
+tools/art/aseprite/creatures3.aseprite   player_base — герой в белой майке и коричневых штанах, без оружия
 tools/art/aseprite/creatures2.aseprite   spider, orc, troll, ghost, wolf, zombie, golem, demon, minotaur, vampire, lich, dragon, trader, priest, necromancer, shieldman
 tools/art/aseprite/items.aseprite        short_sword, small_potion, … (6 предметов)
 tools/art/aseprite/items2.aseprite       остальные 23 предмета
+tools/art/aseprite/items3.aseprite       ash_blade, ash_mantle, ash_eye, dawn_blade, warden_plate, heart_abyss
+tools/art/aseprite/equipment.aseprite    надетые вещи: по кадру на каждый предмет, слой поверх player_base
 tools/art/aseprite/objects.aseprite      chest
 tools/art/aseprite/objects2.aseprite     portal
 tools/art/aseprite/objects3.aseprite     ore, rubble, lever, sign, loot bag

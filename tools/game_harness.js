@@ -248,7 +248,7 @@
        "hazardByKey", "floorHazard", "hazardDensity", "blessOffered", "blessingFor",
        "itemWeightFor", "ITEM_SETS", "setByKey", "itemSetKey", "ARMOR", "ECON",
        "FORGE_TRACKS", "SHOP_WARES", "POTION_PRICE", "SNARE_WAITS", "CAM_LEVELS",
-       "LEGACY_CAM_LEVELS", "mapIconIsPixel", "ITEM_SPRITES", "itemPic", "TERRAIN_OBJECTS",
+       "LEGACY_CAM_LEVELS", "mapIconIsPixel", "ITEM_SPRITES", "WORN_SPRITES", "itemPic", "TERRAIN_OBJECTS",
        "TERRAIN_ICONS",
        // Постоянная прогрессия: таблицы улучшений, построек и квестов — по ним
        // проверки считают, что деревня даёт герою и сколько это стоит.

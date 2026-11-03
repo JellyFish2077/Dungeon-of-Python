@@ -122,6 +122,16 @@
         }
       ]
     },
+    "creatures3": {
+      "destination": "creatures",
+      "assets": [
+        {
+          "tag": "player_base",
+          "file": "player_base.png",
+          "sha256": "b37a9fe8ee338973f00eb9ce5f452a61d5832223baaabc5a6a398a115e431582"
+        }
+      ]
+    },
     "items": {
       "destination": "items",
       "assets": [
@@ -274,6 +284,191 @@
           "tag": "vampiric_blade",
           "file": "vampiric_blade.png",
           "sha256": "7f789194878980beaf679140a2fe5aa72f40a0b961326300b6e23c177f5efb08"
+        }
+      ]
+    },
+    "items3": {
+      "destination": "items",
+      "assets": [
+        {
+          "tag": "ash_blade",
+          "file": "ash_blade.png",
+          "sha256": "ee21c273915dc11d4967b1d765ce930d4d620f7dd3fccc6ef948204980176e7a"
+        },
+        {
+          "tag": "ash_eye",
+          "file": "ash_eye.png",
+          "sha256": "c14d3e4f83103ccea47b0ac8b04819d28e7798e63baedecff55cb88a81e308e9"
+        },
+        {
+          "tag": "ash_mantle",
+          "file": "ash_mantle.png",
+          "sha256": "8ec4137cd188ecd68148ec6ec4fe28a0edfc9be396c5b858820111d9ea3fc597"
+        },
+        {
+          "tag": "dawn_blade",
+          "file": "dawn_blade.png",
+          "sha256": "19825f30ccb1c36fbb8ff8eb77a0a9e525361388f784adaed21a0345bb797d74"
+        },
+        {
+          "tag": "heart_abyss",
+          "file": "heart_abyss.png",
+          "sha256": "6613b9b94991fa267eed6d8c101892e07473ef12885d0430103fdcc35034f21e"
+        },
+        {
+          "tag": "warden_plate",
+          "file": "warden_plate.png",
+          "sha256": "75be50f392e314b5f1b37104f5f9d8c69189b3e852e0b073876eb2229d0e2ace"
+        }
+      ]
+    },
+    "equipment": {
+      "destination": "equipment",
+      "assets": [
+        {
+          "tag": "aegis",
+          "file": "aegis.png",
+          "sha256": "d2e3152c5d928ffc63e99168ac37ce937046fc1597f4b98c10e0af15d79096cc"
+        },
+        {
+          "tag": "ash_blade",
+          "file": "ash_blade.png",
+          "sha256": "65327292077a1334b9ef9d7c41eb2be6787716b10397ab01dd2e0ad01a03bb75"
+        },
+        {
+          "tag": "ash_eye",
+          "file": "ash_eye.png",
+          "sha256": "4c131b26a077fd3e38eb8593a10e15c0b8a30d972e50d7751d0891b683b08a01"
+        },
+        {
+          "tag": "ash_mantle",
+          "file": "ash_mantle.png",
+          "sha256": "1bda6e07470a208b92a3f2fe8bc1639222f5c992509a77b4ef53df3a1a70bb85"
+        },
+        {
+          "tag": "bone_dagger",
+          "file": "bone_dagger.png",
+          "sha256": "723f28da61f81776301f0fa2e44405daf89ee78714fc9003bc06af6968a3bca4"
+        },
+        {
+          "tag": "chainmail",
+          "file": "chainmail.png",
+          "sha256": "852b32292ee98afedf7ffa86605a3539a7ca1f7ad08a867c8cdfc3a813f4b0e1"
+        },
+        {
+          "tag": "cloth_robe",
+          "file": "cloth_robe.png",
+          "sha256": "8f123ead25862073bc4ffea1fe5a08a46d5db3d3f1fdfeecd76ddbb04406e882"
+        },
+        {
+          "tag": "crown",
+          "file": "crown.png",
+          "sha256": "3f3225000baf7cac4be35deeeb112165a1554295a68d8e74ce682d6e0131c2d9"
+        },
+        {
+          "tag": "dawn_blade",
+          "file": "dawn_blade.png",
+          "sha256": "8f3f5cbddd747ed1bc620d71eea565c565b60aca8189739c3355ce501ae4c6a6"
+        },
+        {
+          "tag": "dragon_blade",
+          "file": "dragon_blade.png",
+          "sha256": "45d809fa5264bbf340dfe77bec3cbf3b372283e5b783bc701b8112be70ffccc7"
+        },
+        {
+          "tag": "dragon_scale",
+          "file": "dragon_scale.png",
+          "sha256": "bb6cd921a2e82e14300e3f7420d4234364497a92e063c87c5e62076fda79c6fd"
+        },
+        {
+          "tag": "frost_blade",
+          "file": "frost_blade.png",
+          "sha256": "95bf721389d0f990dbef3eddad01f2f46fe12c4ef35974c12982188c6ddd75b5"
+        },
+        {
+          "tag": "guard_amulet",
+          "file": "guard_amulet.png",
+          "sha256": "143c82f1a74e3688f062a9d5ff596e7e7de51ec0fc7165fc39ad66dfc199980d"
+        },
+        {
+          "tag": "heart_abyss",
+          "file": "heart_abyss.png",
+          "sha256": "02210211869b4146552d1bdc1f659d4f4d43156b35372b4cf5e13baccf243cdc"
+        },
+        {
+          "tag": "hero_medal",
+          "file": "hero_medal.png",
+          "sha256": "0a1b9e0fb2fac2988ca2129d8a3767cfb8ba86e746db96ce4facc5fdcbbf6a15"
+        },
+        {
+          "tag": "leather_armor",
+          "file": "leather_armor.png",
+          "sha256": "60ee233c5618e1e79b150fb523c0f877bb87c4bf54e6fc046d33159434611115"
+        },
+        {
+          "tag": "ledger_amulet",
+          "file": "ledger_amulet.png",
+          "sha256": "f0251560770b7f22f002e4d961336e398b87f19823ba56d07db67cadc085798f"
+        },
+        {
+          "tag": "lucky_charm",
+          "file": "lucky_charm.png",
+          "sha256": "dfb388b505ab0c619b7f776cd3b525d86552a196cc9eeb256d9482976720baf4"
+        },
+        {
+          "tag": "mirror_plate",
+          "file": "mirror_plate.png",
+          "sha256": "023300ebe37785461fc26ddf0f4b227b9b5277d380c3c149df097d17bc8e03e3"
+        },
+        {
+          "tag": "ring_power",
+          "file": "ring_power.png",
+          "sha256": "4bfd453b84913cf9cbd1ed99893b47dc1fda8dae283cfc0ebde8babb3b1301a4"
+        },
+        {
+          "tag": "rusty_sword",
+          "file": "rusty_sword.png",
+          "sha256": "8413a83e6a2e68298bfc2491628167c571f939ffded392a97c095681f4920805"
+        },
+        {
+          "tag": "scout_lens",
+          "file": "scout_lens.png",
+          "sha256": "1e9799f282a9b8fd4cfab64e1aa6dd24e670e9afb1cb70ea900e235ce56b4ae3"
+        },
+        {
+          "tag": "serpent_ward",
+          "file": "serpent_ward.png",
+          "sha256": "6a58b86fb5e7e9f6eb0f271c2fd9ec2cedd80efae2dac919e0c3cb3352292db3"
+        },
+        {
+          "tag": "short_sword",
+          "file": "short_sword.png",
+          "sha256": "cf3ef427293d04060938aed25c72d4b6c2d76efa9cb154a768162255c7c0a820"
+        },
+        {
+          "tag": "spiked_shield",
+          "file": "spiked_shield.png",
+          "sha256": "92122eae8ce87d51a7a96f1f571977bce086ab3a93b10c4545207eba3646ca36"
+        },
+        {
+          "tag": "steel_sword",
+          "file": "steel_sword.png",
+          "sha256": "9c1204e6be7aebbf7d8ba560fa4d583677ab681a16bff379fd0977475bd7b078"
+        },
+        {
+          "tag": "trident_precise",
+          "file": "trident_precise.png",
+          "sha256": "b37c3b42bdc58c0acbd0e23e84c4828f35adb15b2631744a45b386e98354b25b"
+        },
+        {
+          "tag": "vampiric_blade",
+          "file": "vampiric_blade.png",
+          "sha256": "88ee49fa9103e9f9a6d9a206bdb021ad31122f96f194c88a0412479b91c60fec"
+        },
+        {
+          "tag": "warden_plate",
+          "file": "warden_plate.png",
+          "sha256": "1dd9d3939d74648e646d33a79819ef4911fbf4f60976f61abe60814728e1daf6"
         }
       ]
     },
@@ -1531,6 +1726,7 @@
     "creatures/vampire.png": "93e5d3e4c9af81b31b67f4fd80ff1bfabb486e9b760aeec3f5a2fb2a3ab4b9af",
     "creatures/wolf.png": "0bb6af0c81599d2e1671c0ce0361b69d3c661e02aa1a7a5d8c40f0a575ec4395",
     "creatures/zombie.png": "cea27403e83fe45ab3786c10aae62b28bd8303fc0b99c2078b0e84bec5e40dee",
+    "creatures/player_base.png": "b37a9fe8ee338973f00eb9ce5f452a61d5832223baaabc5a6a398a115e431582",
     "items/leather_armor.png": "398c66b219b695785a185584efb6cbc60412f8861c067383979815ed67f08639",
     "items/lucky_charm.png": "538b0ea7fae6c5848c7094c64d1361a2465a274d38c57a166046e461b9ff20e4",
     "items/rusty_sword.png": "a08401b012e5bb7c81a2f8fc58aae53a0ca84c269d311bad0ad8de7dbd22274d",
@@ -1560,6 +1756,41 @@
     "items/steel_sword.png": "92c735cb4140e7e3c030991673e3f9fc26729d47ca74fee843474f8acb39b19f",
     "items/trident_precise.png": "f86bb52b7c0edada5e6268ca9984721dab20f9362f3504503176bf1f8f575cfa",
     "items/vampiric_blade.png": "7f789194878980beaf679140a2fe5aa72f40a0b961326300b6e23c177f5efb08",
+    "items/ash_blade.png": "ee21c273915dc11d4967b1d765ce930d4d620f7dd3fccc6ef948204980176e7a",
+    "items/ash_eye.png": "c14d3e4f83103ccea47b0ac8b04819d28e7798e63baedecff55cb88a81e308e9",
+    "items/ash_mantle.png": "8ec4137cd188ecd68148ec6ec4fe28a0edfc9be396c5b858820111d9ea3fc597",
+    "items/dawn_blade.png": "19825f30ccb1c36fbb8ff8eb77a0a9e525361388f784adaed21a0345bb797d74",
+    "items/heart_abyss.png": "6613b9b94991fa267eed6d8c101892e07473ef12885d0430103fdcc35034f21e",
+    "items/warden_plate.png": "75be50f392e314b5f1b37104f5f9d8c69189b3e852e0b073876eb2229d0e2ace",
+    "equipment/aegis.png": "d2e3152c5d928ffc63e99168ac37ce937046fc1597f4b98c10e0af15d79096cc",
+    "equipment/ash_blade.png": "65327292077a1334b9ef9d7c41eb2be6787716b10397ab01dd2e0ad01a03bb75",
+    "equipment/ash_eye.png": "4c131b26a077fd3e38eb8593a10e15c0b8a30d972e50d7751d0891b683b08a01",
+    "equipment/ash_mantle.png": "1bda6e07470a208b92a3f2fe8bc1639222f5c992509a77b4ef53df3a1a70bb85",
+    "equipment/bone_dagger.png": "723f28da61f81776301f0fa2e44405daf89ee78714fc9003bc06af6968a3bca4",
+    "equipment/chainmail.png": "852b32292ee98afedf7ffa86605a3539a7ca1f7ad08a867c8cdfc3a813f4b0e1",
+    "equipment/cloth_robe.png": "8f123ead25862073bc4ffea1fe5a08a46d5db3d3f1fdfeecd76ddbb04406e882",
+    "equipment/crown.png": "3f3225000baf7cac4be35deeeb112165a1554295a68d8e74ce682d6e0131c2d9",
+    "equipment/dawn_blade.png": "8f3f5cbddd747ed1bc620d71eea565c565b60aca8189739c3355ce501ae4c6a6",
+    "equipment/dragon_blade.png": "45d809fa5264bbf340dfe77bec3cbf3b372283e5b783bc701b8112be70ffccc7",
+    "equipment/dragon_scale.png": "bb6cd921a2e82e14300e3f7420d4234364497a92e063c87c5e62076fda79c6fd",
+    "equipment/frost_blade.png": "95bf721389d0f990dbef3eddad01f2f46fe12c4ef35974c12982188c6ddd75b5",
+    "equipment/guard_amulet.png": "143c82f1a74e3688f062a9d5ff596e7e7de51ec0fc7165fc39ad66dfc199980d",
+    "equipment/heart_abyss.png": "02210211869b4146552d1bdc1f659d4f4d43156b35372b4cf5e13baccf243cdc",
+    "equipment/hero_medal.png": "0a1b9e0fb2fac2988ca2129d8a3767cfb8ba86e746db96ce4facc5fdcbbf6a15",
+    "equipment/leather_armor.png": "60ee233c5618e1e79b150fb523c0f877bb87c4bf54e6fc046d33159434611115",
+    "equipment/ledger_amulet.png": "f0251560770b7f22f002e4d961336e398b87f19823ba56d07db67cadc085798f",
+    "equipment/lucky_charm.png": "dfb388b505ab0c619b7f776cd3b525d86552a196cc9eeb256d9482976720baf4",
+    "equipment/mirror_plate.png": "023300ebe37785461fc26ddf0f4b227b9b5277d380c3c149df097d17bc8e03e3",
+    "equipment/ring_power.png": "4bfd453b84913cf9cbd1ed99893b47dc1fda8dae283cfc0ebde8babb3b1301a4",
+    "equipment/rusty_sword.png": "8413a83e6a2e68298bfc2491628167c571f939ffded392a97c095681f4920805",
+    "equipment/scout_lens.png": "1e9799f282a9b8fd4cfab64e1aa6dd24e670e9afb1cb70ea900e235ce56b4ae3",
+    "equipment/serpent_ward.png": "6a58b86fb5e7e9f6eb0f271c2fd9ec2cedd80efae2dac919e0c3cb3352292db3",
+    "equipment/short_sword.png": "cf3ef427293d04060938aed25c72d4b6c2d76efa9cb154a768162255c7c0a820",
+    "equipment/spiked_shield.png": "92122eae8ce87d51a7a96f1f571977bce086ab3a93b10c4545207eba3646ca36",
+    "equipment/steel_sword.png": "9c1204e6be7aebbf7d8ba560fa4d583677ab681a16bff379fd0977475bd7b078",
+    "equipment/trident_precise.png": "b37c3b42bdc58c0acbd0e23e84c4828f35adb15b2631744a45b386e98354b25b",
+    "equipment/vampiric_blade.png": "88ee49fa9103e9f9a6d9a206bdb021ad31122f96f194c88a0412479b91c60fec",
+    "equipment/warden_plate.png": "1dd9d3939d74648e646d33a79819ef4911fbf4f60976f61abe60814728e1daf6",
     "objects/chest.png": "68d88849fc875c3ae1eea3ddf2afa6e5c92ac5a6a3ceccee1b177fe7d8ed3d23",
     "objects/portal.png": "7f8dcd4372743e394d2b775357cd9d67101824b13236556134becb7c594bf6d6",
     "objects/lever.png": "ec23814b887741f29c708fb57963676864ec11c4f6b387d390cf4234988983a5",

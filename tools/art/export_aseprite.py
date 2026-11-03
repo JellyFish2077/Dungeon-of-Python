@@ -38,8 +38,11 @@ OUT = os.path.join(ART, "src_custom")
 FAMILIES = {
     "creatures": "creatures",
     "creatures2": "creatures",
+    "creatures3": "creatures",
     "items": "items",
     "items2": "items",
+    "items3": "items",
+    "equipment": "equipment",
     "objects": "objects",
     "objects2": "objects",
     "objects3": "objects",

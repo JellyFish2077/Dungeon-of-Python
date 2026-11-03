@@ -465,6 +465,11 @@ def build(manifest):
     for name in source_files("items"):
         items[name[:-4]] = png_uri(load("items/" + name))
 
+    # Надетые вещи: слой поверх player_base, ключ — id предмета из items.js.
+    worn = {}
+    for name in source_files("equipment"):
+        worn[name[:-4]] = png_uri(load("equipment/" + name))
+
     # Этажи: стены и пол каждого этажа — к своим целевым тонам.
     floors = []
     dirs = set()
@@ -521,7 +526,7 @@ def build(manifest):
     # Деревня: материалы зданий и двор (генерируются) плюс спрайты жителей.
     village, npc_sprites, village_meta = build_village(manifest, report)
     sprites.update(npc_sprites)
-    return {"sprites": sprites, "items": items, "floors": floors, "water": water, "lava": lava,
+    return {"sprites": sprites, "items": items, "worn": worn, "floors": floors, "water": water, "lava": lava,
             "decor": decor, "stairs": stairs, "traps": traps, "doors": doors, "objects": objects,
             "village": village, "village_meta": village_meta}, report
 
@@ -573,7 +578,9 @@ def sprites_block(art):
     return (SPRITES_HEAD +
             "const SPRITES = " + js_map(art["sprites"]) + ";\n\n"
             "// Предметы: у каждой вещи своя картинка, ключ — id из items.js.\n"
-            "const ITEM_SPRITES = " + js_map(art["items"]) + ";\n")
+            "const ITEM_SPRITES = " + js_map(art["items"]) + ";\n\n"
+            "// Надетые вещи: слой на герое поверх player_base, ключ — id предмета.\n"
+            "const WORN_SPRITES = " + js_map(art["worn"]) + ";\n")
 
 
 def terrain_block(art):
@@ -641,6 +648,13 @@ def check_rules(art, report):
     missing = [i for i in ids if i not in art["items"]]
     if missing:
         errors.append("нет картинок предметов: " + ", ".join(missing))
+    # Надеваемые вещи обязаны иметь слой на герое: слот potion не считается.
+    wearable = re.findall(
+        r'\{\s*id:\s*"([a-z0-9_]+)",[^\n]*slot:\s*"(weapon|armor|accessory)"',
+        items_js)
+    lost_worn = [i for i, _slot in wearable if i not in art["worn"]]
+    if lost_worn:
+        errors.append("нет слоя на герое для предметов: " + ", ".join(lost_worn))
     game_js = open(os.path.join(STATIC, "game.js"), encoding="utf-8").read()
     enemies = re.findall(r'\{\s*key:\s*"([a-z_]+)",\s*name:\s*"[^"]*",\s*color:', game_js)
     lost = [k for k in enemies + ["player", "trader"] if k not in art["sprites"]]

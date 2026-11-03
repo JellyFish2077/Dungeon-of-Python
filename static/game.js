@@ -6335,12 +6335,35 @@
     }
   }
 
+  // Слои снаряжения поверх базового героя. Для каждой надеваемой вещи
+  // нарисован свой 32×32-слой в equipment.aseprite: он совпадает с базой
+  // по сетке, поэтому ложится без подгонки координат.
+  function playerEquipmentLayers() {
+    const eq = G.equipment || {};
+    const out = [];
+    const add = (item, cls) => {
+      if (!item) return;
+      const src = (typeof WORN_SPRITES !== "undefined" && WORN_SPRITES[item.id])
+        || (typeof ITEM_SPRITES !== "undefined" && ITEM_SPRITES[item.id]);
+      if (src) out.push({ src: src, cls: "player-layer " + cls });
+    };
+    add(eq.weapon, "player-weapon");
+    add(eq.armor, "player-armor");
+    if (eq.accessory) {
+      const cls = eq.accessory.id === "crown" ? "player-crown"
+        : eq.accessory.id === "ring_power" ? "player-ring"
+        : "player-amulet";
+      add(eq.accessory, cls);
+    }
+    return out;
+  }
+
   function renderEntities() {
     const { pad, step } = mapMetrics();
     const layer = el("entities");
     const alive = new Set();
 
-    const place = (id, x, y, vis, iconKey, cls, color, title, z) => {
+    const place = (id, x, y, vis, iconKey, cls, color, title, z, layers) => {
       alive.add(id);
       let node = G.entityEls.get(id);
       let created = false;
@@ -6358,13 +6381,17 @@
       const bobSeed = (x * 13 + y * 7 + iconKey.length) % 11;
       node.style.setProperty("--idle-delay", (-bobSeed * 0.17).toFixed(2) + "s");
       node.style.setProperty("--idle-dur", (2.2 + (bobSeed % 4) * 0.23).toFixed(2) + "s");
-      const sig = iconKey + "|" + klass + "|" + (color || "");
+      const layerSig = (layers || []).map((l) => l.cls + "|" + l.src).join(";");
+      const sig = iconKey + "|" + klass + "|" + (color || "") + "|" + layerSig;
       if (node.dataset.sig !== sig) {
         node.dataset.sig = sig;
+        const layerHtml = (layers || []).map((l) =>
+          '<span class="' + l.cls + '"><img class="sprite-img" src="' + l.src + '" alt=""></span>'
+        ).join("");
         node.innerHTML =
           '<span class="ent ' + klass + '"' +
           (color ? ' style="--c:' + color + '"' : "") +
-          ' title="' + (title || "") + '">' + mapIcon(iconKey) + "</span>";
+          ' title="' + (title || "") + '">' + mapIcon(iconKey) + layerHtml + "</span>";
       }
 
       // Пишем в стиль только изменившееся: раньше на каждом шаге каждой
@@ -6398,7 +6425,8 @@
       }
     };
 
-    place("player", G.playerPos.x, G.playerPos.y, true, "player", "ent-player", null, "Герой", 6);
+    place("player", G.playerPos.x, G.playerPos.y, true, "player_base", "ent-player", null, "Герой", 6,
+      playerEquipmentLayers());
 
     // Раньше отряд делил одну клетку: рисовался только ведущий, а после его
     // смерти следующий монстр «появлялся из ниоткуда». Теперь у каждого
@@ -7683,6 +7711,7 @@
     recalcStats();
     log("Экипировано: " + item.name + ".", "loot");
     updateHud();
+    render();
     renderInventory();
   }
 
@@ -8026,6 +8055,7 @@
     recalcStats();
     log("Снято: " + item.name + ".", "loot");
     updateHud();
+    render();
     renderInventory();
   }
 

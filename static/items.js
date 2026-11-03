@@ -82,6 +82,16 @@ const ITEM_SETS = {
     three: { gold: 40, atk: 3 },
     twoText: "+15% золота",
     threeText: "+40% золота и +3 к урону"
+  },
+  ash: {
+    key: "ash",
+    name: "Пепел",
+    icon: "✹",
+    color: "#f97316",
+    two: { atk: 3 },
+    three: { atk: 6, crit: 0.1 },
+    twoText: "+3 к урону",
+    threeText: "+6 к урону и +10% к криту"
   }
 };
 
@@ -113,9 +123,15 @@ const ITEM_POOL = [
   { id: "dragon_blade", name: "Драконий клинок", slot: "weapon", atk: 16, rarity: "epic", tier: 3, set: "dragon",
     effect: { kind: "crit", chance: 0.25, mul: 2 },
     desc: "Клинок из кости дракона. Если он нацелен, наносит двойной урон." },
+  { id: "ash_blade", name: "Пепельный клинок", slot: "weapon", atk: 13, rarity: "rare", tier: 3, set: "ash",
+    effect: { kind: "execute", pct: 30 },
+    desc: "Тёмная сталь с тлеющими трещинами. Добивает тех, кто уже еле стоит." },
   { id: "frost_blade", name: "Клинок вечной зимы", slot: "weapon", atk: 20, rarity: "epic", tier: 4,
     effect: { kind: "execute", pct: 35 },
     desc: "Ледяной клинок из последнего зала. Убивает с одного удара раненых." },
+  { id: "dawn_blade", name: "Клинок рассвета", slot: "weapon", atk: 18, rarity: "epic", tier: 4,
+    effect: { kind: "crit", chance: 0.2, mul: 2 },
+    desc: "Светлый клинок, в котором утренний свет не гаснет даже под землёй." },
 
   // ---------- Броня ----------
   { id: "cloth_robe", name: "Роба послушника", slot: "armor", hp: 10, def: 0, rarity: "common", tier: 0, set: "luck",
@@ -132,9 +148,15 @@ const ITEM_POOL = [
     desc: "Отражает удар обратно. Полностью гасит первую атаку врага в бою." },
   { id: "dragon_scale", name: "Чешуя дракона", slot: "armor", hp: 55, def: 6, rarity: "epic", tier: 3, set: "dragon",
     desc: "Пластины чешуи сброшенного дракона. Тяжело, зато честно." },
+  { id: "ash_mantle", name: "Пепельная мантия", slot: "armor", hp: 32, def: 3, rarity: "rare", tier: 3, set: "ash",
+    effect: { kind: "thorns", pct: 20 },
+    desc: "Обгоревшая ткань, в которую вплетены осколки угля. Бьющий обжигается." },
   { id: "aegis", name: "Эгида", slot: "armor", hp: 75, def: 9, rarity: "epic", tier: 4,
     effect: { kind: "block", charges: 2 },
     desc: "Щит Афины. Гасит первые две атаки врага в каждом бою." },
+  { id: "warden_plate", name: "Латы хранителя", slot: "armor", hp: 80, def: 10, rarity: "epic", tier: 4,
+    effect: { kind: "thorns", pct: 25 },
+    desc: "Тяжёлые латы, покрытые шипами изнутри и снаружи. Каждый удар по тебе — и по врагу." },
 
   // ---------- Амулеты ----------
   { id: "ring_power", name: "Перстень силы", slot: "accessory", atk: 4, rarity: "uncommon", tier: 1,
@@ -156,9 +178,15 @@ const ITEM_POOL = [
   { id: "hero_medal", name: "Медаль героя", slot: "accessory", atk: 6, hp: 20, rarity: "epic", tier: 3,
     effect: { kind: "crit", chance: 0.15, mul: 2 },
     desc: "Награда за подвиги. Даёт силу и немного везения в ударе." },
+  { id: "ash_eye", name: "Пепельный глаз", slot: "accessory", atk: 3, rarity: "rare", tier: 3, set: "ash",
+    effect: { kind: "crit", chance: 0.1, mul: 2 },
+    desc: "Обсидиановый глаз с угольным зрачком. Видит слабое место." },
   { id: "crown", name: "Корона тронного зала", slot: "accessory", atk: 8, hp: 40, def: 3, rarity: "epic", tier: 4, set: "dragon",
     effect: { kind: "goldBonus", pct: 50 },
     desc: "Золотой ободок тронного зала. Половина добычи — твоя." },
+  { id: "heart_abyss", name: "Сердце бездны", slot: "accessory", atk: 7, hp: 50, rarity: "epic", tier: 4,
+    effect: { kind: "lifesteal", pct: 12 },
+    desc: "Тёмный амулет, который бьётся в такт чужому страху. Возвращает часть урона здоровьем." },
 
   // ---------- Зелья ----------
   { id: "small_potion", name: "Малое зелье", slot: "potion", heal: 30, rarity: "common", tier: 0,

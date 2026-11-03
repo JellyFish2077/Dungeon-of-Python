@@ -4818,6 +4818,35 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(noArt.length === 0, "у каждого предмета своя пиксельная картинка", noArt.map((i) => i.id).join(", "));
   const uniq = new Set(API.ITEM_POOL.map((it) => API.ITEM_SPRITES[it.id]));
   log(uniq.size === API.ITEM_POOL.length, "картинки предметов не повторяются", uniq.size + " из " + API.ITEM_POOL.length);
+
+  // Надеваемые вещи: у каждой свой слой поверх base-героя, иначе на спрайте
+  // героя не видно, что надето. Зелья не надеваются и слоя не требуют.
+  const wearable = API.ITEM_POOL.filter((it) => it.slot !== "potion");
+  const noWorn = wearable.filter((it) => !String(API.WORN_SPRITES[it.id] || "").startsWith("data:image/png"));
+  log(noWorn.length === 0, "у каждой надеваемой вещи есть слой на герое",
+    noWorn.map((i) => i.id).join(", "));
+  const wornUniq = new Set(wearable.map((it) => API.WORN_SPRITES[it.id]));
+  log(wornUniq.size === wearable.length, "слои надетых вещей не повторяются",
+    wornUniq.size + " из " + wearable.length);
+  const wornSize = wearable.every((it) => {
+    const png = decodePng(API.WORN_SPRITES[it.id]);
+    return png && png.w === 32 && png.h === 32;
+  });
+  log(wornSize, "слой надетой вещи — отдельный PNG 32×32, как база героя");
+  const wornOverlay = wearable.every((it) => {
+    const png = decodePng(API.WORN_SPRITES[it.id]);
+    let clear = 0;
+    for (let i = 3; i < png.rgba.length; i += 4) if (!png.rgba[i]) clear++;
+    return clear > 400;
+  });
+  log(wornOverlay, "слой снаряжения — накладка, а не второй целый герой");
+  const layerRule = (gameCss.match(/\.ent-player \.player-layer \{[\s\S]*?\n\}/) || [""])[0];
+  log(/inset:\s*0/.test(layerRule) && /width:\s*100%/.test(layerRule) &&
+    /height:\s*100%/.test(layerRule), "слой снаряжения занимает клетку героя целиком");
+  const gameSrc3 = fs.readFileSync(path.join(dir, "game.js"), "utf8");
+  log(/place\("player",[\s\S]{0,160}?"player_base"[\s\S]{0,100}?playerEquipmentLayers\(\)/.test(gameSrc3),
+    "герой подземелья — player_base, поверх него слои надетых вещей");
+
   log(API.itemPic(API.ITEM_POOL[0], "#fff").indexOf("item-ico-px") >= 0 &&
     API.itemPic({ id: "нет_такого", slot: "weapon" }, "#fff").indexOf("<svg") >= 0,
     "itemPic: картинка вещи, а для неизвестной вещи — прежняя иконка слота");

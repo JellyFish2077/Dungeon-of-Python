@@ -2,6 +2,7 @@
   "about": "Параметры сборки графики подземелья. Сборка: python tools/art/build_art.py",
   "creatures": [
     "player",
+    "player_base",
     "slime",
     "rat",
     "bat",
@@ -28,6 +29,7 @@
     "color": "#05070d",
     "except": [
       "player",
+      "player_base",
       "slime",
       "rat",
       "bat",
@@ -59,6 +61,7 @@
     "license": "MIT (оригинальная графика проекта)",
     "assets": [
       "creatures/player",
+      "creatures/player_base",
       "creatures/slime",
       "creatures/rat",
       "creatures/bat",
@@ -71,7 +74,11 @@
       "items/leather_armor",
       "items/lucky_charm",
       "items/scout_lens",
+      "items/ash_blade, ash_mantle, ash_eye, dawn_blade, warden_plate, heart_abyss",
       "items/aegis, antidote, big_potion, bone_dagger, chainmail, cloth_robe, crown, dragon_blade, dragon_scale, elixir, frost_blade, greater_elixir, guard_amulet, hero_medal, ledger_amulet, mirror_plate, purifying_draught, ring_power, serpent_ward, spiked_shield, steel_sword, trident_precise, vampiric_blade",
+      "equipment/rusty_sword, bone_dagger, short_sword, vampiric_blade, steel_sword, trident_precise, dragon_blade, ash_blade, frost_blade, dawn_blade",
+      "equipment/cloth_robe, leather_armor, chainmail, dragon_scale, mirror_plate, ash_mantle, spiked_shield, aegis, warden_plate",
+      "equipment/ring_power, guard_amulet, ledger_amulet, lucky_charm, scout_lens, serpent_ward, hero_medal, ash_eye, heart_abyss, crown",
       "objects/chest",
       "objects/portal",
       "objects/ore, rubble, lever, sign, lootBag",
@@ -118,6 +125,7 @@
       "elder": 0.74,
       "mentor": 0.13,
       "guard": 0.02,
+      "banker": 0.58,
       "blacksmith": 0.1,
       "master": 0.62,
       "storekeeper": 0.9

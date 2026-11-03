@@ -918,8 +918,44 @@ body.game-page:has(.stage.village) .tile.unseen {
 .ent-player {
   width: calc(var(--cell) * 0.72);
   height: calc(var(--cell) * 0.72);
+  position: relative;
   filter: drop-shadow(0 0 6px rgba(246, 196, 83, 0.85)) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
   animation: pop 0.2s ease;
+}
+
+/* Слои надетого снаряжения. Базовый герой — в белой майке и коричневых
+   штанах; вещь ложится поверх него своим слоем, нарисованным по той же
+   сетке 32×32, поэтому слой занимает ровно клетку героя. */
+.ent-player .player-layer {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ent-player .player-layer .sprite-img {
+  width: 100%;
+  height: 100%;
+  animation: enemyIdle var(--idle-dur, 2.6s) ease-in-out infinite;
+  animation-delay: var(--idle-delay, 0s);
+  transform-origin: 50% 100%;
+}
+
+/* Оружие поверх всего, броня под амулетом, корона и кольцо — на своих местах. */
+.ent-player .player-weapon {
+  z-index: 4;
+}
+
+.ent-player .player-armor {
+  z-index: 2;
+}
+
+.ent-player .player-amulet,
+.ent-player .player-crown,
+.ent-player .player-ring {
+  z-index: 3;
 }
 
 /* Герой и жители тоже дышат. Анимация на картинке, а не на клетке: у
