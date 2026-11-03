@@ -2657,7 +2657,9 @@
       });
       used.add(key(free[i].x, free[i].y));
     }
-    if (!f.endless && f.depth === 1) {
+    // Самый первый этаж игры — без торговца: первый спуск не должен
+    // начинаться с похода в лавку. На входе в следующие биомы он есть.
+    if (!f.endless && f.depth === 1 && index > 0) {
       const tSpot = free.find((s) => !used.has(key(s.x, s.y)));
       if (tSpot) {
         state.traders.push({ uid: ++G.uid, x: tSpot.x, y: tSpot.y });
@@ -3082,7 +3084,8 @@
   }
 
   function placePlanTrader(state, f, index, used) {
-    if (f.endless || f.depth !== 1) return;
+    // Первый этаж игры — без торговца; на входах в следующие биомы он есть.
+    if (f.endless || f.depth !== 1 || index === 0) return;
     const entry = state.plan.rooms.find((room) => room.role === "entry");
     if (!entry) return;
     const spot = planTake(entry, used);
@@ -12830,6 +12833,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.10.1",
+      date: "3 ноября 2026",
+      title: "Торговец — со второго биома",
+      items: [
+        "На самом первом этаже торговца больше нет: первый спуск начинается без лавки.",
+        "Торговец появляется на входе в следующие биомы — на 3, 5, 7 и 9 этажах.",
+        "Ассортимент по-прежнему фиксируется и не обновляется при повторном входе."
+      ]
+    },
     {
       version: "1.10.0",
       date: "3 ноября 2026",

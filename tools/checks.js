@@ -7378,10 +7378,24 @@ if (vault) {
   let traderBad = 0;
   for (const [index, floor] of API.FLOORS_V2.entries()) {
     const state = API.createFloorState(index);
-    const want = floor.depth === 1 ? 1 : 0;
+    const want = floor.depth === 1 && index > 0 ? 1 : 0;
     if (state.traders.length !== want) traderBad += 1;
   }
-  log(traderBad === 0, "торговец только на первом этаже биома", traderBad);
+  log(traderBad === 0, "торговец только на входе в биом, но не на первом этаже игры", traderBad);
+
+  // Короткий поход (живая кампания): на первом этаже торговца нет,
+  // на входах в следующие биомы — есть.
+  freshRun(0);
+  API.setCampaign(1);
+  API.setGenV2(true);
+  let traderShortBad = 0;
+  for (const [index, floor] of API.FLOORS.entries()) {
+    const state = API.createFloorState(index);
+    const want = floor.depth === 1 && index > 0 ? 1 : 0;
+    if (state.traders.length !== want) traderShortBad += 1;
+  }
+  log(traderShortBad === 0, "в коротком походе торговец появляется только со второго биома",
+    traderShortBad);
 
   freshRun(0);
   G.shopTrader = true;
