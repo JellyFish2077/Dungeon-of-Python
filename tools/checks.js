@@ -4840,12 +4840,17 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     return clear > 400;
   });
   log(wornOverlay, "слой снаряжения — накладка, а не второй целый герой");
-  const layerRule = (gameCss.match(/\.ent-player \.player-layer \{[\s\S]*?\n\}/) || [""])[0];
+  const layerRule = (gameCss.match(/\.player-layer \{[\s\S]*?\n\}/) || [""])[0];
   log(/inset:\s*0/.test(layerRule) && /width:\s*100%/.test(layerRule) &&
     /height:\s*100%/.test(layerRule), "слой снаряжения занимает клетку героя целиком");
   const gameSrc3 = fs.readFileSync(path.join(dir, "game.js"), "utf8");
   log(/place\("player",[\s\S]{0,160}?"player_base"[\s\S]{0,100}?playerEquipmentLayers\(\)/.test(gameSrc3),
     "герой подземелья — player_base, поверх него слои надетых вещей");
+  log(/battle-portrait hero'>" \+ playerBodyHtml\(\)/.test(gameSrc3),
+    "портрет героя в бою собран из player_base и тех же слоёв снаряжения");
+  const portraitRule = (gameCss.match(/\.battle-portrait \{[\s\S]*?\n\}/) || [""])[0];
+  log(/position:\s*relative/.test(portraitRule),
+    "портрет боя — система координат для слоёв снаряжения");
 
   log(API.itemPic(API.ITEM_POOL[0], "#fff").indexOf("item-ico-px") >= 0 &&
     API.itemPic({ id: "нет_такого", slot: "weapon" }, "#fff").indexOf("<svg") >= 0,

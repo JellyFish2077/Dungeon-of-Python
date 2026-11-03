@@ -6358,6 +6358,14 @@
     return out;
   }
 
+  // Герой с надетым снаряжением одной картинкой: база плюс слои. Так его
+  // показывают и на карте, и в портрете боя — экипировка не расходится.
+  function playerBodyHtml() {
+    return spriteImg("player_base") + playerEquipmentLayers().map((l) =>
+      '<span class="' + l.cls + '"><img class="sprite-img" src="' + l.src + '" alt=""></span>'
+    ).join("");
+  }
+
   function renderEntities() {
     const { pad, step } = mapMetrics();
     const layer = el("entities");
@@ -10416,7 +10424,7 @@
       "<div class='scene-arena'>" +
       "<div class='fighter fighter-hero" + (heroHp <= 0 ? " down" : "") + "'>" +
       "<div class='fighter-hpbar'><i style='width:" + heroPct + "%'></i></div>" +
-      "<div class='battle-portrait hero'>" + spriteImg("player") + "</div>" +
+      "<div class='battle-portrait hero'>" + playerBodyHtml() + "</div>" +
       "<div class='fighter-tag'><b>" + escText(heroName) + "</b>" +
       "<span>Уровень " + G.player.level +
       (G.player.poison > 0 ? " · яд " + G.player.poison : "") + "</span></div>" +

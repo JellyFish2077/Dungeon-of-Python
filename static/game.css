@@ -926,7 +926,7 @@ body.game-page:has(.stage.village) .tile.unseen {
 /* Слои надетого снаряжения. Базовый герой — в белой майке и коричневых
    штанах; вещь ложится поверх него своим слоем, нарисованным по той же
    сетке 32×32, поэтому слой занимает ровно клетку героя. */
-.ent-player .player-layer {
+.player-layer {
   position: absolute;
   inset: 0;
   display: block;
@@ -944,17 +944,17 @@ body.game-page:has(.stage.village) .tile.unseen {
 }
 
 /* Оружие поверх всего, броня под амулетом, корона и кольцо — на своих местах. */
-.ent-player .player-weapon {
+.player-weapon {
   z-index: 4;
 }
 
-.ent-player .player-armor {
+.player-armor {
   z-index: 2;
 }
 
-.ent-player .player-amulet,
-.ent-player .player-crown,
-.ent-player .player-ring {
+.player-amulet,
+.player-crown,
+.player-ring {
   z-index: 3;
 }
 
@@ -1600,6 +1600,7 @@ body.game-page.battling .game-wrap > .panel {
   height: 52px;
   display: grid;
   place-items: center;
+  position: relative;
   animation: enemyIdle 2.6s ease-in-out infinite;
   transform-origin: 50% 100%;
 }
