@@ -2124,58 +2124,10 @@
   // Строки в панели и в лавке короткие, а подробности (эффект, семья,
   // сравнение с надетым) ждут наведения: одна карточка на всю игру вместо
   // `title` — одинаковый вид, мгновенный отклик и работает с клавиатуры.
-  let tipNode = null;
-  let tipTimer = null;
-
   // Текст подсказки — разметка, поэтому в атрибут её кладём через эту
   // обёртку: иначе кавычка в описании предмета рвёт HTML.
   function tipAttr(html) {
     return String(html).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
-  }
-
-  function tipHide() {
-    if (tipTimer) {
-      clearTimeout(tipTimer);
-      tipTimer = null;
-    }
-    if (tipNode) tipNode.classList.add("hidden");
-  }
-
-  function tipShow(target) {
-    const text = target.getAttribute("data-tip");
-    if (!text) return;
-    if (!tipNode) {
-      tipNode = document.createElement("div");
-      tipNode.className = "tip hidden";
-      tipNode.setAttribute("role", "tooltip");
-      document.body.appendChild(tipNode);
-    }
-    tipNode.innerHTML = text;
-    tipNode.classList.remove("hidden");
-    // Карточка встаёт рядом с предметом, а не под курсором: так она не дрожит
-    // и не закрывает то, о чём рассказывает.
-    const r = target.getBoundingClientRect();
-    const box = tipNode.getBoundingClientRect();
-    const pad = 10;
-    let left = r.left - box.width - pad;
-    if (left < pad) left = r.right + pad;
-    if (left + box.width > window.innerWidth - pad) {
-      left = Math.max(pad, window.innerWidth - box.width - pad);
-    }
-    let top = r.top + r.height / 2 - box.height / 2;
-    if (top + box.height > window.innerHeight - pad) {
-      top = window.innerHeight - box.height - pad;
-    }
-    // Совсем широкий элемент (вариант ответа в узком окне) по бокам не влезает:
-    // тогда карточка встаёт над ним, иначе она ложилась поверх соседних кнопок.
-    if (r.left - box.width - pad < pad && r.right + box.width + pad > window.innerWidth) {
-      left = Math.max(pad, Math.min(r.left, window.innerWidth - box.width - pad));
-      top = r.top - box.height - 8;
-      if (top < pad) top = Math.min(window.innerHeight - box.height - pad, r.bottom + 8);
-    }
-    if (top < pad) top = pad;
-    tipNode.style.left = Math.round(left) + "px";
-    tipNode.style.top = Math.round(top) + "px";
   }
 
   // Поле ввода кода в бою: пока в нём печатают, игровые клавиши молчат.
@@ -2185,32 +2137,6 @@
     if (!node) return false;
     const tag = String(node.tagName || "").toUpperCase();
     return tag === "TEXTAREA" || tag === "INPUT" || tag === "SELECT" || !!node.isContentEditable;
-  }
-
-  function tipTarget(ev) {
-    const node = ev.target;
-    if (!node || !node.closest) return null;
-    return node.closest("[data-tip]");
-  }
-
-  function initTips() {
-    document.addEventListener("mouseover", (ev) => {
-      const target = tipTarget(ev);
-      if (!target) return;
-      if (tipTimer) clearTimeout(tipTimer);
-      tipTimer = setTimeout(() => tipShow(target), 90);
-    });
-    document.addEventListener("mouseout", (ev) => {
-      if (tipTarget(ev)) tipHide();
-    });
-    // Клавиатура: подсказка полезна и без мыши.
-    document.addEventListener("focusin", (ev) => {
-      const target = tipTarget(ev);
-      if (target) tipShow(target);
-    });
-    document.addEventListener("focusout", tipHide);
-    document.addEventListener("click", tipHide);
-    if (window.addEventListener) window.addEventListener("scroll", tipHide, true);
   }
 
   // ---------- Карта ----------
@@ -6399,7 +6325,7 @@
         node.innerHTML =
           '<span class="ent ' + klass + '"' +
           (color ? ' style="--c:' + color + '"' : "") +
-          ' title="' + (title || "") + '">' + mapIcon(iconKey) + layerHtml + "</span>";
+          ">" + mapIcon(iconKey) + layerHtml + "</span>";
       }
 
       // Пишем в стиль только изменившееся: раньше на каждом шаге каждой
@@ -14100,7 +14026,6 @@ function topicName(key) {
     if (!btn) return;
     const on = !!document.fullscreenElement;
     btn.textContent = on ? "Выйти" : "Экран";
-    btn.title = on ? "Выйти из полноэкранного режима (F11)" : "На весь экран (F11)";
     btn.setAttribute("aria-label", on ? "Выйти из полноэкранного режима" : "На весь экран");
   }
 
@@ -14740,7 +14665,7 @@ function topicName(key) {
       const node = ev.target && ev.target.closest ? ev.target.closest("[data-unequip]") : null;
       if (node && !node.disabled) unequipItem(node.dataset.unequip);
     });
-    initTips();
+    // Подсказки при наведении убраны: всплывающих карточек больше нет.
     // Полноэкранный режим. На обычном сервере кнопка тоже работает, а если
     // браузер не умеет Fullscreen API — просто не показываем её.
     const fullscreenBtn = el("fullscreen-btn");
@@ -15097,7 +15022,6 @@ function topicName(key) {
     btn.id = "dev-toggle";
     btn.className = "dev-toggle";
     btn.textContent = "DEV";
-    btn.title = "Панель разработчика. Клавиша P.";
     btn.addEventListener("click", devToggle);
     document.body.appendChild(btn);
 
@@ -15107,7 +15031,7 @@ function topicName(key) {
     panel.innerHTML =
       "<div class='dev-head'><b>Панель разработчика</b>" +
       "<span class='dev-key'>P</span>" +
-      "<button type='button' class='dev-close' data-dev='panel' title='Закрыть (P)'>×</button></div>" +
+      "<button type='button' class='dev-close' data-dev='panel'>×</button></div>" +
       "<div class='dev-state' id='dev-state'></div>" +
       "<div class='dev-tabs'>" +
       "<button type='button' class='dev-tab is-active' data-dev-tab='world'>Мир</button>" +

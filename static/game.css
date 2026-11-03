@@ -4609,45 +4609,6 @@ body.game-page .side-panel .effect-title {
   color: #8296b5;
 }
 
-/* ---------- Подсказки при наведении ---------- */
-
-/* Одна карточка на всю игру: подробности предмета и пояснения кнопок.
-   Встаёт рядом с тем, о чём рассказывает, и мышь не перехватывает. */
-.tip {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 70;
-  max-width: 300px;
-  padding: 9px 12px;
-  border: 1px solid #2c4569;
-  border-radius: 10px;
-  background: rgba(8, 14, 26, 0.98);
-  box-shadow: 0 18px 40px rgba(2, 6, 23, 0.62);
-  color: #bdccdf;
-  font-size: 12.5px;
-  line-height: 1.45;
-  pointer-events: none;
-}
-
-.tip.hidden {
-  display: none;
-}
-
-.tip b {
-  display: block;
-  margin-bottom: 4px;
-  color: #f1f5f9;
-  font-size: 13px;
-}
-
-/* В подсказке строки идут подряд: каждая подробность — своя строка. */
-.tip .item-set,
-.tip .item-effect {
-  display: inline;
-  font-weight: 600;
-}
-
 /* ---------- Узкое окно ---------- */
 @media (max-width: 980px) {
   /* В колонке карта не должна сжиматься до щели: у неё своя высота,

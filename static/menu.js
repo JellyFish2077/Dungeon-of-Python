@@ -187,7 +187,6 @@
     document.querySelectorAll("[data-app-version]").forEach((node) => {
       if (node.textContent) return;
       node.textContent = text;
-      node.title = "Версия " + info.version + (info.date ? " от " + info.date : "");
     });
   }
 
