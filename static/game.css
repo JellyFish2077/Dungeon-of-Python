@@ -7345,7 +7345,7 @@ body.game-page .site-head .head-actions {
   border-radius: 0;
   background:
     radial-gradient(circle at 50% 44%, rgba(30, 46, 66, 0.4), transparent 46%),
-    rgba(2, 6, 14, 0.62);
+    rgba(2, 6, 14, 0.9);
   box-shadow: none;
   animation: floor-intro-in 0.22s ease-out;
   transition: opacity 0.38s ease;
@@ -11181,3 +11181,340 @@ body.game-page .overlay > .battle .btn.purple:not(.battle-cat):hover {
   }
 }
 
+
+/* ---------- ���������� � ����� ���������� � ����� ����� ---------- */
+
+body.game-page .codex-tabs {
+  border-bottom-color: rgba(157, 184, 224, 0.09);
+}
+
+body.game-page .codex-tab {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: #8695a8;
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.16em;
+}
+
+body.game-page .codex-tab:hover,
+body.game-page .codex-tab:focus-visible {
+  border-color: rgba(157, 184, 224, 0.16);
+  color: #e9eff8;
+  outline: none;
+}
+
+body.game-page .codex-tab.is-active {
+  border-color: rgba(157, 184, 224, 0.16);
+  background: rgba(157, 192, 239, 0.08);
+  color: #e9eff8;
+}
+
+body.game-page .codex-key,
+body.game-page .codex-card {
+  border: 1px solid rgba(157, 184, 224, 0.09);
+  border-left: 2px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page .codex-key b {
+  color: #e9eff8;
+  font: 600 10px/1.3 var(--font-ui);
+}
+
+body.game-page .codex-key span {
+  color: #8695a8;
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+
+body.game-page .codex-empty {
+  border-color: rgba(157, 184, 224, 0.09);
+  color: rgba(134, 149, 168, 0.9);
+  font-family: var(--font-ui);
+}
+
+body.game-page .update-entry {
+  border: 1px solid rgba(157, 184, 224, 0.09);
+  border-left: 2px solid rgba(157, 184, 224, 0.16);
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page .update-entry h3 {
+  color: #e9eff8;
+  font: 700 15px/1.2 var(--font-ui);
+}
+
+body.game-page .update-version {
+  color: #9dc0ef;
+  font: 700 10px/1 var(--font-ui);
+}
+
+body.game-page .update-date {
+  color: rgba(134, 149, 168, 0.9);
+  font-family: var(--font-ui);
+}
+
+body.game-page .update-entry ul {
+  color: #8695a8;
+  font: 500 11px/1.55 var(--font-ui);
+}
+
+body.game-page .update-entry li::marker {
+  color: rgba(157, 184, 224, 0.4);
+}
+
+/* ---------- �������� ����� � �������: ��� ������� ����� ---------- */
+
+body.game-page .floor-intro-card {
+  border-top-color: rgba(157, 184, 224, 0.16);
+  border-bottom-color: rgba(157, 184, 224, 0.16);
+  background: rgba(7, 11, 17, 0.72);
+}
+
+body.game-page .floor-intro-kicker {
+  color: #8695a8;
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.26em;
+}
+
+body.game-page .floor-intro-title {
+  color: #e9eff8;
+  font: 900 clamp(32px, 5vw, 64px)/1.05 var(--font-pixel);
+  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.7);
+}
+
+body.game-page .tutorial-panel {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  background: rgba(7, 11, 17, 0.92);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  color: #e9eff8;
+}
+
+body.game-page .tutorial-kicker {
+  color: #8695a8;
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .tutorial-progress {
+  color: rgba(134, 149, 168, 0.9);
+  font-family: var(--font-ui);
+}
+
+body.game-page .tutorial-skip {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  color: #8695a8;
+}
+
+body.game-page .tutorial-skip:hover,
+body.game-page .tutorial-skip:focus-visible {
+  border-color: #9dc0ef;
+  color: #e9eff8;
+}
+
+body.game-page .tutorial-steps li b {
+  color: #e9eff8;
+  font-family: var(--font-ui);
+}
+
+body.game-page .tutorial-steps li span {
+  color: rgba(134, 149, 168, 0.9);
+  font-family: var(--font-ui);
+}
+
+body.game-page .tutorial-steps li.is-current b {
+  color: #e9eff8;
+}
+
+body.game-page .tutorial-hint {
+  border-top-color: rgba(157, 184, 224, 0.09);
+  color: #8695a8;
+  font-family: var(--font-ui);
+}
+
+/* ������� �� �������� �� ����-�����: ����� ��� ���. */
+body.game-page .tutorial-panel {
+  top: calc(74px + var(--minimap-h, 210px) + 22px);
+}
+
+@media (max-width: 900px) {
+  body.game-page .tutorial-panel {
+    top: calc(60px + var(--minimap-h, 210px) + 16px);
+  }
+}
+
+@media (max-width: 760px) {
+  body.game-page .tutorial-panel {
+    top: auto;
+    bottom: 72px;
+  }
+}
+
+/* Пока идёт заставка этажа, памятка не просвечивает сквозь неё. */
+body.game-page:has(#floor-arrival:not(.hidden)) .tutorial-panel {
+  opacity: 0;
+}
+
+/* Тост и вспышка эффекта — те же тонкие линии. */
+body.game-page .toast,
+body.game-page .effect-flash {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  background: rgba(7, 11, 17, 0.95);
+  color: #e9eff8;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-ui);
+}
+
+/* Большие мониторы: тихий интерфейс не должен выглядеть мелким. */
+@media (min-width: 1600px) {
+  body.game-page .site-head {
+    height: 64px;
+  }
+
+  body.game-page .nav-btn {
+    padding: 8px 20px;
+    font-size: 24px;
+  }
+
+  body.game-page .head-link {
+    font-size: 20px;
+  }
+
+  body.game-page .head-actions {
+    right: 34px;
+    gap: 20px;
+  }
+
+  body.game-page .hero-hud {
+    top: 84px;
+    right: 34px;
+    width: 380px;
+  }
+
+  body.game-page .hero-hud-name {
+    font-size: 34px;
+  }
+
+  body.game-page .hero-hud-rank b {
+    font-size: 27px;
+  }
+
+  body.game-page .hero-hud-gold {
+    font-size: 17px;
+  }
+
+  body.game-page .hero-hud-track,
+  body.game-page .hero-hud-bar.xp .hero-hud-track {
+    height: 4px;
+  }
+
+  body.game-page .hero-hud-val {
+    font-size: 14px;
+  }
+
+  body.game-page .hero-hud-foot {
+    font-size: 13px;
+  }
+
+  body.game-page .hero-hud-story-kicker {
+    font-size: 10px;
+  }
+
+  body.game-page .hero-hud-story-title {
+    font-size: 13px;
+  }
+
+  body.game-page .minimap-dock {
+    top: 84px;
+    left: 34px;
+  }
+
+  body.game-page .minimap-zoom-btn {
+    height: 30px;
+    font-size: 18px;
+  }
+
+  body.game-page .skip-btn {
+    right: 34px;
+    bottom: 24px;
+    font-size: 11px;
+  }
+}
+
+@media (min-width: 2200px) {
+  body.game-page .nav-btn {
+    font-size: 28px;
+  }
+
+  body.game-page .head-link {
+    font-size: 23px;
+  }
+
+  body.game-page .hero-hud {
+    width: 430px;
+  }
+
+  body.game-page .hero-hud-name {
+    font-size: 38px;
+  }
+
+  body.game-page .hero-hud-rank b {
+    font-size: 30px;
+  }
+
+  body.game-page .hero-hud-val {
+    font-size: 15px;
+  }
+}
+
+/* ==========================================================================
+   БЕЗ СВЕЧЕНИЯ
+   Цветные ореолы вокруг героя, жителей, монстров и предметов убраны:
+   остаётся только мягкая тень под спрайтом, чтобы он не висел в воздухе.
+   ========================================================================== */
+
+.ent-player,
+.ent-npc,
+.ent-enemy,
+.ent-enemy.boss,
+.ent-enemy.elite,
+.ent-enemy.guard,
+.ent-enemy.squad,
+.ent-treasure,
+.ent-bag,
+.ent-trader,
+.ent-stairs,
+.ent-stairs.up,
+.ent-portal,
+.ent-marker,
+.ent-marker.guard {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+.ent-enemy.boss {
+  filter: drop-shadow(0 3px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Сундук больше не пульсирует светом: его видно по форме и тени. */
+.ent-treasure,
+.ent-treasure.ent-px {
+  animation: none;
+}
+
+/* Лестницы и портал оставляют лёгкое движение, но без цветного ореола. */
+.ent-stairs,
+.ent-stairs.up,
+.ent-portal {
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}
+
+/* Житель с первой целью подсвечивался золотом — заменяем на спокойную тень. */
+.ent-npc.first-goal {
+  animation: none;
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
+}

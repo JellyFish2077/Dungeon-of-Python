@@ -1405,3 +1405,207 @@ body.reduce-motion *::after {
     font-size: 26px;
   }
 }
+/* ---------- Тихий интерфейс: настройки, профиль, «Об игре» ---------- */
+
+.menu-view-sub {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-top: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 4px;
+  background: rgba(7, 11, 17, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: #e9eff8;
+}
+
+.menu-view-sub h2 {
+  margin-bottom: 16px;
+  color: #e9eff8;
+  font-family: "Handjet", "Golos Text", sans-serif;
+  font-size: clamp(28px, 3.4vw, 34px);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.menu-back {
+  min-height: 34px;
+  padding: 6px 8px;
+  margin-left: -8px;
+  color: #8695a8;
+  font-size: 13px;
+}
+
+.menu-back:hover,
+.menu-back:focus-visible {
+  color: #e9eff8;
+  outline-color: rgba(157, 192, 239, 0.7);
+}
+
+.menu-profile {
+  border: 1px solid rgba(157, 184, 224, 0.09);
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+.menu-avatar,
+.menu-account-avatar {
+  border-color: rgba(157, 184, 224, 0.24);
+  border-radius: 3px;
+  background: rgba(157, 192, 239, 0.1);
+  color: #e9eff8;
+}
+
+.menu-profile-text b {
+  color: #e9eff8;
+  font-family: "Handjet", "Golos Text", sans-serif;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.menu-profile-text span,
+.menu-account-name span {
+  color: #8695a8;
+}
+
+.menu-account-name b {
+  color: #e9eff8;
+}
+
+.menu-change {
+  color: #8695a8;
+}
+
+.menu-change:hover,
+.menu-change:focus-visible {
+  color: #e9eff8;
+}
+
+.menu-toggle {
+  color: #e9eff8;
+}
+
+.menu-toggle-box {
+  border-color: rgba(157, 184, 224, 0.24);
+  background: rgba(157, 184, 224, 0.08);
+}
+
+.menu-toggle input:checked + .menu-toggle-box {
+  border-color: #9dc0ef;
+  background: #9dc0ef;
+}
+
+.menu-toggle input:checked + .menu-toggle-box::after {
+  background: #08111c;
+}
+
+.menu-toggle input:focus-visible + .menu-toggle-box {
+  outline-color: rgba(157, 192, 239, 0.7);
+}
+
+.menu-range {
+  color: #8695a8;
+}
+
+.menu-range output {
+  color: #e9eff8;
+}
+
+.menu-range input[type="range"] {
+  accent-color: #9dc0ef;
+}
+
+.menu-btn {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  background: none;
+  color: #8695a8;
+}
+
+.menu-btn:hover,
+.menu-btn:focus-visible {
+  border-color: #9dc0ef;
+  color: #e9eff8;
+}
+
+.menu-btn.primary {
+  border-color: transparent;
+  background: #9dc0ef;
+  color: #08111c;
+}
+
+.menu-btn.primary:hover,
+.menu-btn.primary:focus-visible {
+  background: #b6d2f5;
+  color: #08111c;
+}
+
+.menu-note {
+  color: #8695a8;
+}
+
+.menu-keys {
+  border-color: rgba(157, 184, 224, 0.09);
+}
+
+/* ---------- Тихий интерфейс: пауза ---------- */
+
+#menu-screen[data-mode="pause"] .menu-view-pause {
+  padding: 24px;
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-left: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 4px;
+  background: rgba(7, 11, 17, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+}
+
+#menu-screen[data-mode="pause"] .menu-pause-head {
+  border-bottom-color: rgba(157, 184, 224, 0.09);
+}
+
+#menu-screen[data-mode="pause"] .menu-pause-head h2 {
+  color: #e9eff8;
+  font-family: "Handjet", "Golos Text", sans-serif;
+  font-size: clamp(34px, 5vw, 46px);
+  font-weight: 900;
+}
+
+#menu-screen[data-mode="pause"] .menu-tagline {
+  color: #8695a8;
+  font-family: "Golos Text", system-ui, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+#menu-screen[data-mode="pause"] .menu-item {
+  padding: 11px 10px;
+  border-bottom: 1px solid rgba(157, 184, 224, 0.09);
+  border-left: 2px solid transparent;
+  color: #8695a8;
+  font-family: "Golos Text", system-ui, sans-serif;
+  font-size: 15px;
+}
+
+#menu-screen[data-mode="pause"] .menu-item.is-active {
+  color: #e9eff8;
+  border-left-color: #9dc0ef;
+  background: rgba(157, 192, 239, 0.08);
+}
+
+#menu-screen[data-mode="pause"] .menu-item:hover:not(.is-active):not(.is-disabled) {
+  color: #e9eff8;
+  border-left-color: rgba(157, 184, 224, 0.3);
+  background: rgba(233, 239, 248, 0.03);
+}
+
+#menu-screen[data-mode="pause"] .menu-item:focus-visible {
+  outline-color: rgba(157, 192, 239, 0.7);
+}
+
+#menu-screen[data-mode="pause"] .menu-item-mark {
+  color: #9dc0ef;
+}
+
+#menu-screen[data-mode="pause"] .pause-note {
+  color: rgba(134, 149, 168, 0.9);
+  font-family: "Golos Text", system-ui, sans-serif;
+}
