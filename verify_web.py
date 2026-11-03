@@ -344,9 +344,9 @@ def run_checks(browser, base):
         "() => document.getElementById('minimap-zoom-in').getBoundingClientRect().width")
     check(zoom_width > 60, "кнопки масштаба длинные, по краям карты", zoom_width)
     check(page.evaluate(
-        "() => getComputedStyle(document.getElementById('minimap-dock'))"
-        ".backgroundColor !== 'rgba(0, 0, 0, 0)'"),
-        "под мини-картой и кнопками есть полупрозрачный фон")
+        "() => { const s = getComputedStyle(document.getElementById('minimap'));"
+        " return s.borderTopWidth !== '0px' && s.backgroundColor !== 'rgba(0, 0, 0, 0)'; }"),
+        "у полотна мини-карты своя тонкая рамка и тёмный фон")
     page.locator("#minimap").click()
     page.click('[data-panel="inventory"]')
     page.wait_for_function(

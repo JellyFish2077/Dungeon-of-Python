@@ -9895,3 +9895,1289 @@ body.game-page .inv-tab.is-active {
 .saves-btn:focus-visible {
   outline-color: rgba(160, 196, 245, 0.9) !important;
 }
+
+/* ==========================================================================
+   ТИХИЙ ИНТЕРФЕЙС
+   Выбранный вариант из static/ui-mockup: HUD и мини-карта живут прямо на
+   карте, без подложек и золотых рамок; остаются тонкие линии, тени текста
+   и один холодный акцент. Бой — плоская нижняя панель со строками ответов.
+   ========================================================================== */
+
+body.game-page {
+  --quiet-text: #e9eff8;
+  --quiet-muted: #8695a8;
+  --quiet-faint: rgba(134, 149, 168, 0.58);
+  --quiet-line: rgba(157, 184, 224, 0.16);
+  --quiet-line-soft: rgba(157, 184, 224, 0.09);
+  --quiet-accent: #9dc0ef;
+  --quiet-gold: #e2b45f;
+  --quiet-hp: #8cc07c;
+  --quiet-hp-soft: #4f7a4b;
+  --quiet-xp: #7ba7dd;
+  --quiet-enemy: #e08a6f;
+  --quiet-shadow: 0 1px 10px rgba(3, 6, 10, 0.92), 0 0 2px rgba(3, 6, 10, 0.8);
+}
+
+/* Мягкие затемнения у краёв: текст меню и подсказок читается на любом тайле. */
+body.game-page #screen-game::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(5, 9, 14, 0.78) 0%, rgba(5, 9, 14, 0.3) 58%, transparent 100%) top / 100% 120px no-repeat,
+    linear-gradient(0deg, rgba(5, 9, 14, 0.58) 0%, rgba(5, 9, 14, 0.16) 60%, transparent 100%) bottom / 100% 92px no-repeat;
+}
+
+/* ---------- Верхнее меню: только текст на карте ---------- */
+
+body.game-page .site-head {
+  height: 54px;
+  padding: 0;
+  background: none;
+  justify-content: center;
+  align-items: center;
+}
+
+body.game-page .game-nav {
+  gap: 4px;
+}
+
+body.game-page .nav-btn {
+  min-height: 0;
+  padding: 7px 17px;
+  border: 0 !important;
+  border-radius: 3px;
+  background: none !important;
+  color: #a8b7ca;
+  font: 900 20px/1 var(--font-pixel);
+  letter-spacing: 0.04em;
+  text-shadow: var(--quiet-shadow);
+}
+
+body.game-page .nav-btn:hover,
+body.game-page .nav-btn:focus-visible {
+  color: var(--quiet-text);
+  text-decoration: none;
+  outline: none;
+}
+
+body.game-page .nav-btn.active {
+  border: 0 !important;
+  background: none !important;
+  color: var(--quiet-text);
+}
+
+body.game-page .nav-btn.active::after {
+  display: none;
+}
+
+body.game-page .head-actions {
+  right: 26px;
+  gap: 16px;
+}
+
+body.game-page .head-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--quiet-muted);
+  font: 700 17px/1 var(--font-pixel);
+  letter-spacing: 0.03em;
+  text-decoration: none;
+  text-shadow: var(--quiet-shadow);
+}
+
+body.game-page .head-link:hover,
+body.game-page .head-link:focus-visible,
+body.game-page .head-link.active {
+  color: var(--quiet-text);
+  text-decoration: none;
+  outline: none;
+}
+
+body.game-page .head-actions .app-version {
+  color: var(--quiet-faint);
+  font: 500 10px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  opacity: 1;
+}
+
+/* ---------- Панель героя: цифры и линии поверх карты ---------- */
+
+body.game-page .hero-hud {
+  top: 74px;
+  right: 26px;
+  width: min(322px, 30vw);
+  padding: 0;
+  border: 0 !important;
+  border-radius: 0;
+  background: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  color: var(--quiet-text);
+  font-family: var(--font-ui);
+  text-shadow: var(--quiet-shadow);
+}
+
+body.game-page .hero-hud-head {
+  gap: 10px;
+}
+
+body.game-page .hero-hud-rank {
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+body.game-page .hero-hud-rank b {
+  color: var(--quiet-text);
+  font: 900 23px/1 var(--font-pixel);
+  letter-spacing: 0;
+}
+
+body.game-page .hero-hud-name {
+  color: var(--quiet-text);
+  font: 900 29px/1 var(--font-pixel);
+  letter-spacing: 0.01em;
+}
+
+body.game-page .hero-hud-gold {
+  color: var(--quiet-gold);
+  font: 700 15px/1 var(--font-ui);
+}
+
+body.game-page .hero-hud-coin {
+  color: var(--quiet-gold);
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+body.game-page .hero-hud-bar {
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+body.game-page .hero-hud-key {
+  color: var(--quiet-faint);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .hero-hud-track {
+  height: 3px;
+  border: 0 !important;
+  border-radius: 2px;
+  background: rgba(233, 239, 248, 0.1);
+  box-shadow: none;
+}
+
+body.game-page .hero-hud-track > i {
+  border-radius: 2px;
+}
+
+body.game-page .hero-hud-bar.hp .hero-hud-track > i {
+  background: linear-gradient(90deg, var(--quiet-hp-soft), var(--quiet-hp));
+}
+
+body.game-page .hero-hud-bar.xp .hero-hud-track {
+  height: 3px;
+  background: rgba(233, 239, 248, 0.1);
+}
+
+body.game-page .hero-hud-bar.xp .hero-hud-track > i {
+  background: linear-gradient(90deg, #3f6591, var(--quiet-xp));
+}
+
+body.game-page .hero-hud-val {
+  min-width: 0;
+  color: var(--quiet-text);
+  font: 500 12px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+body.game-page .hero-hud-foot {
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 9px;
+  border-top: 1px solid var(--quiet-line-soft) !important;
+  color: var(--quiet-muted);
+  font: 500 11px/1 var(--font-ui);
+  letter-spacing: 0;
+}
+
+body.game-page .hero-hud-foot b {
+  color: var(--quiet-text);
+  font-weight: 700;
+}
+
+body.game-page .hero-hud-place {
+  margin-left: auto;
+  color: var(--quiet-faint);
+}
+
+body.game-page .hero-hud-story {
+  margin-top: 11px;
+  padding: 10px 0 0;
+  border: 0 !important;
+  border-top: 1px solid var(--quiet-line-soft) !important;
+  border-radius: 0;
+  background: none !important;
+  box-shadow: none !important;
+  text-align: left;
+}
+
+body.game-page .hero-hud-story-kicker {
+  color: var(--quiet-gold);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.2em;
+}
+
+body.game-page .hero-hud-story-title {
+  color: var(--quiet-muted);
+  font: 500 11.5px/1.2 var(--font-ui);
+  text-shadow: var(--quiet-shadow);
+}
+
+body.game-page .hero-hud-story::after {
+  color: var(--quiet-faint);
+}
+
+/* ---------- Мини-карта: рамка у полотна, а не у дока ---------- */
+
+body.game-page .minimap-dock {
+  top: 74px;
+  left: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  width: var(--minimap-w, 300px);
+}
+
+body.game-page .minimap-dock .minimap {
+  border: 1px solid var(--quiet-line) !important;
+  border-image: none !important;
+  border-radius: 4px;
+  background: #080d13;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
+}
+
+body.game-page .minimap-controls {
+  gap: 6px;
+  margin-top: 7px;
+}
+
+body.game-page .minimap-zoom-btn {
+  height: 26px;
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: rgba(7, 11, 17, 0.55);
+  color: var(--quiet-muted);
+  font: 500 16px/1 var(--font-ui);
+}
+
+body.game-page .minimap-zoom-btn:hover,
+body.game-page .minimap-zoom-btn:focus-visible {
+  border-color: var(--quiet-accent);
+  background: rgba(157, 192, 239, 0.08);
+  color: var(--quiet-text);
+}
+
+body.game-page .minimap-zoom-btn:disabled:hover {
+  border-color: var(--quiet-line);
+  background: rgba(7, 11, 17, 0.55);
+  color: var(--quiet-muted);
+}
+
+/* ---------- Кнопки на карте: тёмные плашки вместо золотых пилюль ---------- */
+
+body.game-page .action-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--quiet-line) !important;
+  border-radius: 3px;
+  background: rgba(7, 11, 17, 0.88);
+  color: var(--quiet-text);
+  font: 700 12px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+  animation: none;
+}
+
+body.game-page .action-btn:hover {
+  background: rgba(13, 21, 32, 0.94);
+  color: #fff;
+  filter: none;
+}
+
+body.game-page .action-btn .action-key {
+  padding: 2px 6px;
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+}
+
+body.game-page .skip-btn {
+  right: 26px;
+  bottom: 20px;
+  padding: 0;
+  border: 0 !important;
+  background: none !important;
+  color: #c6d3e3;
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: var(--quiet-shadow);
+}
+
+body.game-page .skip-btn:hover {
+  color: #f2f7fd;
+}
+
+body.game-page .skip-btn .action-key {
+  padding: 3px 6px;
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-text);
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+}
+
+/* ---------- Бой: плоская нижняя панель и строки ответов ---------- */
+
+body.battling .battle-panel {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: none;
+  max-height: min(62vh, 640px);
+  padding: 14px 26px 18px;
+  border: 0 !important;
+  border-top: 1px solid var(--quiet-line) !important;
+  border-image: none !important;
+  border-radius: 0;
+  background: rgba(7, 11, 17, 0.88) !important;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 -20px 44px rgba(0, 0, 0, 0.5);
+  transform: translateY(calc(100% + 40px));
+}
+
+body.battling #battle-box.panel-open .battle-panel {
+  transform: translateY(0);
+}
+
+body.battling .battle-panel .battle-panel-top {
+  gap: 22px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid var(--quiet-line-soft);
+}
+
+body.battling .battle-panel .combatant {
+  gap: 10px;
+}
+
+body.battling .battle-panel .combatant .name {
+  color: var(--quiet-text);
+  font: 700 12.5px/1 var(--font-ui);
+}
+
+body.battling .battle-panel .combatant .num {
+  color: var(--quiet-text);
+  font: 500 12px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+body.game-page .battle-panel .combatant .hp-bar {
+  width: clamp(130px, 18vw, 230px);
+  height: 4px;
+  border: 0;
+  border-radius: 2px;
+  background: rgba(233, 239, 248, 0.1);
+  box-shadow: none;
+  image-rendering: auto;
+}
+
+body.game-page .battle-panel .combatant .hp-bar > i {
+  border-radius: 2px;
+  background: linear-gradient(90deg, #8f4a3a, var(--quiet-enemy));
+}
+
+body.game-page .battle-panel .combatant.hero .hp-bar > i {
+  background: linear-gradient(90deg, var(--quiet-hp-soft), var(--quiet-hp));
+}
+
+body.battling .battle-panel .round-note {
+  padding: 0;
+  border: 0;
+  color: var(--quiet-accent);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.22em;
+}
+
+body.battling .battle-panel .battle-mid {
+  padding: 14px 0 15px;
+}
+
+body.battling .battle-panel .battle-mid.split {
+  gap: 14px 30px;
+}
+
+body.battling .battle-panel .challenge-tag {
+  margin: 6px 0 9px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--quiet-accent);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.22em;
+}
+
+body.battling .battle-panel .challenge-q,
+body.battling .battle-panel .q {
+  color: var(--quiet-text);
+  font: 500 17px/1.3 var(--font-ui);
+}
+
+body.battling .battle-panel .options {
+  gap: 8px;
+}
+
+body.battling .battle-panel .option {
+  gap: 14px;
+  padding: 10px 14px;
+  border: 1px solid var(--quiet-line-soft) !important;
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.015) !important;
+  color: var(--quiet-muted);
+  font: 500 14.5px/1.25 var(--font-ui);
+  box-shadow: none;
+  transform: none;
+}
+
+body.battling .battle-panel .option:hover:not(:disabled) {
+  border-color: rgba(157, 192, 239, 0.5) !important;
+  background: rgba(157, 192, 239, 0.1) !important;
+  color: var(--quiet-text);
+  box-shadow: none;
+  transform: none;
+}
+
+body.battling .battle-panel .option .key {
+  width: 13px;
+  height: auto;
+  flex: 0 0 13px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none !important;
+  color: var(--quiet-faint);
+  font: 700 11px/1 var(--font-mono);
+}
+
+body.battling .battle-panel .option:hover .key {
+  color: var(--quiet-accent);
+}
+
+body.battling .battle-panel .option.correct {
+  border-color: rgba(140, 192, 124, 0.6) !important;
+  background: rgba(140, 192, 124, 0.12) !important;
+  color: var(--quiet-text);
+}
+
+body.battling .battle-panel .option.wrong {
+  border-color: rgba(224, 138, 111, 0.6) !important;
+  background: rgba(224, 138, 111, 0.12) !important;
+  color: var(--quiet-text);
+}
+
+body.battling .battle-panel .battle-foot {
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--quiet-line-soft);
+}
+
+body.battling .battle-panel .battle-cat {
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0 !important;
+  border-image: none !important;
+  border-radius: 3px;
+  background: none !important;
+  color: var(--quiet-muted);
+  font: 700 11.5px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+}
+
+body.battling .battle-panel .battle-cat:hover,
+body.battling .battle-panel .battle-cat:focus-visible {
+  border: 0 !important;
+  background: rgba(233, 239, 248, 0.04) !important;
+  color: var(--quiet-text);
+  outline: none;
+}
+
+body.battling .battle-panel .battle-cat.open {
+  border: 0 !important;
+  background: rgba(157, 192, 239, 0.1) !important;
+  color: var(--quiet-text);
+}
+
+body.battling .battle-panel .battle-cat-list {
+  padding: 8px;
+  border: 1px solid var(--quiet-line) !important;
+  border-image: none !important;
+  border-radius: 4px;
+  background: #0a1119;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+}
+
+body.battling .battle-panel .btn {
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.02);
+  color: var(--quiet-text);
+  box-shadow: none;
+}
+
+body.battling .battle-panel .btn:hover {
+  border-color: var(--quiet-line);
+  background: rgba(233, 239, 248, 0.05);
+  color: #fff;
+}
+
+body.battling .battle-panel .btn.primary,
+body.battling .battle-panel .btn.purple {
+  border-color: transparent;
+  background: var(--quiet-accent);
+  color: #08111c;
+}
+
+body.battling .battle-panel .code,
+body.battling .battle-panel .code-editor {
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 3px;
+  background: rgba(3, 6, 10, 0.68);
+  color: #c9ddf5;
+}
+
+body.battling .battle-panel .battle-explain,
+body.battling .battle-panel .battle-feedback,
+body.battling .battle-panel .battle-note {
+  border-radius: 3px;
+}
+
+/* Лёгкая дымка: карта приглушается, бойцы и панель остаются главными. */
+body.battling .battle-stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(62% 58% at 50% 48%, rgba(5, 9, 14, 0.06) 0%,
+      rgba(5, 9, 14, 0.3) 58%, rgba(5, 9, 14, 0.76) 100%),
+    linear-gradient(180deg, rgba(5, 9, 14, 0.52) 0%, rgba(5, 9, 14, 0.12) 24%,
+      rgba(5, 9, 14, 0.16) 62%, rgba(5, 9, 14, 0.62) 100%);
+}
+
+body.battling .battle-stage .battle-scene {
+  z-index: 1;
+}
+
+/* Заголовок боя не исчезает: после вступления остаётся шапкой сцены. */
+body.battling .battle-intro.gone {
+  opacity: 1;
+  visibility: visible;
+  background: none;
+}
+
+/* Бойцы: подписи без плашек, полосы здоровья тонкие. */
+
+body.battling .battle-stage .fighter-hpbar {
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(233, 239, 248, 0.12);
+  box-shadow: none;
+  image-rendering: auto;
+}
+
+body.battling .battle-stage .fighter-hpbar > i,
+body.battling .battle-stage .fighter-hero .fighter-hpbar > i {
+  border-radius: 2px;
+  background-image: none;
+}
+
+body.battling .battle-stage .fighter-hpbar > i {
+  background: linear-gradient(90deg, #8f4a3a, var(--quiet-enemy));
+}
+
+body.battling .battle-stage .fighter-hero .fighter-hpbar > i {
+  background: linear-gradient(90deg, var(--quiet-hp-soft), var(--quiet-hp));
+}
+
+body.battling .battle-stage .fighter-tag {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+body.battling .battle-intro b {
+  text-shadow: 0 4px 18px rgba(3, 6, 10, 0.72);
+}
+
+body.battling .battle-stage .fighter-tag b {
+  color: var(--quiet-text);
+  font: 700 14px/1.1 var(--font-ui);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+body.battling .battle-stage .fighter-tag span {
+  color: var(--quiet-faint);
+  font: 500 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.battling .battle-intro-kicker {
+  color: var(--quiet-muted);
+}
+
+body.battling .battle-intro i {
+  background: linear-gradient(90deg, transparent, var(--quiet-line), transparent);
+}
+
+body.battling .battle-intro p {
+  color: var(--quiet-muted);
+}
+
+/* ---------- Панели и инвентарь: тонкие линии вместо золота ---------- */
+
+body.game-page .game-panel {
+  border: 1px solid var(--quiet-line) !important;
+  border-radius: 4px;
+  background: rgba(7, 11, 17, 0.95) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+  color: var(--quiet-text);
+}
+
+body.game-page .panel-head {
+  border-bottom: 1px solid var(--quiet-line-soft) !important;
+  background: none !important;
+}
+
+body.game-page .panel-kicker {
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .panel-head h2 {
+  color: var(--quiet-text);
+  font: 900 26px/1 var(--font-pixel);
+  letter-spacing: 0.01em;
+}
+
+body.game-page .panel-close {
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+}
+
+body.game-page .panel-close:hover,
+body.game-page .panel-close:focus-visible {
+  border-color: var(--quiet-accent) !important;
+  background: rgba(157, 192, 239, 0.08) !important;
+  color: var(--quiet-text);
+}
+
+body.game-page .inv-tab {
+  padding: 5px 10px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+  font: 600 10px/1 var(--font-ui);
+}
+
+body.game-page .inv-tab:hover,
+body.game-page .inv-tab:focus-visible {
+  border-color: var(--quiet-line);
+  color: var(--quiet-text);
+  outline: none;
+}
+
+body.game-page .inv-tab.is-active {
+  border-color: rgba(157, 192, 239, 0.5);
+  background: rgba(157, 192, 239, 0.1);
+  color: var(--quiet-text);
+}
+
+body.game-page .inv-item {
+  border-left-color: var(--quiet-line) !important;
+}
+
+body.game-page .inv-item:hover {
+  border-left-color: var(--quiet-accent) !important;
+}
+
+body.game-page .inv-item .info > b,
+body.game-page .inv-item .info span b {
+  color: var(--quiet-text);
+}
+
+body.game-page .inv-item .btn {
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+}
+
+body.game-page .inv-item .btn:hover {
+  border-color: var(--quiet-accent);
+  color: var(--quiet-text);
+}
+
+body.game-page .inv-item .btn.primary,
+body.game-page .inv-item .btn.purple {
+  border-color: transparent;
+  background: var(--quiet-accent);
+  color: #08111c;
+  box-shadow: none !important;
+}
+
+body.game-page .inv-item .btn.primary:hover,
+body.game-page .inv-item .btn.purple:hover {
+  background: #b6d2f5;
+  color: #08111c;
+  box-shadow: none !important;
+}
+
+body.game-page .panel-close {
+  font-family: var(--font-ui);
+  font-size: 18px;
+}
+
+body.game-page .inv-section h3,
+body.game-page #inventory-wallet::before,
+body.game-page #inventory-equip::before,
+body.game-page #inventory-bag::before {
+  color: var(--quiet-muted);
+  border-bottom-color: var(--quiet-line-soft);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page #inventory-wallet .hud-num,
+body.game-page #inventory-wallet .lead {
+  color: var(--quiet-muted);
+  font: 500 11px/1.35 var(--font-ui);
+}
+
+body.game-page #inventory-equip .equip-slot {
+  padding: 7px 10px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 3px;
+  background: none;
+}
+
+body.game-page #inventory-equip .equip-label {
+  color: var(--quiet-faint);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.16em;
+}
+
+body.game-page #inventory-equip .equip-value {
+  color: var(--quiet-text);
+  font: 600 12.5px/1.2 var(--font-ui);
+}
+
+body.game-page .item-desc {
+  color: var(--quiet-faint);
+}
+
+/* ---------- Журнал, лавка, кузница, диалоги: те же линии ---------- */
+
+body.game-page .overlay > .battle:not(#battle-box) {
+  border: 1px solid var(--quiet-line) !important;
+  border-image: none !important;
+  border-radius: 4px;
+  background: rgba(7, 11, 17, 0.95) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55) !important;
+  color: var(--quiet-text);
+}
+
+body.game-page .overlay > .battle .enemy-name {
+  color: var(--quiet-text);
+}
+
+body.game-page .overlay > .battle h2 {
+  color: var(--quiet-text);
+  font-family: var(--font-pixel);
+}
+
+body.game-page .overlay > .battle .lead {
+  color: var(--quiet-muted);
+}
+
+body.game-page .overlay > .battle .hud-num {
+  color: var(--quiet-muted);
+  font: 500 11px/1.35 var(--font-ui);
+}
+
+body.game-page .overlay > .battle .battle-head {
+  border-bottom: 1px solid var(--quiet-line-soft);
+  padding-bottom: 10px;
+}
+
+body.game-page .overlay > .battle .exit-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  padding: 0;
+  border: 1px solid var(--quiet-line) !important;
+  border-image: none !important;
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+  font-size: 0;
+}
+
+body.game-page .overlay > .battle .exit-btn::before {
+  color: currentColor;
+  font: 20px/1 var(--font-ui);
+}
+
+body.game-page .overlay > .battle .exit-btn:hover,
+body.game-page .overlay > .battle .exit-btn:focus-visible {
+  border-color: var(--quiet-accent) !important;
+  background: rgba(157, 192, 239, 0.08);
+  color: var(--quiet-text);
+}
+
+body.game-page .overlay > .battle > .battle-foot .win-chip,
+body.game-page .overlay > .battle > .battle-head .win-chip {
+  border: 1px solid var(--quiet-line);
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+}
+
+body.game-page .overlay > .battle > .battle-foot .foot-note {
+  color: var(--quiet-faint);
+  font: 500 9px/1.2 var(--font-ui);
+}
+
+body.game-page .journal-tab {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: none;
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.16em;
+}
+
+body.game-page .journal-tab b {
+  color: var(--quiet-accent);
+}
+
+body.game-page .journal-tab:hover,
+body.game-page .journal-tab:focus-visible {
+  border-color: var(--quiet-line);
+  color: var(--quiet-text);
+  outline: none;
+}
+
+body.game-page .journal-tab.is-active {
+  border-color: var(--quiet-line) !important;
+  background: rgba(157, 192, 239, 0.08) !important;
+  color: var(--quiet-text) !important;
+}
+
+body.game-page .journal-tab.is-active b {
+  color: var(--quiet-text);
+}
+
+body.game-page .story-prologue {
+  border: 1px solid var(--quiet-line-soft);
+  border-left: 2px solid var(--quiet-line);
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page .story-kicker {
+  color: var(--quiet-gold);
+  font: 700 9px/1.2 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .story-prologue p {
+  color: var(--quiet-muted);
+}
+
+body.game-page .story-current,
+body.game-page .story-current.is-ready {
+  border: 1px solid var(--quiet-line-soft);
+  border-left: 2px solid var(--quiet-accent);
+  background: rgba(233, 239, 248, 0.02);
+}
+
+body.game-page .story-current.is-done {
+  border-left-color: var(--quiet-hp);
+}
+
+body.game-page .story-current h3 {
+  color: var(--quiet-text);
+  font: 900 30px/1.05 var(--font-pixel);
+}
+
+body.game-page .story-current p,
+body.game-page .story-lead,
+body.game-page .story-objective p {
+  color: var(--quiet-muted);
+}
+
+body.game-page .story-objective {
+  border-top-color: var(--quiet-line-soft);
+}
+
+body.game-page .story-objective > span {
+  color: var(--quiet-faint);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .story-progress {
+  border-top-color: var(--quiet-line-soft);
+  color: var(--quiet-faint);
+  font: 500 10px/1.4 var(--font-ui);
+}
+
+body.game-page .story-progress span:last-child {
+  color: var(--quiet-muted);
+}
+
+body.game-page .story-path-head {
+  color: var(--quiet-faint);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .story-path-step::before {
+  background: var(--quiet-line);
+}
+
+body.game-page .story-path-num {
+  border-color: var(--quiet-line);
+  background: none;
+  color: var(--quiet-muted);
+}
+
+body.game-page .story-path-text b {
+  color: var(--quiet-muted);
+}
+
+body.game-page .story-path-text span,
+body.game-page .story-path-state {
+  color: var(--quiet-faint);
+  font-family: var(--font-ui);
+}
+
+body.game-page .story-path-step.is-current .story-path-num {
+  border-color: var(--quiet-accent);
+  background: rgba(157, 192, 239, 0.1);
+  color: var(--quiet-text);
+  box-shadow: none;
+}
+
+body.game-page .story-path-step.is-current .story-path-text b,
+body.game-page .story-path-step.is-current .story-path-state {
+  color: var(--quiet-text);
+}
+
+body.game-page .story-path-step.is-done .story-path-num {
+  border-color: rgba(140, 192, 124, 0.55);
+  color: var(--quiet-hp);
+}
+
+body.game-page .story-path-step.is-done .story-path-text b {
+  color: #b9d6b0;
+}
+
+body.game-page .journal-meta {
+  border-top-color: var(--quiet-line-soft);
+  color: var(--quiet-muted);
+  font-family: var(--font-ui);
+}
+
+body.game-page .journal-card {
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page .journal-card h3 {
+  color: var(--quiet-text);
+  font: 700 16px/1.2 var(--font-ui);
+}
+
+body.game-page .journal-card p {
+  color: var(--quiet-muted);
+}
+
+body.game-page .journal-empty {
+  border-color: var(--quiet-line-soft);
+  color: var(--quiet-faint);
+  font-family: var(--font-ui);
+}
+
+body.game-page #shop-box .inv-item .info > span:first-of-type,
+body.game-page #shop-box .shop-note,
+body.game-page #shop-box .inv-stats,
+body.game-page #shop-box .inv-stats b {
+  color: var(--quiet-muted);
+  font-family: var(--font-ui);
+}
+
+body.game-page #shop-box .inv-stats b {
+  color: var(--quiet-text);
+}
+
+body.game-page #shop-box .shop-buy .inv-item .info > b,
+body.game-page #shop-box .shop-sell .inv-item .info > b {
+  color: var(--quiet-text);
+}
+
+body.game-page #dialog-box .hub-card {
+  border: 1px solid var(--quiet-line-soft);
+  border-left: 2px solid var(--quiet-line);
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page #dialog-box .hub-card-head b,
+body.game-page #dialog-box .lead {
+  color: var(--quiet-muted);
+}
+
+body.game-page #dialog-box .hub-price {
+  color: var(--quiet-gold);
+  font: 500 10px/1 var(--font-ui);
+}
+
+body.game-page #dialog-box .hub-card-note {
+  color: var(--quiet-faint);
+}
+
+body.game-page #dialog-box .hub-stock {
+  color: var(--quiet-hp);
+  font-family: var(--font-ui);
+}
+
+body.game-page #dialog-box .quest-head,
+body.game-page #dialog-box h3 {
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--quiet-line-soft);
+  color: var(--quiet-muted);
+  font: 700 9px/1.2 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page #dialog-box .build-block {
+  border: 1px solid var(--quiet-line-soft);
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.game-page .pick-label {
+  color: var(--quiet-muted);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.18em;
+}
+
+body.game-page .mode b {
+  color: var(--quiet-text);
+}
+
+body.game-page .mode .mode-note {
+  color: var(--quiet-muted);
+}
+
+body.game-page .mode-mark {
+  border-color: var(--quiet-line);
+}
+
+body.game-page .mode.active .mode-mark {
+  border-color: var(--quiet-accent);
+  box-shadow: inset 0 0 0 4px var(--quiet-accent);
+}
+
+body.game-page .mode.active b {
+  color: var(--quiet-text);
+}
+
+body.game-page .check-box {
+  border-color: var(--quiet-line);
+  border-radius: 3px;
+}
+
+body.game-page .check input:checked + .check-box {
+  background: var(--quiet-accent);
+  border-color: var(--quiet-accent);
+}
+
+body.game-page .check-box::after {
+  border-color: #08111c;
+}
+
+body.game-page .check input:focus-visible + .check-box {
+  outline-color: rgba(157, 192, 239, 0.5);
+}
+
+body.game-page .check-text {
+  color: var(--quiet-muted);
+}
+
+body.game-page #entrance-box .lead {
+  color: var(--quiet-muted);
+}
+
+body.game-page #begin-btn {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: var(--quiet-accent);
+  color: #08111c;
+  box-shadow: none;
+}
+
+body.game-page #begin-btn:hover {
+  background: #b6d2f5;
+  color: #08111c;
+  transform: none;
+  box-shadow: none;
+}
+
+body.game-page #dialog-box .item-desc,
+body.game-page #forge-box .item-desc {
+  font-style: normal;
+}
+
+body.game-page .forge-lvl {
+  color: var(--quiet-gold);
+}
+
+body.game-page .overlay > .battle .btn:not(.battle-cat) {
+  border: 1px solid var(--quiet-line);
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.02);
+  color: var(--quiet-text);
+  box-shadow: none;
+}
+
+body.game-page .overlay > .battle .btn:not(.battle-cat):hover {
+  border-color: var(--quiet-line);
+  background: rgba(233, 239, 248, 0.05);
+  color: #fff;
+}
+
+body.game-page .overlay > .battle .btn.primary:not(.battle-cat),
+body.game-page .overlay > .battle .btn.purple:not(.battle-cat) {
+  border-color: transparent;
+  background: var(--quiet-accent);
+  color: #08111c;
+}
+
+body.game-page .overlay > .battle .btn.primary:not(.battle-cat):hover,
+body.game-page .overlay > .battle .btn.purple:not(.battle-cat):hover {
+  background: #b6d2f5;
+  color: #08111c;
+}
+
+/* ---------- Узкие экраны: тихий стиль не должен ломать раскладку ---------- */
+
+@media (max-width: 900px) {
+  body.game-page .site-head {
+    height: 46px;
+  }
+
+  body.game-page .nav-btn {
+    padding: 5px 9px;
+    font-size: 15px;
+  }
+
+  body.game-page .head-link {
+    font-size: 12px;
+  }
+
+  body.game-page .head-actions {
+    right: 10px;
+    gap: 8px;
+  }
+
+  body.game-page .hero-hud {
+    top: 60px;
+    right: 12px;
+    width: min(260px, 44vw);
+  }
+
+  body.game-page .hero-hud-name {
+    font-size: 22px;
+  }
+
+  body.game-page .hero-hud-rank b {
+    font-size: 18px;
+  }
+
+  body.game-page .minimap-dock {
+    top: 60px;
+    left: 12px;
+    width: min(var(--minimap-w, 300px), 40vw);
+  }
+
+  body.battling .battle-panel {
+    padding: 10px 12px 12px;
+  }
+
+  body.battling .battle-panel .battle-mid.split {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 700px) {
+  body.game-page .head-actions .app-version,
+  body.game-page .head-actions #fullscreen-btn {
+    display: none;
+  }
+
+  body.game-page .hero-hud {
+    width: auto;
+    left: 12px;
+    right: auto;
+    max-width: 60vw;
+  }
+
+  body.game-page .hero-hud-bar.xp,
+  body.game-page .hero-hud-foot {
+    display: none;
+  }
+
+  body.game-page .skip-btn {
+    right: 12px;
+    bottom: 10px;
+  }
+
+  body.battling .battle-panel {
+    max-height: 68vh;
+  }
+
+  body.battling .battle-panel .battle-panel-top {
+    gap: 8px;
+  }
+}
+

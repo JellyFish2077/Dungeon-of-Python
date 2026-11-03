@@ -494,3 +494,109 @@
     flex: 1 1 auto;
   }
 }
+
+/* ---------- Тихий интерфейс: окно сохранений без пергамента ---------- */
+
+.saves-screen {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-left: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 4px;
+  background: rgba(7, 11, 17, 0.96);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  color: #e9eff8;
+}
+
+.saves-head,
+.saves-foot {
+  border-bottom-color: rgba(157, 184, 224, 0.09);
+  border-top-color: rgba(157, 184, 224, 0.09);
+  background: none;
+}
+
+.saves-head h2 {
+  color: #e9eff8;
+  font-family: var(--font-pixel, "Handjet", sans-serif);
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.saves-subtitle,
+.saves-status,
+.save-slot-meta,
+.save-slot-date,
+.save-slot-num,
+.save-slot-fallback,
+.saves-detail-empty {
+  color: rgba(134, 149, 168, 0.9);
+}
+
+.saves-list,
+.saves-detail {
+  background: none;
+}
+
+.save-slot {
+  border-color: rgba(157, 184, 224, 0.09);
+  border-radius: 3px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+.save-slot:hover,
+.save-slot:focus-visible {
+  border-color: rgba(157, 184, 224, 0.4);
+  background: rgba(233, 239, 248, 0.04);
+}
+
+.save-slot.is-selected {
+  border-color: rgba(157, 192, 239, 0.55);
+  background: rgba(157, 192, 239, 0.08);
+  box-shadow: inset 3px 0 0 #9dc0ef;
+}
+
+.save-slot.is-empty:hover,
+.save-slot.is-empty:focus-visible,
+.save-slot-plus {
+  color: #9dc0ef;
+}
+
+.save-slot-name {
+  color: #e9eff8;
+}
+
+.save-slot-shot {
+  border-color: rgba(157, 184, 224, 0.16);
+}
+
+.saves-btn {
+  border: 1px solid rgba(157, 184, 224, 0.16);
+  border-radius: 3px;
+  color: #8695a8;
+}
+
+.saves-btn:hover,
+.saves-btn:focus-visible {
+  border-color: #9dc0ef;
+  color: #e9eff8;
+}
+
+.saves-btn.primary {
+  border-color: transparent;
+  background: #9dc0ef;
+  color: #08111c;
+}
+
+.saves-btn.primary:hover,
+.saves-btn.primary:focus-visible {
+  background: #b6d2f5;
+  color: #08111c;
+}
+
+.saves-btn.danger {
+  border-color: rgba(224, 106, 106, 0.35);
+  color: #e8a0a0;
+}
+
+.saves-btn.ghost {
+  border-color: rgba(157, 184, 224, 0.09);
+  color: rgba(134, 149, 168, 0.9);
+}

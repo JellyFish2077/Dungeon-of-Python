@@ -4852,6 +4852,22 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(/position:\s*relative/.test(portraitRule),
     "портрет боя — система координат для слоёв снаряжения");
 
+  // Тихий интерфейс: HUD и мини-карта живут прямо на карте, без подложек.
+  const quietStart = gameCss.indexOf("ТИХИЙ ИНТЕРФЕЙС");
+  const quietCss = quietStart >= 0 ? gameCss.slice(quietStart) : "";
+  log(quietCss.length > 1000 && quietCss.indexOf("--quiet-text") >= 0,
+    "тихий интерфейс подключён отдельным блоком с токенами");
+  log(/body\.game-page \.hero-hud \{[\s\S]*?background:\s*none !important/.test(quietCss) &&
+    /body\.game-page \.hero-hud \{[\s\S]*?border:\s*0 !important/.test(quietCss),
+    "HUD героя без подложки и рамки — только текст на карте");
+  log(/body\.game-page \.minimap-dock \{[\s\S]*?background:\s*none/.test(quietCss) &&
+    /body\.game-page \.minimap-dock \.minimap \{[\s\S]*?border: 1px solid var\(--quiet-line\) !important/.test(quietCss),
+    "у мини-карты рамка на полотне, а не панель вокруг");
+  log(/body\.battling \.battle-panel \{[\s\S]*?border-top: 1px solid var\(--quiet-line\) !important/.test(quietCss),
+    "бой — плоская нижняя панель с одной линией сверху");
+  log(/body\.battling \.battle-panel \.option \{[\s\S]*?background: rgba\(233, 239, 248, 0\.015\) !important/.test(quietCss),
+    "варианты ответа — тонкие строки, а не крупные карточки");
+
   log(API.itemPic(API.ITEM_POOL[0], "#fff").indexOf("item-ico-px") >= 0 &&
     API.itemPic({ id: "нет_такого", slot: "weapon" }, "#fff").indexOf("<svg") >= 0,
     "itemPic: картинка вещи, а для неизвестной вещи — прежняя иконка слота");

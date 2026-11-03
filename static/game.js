@@ -6081,7 +6081,7 @@
       const gy1 = (0 - G.camera.ty - m.pad) / m.step;
       const gx2 = (viewCache.w - G.camera.tx - m.pad) / m.step;
       const gy2 = (viewCache.h - G.camera.ty - m.pad) / m.step;
-      ctx.strokeStyle = "rgba(246,196,83,0.5)";
+      ctx.strokeStyle = "rgba(157,192,239,0.55)";
       ctx.lineWidth = 1;
       ctx.strokeRect(ox + gx1 * cs, oy + gy1 * cs, (gx2 - gx1) * cs, (gy2 - gy1) * cs);
     }
