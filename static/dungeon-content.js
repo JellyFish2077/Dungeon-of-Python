@@ -3,7 +3,19 @@
 // Каждый этаж FLOORS[i] находит свой блок по индексу floorEpilogues[i];
 // если блока нет — этаж просто ничего не печатает.
 
-const FLOOR_EPILOGUES = [
+// V2-кампания: 15 этажей. Новых текстов на этапе 1 нет — берём записи
+// того же биома: обычный, босс, босс. На этапе 6 тексты заменятся.
+function contentV2FromV1(list) {
+  const out = [];
+  for (let b = 0; b < 5; b += 1) {
+    const normal = list[b * 2] || list[0];
+    const boss = list[b * 2 + 1] || normal;
+    out.push(normal, boss, boss);
+  }
+  return out;
+}
+
+const FLOOR_EPILOGUES_V1 = [
   {
     // Этаж 1 — Пещеры новичка
     text: "Камень здесь ещё помнит солнце: на стенах сухие потёки, похожие на русские буквы.",
@@ -125,8 +137,10 @@ const TRAP_TYPES = [
   }
 ];
 
+const FLOOR_EPILOGUES_V2 = contentV2FromV1(FLOOR_EPILOGUES_V1);
+
 // События при входе на этаж — показываются один раз за этаж за прохождение.
-const FLOOR_EVENTS = [
+const FLOOR_EVENTS_V1 = [
   { key: "echo", text: "Где-то впереди стук — будто кто-то считает строки кода." },
   { key: "wind", text: "Сквозняк выносит запах железа и старой бумаги." },
   { key: "whisper", text: "Тихое эхо повторяет твой последний вопрос и отвечает неправильно." },
@@ -138,6 +152,8 @@ const FLOOR_EVENTS = [
   { key: "cold", text: "Воздух обжигает горло. Дракон знает, что ты идёшь." },
   { key: "roar", text: "Глухой рык отдаётся в стенах. Впереди последний бой." }
 ];
+
+const FLOOR_EVENTS_V2 = contentV2FromV1(FLOOR_EVENTS_V1);
 
 // Реплики врагов — показываются в бою над блоком здоровья.
 // Ключ соответствует enemy.key из ENEMY_TYPES в game.js.
@@ -230,7 +246,7 @@ const ELITE_TITLES = {
 };
 
 // Стартовые подсказки — по одной на каждый этаж, показываются в журнале.
-const FLOOR_ENTRANCE_TIPS = [
+const FLOOR_ENTRANCE_TIPS_V1 = [
   "Первые монстры слабые. Отвечай уверенно — это набирает опыт.",
   "Вожак гоблинов бьёт больно. Не подходи к нему с пустым зельем.",
   "В катакомбах много списков и строк: следи за индексами.",
@@ -243,8 +259,10 @@ const FLOOR_ENTRANCE_TIPS = [
   "Дракон впадает в ярость на 40% здоровья. Прибереги большое зелье."
 ];
 
-// Опасная среда. На десяти этажах она появляется только в обычных
-// комнатах, а не на этажах боссов.
+const FLOOR_ENTRANCE_TIPS_V2 = contentV2FromV1(FLOOR_ENTRANCE_TIPS_V1);
+
+// Опасная среда. На обычных этажах она появляется только в комнатах,
+// а не на аренах боссов.
 //   frost — лёд под ногами: встав на него, ты скользишь, и монстры
 //           успевают сделать лишний шаг;
 //   dark  — тьма: видно вдвое меньше обычного;
@@ -273,9 +291,18 @@ const HAZARD_TYPES = {
   }
 };
 
-// Ключ среды на каждый этаж или null. Боссы всегда стоят на твёрдом полу.
-const FLOOR_HAZARD = [
+// Ключ среды на каждый этаж или null. Арены всегда стоят на твёрдом полу.
+const FLOOR_HAZARD_V1 = [
   null, null, null, null, "frost", null, "lava", null, "dark", null
+];
+
+// V2: на каждый биом два обычных этажа со средой и арена без неё.
+const FLOOR_HAZARD_V2 = [
+  null, null, null,          // 1–3: пещеры
+  "dark", "dark", null,      // 4–6: катакомбы
+  "frost", "frost", null,    // 7–9: лёд
+  "lava", "lava", null,      // 10–12: демоны
+  "dark", "dark", null       // 13–15: логово
 ];
 
 // Плотность опасных клеток от числа свободных плиток этажа.
@@ -313,21 +340,23 @@ function hazardByKey(key) {
   return HAZARD_TYPES[key] || null;
 }
 
-// Бесконечный спуск: за десятым этажом таблицы кончаются, и этаж
+// Бесконечный спуск: за последним этажом таблицы кончаются, и этаж
 // собирается из того, что есть, — по кругу. Среду прокручиваем только
-// по настоящим средам: null-ы первых четырёх этажей в круг не входят.
-const HAZARD_CYCLE = FLOOR_HAZARD.filter(Boolean);
+// по настоящим средам: null-ы арен в круг не входят.
+const HAZARD_CYCLE_V1 = FLOOR_HAZARD_V1.filter(Boolean);
+const HAZARD_CYCLE_V2 = FLOOR_HAZARD_V2.filter(Boolean);
 
 function cycleAt(list, index) {
   if (!list || !list.length) return null;
   return list[index % list.length] || null;
 }
 
-function floorHazard(index) {
-  const key =
-    index >= 0 && index < FLOOR_HAZARD.length
-      ? FLOOR_HAZARD[index]
-      : cycleAt(HAZARD_CYCLE, index - FLOOR_HAZARD.length);
+function floorHazard(index, campaign) {
+  const list = campaign === 2 ? FLOOR_HAZARD_V2 : FLOOR_HAZARD_V1;
+  const cycle = campaign === 2 ? HAZARD_CYCLE_V2 : HAZARD_CYCLE_V1;
+  const key = index >= 0 && index < list.length
+    ? list[index]
+    : cycleAt(cycle, index - list.length);
   return key ? HAZARD_TYPES[key] || null : null;
 }
 
@@ -372,16 +401,19 @@ function trapByKey(key) {
   return TRAP_TYPES.find((t) => t.key === key) || null;
 }
 
-function floorEpilogue(index) {
-  return FLOOR_EPILOGUES[index] || cycleAt(FLOOR_EPILOGUES, index) || null;
+function floorEpilogue(index, campaign) {
+  const list = campaign === 2 ? FLOOR_EPILOGUES_V2 : FLOOR_EPILOGUES_V1;
+  return list[index] || cycleAt(list, index) || null;
 }
 
-function floorEvent(index) {
-  return FLOOR_EVENTS[index] || cycleAt(FLOOR_EVENTS, index) || null;
+function floorEvent(index, campaign) {
+  const list = campaign === 2 ? FLOOR_EVENTS_V2 : FLOOR_EVENTS_V1;
+  return list[index] || cycleAt(list, index) || null;
 }
 
-function floorTip(index) {
-  return FLOOR_ENTRANCE_TIPS[index] || cycleAt(FLOOR_ENTRANCE_TIPS, index) || null;
+function floorTip(index, campaign) {
+  const list = campaign === 2 ? FLOOR_ENTRANCE_TIPS_V2 : FLOOR_ENTRANCE_TIPS_V1;
+  return list[index] || cycleAt(list, index) || null;
 }
 
 function enemyQuip(key) {
