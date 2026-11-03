@@ -9,5 +9,5 @@
     "skipLibCheck": true,
     "types": []
   },
-  "include": ["tools/village-editor/src/**/*.ts"]
+  "include": ["tools/village-editor/src/**/*.ts", "tools/phaser-prototype/src/**/*.ts"]
 }

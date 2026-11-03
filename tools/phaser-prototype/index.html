@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PyDungeon — Phaser prototype</title>
+  </head>
+  <body>
+    <div id="app">
+      <div id="game"></div>
+      <div class="hud">
+        <div class="hud-title">PyDungeon · Phaser 3</div>
+        <div class="hud-sub">Деревня 30×18 · WASD / стрелки · E — действие · колесо — зум</div>
+        <div id="fps" class="fps">—</div>
+      </div>
+      <div id="prompt" class="prompt hidden"></div>
+      <div id="dialog" class="dialog hidden">
+        <div class="dialog-head">
+          <b id="dialog-title"></b>
+          <button id="dialog-close" type="button" aria-label="Закрыть">×</button>
+        </div>
+        <p id="dialog-body"></p>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
