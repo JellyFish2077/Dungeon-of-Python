@@ -761,7 +761,7 @@ function playOne(opts, rng, trace) {
       break;
     }
     const hadBattle = !!G.battle;
-    let what = "start";
+    let what;
     const t0 = Date.now();
     try {
       what = playStep(skill, rng, seen);

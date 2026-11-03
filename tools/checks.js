@@ -1126,7 +1126,7 @@ G.inventory = [Object.assign({}, equipWithEffect("crit") || API.ITEM_POOL[0])];
 G.equipment.weapon = G.inventory[0];
 API.saveGame();
 const raw = globalThis.localStorage.getItem(API.SAVE_KEY);
-let saved = null;
+let saved;
 try { saved = JSON.parse(raw); } catch (err) { saved = null; }
 log(!!saved, "сохранение записывается в localStorage");
 if (saved) {
@@ -3540,7 +3540,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(G.player.setCrit === API.ITEM_SETS.shadow.three.crit,
     "полный набор тени даёт шанс крита", "+" + Math.round(G.player.setCrit * 100) + "%");
   const realRandom = Math.random;
-  let critMul = 1;
+  let critMul;
   Math.random = () => 0.0001;
   try { critMul = API.critRoll(); } finally { Math.random = realRandom; }
   log(critMul > 1, "крит от набора срабатывает в бою", "×" + critMul);
@@ -4461,7 +4461,8 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   };
 
   // --- сбой сервера проверки — не вина ученика ---
-  let task = codeBattle();
+  let task;
+  codeBattle();
   const enemyHp = G.battle.enemy.hp;
   globalThis.fetch = () => syncFail(new Error("offline"));
   API.checkCode();
@@ -6655,7 +6656,9 @@ if (vault) {
     movedSave = JSON.parse(localStorage.getItem("pyquiz_save_v1:" + newName) || "null");
     movedVillage = JSON.parse(localStorage.getItem("pyquiz_village_v1:" + newName) || "null");
     movedSlots = JSON.parse(localStorage.getItem("pyquiz_save_slots_v1:" + newName) || "null");
-  } catch (e) {}
+  } catch (e) {
+    // Сохранения могло не быть: moved* остаются null.
+  }
   log(!!moved && moved.ok && after && after.wallet.gold === 77 &&
       movedSave && movedSave.name === newName &&
       movedVillage && movedVillage.name === newName && movedVillage.x === 3 &&

@@ -100,7 +100,7 @@ function buildCard(index) {
 freshRun(0);
 API.setCampaign(2);
 API.setGenV2(true);
-let cards = [];
+let cards;
 try {
   cards = SAMPLES.map(buildCard);
 } finally {

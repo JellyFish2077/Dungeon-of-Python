@@ -1,0 +1,24 @@
+{
+  "name": "pydungeon",
+  "private": true,
+  "version": "1.9.8",
+  "description": "PyDungeon — браузерная игра-подземелье с вопросами по Python",
+  "scripts": {
+    "dev": "vite",
+    "build:editor": "vite build",
+    "check": "tsc -p tsconfig.json && tsc -p tsconfig.game.json",
+    "lint": "eslint tools/*.js *.js",
+    "format:check": "prettier --check \"tools/village-editor/**/*.{html,css,ts,js}\" \"*.{json,mjs}\"",
+    "format": "prettier --write \"tools/village-editor/**/*.{html,css,ts,js}\" \"*.{json,mjs}\"",
+    "test:quick": "python run_all_checks.py --quick",
+    "test": "python run_all_checks.py"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  }
+}

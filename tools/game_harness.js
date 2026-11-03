@@ -211,7 +211,7 @@
     // прямо в тексте скрипта, не трогая сам файл.
     const gameSrc = fs.readFileSync(path.join(dir, "game.js"), "utf8");
     const fnNames = [...new Set(
-      [...gameSrc.matchAll(/^  function ([A-Za-z0-9_$]+)/gm)].map((m) => m[1])
+      [...gameSrc.matchAll(/^ {2}function ([A-Za-z0-9_$]+)/gm)].map((m) => m[1])
     )];
     const exportHook =
       "\n;globalThis.__api = {" +

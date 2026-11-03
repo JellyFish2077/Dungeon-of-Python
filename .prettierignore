@@ -1,0 +1,9 @@
+static/
+standalone/
+dist/
+public/
+node_modules/
+_backup/
+demo/
+docs/
+*.log
