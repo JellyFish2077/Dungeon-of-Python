@@ -11518,3 +11518,34 @@ body.game-page .effect-flash {
   animation: none;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
+
+/* Элита и отряд раньше различались свечением. Теперь у них маленькая
+   метка в углу: золотой ромб у элиты, красная точка у отряда. */
+.ent-enemy.elite,
+.ent-enemy.squad {
+  position: relative;
+}
+
+.ent-enemy.elite::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #05070d;
+  background: #facc15;
+  transform: rotate(45deg);
+}
+
+.ent-enemy.squad::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid #05070d;
+  border-radius: 50%;
+  background: #ef4444;
+}
