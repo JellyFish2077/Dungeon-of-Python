@@ -6766,6 +6766,33 @@
     return null;
   }
 
+  // Сумма одного числового поля по всем надетым вещам с этим эффектом.
+  // Нужна для крита, вампиризма и золота: два предмета с одним эффектом
+  // должны складываться, а не затирать друг друга.
+  function effectTotal(kind, field) {
+    if (!G.equipment) return 0;
+    let total = 0;
+    Object.keys(G.equipment).forEach((slot) => {
+      const it = G.equipment[slot];
+      if (it && it.effect && it.effect.kind === kind) {
+        total += Number(it.effect[field]) || 0;
+      }
+    });
+    return total;
+  }
+
+  function effectMax(kind, field, fallback) {
+    if (!G.equipment) return fallback;
+    let best = fallback;
+    Object.keys(G.equipment).forEach((slot) => {
+      const it = G.equipment[slot];
+      if (it && it.effect && it.effect.kind === kind) {
+        best = Math.max(best, Number(it.effect[field]) || 0);
+      }
+    });
+    return best;
+  }
+
   // Когда эффект реально срабатывает, игрок должен это увидеть: одна
   // всплывающая строка в бою и запись в журнал. Без этого невозможно
   // понять, откуда взялось лечение или почему удар оказался сильнее.
@@ -6863,10 +6890,9 @@
   }
 
   function addGold(n) {
-    const bonus = equippedEffect("goldBonus");
     // Доля от предметов и доля от постоянного улучшения «Добыча» складываются:
     // обе — про одно и то же, и обе действуют в каждом походе.
-    const pct = (bonus && bonus.pct ? bonus.pct : 0) + setBonusTotal("gold");
+    const pct = effectTotal("goldBonus", "pct") + setBonusTotal("gold");
     const hero = progOf("loot");
     let total = n;
     if ((pct > 0 || hero > 0) && n > 0) {
@@ -9794,10 +9820,10 @@
   }
 
   function critRoll() {
-    const crit = equippedEffect("crit");
     // Комплект тени умеет добавлять шанс крита даже без предмета с критом.
-    const chance = (crit && crit.chance ? crit.chance : 0) + setBonusTotal("crit");
-    const mul = crit && crit.mul ? crit.mul : 2;
+    // Крит с оружия и амулета складывается, но упирается в 75%.
+    const chance = Math.min(0.75, effectTotal("crit", "chance") + setBonusTotal("crit"));
+    const mul = effectMax("crit", "mul", 2);
     if (chance > 0 && Math.random() < chance) {
       if (G.battle) G.battle.critHit = mul;
       return mul;
@@ -10075,8 +10101,8 @@
       parts.push("Ты нанёс " + hit + " урона.");
       if (wasCrit > 1) effectFlash("Крит ×" + wasCrit);
       else if (wasExecute) effectFlash("Добивание · удар усилен");
-      const ls = equippedEffect("lifesteal");
-      const lsPct = (ls && ls.pct ? ls.pct : 0) + setBonusTotal("lifesteal");
+      const lsPct = Math.min(60,
+        effectTotal("lifesteal", "pct") + setBonusTotal("lifesteal"));
       if (lsPct > 0) {
         const healed = Math.max(1, Math.round((hit * lsPct) / 100));
         const before = G.player.hp;

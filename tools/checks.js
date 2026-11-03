@@ -915,6 +915,32 @@ if (crit) {
   G.equipment.weapon = null;
 } else log(false, "нет предмета с эффектом crit");
 
+// Крит с оружия и амулета складывается, а не берётся только первый.
+const critWeapon = API.ITEM_POOL.find((i) => i.id === "dragon_blade");
+const critAmulet = API.ITEM_POOL.find((i) => i.id === "hero_medal");
+if (critWeapon && critAmulet) {
+  freshRun(2);
+  G.equipment.weapon = Object.assign({}, critWeapon);
+  G.equipment.accessory = Object.assign({}, critAmulet);
+  API.recalcStats();
+  const realRandom = Math.random;
+  Math.random = () => 0.3;
+  try {
+    const both = API.critRoll();
+    G.equipment.accessory = null;
+    API.recalcStats();
+    const one = API.critRoll();
+    log(both > 1 && one === 1,
+      "крит с оружия и амулета складывается",
+      "оружие+амулет " + both + ", только оружие " + one);
+  } finally {
+    Math.random = realRandom;
+    G.equipment.weapon = null;
+    G.equipment.accessory = null;
+    API.recalcStats();
+  }
+}
+
 // блок
 const block = equipWithEffect("block");
 if (block) {
