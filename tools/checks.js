@@ -1411,6 +1411,12 @@ log(/\.battle-panel \{[^}]*width: min\(56vw, 580px\)/.test(landscapeCss) &&
   "в ландшафтном бою панель остаётся правой колонкой");
 log(/\.options \{[^}]*grid-template-columns: 1fr 1fr/.test(landscapeCss),
   "в ландшафтном бою ответы стоят в две колонки");
+log(/\.hero-hud \{[^}]*bottom: 54px/.test(portraitCss) &&
+  /\.minimap-dock \{[^}]*bottom: 134px/.test(portraitCss),
+  "в портрете HUD и мини-карта стоят внизу");
+log(/\.hero-hud \{[^}]*bottom: 50px/.test(landscapeCss) &&
+  /\.minimap-dock \{[^}]*bottom: 50px/.test(landscapeCss),
+  "в ландшафте HUD и мини-карта стоят внизу");
 log(/\.minimap-dock:not\(\.off\) \{\s*display: block !important/.test(gameCss),
   "на телефоне мини-карта снова показывается, а не только кнопки");
 log(/\.overlay:not\(#battle-overlay\) \{\s*place-items: start center/.test(gameCss),

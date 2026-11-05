@@ -11639,7 +11639,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .hero-hud {
-    top: 52px;
+    top: auto;
+    bottom: 54px;
     left: 8px;
     right: 8px;
     width: auto;
@@ -11699,7 +11700,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .minimap-dock {
-    top: 132px;
+    top: auto;
+    bottom: 134px;
     left: 8px;
     width: 140px;
   }
@@ -11743,7 +11745,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .toast {
-    bottom: 58px;
+    top: 54px;
+    bottom: auto;
     max-width: calc(100vw - 16px);
     padding: 7px 11px;
     font-size: 11.5px;
@@ -11751,9 +11754,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .tutorial-panel {
-    top: auto;
+    top: 112px;
     right: 8px;
-    bottom: 64px;
+    bottom: auto;
     left: 8px;
     width: auto;
     max-height: 36vh;
@@ -11943,8 +11946,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .hero-hud {
-    top: 42px;
-    left: 8px;
+    top: auto;
+    bottom: 50px;
+    left: 170px;
     right: 8px;
     width: auto;
     max-width: none;
@@ -11986,7 +11990,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .minimap-dock {
-    top: 96px;
+    top: auto;
+    bottom: 50px;
     left: 8px;
     width: 150px;
   }
@@ -12026,7 +12031,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .toast {
-    bottom: 54px;
+    top: 46px;
+    bottom: auto;
     max-width: calc(100vw - 16px);
     padding: 6px 10px;
     font-size: 11px;

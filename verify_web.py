@@ -231,6 +231,8 @@ def run_mobile_checks(browser, base):
         check(hud and hud["display"] != "none" and hud["x"] >= -1 and
               hud["right"] <= w + 1 and hud["bottom"] <= h + 1,
               "HUD героя не вылезает за экран (%s)" % name, hud)
+        check(hud and hud["y"] >= h * 0.45,
+              "HUD героя стоит в нижней части экрана (%s)" % name, hud)
 
         minimap = page.evaluate(script, "#minimap")
         dock = page.evaluate(script, "#minimap-dock")
@@ -240,6 +242,8 @@ def run_mobile_checks(browser, base):
               minimap["bottom"] <= h + 1,
               "мини-карта видна и вписана в экран (%s)" % name,
               {"map": minimap, "dock": dock})
+        check(dock and dock["y"] >= h * 0.45,
+              "мини-карта стоит в нижней части экрана (%s)" % name, dock)
 
         skip = page.evaluate(script, "#skip-btn")
         check(skip and skip["display"] != "none" and skip["h"] >= 36 and
