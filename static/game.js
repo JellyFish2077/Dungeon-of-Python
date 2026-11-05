@@ -8893,7 +8893,12 @@
     // нажатия клавиши — в том числе когда игрок упирался в стену или
     // в цепь, то есть практически сразу после спуска.
     hideFloorArrival();
+    const prevPos = { ...G.playerPos };
     G.playerPos = { x: nx, y: ny };
+    // Дверь закрывается за спиной: она открыта ровно на один шаг. Иначе
+    // проём оставался пустым навсегда, и враги шли следом.
+    const prevDoor = roomDoorAt(prevPos.x, prevPos.y);
+    if (prevDoor) prevDoor.open = false;
     if (!keepPan) resetCameraPan();
     setMsg("");
 
@@ -13269,6 +13274,15 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.17.3",
+      date: "5 ноября 2026",
+      title: "Дверь закрывается за спиной",
+      items: [
+        "Дверь открыта ровно на один шаг и закрывается за игроком.",
+        "Двери больше не исчезают после обновления страницы."
+      ]
+    },
+    {
       version: "1.17.2",
       date: "5 ноября 2026",
       title: "Двери закрыты по-настоящему",
@@ -14323,6 +14337,9 @@ function topicName(key) {
       index: st.index,
       checked: st.checked || null,
       map: st.map,
+      // Двери лежат и в карте, и отдельным полем: старые сохранения читают
+      // map.doors, новые — doors. Без этого после перезагрузки двери исчезали.
+      doors: st.doors || (st.map && st.map.doors) || [],
       playerPos: st.playerPos,
       stairsDown: st.stairsDown,
       stairsUp: st.stairsUp,
@@ -14399,7 +14416,8 @@ function topicName(key) {
   function deserializeFloor(o) {
     // Двери — один массив и в карте, и в поле floors: открытая дверь должна
     // меняться в обоих местах, иначе карта и состояние разойдутся.
-    const doors = (o.doors || []).map((d) => ({ x: d.x, y: d.y, open: !!d.open }));
+    const doors = (o.doors || (o.map && o.map.doors) || [])
+      .map((d) => ({ x: d.x, y: d.y, open: !!d.open }));
     return {
       index: o.index,
       checked: o.checked || null,
