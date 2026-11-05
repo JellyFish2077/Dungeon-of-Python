@@ -5638,9 +5638,14 @@
     const baseTy = Math.round(vh / 2 - cy);
     let tx = baseTx + (G.camera.panX || 0);
     let ty = baseTy + (G.camera.panY || 0);
+    // Камере разрешаем уйти на пару клеток за край этажа: так видно, что
+    // уровень кончился, и удобнее осматривать углы. Больше половины
+    // свободного хода не отдаём, иначе на маленькой карте она «улетает».
+    const overX = Math.min(Math.round((m.cell || 32) * 2), Math.max(0, (mapW - vw) / 2));
+    const overY = Math.min(Math.round((m.cell || 32) * 2), Math.max(0, (mapH - vh) / 2));
     // Целые пиксели: слой на дробном сдвиге размывает пиксель-арт.
-    tx = Math.round(mapW <= vw ? (vw - mapW) / 2 : clamp(tx, vw - mapW, 0));
-    ty = Math.round(mapH <= vh ? (vh - mapH) / 2 : clamp(ty, vh - mapH, 0));
+    tx = Math.round(mapW <= vw ? (vw - mapW) / 2 : clamp(tx, vw - mapW - overX, overX));
+    ty = Math.round(mapH <= vh ? (vh - mapH) / 2 : clamp(ty, vh - mapH - overY, overY));
     if (G.camera.panning) {
       // У края карты сдвиг обрезается; запоминаем фактический, иначе
       // после разворота пальца появляется «мёртвая зона».
@@ -5796,13 +5801,48 @@
     renderEntities();
   }
 
-  function toggleMinimap() {
-    G.minimapOn = !G.minimapOn;
+  function isTouchUi() {
+    try {
+      return !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function savedMinimapOn() {
+    try {
+      const v = window.localStorage.getItem("pydungeon.minimap");
+      return v === "1" ? true : v === "0" ? false : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Единая точка включения мини-карты: и клавиша M, и кнопка в шапке.
+  // На телефоне выбор запоминается — карта не обязана занимать экран.
+  function setMinimapOn(on, persist) {
+    G.minimapOn = !!on;
     const dock = el("minimap-dock");
     if (dock) dock.classList.toggle("off", !G.minimapOn);
     const cv = el("minimap");
     if (cv) cv.classList.toggle("off", !G.minimapOn);
+    const btn = el("map-toggle");
+    if (btn) {
+      btn.setAttribute("aria-pressed", G.minimapOn ? "true" : "false");
+      btn.classList.toggle("is-on", G.minimapOn);
+    }
+    if (persist && isTouchUi()) {
+      try {
+        window.localStorage.setItem("pydungeon.minimap", G.minimapOn ? "1" : "0");
+      } catch (e) {
+        // Приватный режим: карта просто не запомнится.
+      }
+    }
     if (G.minimapOn) drawMinimap();
+  }
+
+  function toggleMinimap() {
+    setMinimapOn(!G.minimapOn, true);
   }
 
   const MINIMAP_ZOOM_MIN = 1;
@@ -5818,6 +5858,8 @@
   // Во время ходьбы мини-карте хватает ~15 обновлений в секунду: на телефоне
   // это заметно дешевле, чем рисовать её каждый кадр.
   function scheduleMinimapDraw(force) {
+    // Закрытая карта не должна будить кадр на каждом шаге.
+    if (!G.minimapOn) return;
     if (globalThis.__PYQUIZ_SYNC_FLOORS ||
         typeof requestAnimationFrame !== "function") {
       drawMinimap();
@@ -12890,6 +12932,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.13.0",
+      date: "5 ноября 2026",
+      title: "Мини-карта по кнопке и камера за краем",
+      items: [
+        "На телефоне мини-карта открывается кнопкой «Карта» в шапке и стоит вверху слева; выбор запоминается.",
+        "Карту можно утащить на пару клеток за край этажа — видно, где уровень кончается.",
+        "Закрытая мини-карта больше не перерисовывается, поэтому ходьба стала ещё ровнее."
+      ]
+    },
+    {
       version: "1.12.0",
       date: "5 ноября 2026",
       title: "Камера под контролем и плавнее на телефоне",
@@ -15195,6 +15247,20 @@ function topicName(key) {
     // Учитель мог поменять числа баланса на /admin: сервер отдаёт их
     // отдельно от страницы, чтобы правка не требовала пересборки файлов.
     loadServerBalance();
+
+    // Мини-карта на телефоне открывается кнопкой в шапке и по умолчанию
+    // закрыта: карта этажа важнее, а лишний слой поверх неё не нужен.
+    // На компьютере мини-карта видна сразу, как и раньше.
+    const mapToggleBtn = el("map-toggle");
+    if (mapToggleBtn) {
+      mapToggleBtn.addEventListener("click", () => toggleMinimap());
+    }
+    if (isTouchUi()) {
+      const saved = savedMinimapOn();
+      setMinimapOn(saved === null ? false : saved);
+    } else {
+      setMinimapOn(true);
+    }
 
     // Обновление страницы всегда возвращает в главное меню. Поход не
     // поднимаем за спиной: игрок сам решает, нажать «Продолжить» или начать
