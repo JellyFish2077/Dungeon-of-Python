@@ -2702,6 +2702,9 @@ function iceScenario(onIce) {
   freshRun(4);
   const st = API.createFloorState(4);
   G.map = st.map;
+  // Своя ровная дорожка: двери этой карты не должны её перекрывать.
+  G.map.doors = [];
+  G.roomDoors = [];
   G.hazard = st.hazard;
   G.playerPos = { ...st.playerPos };
   G.enemies = [];
@@ -7650,5 +7653,41 @@ log(doorsOk, "двери комнат стоят на полу, а не в ст�
 log(doorsFramed, "каждая дверь стоит в раме, а не посреди пола");
 log(vaultCount > 0 && vaultOpen === 0, "в тайник нельзя войти в обход двери",
   "открытых: " + vaultOpen + " из " + vaultCount + " " + vaultOpenInfo.join(","));
+
+// Закрытая дверь: взгляд и враги стоят, игрок открывает шагом.
+freshRun(0);
+G.enemies = [];
+let testDoor = null;
+let testAxis = null;
+for (const d of G.roomDoors || []) {
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    const a = { x: d.x + dx, y: d.y + dy };
+    const b = { x: d.x - dx, y: d.y - dy };
+    if (G.map.grid[a.y] && G.map.grid[a.y][a.x] === 1 &&
+        G.map.grid[b.y] && G.map.grid[b.y][b.x] === 1) {
+      testDoor = d;
+      testAxis = { dx, dy, a, b };
+      break;
+    }
+  }
+  if (testDoor) break;
+}
+if (testDoor) {
+  G.playerPos = { ...testAxis.a };
+  log(!API.hasLineOfSight(testAxis.a.x, testAxis.a.y, testAxis.b.x, testAxis.b.y),
+    "закрытая дверь не пропускает взгляд");
+  log(API.tileBlockedForEnemy(testDoor.x, testDoor.y),
+    "закрытая дверь не пускает врагов");
+  API.move(-testAxis.dx, -testAxis.dy);
+  log(testDoor.open === true, "игрок открывает дверь шагом");
+  log(G.playerPos.x === testDoor.x && G.playerPos.y === testDoor.y,
+    "игрок входит в открытую дверь", G.playerPos.x + "," + G.playerPos.y);
+  log(API.hasLineOfSight(testDoor.x, testDoor.y, testAxis.b.x, testAxis.b.y),
+    "открытая дверь пропускает взгляд");
+  log(!API.tileBlockedForEnemy(testAxis.b.x, testAxis.b.y),
+    "открытая дверь пускает врагов");
+} else {
+  log(false, "не нашлось двери с проходом для проверки");
+}
 
 console.log("__JSON__" + JSON.stringify(out));
