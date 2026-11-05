@@ -1396,26 +1396,28 @@ const portraitCss = portraitAt === -1 ? "" : gameCss.slice(portraitAt, landscape
 const landscapeCss = landscapeAt === -1 ? "" : gameCss.slice(landscapeAt);
 log(portraitAt !== -1 && landscapeAt > portraitAt,
   "в стилях есть отдельные блоки для портрета и ландшафта телефона");
-log(/\.game-dock \{[^}]*width: calc\(100vw - 8px\)/.test(portraitCss) &&
-  /#panel-inventory[\s\S]*?max-height: calc\(100vh - 60px\)/.test(portraitCss),
+log(/\.game-dock \{[^}]*width: calc\(100vw - 8px - var\(--safe-left\) - var\(--safe-right\)\)/
+  .test(portraitCss) &&
+  /#panel-inventory[\s\S]*?max-height: calc\(var\(--app-vh\) - 60px - var\(--safe-top\) - var\(--safe-bottom\)\)/
+    .test(portraitCss),
   "в портрете панели занимают всю ширину и не выше экрана");
 log(/\.hero-hud \{[^}]*display: grid/.test(portraitCss) &&
   /\.hero-hud-bar\.hp \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
   "в портрете HUD ужат в две строки, здоровье на всю ширину");
-log(/\.battle-panel \{[^}]*max-height: 64vh/.test(portraitCss) &&
+log(/\.battle-panel \{[^}]*max-height: calc\(var\(--app-vh\) \* 0\.64\)/.test(portraitCss) &&
   /\.battle-panel \.battle-panel-top \{[^}]*display: grid/.test(portraitCss) &&
   /\.battle-panel \.round-note \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
   "в портретном бою HP и «ход героя» не схлопываются");
 log(/\.battle-panel \{[^}]*width: min\(56vw, 580px\)/.test(landscapeCss) &&
-  /\.battle-panel \{[^}]*right: 0/.test(landscapeCss),
+  /\.battle-panel \{[^}]*right: var\(--safe-right\)/.test(landscapeCss),
   "в ландшафтном бою панель остаётся правой колонкой");
 log(/\.options \{[^}]*grid-template-columns: 1fr 1fr/.test(landscapeCss),
   "в ландшафтном бою ответы стоят в две колонки");
-log(/\.hero-hud \{[^}]*bottom: 54px/.test(portraitCss) &&
-  /\.minimap-dock \{[^}]*top: 56px/.test(portraitCss),
+log(/\.hero-hud \{[^}]*bottom: calc\(54px \+ var\(--safe-bottom\)\)/.test(portraitCss) &&
+  /\.minimap-dock \{[^}]*top: calc\(56px \+ var\(--safe-top\)\)/.test(portraitCss),
   "в портрете HUD внизу, мини-карта вверху");
-log(/\.hero-hud \{[^}]*bottom: 50px/.test(landscapeCss) &&
-  /\.minimap-dock \{[^}]*top: 46px/.test(landscapeCss),
+log(/\.hero-hud \{[^}]*bottom: calc\(50px \+ var\(--safe-bottom\)\)/.test(landscapeCss) &&
+  /\.minimap-dock \{[^}]*top: calc\(46px \+ var\(--safe-top\)\)/.test(landscapeCss),
   "в ландшафте HUD внизу, мини-карта вверху");
 log(/\.minimap-dock:not\(\.off\) \{\s*display: block !important/.test(gameCss),
   "на телефоне мини-карта снова показывается, а не только кнопки");
@@ -1451,6 +1453,25 @@ log(/setMinimapOn/.test(gameSrcMobile) && /pydungeon\.minimap/.test(gameSrcMobil
   "мини-карта открывается кнопкой и запоминает выбор");
 log(/const overX = Math\.min\(Math\.round\(\(m\.cell \|\| 32\) \* 2\)/.test(gameSrcMobile),
   "камера уходит на пару клеток за край этажа");
+
+// ---------- Неполный экран: панель браузера и системные отступы ----------
+const styleCss = fs.readFileSync(path.join(dir, "style.css"), "utf8");
+log(/--app-vh: 100vh/.test(styleCss) &&
+  /@supports \(height: 100dvh\)[\s\S]*?--app-vh: 100dvh/.test(styleCss),
+  "высота интерфейса учитывает панель браузера: dvh с запасным vh");
+log(/--safe-top: env\(safe-area-inset-top/.test(styleCss) &&
+  /--safe-bottom: env\(safe-area-inset-bottom/.test(styleCss),
+  "в стилях есть отступы под системные панели и уведомления");
+log(/\.overlay \{[^}]*height: var\(--app-vh\)/.test(gameCss),
+  "окна не выходят за видимую высоту экрана");
+log(/body\.game-page \.hero-hud \{[^}]*bottom: calc\(54px \+ var\(--safe-bottom\)\)/
+  .test(portraitCss),
+  "HUD в портрете поднят над нижней панелью браузера");
+log(/body\.game-page \.skip-btn \{[^}]*bottom: calc\(8px \+ var\(--safe-bottom\)\)/
+  .test(portraitCss),
+  "кнопки на телефоне подняты над системной панелью");
+log(/visualViewport/.test(gameSrcMobile),
+  "игра пересчитывает видимую высоту при появлении панели браузера");
 
 // Тайлы приходят из набора 32x32, а клетка крупнее (48 px при обычном зуме).
 // Сокращённое `background:` у .tile.floor/.tile.wall сбрасывало repeat и size,

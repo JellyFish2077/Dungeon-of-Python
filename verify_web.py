@@ -201,7 +201,12 @@ def run_mobile_checks(browser, base):
                 display: s.display, visibility: s.visibility};
       }
     """
-    for w, h, name in ((390, 844, "портрет"), (844, 390, "ландшафт")):
+    for w, h, name in (
+            (390, 844, "портрет"),
+            (844, 390, "ландшафт"),
+            # Неполный экран: снизу панель браузера, сверху уведомления.
+            (390, 700, "портрет без полного экрана"),
+            (844, 360, "ландшафт без полного экрана")):
         ctx = browser.new_context(
             viewport={"width": w, "height": h},
             is_mobile=True,

@@ -12932,6 +12932,17 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.13.1",
+      date: "5 ноября 2026",
+      title: "Телефон без полного экрана",
+      items: [
+        "Интерфейс считается по видимой высоте: нижняя панель браузера и строка уведомлений больше не прячут HUD и кнопки.",
+        "Панели, сохранения, пауза и бой учитывают системные отступы и не выходят за экран.",
+        "Видимая высота пересчитывается, когда панель браузера появляется или скрывается.",
+        "В бою кнопка мини-карты скрыта, чтобы не перекрывать заголовок."
+      ]
+    },
+    {
       version: "1.13.0",
       date: "5 ноября 2026",
       title: "Мини-карта по кнопке и камера за краем",
@@ -14932,12 +14943,25 @@ function topicName(key) {
       syncPickState();
     });
 
-    window.addEventListener("resize", () => {
-      if (G.running && G.map && !el("screen-game").classList.contains("hidden")) {
-        measureViewport();
-        render();
-      }
-    });
+    // Браузерная панель сверху/снизу и строка уведомлений меняют видимую
+    // высоту. Слушаем и окно, и visualViewport: на iOS одного resize мало.
+    // Несколько событий подряд сливаем в один кадр, чтобы не дёргать карту.
+    let viewportFrame = 0;
+    const syncGameViewport = () => {
+      if (viewportFrame) return;
+      viewportFrame = requestAnimationFrame(() => {
+        viewportFrame = 0;
+        if (G.running && G.map && !el("screen-game").classList.contains("hidden")) {
+          measureViewport();
+          render();
+        }
+      });
+    };
+    window.addEventListener("resize", syncGameViewport);
+    window.addEventListener("orientationchange", syncGameViewport);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncGameViewport);
+    }
 
     el("map-scroll").addEventListener(
       "wheel",

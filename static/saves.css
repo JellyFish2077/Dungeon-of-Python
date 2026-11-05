@@ -12,7 +12,7 @@
 
 .saves-screen {
   width: min(1040px, 100%);
-  max-height: min(720px, 92vh);
+  max-height: min(720px, calc(var(--app-vh) * 0.92));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -400,7 +400,7 @@
 
   .saves-list {
     flex: 0 0 auto;
-    max-height: 42vh;
+    max-height: calc(var(--app-vh) * 0.42);
     border-right: 0;
     border-bottom: 1px solid rgba(246, 196, 83, 0.12);
   }
@@ -605,9 +605,9 @@
 
 @media (orientation: landscape) and (max-height: 560px) and (max-width: 1000px) {
   .saves-screen {
-    width: calc(100vw - 8px);
+    width: calc(100vw - 8px - var(--safe-left) - var(--safe-right));
     /* Экран начинается ниже шапки, поэтому высота — минус отступ сверху. */
-    height: calc(100vh - 52px);
+    height: calc(var(--app-vh) - 52px - var(--safe-top) - var(--safe-bottom));
     max-height: none;
   }
 

@@ -156,17 +156,17 @@ body.menu-open #web-controls-hint {
   position: relative;
   z-index: 2;
   width: 100%;
-  min-height: 100vh;
-  max-height: 100vh;
+  min-height: var(--app-vh);
+  max-height: var(--app-vh);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding:
-    clamp(20px, 4vh, 48px)
+    clamp(20px, calc(var(--app-vh) * 0.04), 48px)
     clamp(16px, 4vw, 48px)
-    clamp(88px, 11vh, 120px);
+    clamp(88px, calc(var(--app-vh) * 0.11), 120px);
   color: #e6edf7;
   font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
 }
@@ -235,7 +235,7 @@ body.menu-open #web-controls-hint {
 
 .menu-pause-head {
   text-align: center;
-  margin-bottom: clamp(18px, 3.2vh, 34px);
+  margin-bottom: clamp(18px, calc(var(--app-vh) * 0.032), 34px);
 }
 
 .menu-pause-head h2 {
@@ -262,7 +262,7 @@ body.menu-open #web-controls-hint {
   flex-direction: column;
   align-items: center;
   text-align: center;
-  margin-bottom: clamp(18px, 3.2vh, 34px);
+  margin-bottom: clamp(18px, calc(var(--app-vh) * 0.032), 34px);
 }
 
 .menu-title h1 {
@@ -494,7 +494,7 @@ body.menu-open #web-controls-hint {
 
 .menu-view-sub {
   width: min(640px, 92vw);
-  max-height: calc(100vh - 64px);
+  max-height: calc(var(--app-vh) - 64px);
   margin: auto;
   padding: clamp(18px, 3vw, 30px);
   overflow-y: auto;
@@ -1169,6 +1169,8 @@ body.reduce-motion *::after {
   #menu-screen[data-mode="pause"] .menu-view-pause {
     width: 100%;
     padding: 18px 16px;
+    max-height: calc(var(--app-vh) - 64px - var(--safe-top) - var(--safe-bottom));
+    overflow-y: auto;
   }
 }
 
@@ -1645,6 +1647,8 @@ body.reduce-motion *::after {
   #menu-screen[data-mode="pause"] .menu-view-pause {
     width: min(420px, 100%);
     padding: 12px 16px;
+    max-height: calc(var(--app-vh) - 60px - var(--safe-top) - var(--safe-bottom));
+    overflow-y: auto;
   }
 
   #menu-screen[data-mode="pause"] .menu-pause-head {
@@ -1667,7 +1671,7 @@ body.reduce-motion *::after {
   }
 
   .menu-view-sub {
-    max-height: calc(100vh - 16px);
+    max-height: calc(var(--app-vh) - 16px);
     padding: 14px 16px;
   }
 
