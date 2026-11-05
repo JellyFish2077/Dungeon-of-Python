@@ -2645,6 +2645,48 @@
           "status": "in-game review"
         }
       ]
+    },
+    "village_extra": {
+      "source": "tools/art/aseprite/village_extra.aseprite",
+      "destination": "tools/art/src_custom/village",
+      "assets": [
+        {
+          "tag": "descent",
+          "file": "descent.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "path_0",
+          "file": "path_0.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "path_1",
+          "file": "path_1.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "path_2",
+          "file": "path_2.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
     }
   }
 }

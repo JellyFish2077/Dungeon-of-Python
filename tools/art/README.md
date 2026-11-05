@@ -38,6 +38,7 @@ bootstrap/make_slice.py  одноразовый генератор старто�
 bootstrap/make_environment.py  одноразовый генератор воды, лавы, ловушек, лестниц и дверей
 bootstrap/make_decor.py  одноразовый генератор травы, мха, костей, кристаллов, обломков и костра
 bootstrap/make_village.py  одноразовый генератор стен, крыш, двора, дерева и NPC-базы
+bootstrap/make_village_extra.py  одноразовый генератор спуска в подземелье и дорожек
 bootstrap/make_biomes.py  одноразовый генератор остальных 9 тем подземелья
 bootstrap/make_creatures2.py  одноразовый генератор оставшихся 16 существ
 bootstrap/make_items2.py  одноразовый генератор оставшихся 23 предметов
@@ -98,6 +99,7 @@ python tools/art/bootstrap/make_furniture.py --force
 
 `bootstrap/make_slice.py`, `bootstrap/make_environment.py`,
 `bootstrap/make_decor.py`, `bootstrap/make_village.py`,
+`bootstrap/make_village_extra.py`,
 `bootstrap/make_biomes.py`, `bootstrap/make_creatures2.py`,
 `bootstrap/make_items2.py`, `bootstrap/make_portal.py`,
 `bootstrap/make_interior.py`, `bootstrap/make_objects3.py` и

@@ -55,6 +55,7 @@ FAMILIES = {
     "doors": "doors",
     "decor": "decor",
     "village": "village",
+    "village_extra": "village",
     "interior": "village",
 }
 for _n in range(2, 11):

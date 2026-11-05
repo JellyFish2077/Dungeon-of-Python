@@ -1082,6 +1082,31 @@
         }
       ]
     },
+    "village_extra": {
+      "destination": "village",
+      "assets": [
+        {
+          "tag": "descent",
+          "file": "descent.png",
+          "sha256": "aace6e211f744a571683413caf302795a4cf8c0c76c2ca3435a3463a42db798c"
+        },
+        {
+          "tag": "path_0",
+          "file": "path_0.png",
+          "sha256": "32a7a1c8dd6d017d29844d0354ceb0795f8c38bdcca87de43c34305721dd8430"
+        },
+        {
+          "tag": "path_1",
+          "file": "path_1.png",
+          "sha256": "ade57428851cece223ee394384b9be3d8a358ca00005bea6c94c4d8ce246fb29"
+        },
+        {
+          "tag": "path_2",
+          "file": "path_2.png",
+          "sha256": "9b90e6f3501cbba1deadcafbdda0febc4c97e9b005f0b27d078b25830d557b2b"
+        }
+      ]
+    },
     "interior": {
       "destination": "village",
       "assets": [
@@ -1901,6 +1926,10 @@
     "village/wall.png": "84b08a574fe96936bdf44ccc92ca471d4e42f9b91507a9dc5ab9287e1b2c3184",
     "village/window.png": "e85197366b000d18c66b899c2616ebc935b05458e5e441f9425261bbbb9f4047",
     "village/woodpile.png": "443b6c7a42c3f972c43c31bc2684458a6ef6d4228977777d869c4442660b918a",
+    "village/descent.png": "aace6e211f744a571683413caf302795a4cf8c0c76c2ca3435a3463a42db798c",
+    "village/path_0.png": "32a7a1c8dd6d017d29844d0354ceb0795f8c38bdcca87de43c34305721dd8430",
+    "village/path_1.png": "ade57428851cece223ee394384b9be3d8a358ca00005bea6c94c4d8ce246fb29",
+    "village/path_2.png": "9b90e6f3501cbba1deadcafbdda0febc4c97e9b005f0b27d078b25830d557b2b",
     "village/floor_0.png": "4627ecc3aa16057a561f6fa9e902a97100d4fc8b01c866288d589ca7bc33afa3",
     "village/floor_1.png": "1a214773e900eb9c46460dab321dad0823638f1f8f1af1434a61205bc3de8c83",
     "village/floor_2.png": "b9dc2c19a1161b9fa3eb6f09c9b8b3f341a5793ca8f957f37a4b7007bab4e9ed",

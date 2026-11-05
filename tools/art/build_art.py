@@ -383,6 +383,9 @@ def build_village(manifest, report):
     for name, maker in makers.items():
         rel = "village/%s.png" % name
         objects[name] = png_uri(load(rel) if has_custom(rel) else maker())
+    # Спуск в подземелье: отдельный спрайт из village_extra.aseprite.
+    if has_custom("village/descent.png"):
+        objects["descent"] = png_uri(load("village/descent.png"))
     # Жители: один базовый спрайт, разные кафтаны. В срезе база — свой
     # крестьянин из village/npc_base.png, иначе берём прежнего торговца.
     sprites = {}
@@ -400,6 +403,9 @@ def build_village(manifest, report):
     meta = {"wall": luma_of(wall), "window_diff": image_difference(window, wall), "roof": roof_meta}
     ground = [png_uri(load("village/ground_%d.png" % i)) for i in range(4)
               if has_custom("village/ground_%d.png" % i)]
+    # Дорожки: 2–3 варианта утоптанной земли, чтобы ряд не выглядел плиткой.
+    path = [png_uri(load("village/path_%d.png" % i)) for i in range(3)
+            if has_custom("village/path_%d.png" % i)]
     interior = {}
     for kind, count in (("wall", 2), ("floor", 4)):
         pics = []
@@ -409,7 +415,7 @@ def build_village(manifest, report):
                 pics.append(png_uri(load(rel)))
         interior[kind] = pics
     return {"wall": [png_uri(wall)], "window": [png_uri(window)], "roofs": roofs,
-            "objects": objects, "ground": ground, "interior": interior}, sprites, meta
+            "objects": objects, "ground": ground, "path": path, "interior": interior}, sprites, meta
 
 
 def png_uri(im):

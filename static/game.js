@@ -1426,6 +1426,42 @@
     return seen;
   }
 
+  // Быстрая достижимость для генерации: числовая маска вместо строк.
+  // Нужна там, где проверка идёт на каждую дверь и важна не аллокация,
+  // а скорость: строки и Set на 20 дверях давали редкие паузы GC.
+  function genReachMask(grid, w, h, start) {
+    const seen = new Uint8Array(w * h);
+    if (!start || grid[start.y][start.x] !== 1) return seen;
+    const queue = new Int32Array(w * h);
+    let head = 0;
+    let tail = 0;
+    const s = start.y * w + start.x;
+    seen[s] = 1;
+    queue[tail++] = s;
+    while (head < tail) {
+      const cur = queue[head++];
+      const x = cur % w;
+      const y = (cur - x) / w;
+      if (x > 0 && !seen[cur - 1] && grid[y][x - 1] === 1) {
+        seen[cur - 1] = 1;
+        queue[tail++] = cur - 1;
+      }
+      if (x < w - 1 && !seen[cur + 1] && grid[y][x + 1] === 1) {
+        seen[cur + 1] = 1;
+        queue[tail++] = cur + 1;
+      }
+      if (y > 0 && !seen[cur - w] && grid[y - 1][x] === 1) {
+        seen[cur - w] = 1;
+        queue[tail++] = cur - w;
+      }
+      if (y < h - 1 && !seen[cur + w] && grid[y + 1][x] === 1) {
+        seen[cur + w] = 1;
+        queue[tail++] = cur + w;
+      }
+    }
+    return seen;
+  }
+
   function genTileDist(grid, w, h, start, goal) {
     if (!start || !goal || grid[start.y][start.x] !== 1 ||
         grid[goal.y][goal.x] !== 1) return -1;
@@ -3226,6 +3262,21 @@
     const end = state.stairsDown;
     const out = [];
     const taken = new Set();
+    // Точки, которые обязаны остаться достижимыми. Собираем один раз на
+    // этаж: иначе на каждую дверь создавались десятки объектов и GC давал
+    // редкие паузы в генерации.
+    const points = [];
+    plan.rooms.forEach((r) => { if (r.center) points.push(r.center); });
+    (state.treasures || []).forEach((t) => points.push(t));
+    (state.nodes || []).forEach((n) => points.push(n));
+    (state.camps || []).forEach((c) => points.push(c));
+    (state.levers || []).forEach((l) => points.push(l));
+    (state.vaults || []).forEach((v) => { if (v.door) points.push(v.door); });
+    // Враги и страж: если стена отрежет стража лестницы, спуск не
+    // откроется, и этаж станет непроходимым.
+    (state.enemies || []).forEach((e) => points.push(e));
+    (state.traders || []).forEach((t) => points.push(t));
+    if (end) points.push(end);
     plan.rooms.forEach((room) => {
       const exits = (room.exits || []).filter((e) =>
         grid[e.y] && grid[e.y][e.x] === 1 &&
@@ -3256,6 +3307,12 @@
         // Клетку с предметом в стену не закладываем: сундук в стене хуже
         // двери, а враг в стене — сломанный этаж.
         if (sides.some((c) => used.has(key(c.x, c.y)))) return;
+        // Уже в раме: ни стен, ни проверки не нужно.
+        if (!sides.length) {
+          taken.add(mid.x + "," + mid.y);
+          out.push({ x: mid.x, y: mid.y, open: false });
+          return;
+        }
         const hazardWas = sides.map((c) =>
           state.hazard ? state.hazard[c.y][c.x] : null);
         sides.forEach((c) => {
@@ -3264,21 +3321,9 @@
           if (state.hazard) state.hazard[c.y][c.x] = null;
         });
         // Проверяем, что стены не отрезали ни комнату, ни добычу.
-        const reach = genGridReach(grid, w, h, start);
-        const points = [];
-        plan.rooms.forEach((r) => { if (r.center) points.push(r.center); });
-        (state.treasures || []).forEach((t) => points.push(t));
-        (state.nodes || []).forEach((n) => points.push(n));
-        (state.camps || []).forEach((c) => points.push(c));
-        (state.levers || []).forEach((l) => points.push(l));
-        (state.vaults || []).forEach((v) => { if (v.door) points.push(v.door); });
-        // Враги и страж: если стена отрежет стража лестницы, спуск не
-        // откроется, и этаж станет непроходимым.
-        (state.enemies || []).forEach((e) => points.push(e));
-        (state.traders || []).forEach((t) => points.push(t));
-        if (end) points.push(end);
-        let lost = points.some((p) => !reach.has(p.x + "," + p.y));
-        if (!lost) lost = !reach.has(mid.x + "," + mid.y);
+        const reach = genReachMask(grid, w, h, start);
+        let lost = points.some((p) => !reach[p.y * w + p.x]);
+        if (!lost) lost = !reach[mid.y * w + mid.x];
         if (lost) {
           sides.forEach((c, i) => {
             grid[c.y][c.x] = 1;
@@ -4328,6 +4373,7 @@
     tree: "Дерево", fence: "Забор", well: "Колодец", fire: "Костёр",
     barrel: "Бочка", woodpile: "Поленница", chimney: "Труба",
     scaffold: "Строительные леса", sign: "Указатель",
+    descent: "Спуск в подземелье",
     table: "Стол", chair: "Стул", bed: "Кровать", shelf: "Полка",
     crate: "Ящик", anvil: "Наковальня", fireplace: "Очаг",
     workbench: "Верстак", cauldron: "Котёл", counter: "Прилавок"
@@ -4335,7 +4381,7 @@
   const PROP_ICONS = {
     tree: "tree", fence: "fence", well: "well", fire: "campfire",
     barrel: "barrel", woodpile: "woodpile", chimney: "chimney",
-    scaffold: "woodpile", sign: "sign",
+    scaffold: "woodpile", sign: "sign", descent: "descent",
     table: "table", chair: "chair", bed: "bed", shelf: "shelf",
     crate: "crate", anvil: "anvil", fireplace: "fireplace",
     workbench: "workbench", cauldron: "cauldron", counter: "counter"
@@ -4431,6 +4477,7 @@
     const scenery = src.objects.filter((o) =>
       o.kind === "tree" || o.kind === "fence" || o.kind === "well" || o.kind === "fire" ||
       o.kind === "barrel" || o.kind === "woodpile" || o.kind === "chimney" ||
+      o.kind === "descent" ||
       o.kind === "sign" || INTERIOR_PROPS.has(o.kind));
     // Материалы клеток: в деревне по ним рисуется крыша, фасад и окна.
     // В комнатах их нет — там всё как в подземелье, каменным полом.
@@ -8546,6 +8593,15 @@
           icon: "🔥", obj: camp
         };
       }
+      // Спуск в подземелье: рядом со стражем входа.
+      const descent = (G.scenery || []).find((s) =>
+        s.x === x && s.y === y && s.kind === "descent");
+      if (descent) {
+        return {
+          kind: "descent", label: "Спуститься в подземелье", icon: "descent",
+          obj: descent
+        };
+      }
       // Колодец — дворовая постройка: он не дом, но его тоже восстанавливают.
       const yard = (G.scenery || []).find((s) => s.x === x && s.y === y && s.kind === "well");
       if (yard && G.place !== "dungeon") {
@@ -8714,6 +8770,10 @@
     }
     if (target.kind === "sign") {
       readSign(target.obj);
+      return;
+    }
+    if (target.kind === "descent") {
+      openEntrance();
       return;
     }
     if (target.kind === "build") {
@@ -13282,6 +13342,17 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.18.0",
+      date: "5 ноября 2026",
+      title: "Спуск наверху и дорожки",
+      items: [
+        "Страж входа и спуск в подземелье переехали наверх, в сад.",
+        "Спуск открывается по «E», как и разговор со стражем.",
+        "Дорожки от домов к площади получили свою утоптанную землю.",
+        "Новые спрайты нарисованы в Aseprite: спуск и три варианта дорожки."
+      ]
+    },
+    {
       version: "1.17.6",
       date: "5 ноября 2026",
       title: "Двери не текут в деревню",
@@ -16946,6 +17017,7 @@ function topicName(key) {
   // Публичной сборке нужен только вход из стартового экрана; серверная
   // версия этот объект не создаёт.
   if (typeof window !== "undefined" && window.__PYQUIZ_WEB) {
-    window.__PYQUIZ_WEB_API = { resume: loadGame, begin: enterDungeon };
+    window.__PYQUIZ_WEB_API = { resume: loadGame, begin: enterDungeon,
+      village: enterVillage };
   }
 })();

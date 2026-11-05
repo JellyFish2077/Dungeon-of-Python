@@ -7710,6 +7710,25 @@ if (dungeonDoor) {
     "старая дверь подземелья не находится в деревне");
 }
 
+// Новая планировка деревни: страж и спуск сверху, дорожки из «p».
+{
+  const vmap = API.VILLAGE_MAP;
+  const vparsed = API.villageParseMap(vmap);
+  const vdescent = vparsed.objects.find((o) => o.kind === "descent");
+  const vguard = API.VILLAGE_NPCS.find((n) => n.key === "guard");
+  log(!!vdescent && vdescent.blocked,
+    "в деревне есть спуск в подземелье",
+    vdescent ? vdescent.x + "," + vdescent.y : "нет");
+  log(vparsed.grid[vguard.at.y][vguard.at.x] === 1,
+    "страж входа стоит на полу", vguard.at.x + "," + vguard.at.y);
+  const vmats = API.villageMaterials(vparsed, {});
+  log(vmats.mat[6][5] === "path", "дорожки получают материал path",
+    vmats.mat[6][5]);
+  log(!!API.TERRAIN_ICONS.descent && API.TERRAIN_VILLAGE.path.length > 0,
+    "спрайты спуска и дорожек собраны",
+    (API.TERRAIN_VILLAGE.path || []).length);
+}
+
 // Двери и их состояние должны переживать сохранение и перезагрузку.
 const saveState = API.createFloorState(0);
 saveState.map.doors = saveState.doors = [{ x: 3, y: 3, open: true }];
