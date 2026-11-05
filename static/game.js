@@ -8598,7 +8598,7 @@
         s.x === x && s.y === y && s.kind === "descent");
       if (descent) {
         return {
-          kind: "descent", label: "Спуститься в подземелье", icon: "descent",
+          kind: "descent", label: "Спуститься в подземелье", icon: "▼",
           obj: descent
         };
       }
@@ -13341,6 +13341,14 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.18.1",
+      date: "5 ноября 2026",
+      title: "Иконка спуска",
+      items: [
+        "В панели действия у спуска теперь стрелка вниз, а не слово «descent»."
+      ]
+    },
     {
       version: "1.18.0",
       date: "5 ноября 2026",
