@@ -7595,6 +7595,7 @@ freshRun(0);
 // обязан быть запечатан: войти в обход двери нельзя.
 let chestMax = 0;
 let doorsOk = true;
+let doorsFramed = true;
 let vaultOpen = 0;
 let vaultCount = 0;
 let vaultOpenInfo = [];
@@ -7606,6 +7607,12 @@ function checkFloorContent(i) {
   if (normal > chestMax) chestMax = normal;
   (st.doors || []).forEach((d) => {
     if (!st.map.grid[d.y] || st.map.grid[d.y][d.x] !== 1) doorsOk = false;
+    // Дверь обязана стоять в раме: стены хотя бы с двух противоположных
+    // сторон. Иначе это дверь посреди пола.
+    const wall = (x, y) => !st.map.grid[y] || st.map.grid[y][x] !== 1;
+    const framed = (wall(d.x - 1, d.y) && wall(d.x + 1, d.y)) ||
+      (wall(d.x, d.y - 1) && wall(d.x, d.y + 1));
+    if (!framed) doorsFramed = false;
   });
   if (!vault) return;
   vaultCount += 1;
@@ -7640,6 +7647,7 @@ for (let i = 0; i < API.FLOORS.length; i += 1) checkFloorContent(i);
 for (let t = 0; t < 30 && vaultCount === 0; t += 1) checkFloorContent(4);
 log(chestMax > 0 && chestMax <= 4, "обычных сундуков на этаже не больше четырёх", chestMax);
 log(doorsOk, "двери комнат стоят на полу, а не в стене");
+log(doorsFramed, "каждая дверь стоит в раме, а не посреди пола");
 log(vaultCount > 0 && vaultOpen === 0, "в тайник нельзя войти в обход двери",
   "открытых: " + vaultOpen + " из " + vaultCount + " " + vaultOpenInfo.join(","));
 
