@@ -495,7 +495,7 @@
   }
 }
 
-/* ---------- Тихий интерфейс: окно сохранений без пергамента ---------- */
+/* ---------- пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ---------- */
 
 .saves-screen {
   border: 1px solid rgba(157, 184, 224, 0.16);
@@ -599,4 +599,57 @@
 .saves-btn.ghost {
   border-color: rgba(157, 184, 224, 0.09);
   color: rgba(134, 149, 168, 0.9);
+}
+
+/* ---------- пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ---------- */
+
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1000px) {
+  .saves-screen {
+    width: calc(100vw - 8px);
+    /* Р­РєСЂР°РЅ РЅР°С‡РёРЅР°РµС‚СЃСЏ РЅРёР¶Рµ С€Р°РїРєРё, РїРѕСЌС‚РѕРјСѓ РІС‹СЃРѕС‚Р° вЂ” РјРёРЅСѓСЃ РѕС‚СЃС‚СѓРї СЃРІРµСЂС…Сѓ. */
+    height: calc(100vh - 52px);
+    max-height: none;
+  }
+
+  .saves-body {
+    min-height: 0;
+  }
+
+  .saves-head {
+    padding: 8px 14px 6px;
+  }
+
+  .saves-head h2 {
+    font-size: 26px;
+  }
+
+  .saves-subtitle {
+    font-size: 11px;
+  }
+
+  .save-detail-shot,
+  .save-detail-placeholder,
+  .save-slot-shot {
+    display: none;
+  }
+
+  .saves-list,
+  .saves-detail {
+    padding: 8px 10px;
+    gap: 6px;
+  }
+
+  .save-slot {
+    flex: 0 0 auto;
+    min-height: 0;
+    padding: 6px 8px;
+  }
+
+  .save-slot-name {
+    line-height: 1.25;
+  }
+
+  .saves-foot {
+    padding: 8px 14px;
+  }
 }

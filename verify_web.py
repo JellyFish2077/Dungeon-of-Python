@@ -183,6 +183,118 @@ def main():
     return 0 if ok == len(RESULTS) else 1
 
 
+def run_mobile_checks(browser, base):
+    """Портрет и ландшафт телефона: всё помещается в экран и играбельно.
+
+    Телефон — не отдельный режим: те же экраны, только ужатые. Проверяем
+    геометрию, а не скриншоты: HUD, мини-карта, кнопка хода, инвентарь,
+    пауза и сохранения не должны вылезать за экран.
+    """
+    script = """
+      (sel) => {
+        const e = document.querySelector(sel);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        const s = getComputedStyle(e);
+        return {x: r.x, y: r.y, w: r.width, h: r.height,
+                right: r.right, bottom: r.bottom,
+                display: s.display, visibility: s.visibility};
+      }
+    """
+    for w, h, name in ((390, 844, "портрет"), (844, 390, "ландшафт")):
+        ctx = browser.new_context(
+            viewport={"width": w, "height": h},
+            is_mobile=True,
+            has_touch=True,
+            device_scale_factor=2,
+        )
+        page = ctx.new_page()
+        page.goto(base + "/game.html", wait_until="domcontentloaded")
+        page.wait_for_function(
+            "() => window.PyMenu && window.PyMenu.isOpen()", timeout=20000)
+
+        nav = page.evaluate(script, "#game-nav")
+        check(nav and nav["h"] <= 60 and nav["right"] <= w + 1,
+              "верхнее меню помещается в одну строку (%s)" % name, nav)
+        page.evaluate("() => document.getElementById('menu-new').click()")
+        page.wait_for_timeout(500)
+        if page.evaluate(
+                "() => !document.getElementById('confirm-overlay')"
+                ".classList.contains('hidden')"):
+            page.click("#confirm-ok")
+            page.wait_for_timeout(500)
+        page.evaluate("() => window.__PYQUIZ_WEB_API.begin()")
+        page.wait_for_selector(".ent-player", timeout=30000)
+        page.wait_for_timeout(900)
+
+        hud = page.evaluate(script, "#hero-hud")
+        check(hud and hud["display"] != "none" and hud["x"] >= -1 and
+              hud["right"] <= w + 1 and hud["bottom"] <= h + 1,
+              "HUD героя не вылезает за экран (%s)" % name, hud)
+
+        minimap = page.evaluate(script, "#minimap")
+        dock = page.evaluate(script, "#minimap-dock")
+        check(minimap and minimap["display"] != "none" and
+              minimap["w"] > 100 and minimap["x"] >= -1 and
+              minimap["right"] <= w + 1 and minimap["y"] >= -1 and
+              minimap["bottom"] <= h + 1,
+              "мини-карта видна и вписана в экран (%s)" % name,
+              {"map": minimap, "dock": dock})
+
+        skip = page.evaluate(script, "#skip-btn")
+        check(skip and skip["display"] != "none" and skip["h"] >= 36 and
+              skip["x"] >= -1 and skip["right"] <= w + 1 and
+              skip["bottom"] <= h + 1,
+              "кнопка «Пропустить ход» — удобная цель для пальца (%s)" % name,
+              skip)
+
+        if name == "портрет":
+            toast = page.locator("#toast").inner_text()
+            check("Коснись" in toast and "WASD" not in toast,
+                  "на телефоне подсказка управления — про касания", toast)
+
+        # Инвентарь на всю ширину и не выше экрана; карта и HUD уступают ему.
+        page.click('[data-panel="inventory"]')
+        page.wait_for_function(
+            "() => document.getElementById('panel-inventory')"
+            ".classList.contains('is-open')", timeout=10000)
+        page.wait_for_timeout(300)
+        inv = page.evaluate(script, "#panel-inventory")
+        hud_open = page.evaluate(
+            "() => getComputedStyle(document.getElementById('hero-hud')).display")
+        skip_open = page.evaluate(
+            "() => getComputedStyle(document.getElementById('skip-btn')).display")
+        check(inv and inv["x"] >= -1 and inv["right"] <= w + 1 and
+              inv["y"] >= -1 and inv["bottom"] <= h + 2,
+              "инвентарь целиком влезает в экран (%s)" % name, inv)
+        check(hud_open == "none" and skip_open == "none",
+              "при открытой панели HUD и кнопка хода не мешают (%s)" % name,
+              {"hud": hud_open, "skip": skip_open})
+        page.click("#panel-inventory [data-panel-close]")
+        page.wait_for_timeout(300)
+
+        # Пауза и сохранения: те же экраны, но помещаются в низкий экран.
+        page.click("#menu-btn")
+        page.wait_for_function(
+            "() => window.PyMenu && window.PyMenu.isOpen()", timeout=10000)
+        page.wait_for_timeout(400)
+        pause = page.evaluate(script, ".menu-view-pause")
+        check(pause and pause["bottom"] <= h + 2,
+              "пауза не обрезается снизу (%s)" % name, pause)
+        page.click("#pause-load")
+        page.wait_for_function(
+            "() => !document.getElementById('saves-overlay')"
+            ".classList.contains('hidden')", timeout=10000)
+        page.wait_for_timeout(400)
+        saves = page.evaluate(script, ".saves-screen")
+        foot = page.evaluate(script, ".saves-foot")
+        check(saves and saves["right"] <= w + 2 and saves["bottom"] <= h + 2 and
+              foot and foot["bottom"] <= h + 2,
+              "сохранения целиком видны, футер не уезжает за экран (%s)" % name,
+              {"screen": saves, "foot": foot})
+        ctx.close()
+
+
 def run_checks(browser, base):
     ctx = browser.new_context(viewport={"width": 1280, "height": 800})
     page = ctx.new_page()
@@ -669,6 +781,9 @@ def run_checks(browser, base):
     real_missing = [u for u in missing if "/static/pyodide/" not in u]
     check(not real_missing, "все ресурсы сборки загрузились",
           " | ".join(real_missing[:3]))
+
+    # 8. Телефон: полноценные портрет и ландшафт.
+    run_mobile_checks(browser, base)
 
 
 if __name__ == "__main__":

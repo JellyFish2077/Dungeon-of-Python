@@ -1387,6 +1387,43 @@ log(/\.battle-foot \{\s*flex-shrink: 0/.test(gameCss),
 log(!/\.battle-col \.battle \{/.test(gameCss),
   "колонка боя больше не растягивает карточку на всю ширину");
 
+// ---------- Мобильная версия: портрет и ландшафт играбельны ----------
+// Раньше на телефоне оставалась заглушка «поверни телефон». Теперь оба
+// положения — настоящая игра: проверяем, что правила раскладки на месте.
+const portraitAt = gameCss.indexOf("@media (orientation: portrait) and (max-width: 900px)");
+const landscapeAt = gameCss.lastIndexOf("@media (orientation: landscape)");
+const portraitCss = portraitAt === -1 ? "" : gameCss.slice(portraitAt, landscapeAt);
+const landscapeCss = landscapeAt === -1 ? "" : gameCss.slice(landscapeAt);
+log(portraitAt !== -1 && landscapeAt > portraitAt,
+  "в стилях есть отдельные блоки для портрета и ландшафта телефона");
+log(/\.game-dock \{[^}]*width: calc\(100vw - 8px\)/.test(portraitCss) &&
+  /#panel-inventory[\s\S]*?max-height: calc\(100vh - 60px\)/.test(portraitCss),
+  "в портрете панели занимают всю ширину и не выше экрана");
+log(/\.hero-hud \{[^}]*display: grid/.test(portraitCss) &&
+  /\.hero-hud-bar\.hp \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
+  "в портрете HUD ужат в две строки, здоровье на всю ширину");
+log(/\.battle-panel \{[^}]*max-height: 64vh/.test(portraitCss) &&
+  /\.battle-panel \.battle-panel-top \{[^}]*display: grid/.test(portraitCss) &&
+  /\.battle-panel \.round-note \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
+  "в портретном бою HP и «ход героя» не схлопываются");
+log(/\.battle-panel \{[^}]*width: min\(56vw, 580px\)/.test(landscapeCss) &&
+  /\.battle-panel \{[^}]*right: 0/.test(landscapeCss),
+  "в ландшафтном бою панель остаётся правой колонкой");
+log(/\.options \{[^}]*grid-template-columns: 1fr 1fr/.test(landscapeCss),
+  "в ландшафтном бою ответы стоят в две колонки");
+log(/\.minimap-dock:not\(\.off\) \{\s*display: block !important/.test(gameCss),
+  "на телефоне мини-карта снова показывается, а не только кнопки");
+log(/\.overlay:not\(#battle-overlay\) \{\s*place-items: start center/.test(gameCss),
+  "на телефоне окна прижимаются к верху и не режут шапку");
+log(/@media \(pointer: coarse\)[\s\S]*?\.action-key \{\s*display: none/.test(gameCss),
+  "на сенсорном экране подписи клавиш скрыты");
+const fullscreenSrc = fs.readFileSync(path.join(dir, "fullscreen.js"), "utf8");
+log(!/orientation\.lock\(\s*["']landscape/.test(fullscreenSrc),
+  "полный экран больше не блокирует портрет");
+const gameSrcMobile = fs.readFileSync(path.join(dir, "game.js"), "utf8");
+log(/Коснись клетки/.test(gameSrcMobile) && /\(pointer: coarse\)/.test(gameSrcMobile),
+  "на сенсорном экране подсказка говорит про касания, а не WASD");
+
 // Тайлы приходят из набора 32x32, а клетка крупнее (48 px при обычном зуме).
 // Сокращённое `background:` у .tile.floor/.tile.wall сбрасывало repeat и size,
 // и спрайт плитки повторялся внутри клетки — так выглядели «дублированные»

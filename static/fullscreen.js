@@ -37,19 +37,6 @@
     });
   }
 
-  function lockLandscape() {
-    try {
-      const coarse = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
-      if (!coarse || window.innerWidth > 950) return;
-      if (screen.orientation && typeof screen.orientation.lock === "function") {
-        const p = screen.orientation.lock("landscape");
-        if (p && p.catch) p.catch(() => {});
-      }
-    } catch (e) {
-      // Ориентация не блокируется — CSS всё равно разложит интерфейс.
-    }
-  }
-
   function unlockOrientation() {
     try {
       if (screen.orientation && typeof screen.orientation.unlock === "function") {
@@ -65,7 +52,6 @@
     pending = true;
     try {
       await root.requestFullscreen({ navigationUI: "hide" });
-      lockLandscape();
       return true;
     } catch (e) {
       return false;
@@ -92,7 +78,6 @@
     const on = isOn();
     if (!on && wasOn) unlockOrientation();
     wasOn = on;
-    if (on) lockLandscape();
     syncUI();
     doc.dispatchEvent(new CustomEvent("pyfullscreenchange", { detail: { on: on } }));
   });
