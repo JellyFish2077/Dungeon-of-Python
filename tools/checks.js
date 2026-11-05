@@ -1443,6 +1443,9 @@ log(/touch-action: none/.test(gameCss),
   "карта забирает жесты у браузера, а не прокручивает страницу");
 log(/pointer: coarse\)[\s\S]*?#entities \.sprite-img[\s\S]*?animation: none/.test(gameCss),
   "на телефоне отключены бесконечные анимации спрайтов");
+log(/#map \{[^}]*transition: transform 0\.16s ease/.test(gameCss) &&
+  /\.entity \{[^}]*transition: transform 0\.16s ease/.test(gameCss),
+  "камера и герой двигаются с одной кривой — без качания на шаге");
 
 // ---------- Мини-карта по кнопке и запас камеры ----------
 log(/id="map-toggle"/.test(gameHtml) &&
