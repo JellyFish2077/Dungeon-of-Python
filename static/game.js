@@ -1979,6 +1979,8 @@
     ground: 0,
     npcs: [],
     doors: [],
+    // Пороги комнат подземелья: только для рисования, ход не перекрывают.
+    roomDoors: [],
     // Двор деревни: деревья, заборы, колодец, костёр. Не препятствия в grid,
     // поэтому рисуются отдельными объектами.
     scenery: [],
@@ -2578,6 +2580,8 @@
       crypts: [],
       signs: [],
       portal: null,
+      // Двери комнат: только для этажей с планом, у арен и legacy их нет.
+      doors: [],
       vaultNeedsKey: false,
       discovered: new Set()
     };
@@ -2681,7 +2685,9 @@
     }
 
     const free = far.filter((s) => !used.has(key(s.x, s.y)));
-    const chests = f.boss ? 5 : 4 + (index >= 2 ? 1 : 0) + (index >= 5 ? 2 : 0);
+    // Сундуков было 4–7 на этаж плюс тайник и секрет: этаж превращался в
+    // склад. Теперь 2–4: находка снова событие, а не рядовой шаг.
+    const chests = f.boss ? 4 : 3 + (index >= 5 ? 1 : 0);
     for (let i = 0; i < chests && i < free.length; i++) {
       state.treasures.push({
         uid: ++G.uid,
@@ -2817,12 +2823,13 @@
     const plan = state.plan;
     const treasureRooms = plan.rooms.filter((room) => room.role === "treasure");
     const secretRooms = plan.rooms.filter((room) => room.role === "secret");
-    const fallback = f.boss ? 5 : 4 + (index >= 2 ? 1 : 0) + (index >= 5 ? 2 : 0);
+    const fallback = f.boss ? 4 : 3 + (index >= 5 ? 1 : 0);
     const total = f.chests != null ? f.chests : fallback;
     let placed = 0;
     for (const room of shuffle(treasureRooms.slice())) {
       if (placed >= total) break;
-      const want = Math.min(total - placed, 2 + (Math.random() < 0.5 ? 1 : 0));
+      // Не больше двух на комнату: иначе вся добыча этажа лежит в одной.
+      const want = Math.min(total - placed, 2);
       for (let i = 0; i < want; i += 1) {
         const spot = planTake(room, used);
         if (!spot) break;
@@ -2897,12 +2904,32 @@
         sealed.push(exit);
       }
     });
+    const restoreSealed = () => sealed.forEach((exit) => { grid[exit.y][exit.x] = 1; });
+    // Замуровали лишние выходы — проверяем, что этаж не распался на части.
     if (sealed.length) {
       const reach = genGridReach(grid, state.map.w, state.map.h, state.playerPos);
       const lost = plan.rooms.some((r) =>
         r.center && !reach.has(r.center.x + "," + r.center.y));
-      if (lost) sealed.forEach((exit) => { grid[exit.y][exit.x] = 1; });
-      else sealed.forEach((exit) => used.add(key(exit.x, exit.y)));
+      if (lost) {
+        restoreSealed();
+        return null;
+      }
+      sealed.forEach((exit) => used.add(key(exit.x, exit.y)));
+    }
+    // Главное: без двери внутрь не попасть. Если у комнаты остался ещё один
+    // проём, который нельзя замуровать без разрыва карты, тайник не создаём:
+    // лучше обычная комната, чем «всегда открытый» тайник.
+    const inside = (room.cells || []).filter((c) =>
+      grid[c.y] && grid[c.y][c.x] === 1);
+    if (inside.length) {
+      const doorWas = grid[door.y][door.x];
+      grid[door.y][door.x] = 0;
+      const reach = genGridReach(grid, state.map.w, state.map.h, state.playerPos);
+      grid[door.y][door.x] = doorWas;
+      if (inside.some((c) => reach.has(key(c.x, c.y)))) {
+        restoreSealed();
+        return null;
+      }
     }
     used.add(key(door.x, door.y));
     used.add(key(from.x, from.y));
@@ -3186,6 +3213,41 @@
     return out;
   }
 
+  // Двери между комнатой и коридором. Это порог на клетке выхода: он не
+  // мешает ходу (двери в подземелье открыты), но отделяет комнату от
+  // коридора — без него этаж читался как один зал с перегородками.
+  function placeRoomDoors(state) {
+    const plan = state.plan;
+    if (!plan || !plan.rooms || !plan.rooms.length) return [];
+    const grid = state.map.grid;
+    const start = state.playerPos;
+    const end = state.stairsDown;
+    const out = [];
+    const taken = new Set();
+    plan.rooms.forEach((room) => {
+      const exits = (room.exits || []).filter((e) =>
+        grid[e.y] && grid[e.y][e.x] === 1 &&
+        !(start && e.x === start.x && e.y === start.y) &&
+        !(end && e.x === end.x && e.y === end.y) &&
+        !taken.has(e.x + "," + e.y));
+      if (!exits.length) return;
+      // Широкий проём занимает несколько клеток подряд — на него одна дверь.
+      const groups = [];
+      exits.forEach((e) => {
+        const near = groups.find((g) => g.some((c) =>
+          Math.abs(c.x - e.x) + Math.abs(c.y - e.y) === 1));
+        if (near) near.push(e);
+        else groups.push([e]);
+      });
+      groups.forEach((g) => {
+        const mid = g[Math.floor(g.length / 2)];
+        taken.add(mid.x + "," + mid.y);
+        out.push({ x: mid.x, y: mid.y });
+      });
+    });
+    return out;
+  }
+
   function placePlanContent(state, f, index, free, gen) {
     const used = new Set([key(gen.start.x, gen.start.y), key(gen.end.x, gen.end.y)]);
     state.crypts = planCryptCells(state.plan);
@@ -3208,6 +3270,7 @@
     state.signs = placePlanSigns(state, used);
     state.tributes = placePlanTributes(state, f, index, used, free);
     placePlanHazards(state, index, used);
+    state.doors = placeRoomDoors(state);
     return state;
   }
 
@@ -3307,6 +3370,22 @@
           }
         }
         if (!fits || room.length !== 9) continue;
+        // Печать важнее двери: вокруг вырубленной комнаты должен быть камень.
+        // Раньше проверялись только девять клеток, и коридор, идущий вплотную
+        // сбоку, открывал тайник в обход двери.
+        const inside = new Set(room.map((c) => c.x + "," + c.y));
+        inside.add(door.x + "," + door.y);
+        let sealedByRock = true;
+        for (const c of room) {
+          for (const [nx, ny] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+            const x = c.x + nx;
+            const y = c.y + ny;
+            if (x <= 0 || y <= 0 || x >= w - 1 || y >= h - 1) { sealedByRock = false; break; }
+            if (grid[y][x] === 1 && !inside.has(x + "," + y)) { sealedByRock = false; break; }
+          }
+          if (!sealedByRock) break;
+        }
+        if (!sealedByRock) continue;
         // Дверь тоже проход: раньше она оставалась стеной, и комната была
         // запечатана навсегда — ключ и рычаг открывали несуществующий проход.
         grid[door.y][door.x] = 1;
@@ -3809,6 +3888,8 @@
       // комната с добычей исчезала уже через полсекунды после находки.
       camps: G.camps || [],
       vaults: G.vaults || [],
+      // Пороги комнат: без них двери исчезали после каждого автосейва.
+      doors: G.roomDoors || [],
       nodes: G.nodes || [],
       levers: G.levers || [],
       shortcuts: G.shortcuts || [],
@@ -4086,6 +4167,9 @@
     G.blocked = null;
     G.npcs = [];
     G.doors = [];
+    // Двери комнат подземелья — отдельно от дверей деревни: у них нет
+    // перехода, только порог.
+    G.roomDoors = [];
     G.scenery = [];
     G.mat = null;
     G.roofKind = null;
@@ -4108,6 +4192,7 @@
     // был ли этот этаж пройден чисто.
     G.questFloorWrong = (G.stats && G.stats.wrong) || 0;
     G.map = state.map;
+    G.roomDoors = state.doors || [];
     G.stairsDown = state.stairsDown;
     G.stairsUp = state.stairsUp;
     G.enemies = state.enemies;
@@ -6286,6 +6371,17 @@
     const need = w * h;
     let rebuild = false;
 
+    // Двери и замки живут на плитках, а плитки пересобираются только при
+    // смене размера этажа. Без сигнатуры двери нового этажа не появлялись,
+    // а открытый тайник оставался нарисованным запертым.
+    const doorSig = (G.roomDoors || []).map((d) => d.x + "," + d.y).join(";") + "|" +
+      (G.vaults || []).map((v) => v.door.x + "," + v.door.y + ":" +
+        (v.locked ? 1 : 0)).join(";");
+    if (G.tileDoorSig !== doorSig) {
+      G.tileDoorSig = doorSig;
+      G.tileEls = [];
+    }
+
     if (G.tileEls.length !== need) {
       tiles.style.gridTemplateColumns = "repeat(" + w + ", var(--cell))";
       tiles.innerHTML = "";
@@ -6294,6 +6390,8 @@
       G.tileObj = [];
       G.tileAnim = [];
       const theme = G.ground || 0;
+      // Двери комнат — порог на клетке выхода. Считаем один раз на сборку.
+      const roomDoorKeys = new Set((G.roomDoors || []).map((d) => d.x + "," + d.y));
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const t = document.createElement("div");
@@ -6315,7 +6413,20 @@
           // Опасная лава — настоящая плитка лавы, а не плёнка поверх пола.
           const lava = isFloor && hazardAt(x, y) === "lava";
           // Предмет декора живёт отдельным слоем и приглушён (.tile.has-obj).
-          const obj = isFloor && d && !lava ? terrainObjectUri(theme, x, y, d) : "";
+          let obj = isFloor && d && !lava ? terrainObjectUri(theme, x, y, d) : "";
+          // Дверь комнаты и дверь тайника рисуются поверх пола. Запертый
+          // тайник — закрытая дверь, открытый — обычная: раньше на их месте
+          // был только значок, и вход читался как открытый проём.
+          if (isFloor && !lava && typeof TERRAIN_ICONS !== "undefined") {
+            const vault = vaultAt(x, y);
+            if (vault) {
+              obj = vault.locked
+                ? (TERRAIN_ICONS.doorLocked || TERRAIN_ICONS.door)
+                : TERRAIN_ICONS.door;
+            } else if (roomDoorKeys.has(x + "," + y)) {
+              obj = TERRAIN_ICONS.door;
+            }
+          }
           G.tileObj.push(obj);
           if (obj) t.style.setProperty("--obj", 'url("' + obj + '")');
           G.tileBg.push(lava ? terrainLavaCellBg(x, y, 0)
@@ -13076,6 +13187,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.17.0",
+      date: "5 ноября 2026",
+      title: "Двери и меньше сундуков",
+      items: [
+        "Сундуков на этаже 3–4 вместо 4–7: находка снова событие, а не рядовой шаг.",
+        "Между комнатами появились двери — они не мешают ходу.",
+        "Тайник больше нельзя обойти сбоку: вход один, и он заперт до ключа."
+      ]
+    },
+    {
       version: "1.16.0",
       date: "5 ноября 2026",
       title: "Бой длиннее, смерть — выбор",
@@ -14204,6 +14325,7 @@ function topicName(key) {
       traps: (o.traps || []).map((t) => ({ armed: true, ...t })),
       camps: (o.camps || []).map((c) => ({ used: false, ...c })),
       vaults: (o.vaults || []).map((v) => ({ locked: true, opened: false, ...v })),
+      doors: (o.doors || []).map((d) => ({ x: d.x, y: d.y })),
       nodes: (o.nodes || []).map((n) => ({ taken: false, ...n })),
       levers: (o.levers || []).map((l) => ({ used: false, ...l })),
       shortcuts: (o.shortcuts || []).map((s) => ({ open: true, ...s })),
