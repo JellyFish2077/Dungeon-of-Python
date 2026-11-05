@@ -39,7 +39,7 @@
   function ensureWorker() {
     if (worker) return worker;
     try {
-      worker = new Worker("static/pyodide-worker.js?v=20261105150127");
+      worker = new Worker("static/pyodide-worker.js?v=20261105153647");
     } catch (err) {
       settleBoot(false, String((err && err.message) || err));
       return null;
