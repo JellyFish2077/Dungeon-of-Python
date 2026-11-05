@@ -1782,6 +1782,18 @@ G.difficulty = "normal";
 log(easyOne.dmg < normOne.dmg && normOne.dmg < hardOne.dmg,
   "уровень сложности по-прежнему масштабирует урон",
   easyOne.dmg + " / " + normOne.dmg + " / " + hardOne.dmg);
+// Кривая глубины: первый этаж мягче среднего, последний — жёстче. Без неё
+// новичок умирает на втором бою, а прокачанный герой к десятому этажу
+// проходит спуск без единого опасного боя.
+const shares = [0, 2, 5, 9].map((f) => API.depthDamageShare(f));
+log(shares.every((v, i) => i === 0 || v >= shares[i - 1]),
+  "доля урона не падает с глубиной", JSON.stringify(shares));
+log(shares[0] <= 0.6, "первый этаж заметно мягче среднего спуска", shares[0]);
+log(shares[2] >= 0.95 && shares[3] > shares[2],
+  "к среднему спуску урон выходит на полный, к десятому — выше",
+  JSON.stringify(shares));
+log(API.depthDamageShare(99) <= 1.31, "поздняя надбавка ограничена сверху",
+  API.depthDamageShare(99));
 
 // ================= 13. Управление: WASD и клик по плитке =================
 freshRun(1);

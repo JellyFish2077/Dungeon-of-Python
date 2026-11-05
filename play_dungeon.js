@@ -706,6 +706,9 @@ function playOne(opts, rng, trace) {
     shopsDone: new Set(),
     // Практические задания за партию: код задания → сколько раз выпало.
     practiceSeen: new Map(),
+    // Длина боя в заданиях. Обычный враг и босс считаются отдельно: по
+    // сводке видно, где на самом деле проходит «вопрос вместо кубика».
+    battleQs: 0, battleBoss: false, regularQs: [], bossQs: [], maxBattleQ: 0,
     forge: !!opts.forge
   };
   let steps = 0;
@@ -761,6 +764,9 @@ function playOne(opts, rng, trace) {
       break;
     }
     const hadBattle = !!G.battle;
+    // Босс ли это — запоминаем до хода: после добивающего ответа G.battle
+    // уже null, и по нему бой не классифицировать.
+    const battleBoss = !!(G.battle && G.battle.enemy && G.battle.enemy.boss);
     let what;
     const t0 = Date.now();
     try {
@@ -790,6 +796,12 @@ function playOne(opts, rng, trace) {
       }
     }
     if (what === "blessing") seen.blessings += 1;
+    // Каждое задание в бою — один ход: ответ, переписывание, код или
+    // пропуск. Длину боя считаем по ним, а не по шагам ходьбы.
+    if (hadBattle && (what === "answer" || what === "copy" || what === "code" || what === "skip")) {
+      seen.battleQs += 1;
+      seen.battleBoss = battleBoss;
+    }
     if (!hadBattle && G.battle) seen.battles += 1;
     const pct = G.player.maxHp ? Math.max(0, G.player.hp) / G.player.maxHp : 1;
     if (pct < seen.lowestPct) seen.lowestPct = pct;
@@ -797,6 +809,14 @@ function playOne(opts, rng, trace) {
     if (hadBattle && !G.battle) {
       if (seen.battleLowPct < 0.3) seen.dangerBattles += 1;
       seen.battleLowPct = 1;
+      const n = seen.battleQs || 0;
+      if (n > 0) {
+        if (seen.battleBoss) seen.bossQs.push(n);
+        else seen.regularQs.push(n);
+        if (n > seen.maxBattleQ) seen.maxBattleQ = n;
+      }
+      seen.battleQs = 0;
+      seen.battleBoss = false;
     }
     if (G.player.hp < seen.lowestHp) seen.lowestHp = G.player.hp;
     if (G.floorIndex > seen.deepest) seen.deepest = G.floorIndex;
@@ -879,6 +899,13 @@ function playOne(opts, rng, trace) {
     lowestPct: seen.lowestPct,
     deathFloors: seen.deathFloors,
     dangerBattles: seen.dangerBattles,
+    // Заданий на бой: обычный враг и босс отдельно. Так видно, где на
+    // самом деле проходит «вопрос вместо кубика», а где бой — формальность.
+    regularAvg: seen.regularQs.length
+      ? seen.regularQs.reduce((a, b) => a + b, 0) / seen.regularQs.length : 0,
+    bossAvg: seen.bossQs.length
+      ? seen.bossQs.reduce((a, b) => a + b, 0) / seen.bossQs.length : 0,
+    maxBattleQ: seen.maxBattleQ,
     tasks: G.stats ? G.stats.correct + G.stats.wrong + (G.stats.copyTried || 0) + (G.stats.codeTried || 0) : 0,
     // Время по видам: вопрос и «вставь/найди» — по 30 с, «перепиши код» —
     // минута, «напиши функцию» — две. Грубо, но честнее, чем всё по 30 с.
@@ -1049,6 +1076,12 @@ function printSummary(opts, rows) {
     avg((r) => r.practice).toFixed(0) + "; время ≈ " + Math.round(avg((r) => r.minutes)) +
     " мин (вопрос — 30 с, «перепиши» — 1 мин, «напиши функцию» — 2 мин); уровень героя " +
     avg((r) => r.level).toFixed(1));
+  // Длина боя: если обычный враг умирает за один ответ, тактика (зелья,
+  // защита, способность) не успевает включиться, а босс превращается в
+  // единственную стену вопросов. Числа показывают, где именно перекос.
+  console.log("  заданий на бой: обычный " + avg((r) => r.regularAvg).toFixed(1) +
+    ", босс " + avg((r) => r.bossAvg).toFixed(1) + "; самый длинный бой " +
+    avg((r) => r.maxBattleQ).toFixed(1));
   const applied = avg((r) => r.applied);
   if (applied > 0) {
     console.log("  практика («примени»): " + applied.toFixed(0) + " заданий за партию, разных " +
