@@ -7686,8 +7686,20 @@ if (testDoor) {
     "открытая дверь пропускает взгляд");
   log(!API.tileBlockedForEnemy(testAxis.b.x, testAxis.b.y),
     "открытая дверь пускает врагов");
+  // Шаг дальше: дверь обязана закрыться за спиной.
+  API.move(-testAxis.dx, -testAxis.dy);
+  log(!testDoor.open, "дверь закрывается за игроком",
+    "открыта: " + testDoor.open);
 } else {
   log(false, "не нашлось двери с проходом для проверки");
 }
+
+// Двери и их состояние должны переживать сохранение и перезагрузку.
+const saveState = API.createFloorState(0);
+saveState.map.doors = saveState.doors = [{ x: 3, y: 3, open: true }];
+const restored = API.deserializeFloor(API.serializeFloor(saveState));
+log(restored.map.doors.length === 1 && restored.map.doors[0].open === true,
+  "двери и их состояние переживают сохранение",
+  JSON.stringify(restored.map.doors));
 
 console.log("__JSON__" + JSON.stringify(out));
