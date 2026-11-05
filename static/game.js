@@ -2557,7 +2557,7 @@
     const bossFloor = !!f.boss;
     const state = {
       index,
-      map: { w: f.w, h: f.h, grid: gen.grid, decor: gen.decor },
+      map: { w: f.w, h: f.h, grid: gen.grid, decor: gen.decor, doors: [] },
       playerPos: { x: gen.start.x, y: gen.start.y },
       // План — транзиентное поле: в serializeFloor он не попадает.
       plan: gen.plan || null,
@@ -3288,7 +3288,7 @@
         }
         sides.forEach((c) => used.add(key(c.x, c.y)));
         taken.add(mid.x + "," + mid.y);
-        out.push({ x: mid.x, y: mid.y });
+        out.push({ x: mid.x, y: mid.y, open: false });
       });
     });
     return out;
@@ -3317,6 +3317,7 @@
     state.tributes = placePlanTributes(state, f, index, used, free);
     placePlanHazards(state, index, used);
     state.doors = placeRoomDoors(state, used);
+    state.map.doors = state.doors;
     return state;
   }
 
@@ -3701,6 +3702,20 @@
 
   function vaultByUid(uid) {
     return (G.vaults || []).find((v) => v.uid === uid) || null;
+  }
+
+  // Дверь комнаты. Закрытая не пропускает ни взгляд, ни врагов; игрок
+  // открывает её шагом. После открытия она остаётся открытой.
+  function roomDoorAt(x, y) {
+    // Двери живут в самой карте: при подмене карты (загрузка, проверки)
+    // старые двери не должны блокировать новый этаж.
+    const list = G.map && Array.isArray(G.map.doors) ? G.map.doors : (G.roomDoors || []);
+    return list.find((d) => d.x === x && d.y === y) || null;
+  }
+
+  function doorClosedAt(x, y) {
+    const door = roomDoorAt(x, y);
+    return !!door && !door.open;
   }
 
   function shortcutByUid(uid) {
@@ -4238,7 +4253,8 @@
     // был ли этот этаж пройден чисто.
     G.questFloorWrong = (G.stats && G.stats.wrong) || 0;
     G.map = state.map;
-    G.roomDoors = state.doors || [];
+    G.roomDoors = state.doors || G.map.doors || [];
+    if (!G.map.doors) G.map.doors = G.roomDoors;
     G.stairsDown = state.stairsDown;
     G.stairsUp = state.stairsUp;
     G.enemies = state.enemies;
@@ -6420,7 +6436,8 @@
     // Двери и замки живут на плитках, а плитки пересобираются только при
     // смене размера этажа. Без сигнатуры двери нового этажа не появлялись,
     // а открытый тайник оставался нарисованным запертым.
-    const doorSig = (G.roomDoors || []).map((d) => d.x + "," + d.y).join(";") + "|" +
+    const doorSig = (G.roomDoors || []).map((d) =>
+      d.x + "," + d.y + ":" + (d.open ? 1 : 0)).join(";") + "|" +
       (G.vaults || []).map((v) => v.door.x + "," + v.door.y + ":" +
         (v.locked ? 1 : 0)).join(";");
     if (G.tileDoorSig !== doorSig) {
@@ -6436,8 +6453,9 @@
       G.tileObj = [];
       G.tileAnim = [];
       const theme = G.ground || 0;
-      // Двери комнат — порог на клетке выхода. Считаем один раз на сборку.
-      const roomDoorKeys = new Set((G.roomDoors || []).map((d) => d.x + "," + d.y));
+      // Дверь комнаты — порог на клетке выхода. Считаем один раз на сборку.
+      const roomDoorMap = new Map((G.roomDoors || []).map((d) =>
+        [d.x + "," + d.y, d]));
       for (let y = 0; y < h; y++) {
         for (let x = 0; x < w; x++) {
           const t = document.createElement("div");
@@ -6463,14 +6481,16 @@
           // Дверь комнаты и дверь тайника рисуются поверх пола. Запертый
           // тайник — закрытая дверь, открытый — обычная: раньше на их месте
           // был только значок, и вход читался как открытый проём.
+          // Закрытая дверь рисуется дверью, открытая — пустым проёмом.
           if (isFloor && !lava && typeof TERRAIN_ICONS !== "undefined") {
             const vault = vaultAt(x, y);
             if (vault) {
               obj = vault.locked
                 ? (TERRAIN_ICONS.doorLocked || TERRAIN_ICONS.door)
-                : TERRAIN_ICONS.door;
-            } else if (roomDoorKeys.has(x + "," + y)) {
-              obj = TERRAIN_ICONS.door;
+                : "";
+            } else {
+              const roomDoor = roomDoorMap.get(x + "," + y);
+              if (roomDoor) obj = roomDoor.open ? "" : TERRAIN_ICONS.door;
             }
           }
           G.tileObj.push(obj);
@@ -8366,7 +8386,7 @@
   // по тем же векторам в keydown, поэтому в DIRS его нет.
   const STEP_DIRS = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 
-  function findPath(from, to) {
+  function findPath(from, to, avoid) {
     const { w, h, grid } = G.map;
     const start = from.y * w + from.x;
     const goal = to.y * w + to.x;
@@ -8388,6 +8408,9 @@
         // Деревья, заборы и колодец в деревне не пропускают — иначе герой
         // прошёл бы сквозь ствол, потому что в grid это обычный пол.
         if (cellBlocked(nx, ny)) continue;
+        // Монстры обходят закрытые двери, как стены: иначе путь ведёт
+        // в дверь, шаг отменяется, и враг топчется на месте.
+        if (avoid && avoid(nx, ny)) continue;
         const ni = ny * w + nx;
         if (seen[ni]) continue;
         seen[ni] = 1;
@@ -8857,6 +8880,13 @@
       setMsg("Дальше не пройти.");
       return;
     }
+    // Дверь открывается шагом: закрытая держала взгляд и монстров, но
+    // герой входит в неё и открывает. Дальше она остаётся открытой.
+    const door = roomDoorAt(nx, ny);
+    if (door && !door.open) {
+      door.open = true;
+      setMsg("Дверь открыта.");
+    }
 
     // Планку этажа убираем только после того, как ход признан удачным.
     // Раньше вызов стоял в самом верху move(), и она гасла от любого
@@ -8940,6 +8970,8 @@
   }
 
   function hasLineOfSight(x0, y0, x1, y1) {
+    // Взгляд останавливают стены и закрытые двери. Открытая дверь — проём.
+    const blocked = (x, y) => wallAt(x, y) || doorClosedAt(x, y);
     let x = x0;
     let y = y0;
     const dx = Math.abs(x1 - x0);
@@ -8957,12 +8989,12 @@
       // Диагональ не проходит через стык двух стен: иначе монстр бьёт
       // «через угол», хотя обе клетки по бокам глухие.
       if (stepX !== 0 && stepY !== 0) {
-        if (wallAt(x + stepX, y) && wallAt(x, y + stepY)) return false;
+        if (blocked(x + stepX, y) && blocked(x, y + stepY)) return false;
       }
       x += stepX;
       y += stepY;
       if (x === x1 && y === y1) return true;
-      if (wallAt(x, y)) return false;
+      if (blocked(x, y)) return false;
     }
     return true;
   }
@@ -8978,6 +9010,9 @@
     // в комнату, которую герой ещё не открыл.
     const vault = vaultAt(x, y);
     if (vault && vault.locked) return true;
+    // Закрытая дверь комнаты держит и монстров: открыть её может только
+    // игрок. Иначе двери были декорацией, сквозь которую все ходят.
+    if (doorClosedAt(x, y)) return true;
     if (x === G.playerPos.x && y === G.playerPos.y) return false;
     if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) return true;
     if (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) return true;
@@ -9007,7 +9042,8 @@
   // Первый шаг настоящего пути в обход стены. Нужен там, где жадный шаг
   // упирается в стену: иначе монстр топчется на месте и никогда не доходит.
   function detourStep(e, px, py) {
-    const path = findPath({ x: e.x, y: e.y }, { x: px, y: py });
+    const path = findPath({ x: e.x, y: e.y }, { x: px, y: py },
+      (x, y) => doorClosedAt(x, y));
     if (!path || !path.length) return null;
     const first = path[0];
     // Клетка героя — это атака, а не шаг.
@@ -13233,6 +13269,15 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.17.2",
+      date: "5 ноября 2026",
+      title: "Двери закрыты по-настоящему",
+      items: [
+        "Закрытая дверь не пропускает взгляд и врагов: монстры больше не ходят сквозь неё.",
+        "Игрок открывает дверь шагом; открытая дверь становится проёмом для всех."
+      ]
+    },
+    {
       version: "1.17.1",
       date: "5 ноября 2026",
       title: "Двери в проёмах",
@@ -14352,10 +14397,13 @@ function topicName(key) {
   }
 
   function deserializeFloor(o) {
+    // Двери — один массив и в карте, и в поле floors: открытая дверь должна
+    // меняться в обоих местах, иначе карта и состояние разойдутся.
+    const doors = (o.doors || []).map((d) => ({ x: d.x, y: d.y, open: !!d.open }));
     return {
       index: o.index,
       checked: o.checked || null,
-      map: o.map,
+      map: Object.assign({}, o.map, { doors: doors }),
       playerPos: o.playerPos,
       stairsDown: o.stairsDown,
       stairsUp: o.stairsUp,
@@ -14380,7 +14428,7 @@ function topicName(key) {
       traps: (o.traps || []).map((t) => ({ armed: true, ...t })),
       camps: (o.camps || []).map((c) => ({ used: false, ...c })),
       vaults: (o.vaults || []).map((v) => ({ locked: true, opened: false, ...v })),
-      doors: (o.doors || []).map((d) => ({ x: d.x, y: d.y })),
+      doors: doors,
       nodes: (o.nodes || []).map((n) => ({ taken: false, ...n })),
       levers: (o.levers || []).map((l) => ({ used: false, ...l })),
       shortcuts: (o.shortcuts || []).map((s) => ({ open: true, ...s })),
