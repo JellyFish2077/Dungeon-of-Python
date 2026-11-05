@@ -374,28 +374,39 @@ def run_mobile_checks(browser, base):
         if page.locator("#pause-resume").is_visible():
             page.click("#pause-resume")
             page.wait_for_timeout(400)
-        spots = page.evaluate("""([w, h]) => {
-          const hero = document.querySelector('.ent-player');
-          const hr = hero ? hero.getBoundingClientRect() : null;
-          const hx = hr ? hr.x + hr.width / 2 : w / 2;
-          const hy = hr ? hr.y + hr.height / 2 : h / 2;
-          const out = [];
-          for (const t of document.querySelectorAll('.tile.floor')) {
-            const r = t.getBoundingClientRect();
-            const x = r.x + r.width / 2;
-            const y = r.y + r.height / 2;
-            if (r.width < 20 || x < 40 || x > w - 40 || y < 100 || y > h - 100) continue;
-            // Рядом с героем: другой конец карты может быть за стеной.
-            if (Math.abs(x - hx) > 240 || Math.abs(y - hy) > 240) continue;
-            // Свою клетку не считаем: клик по ней ничего не делает.
-            if (hr && Math.abs(x - hx) < 4 && Math.abs(y - hy) < 4) continue;
-            const hit = document.elementFromPoint(x, y);
-            if (!hit || !hit.closest || hit.closest('.tile') !== t) continue;
-            out.push({ x: x, y: y });
-            if (out.length >= 6) break;
-          }
-          return out;
-        }""", [w, h])
+        def find_spots():
+            return page.evaluate("""([w, h]) => {
+              const hero = document.querySelector('.ent-player');
+              const hr = hero ? hero.getBoundingClientRect() : null;
+              const hx = hr ? hr.x + hr.width / 2 : w / 2;
+              const hy = hr ? hr.y + hr.height / 2 : h / 2;
+              const out = [];
+              for (const t of document.querySelectorAll('.tile.floor')) {
+                const r = t.getBoundingClientRect();
+                const x = r.x + r.width / 2;
+                const y = r.y + r.height / 2;
+                if (r.width < 20 || x < 40 || x > w - 40 || y < 100 || y > h - 100) continue;
+                // Рядом с героем: другой конец карты может быть за стеной.
+                if (Math.abs(x - hx) > 240 || Math.abs(y - hy) > 240) continue;
+                // Свою клетку не считаем: клик по ней ничего не делает.
+                if (hr && Math.abs(x - hx) < 4 && Math.abs(y - hy) < 4) continue;
+                const hit = document.elementFromPoint(x, y);
+                if (!hit || !hit.closest || hit.closest('.tile') !== t) continue;
+                out.push({ x: x, y: y });
+                if (out.length >= 6) break;
+              }
+              return out;
+            }""", [w, h])
+
+        spots = find_spots()
+        if not spots:
+            # После перетаскивания камера могла уехать так, что рядом с
+            # героем не осталось видимых клеток: шаг в сторону возвращает
+            # камеру к герою (move сбрасывает панораму).
+            for key in ("ArrowRight", "ArrowLeft"):
+                page.keyboard.press(key)
+                page.wait_for_timeout(350)
+            spots = find_spots()
         hero_before = page.evaluate(
             "() => { const h = document.querySelector('.ent-player');"
             " return h ? h.parentElement.style.transform : ''; }")

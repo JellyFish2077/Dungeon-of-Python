@@ -6536,11 +6536,13 @@
         const isFloor = grid[y][x] === 1;
         const hz = seen && isFloor ? hazardAt(x, y) : "";
         const dcode = seen && isFloor && decor && decor[y] ? decor[y][x] || 0 : 0;
+        const doorCell = seen && isFloor && (vaultAt(x, y) || roomDoorAt(x, y));
         const cls = "tile " + (seen ? (isFloor ? "floor" : "wall") + (G.visible.has(k) ? "" : " seen") : "unseen") +
           (G.walkTarget && G.walkTarget.x === x && G.walkTarget.y === y ? " walk-target" : "") +
           (hz ? " hazard-" + hz : "") +
           (seen && isFloor && dcode ? " lit-" + terrainKind((G.ground || 0) % 10, dcode) : "") +
           (seen && isFloor && G.tileObj[y * w + x] ? " has-obj" : "") +
+          (doorCell ? " door-obj" : "") +
           (seen && isFloor ? wallEdges(x, y) : "");
         if (t.dataset.cls !== cls) {
           t.className = cls;
@@ -13273,6 +13275,14 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.17.4",
+      date: "5 ноября 2026",
+      title: "Дверь стала плотной",
+      items: [
+        "Дверь больше не просвечивает: у неё своя непрозрачная отрисовка, декор остался приглушённым."
+      ]
+    },
     {
       version: "1.17.3",
       date: "5 ноября 2026",
