@@ -2330,6 +2330,13 @@
   let ENEMY_DMG_PER_FLOOR = 0.32;
   let ENEMY_DMG_RAMP = 0.28;
   let HP_PER_FLOOR = 0.10;
+  // Кривая урона по глубине. Первые этажи мягче: ученик с половиной верных
+  // ответов не должен умирать на втором этаже, не увидев игры. Последние —
+  // жёстче: к десятому герой с прокачкой и снаряжением иначе проходит спуск
+  // без единого опасного боя. Множитель растёт линейно от ENEMY_DMG_FLOOR0.
+  let ENEMY_DMG_FLOOR0 = 0.55;
+  let ENEMY_DMG_CURVE = 0.09;
+  let ENEMY_DMG_MAX_SHARE = 1.30;
   let XP_BASE = 50;
   let LEVEL_DMG = 3;
   let LEVEL_HP = 22;
@@ -2388,10 +2395,19 @@
     return 1 + ENDLESS_DEPTH_DMG * d * d;
   }
 
+  // Доля урона врага на этой глубине. Первый этаж — 55%, к среднему спуску
+  // выходит на 100%, к десятому — 130%. Кривая не должна ломать обучение:
+  // новичок учится на ошибках, а не хоронит поход на втором бою.
+  function depthDamageShare(floorIdx) {
+    const at = Math.max(0, Number(floorIdx) || 0);
+    return Math.min(ENEMY_DMG_MAX_SHARE, ENEMY_DMG_FLOOR0 + at * ENEMY_DMG_CURVE);
+  }
+
   function enemyDamageFor(type, floorIdx, mul) {
     const base = type.dmg + floorIdx * ENEMY_DMG_PER_FLOOR;
     const ramp = type.dmg * ENEMY_DMG_RAMP * floorIdx;
-    return Math.max(1, Math.round((base + ramp) * mul * endlessDepthMul(floorIdx)));
+    return Math.max(1, Math.round((base + ramp) * mul * endlessDepthMul(floorIdx) *
+      depthDamageShare(floorIdx)));
   }
 
   function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx, isBoss) {
@@ -13025,6 +13041,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.15.0",
+      date: "5 ноября 2026",
+      title: "Мягкий старт, честная глубина",
+      items: [
+        "Урон врагов на первых этажах снижен: новичок больше не теряет поход на втором бою.",
+        "С глубиной урон растёт сильнее: к десятому этажу спуск не превращается в прогулку.",
+        "Кривая настраивается в панели учителя: enemy.dmgFloor0, enemy.dmgCurve, enemy.dmgMaxShare."
+      ]
+    },
+    {
       version: "1.14.1",
       date: "5 ноября 2026",
       title: "Левый клик снова ведёт героя",
@@ -15935,6 +15961,7 @@ function topicName(key) {
   // бы героя без единого ответа.
   const BALANCE_KEYS = [
     "enemy.hpPerFloor", "enemy.dmgFlat", "enemy.dmgPct",
+    "enemy.dmgFloor0", "enemy.dmgCurve", "enemy.dmgMaxShare",
     "elite.hpMul", "elite.dmgMul", "elite.chanceBase", "elite.chanceStep", "elite.gold",
     "squad.from", "squad.chance", "squad.maxSize",
     "combat.aggro", "combat.view", "combat.darkView", "combat.hazardDmg",
@@ -15970,6 +15997,9 @@ function topicName(key) {
       case "enemy.hpPerFloor": HP_PER_FLOOR = value; return true;
       case "enemy.dmgFlat": ENEMY_DMG_PER_FLOOR = value; return true;
       case "enemy.dmgPct": ENEMY_DMG_RAMP = value; return true;
+      case "enemy.dmgFloor0": ENEMY_DMG_FLOOR0 = value; return true;
+      case "enemy.dmgCurve": ENEMY_DMG_CURVE = value; return true;
+      case "enemy.dmgMaxShare": ENEMY_DMG_MAX_SHARE = value; return true;
       case "elite.hpMul": ELITE.hpMul = value; return true;
       case "elite.dmgMul": ELITE.dmgMul = value; return true;
       case "elite.chanceBase": ELITE.chanceBase = value; return true;
@@ -16068,6 +16098,9 @@ function topicName(key) {
       case "enemy.hpPerFloor": return HP_PER_FLOOR;
       case "enemy.dmgFlat": return ENEMY_DMG_PER_FLOOR;
       case "enemy.dmgPct": return ENEMY_DMG_RAMP;
+      case "enemy.dmgFloor0": return ENEMY_DMG_FLOOR0;
+      case "enemy.dmgCurve": return ENEMY_DMG_CURVE;
+      case "enemy.dmgMaxShare": return ENEMY_DMG_MAX_SHARE;
       case "elite.hpMul": return ELITE.hpMul;
       case "elite.dmgMul": return ELITE.dmgMul;
       case "elite.chanceBase": return ELITE.chanceBase;
