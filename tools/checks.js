@@ -1476,6 +1476,28 @@ log(/body\.game-page \.skip-btn \{[^}]*bottom: calc\(8px \+ var\(--safe-bottom\)
 log(/visualViewport/.test(gameSrcMobile),
   "игра пересчитывает видимую высоту при появлении панели браузера");
 
+// ---------- Ввод кода на телефоне и ответы без клавиш ----------
+log(!/byKey\[e\.key\.toLowerCase\(\)\]/.test(gameSrcMobile) &&
+  !/answerMC\(idx\)/.test(gameSrcMobile),
+  "варианты ответа больше не выбираются клавишами A–D и 1–4");
+log(!/btn\.innerHTML = "<span class='key'>/.test(gameSrcMobile),
+  "на кнопках ответов нет подсказок клавиш");
+log(/function codeToolsHtml/.test(gameSrcMobile) &&
+  /id='code-check-inline'/.test(gameSrcMobile) &&
+  /id='code-indent'/.test(gameSrcMobile),
+  "рядом с полем кода есть «Отступ» и «Проверить»");
+log(/body\.code-focus \.battle-panel/.test(gameCss) &&
+  /var\(--vvh, var\(--app-vh\)\)/.test(gameCss),
+  "при вводе кода панель занимает видимую высоту над клавиатурой");
+log(/--vvh: var\(--app-vh\)/.test(styleCss) &&
+  /visualViewport/.test(gameSrcMobile),
+  "высота под экранную клавиатуру считается через visualViewport");
+log(/body\.game-page \.code-editor \{[\s\S]*?font-size: 16px/.test(gameCss),
+  "поле кода на телефоне 16 px — браузер не приближает страницу");
+log(/id='code-input' spellcheck='false' autocomplete='off' autocorrect='off' autocapitalize='off'/
+  .test(gameSrcMobile),
+  "поле кода отключает автозамену, автозаглавные и подсказки");
+
 // Тайлы приходят из набора 32x32, а клетка крупнее (48 px при обычном зуме).
 // Сокращённое `background:` у .tile.floor/.tile.wall сбрасывало repeat и size,
 // и спрайт плитки повторялся внутри клетки — так выглядели «дублированные»
