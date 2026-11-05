@@ -1,10 +1,10 @@
 html {
-  height: 100%;
+  height: var(--app-vh);
   overflow: hidden;
 }
 
 body.game-page {
-  height: 100%;
+  height: var(--app-vh);
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -538,7 +538,7 @@ body.game-page .game-wrap > .panel {
 /* ---------- Карта ---------- */
 .map-scroll {
   width: 100%;
-  height: clamp(300px, 58vh, 640px);
+  height: clamp(300px, calc(var(--app-vh) * 0.58), 640px);
   overflow: hidden;
   position: relative;
   border-radius: 16px;
@@ -1322,6 +1322,10 @@ body.game-page.battling .game-wrap > .panel {
 .overlay {
   position: fixed;
   inset: 0;
+  /* Окно живёт в видимой области: если снизу панель браузера, dvh уже
+     меньше layout viewport, и низ карточек не уезжает под неё. */
+  height: var(--app-vh);
+  bottom: auto;
   /* Вместо прежнего backdrop-filter: blur(4px): браузер размывал всю карту
      (до 2960x2176) на каждом кадре, и любой экран поверх неё шёл ровно
      30 к/с. Тот же «глубокий затемняющий занавес» даётся плотным фоном. */
@@ -1333,6 +1337,12 @@ body.game-page.battling .game-wrap > .panel {
   padding: 16px;
   z-index: 60;
   overflow-y: auto;
+}
+
+/* Боевая панель — fixed. Оверлей становится её containing block, поэтому
+   низ считается от видимой высоты, а не от всего layout viewport. */
+#battle-overlay {
+  transform: translateZ(0);
 }
 
 .battle {
@@ -1358,7 +1368,7 @@ body.game-page.battling .game-wrap > .panel {
      content-box: без этой строки карточка вырастала на высоту отступов и
      нижний край с эффектами уезжал за пределы экрана. */
   box-sizing: border-box;
-  max-height: min(92vh, 880px);
+  max-height: min(calc(var(--app-vh) * 0.92), 880px);
   overflow: hidden;
 }
 
@@ -4634,7 +4644,7 @@ body.game-page .side-panel .effect-title {
      а колонка панели забирает остаток и прокручивается сама. */
   .stage.playing .game-wrap {
     flex: 0 0 auto;
-    height: min(56vh, 440px);
+    height: min(calc(var(--app-vh) * 0.56), 440px);
     min-height: 300px;
   }
 
@@ -4690,7 +4700,7 @@ body.game-page .side-panel .effect-title {
 @media (max-width: 700px) {
   #battle-box {
     padding: 12px;
-    max-height: min(94vh, 880px);
+    max-height: min(calc(var(--app-vh) * 0.94), 880px);
   }
 
   .battle-inner {
@@ -4924,7 +4934,7 @@ body.game-page .side-panel .effect-title {
   bottom: 14px;
   z-index: 95;
   width: min(360px, calc(100vw - 28px));
-  max-height: min(70vh, 560px);
+  max-height: min(calc(var(--app-vh) * 0.7), 560px);
   overflow-y: auto;
   padding: 12px 14px 14px;
   border-radius: 14px;
@@ -5472,7 +5482,7 @@ body.game-page #hud-btn.active {
     right: 8px;
     bottom: auto;
     width: min(320px, calc(100vw - 16px));
-    max-height: 46vh;
+    max-height: calc(var(--app-vh) * 0.46);
   }
 
   body.game-page #screen-game .minimap {
@@ -5501,9 +5511,9 @@ body.game-page #hud-btn.active {
   position: fixed;
   z-index: 45;
   left: clamp(12px, 2vw, 28px);
-  top: clamp(78px, 9vh, 110px);
+  top: clamp(78px, calc(var(--app-vh) * 0.09), 110px);
   width: min(360px, calc(100vw - 32px));
-  max-height: calc(100vh - 120px);
+  max-height: calc(var(--app-vh) - 120px);
   overflow: auto;
   padding: 12px 14px 11px;
   pointer-events: none;
@@ -5644,7 +5654,7 @@ body.game-page #hud-btn.active {
     bottom: 72px;
     left: 12px;
     width: auto;
-    max-height: 42vh;
+    max-height: calc(var(--app-vh) * 0.42);
     overflow: auto;
   }
 }
@@ -5967,7 +5977,7 @@ body.game-page .side-panel .equip-value {
 
 .overlay > .battle {
   width: min(760px, 94vw);
-  max-height: min(88vh, 900px);
+  max-height: min(calc(var(--app-vh) * 0.88), 900px);
   padding: 0 20px 16px;
   display: flex;
   flex-direction: column;
@@ -5984,13 +5994,13 @@ body.game-page .side-panel .equip-value {
 
 #battle-box {
   width: min(980px, 94vw);
-  max-height: min(92vh, 900px);
+  max-height: min(calc(var(--app-vh) * 0.92), 900px);
 }
 
 #end-box,
 #blessing-box {
   width: min(520px, 94vw);
-  max-height: min(88vh, 760px);
+  max-height: min(calc(var(--app-vh) * 0.88), 760px);
   overflow-y: auto;
 }
 
@@ -6177,7 +6187,7 @@ body.game-page .side-panel .equip-value {
 @media (max-width: 700px) {
   .overlay > .battle {
     width: 100%;
-    max-height: 92vh;
+    max-height: calc(var(--app-vh) * 0.92);
     padding-left: 14px;
     padding-right: 14px;
   }
@@ -6896,7 +6906,7 @@ body.game-page .head-actions .app-version {
   display: none;
   width: 420px;
   max-width: calc(100vw - 20px);
-  max-height: calc(100vh - 80px);
+  max-height: calc(var(--app-vh) - 80px);
   overflow-y: auto;
   pointer-events: auto;
   border: 2px solid var(--gold-dim);
@@ -7639,7 +7649,7 @@ body.game-page .site-head .head-actions {
 /* Панель разработчика: вкладки и категории. */
 .dev-panel {
   width: min(420px, calc(100vw - 24px));
-  max-height: min(82vh, 640px);
+  max-height: min(calc(var(--app-vh) * 0.82), 640px);
   overflow-y: auto;
   border: 2px solid var(--gold-dim);
   border-left: 4px solid var(--gold);
@@ -7729,7 +7739,7 @@ body.game-page .site-head .head-actions {
     right: 8px;
     bottom: 8px;
     width: calc(100vw - 16px);
-    max-height: 78vh;
+    max-height: calc(var(--app-vh) * 0.78);
   }
 
   .dev-tab {
@@ -7816,7 +7826,7 @@ body.game-page .site-head .head-actions {
   }
 
   .updates-body {
-    max-height: 62vh;
+    max-height: calc(var(--app-vh) * 0.62);
   }
 
   .update-entry h3 {
@@ -8850,7 +8860,7 @@ body.battling .battle-intro {
   display: grid;
   align-content: start;
   justify-items: center;
-  padding-top: 4vh;
+  padding-top: calc(var(--app-vh) * 0.04);
   text-align: center;
   pointer-events: none;
   background: radial-gradient(circle at 50% 28%, rgba(10, 18, 28, 0.12), rgba(2, 5, 10, 0.66));
@@ -8900,7 +8910,7 @@ body.battling .battle-panel {
   bottom: 16px;
   z-index: 5;
   width: min(1160px, calc(100vw - 24px));
-  max-height: min(60vh, 620px);
+  max-height: min(calc(var(--app-vh) * 0.6), 620px);
   display: flex;
   flex-direction: column;
   padding: 12px 16px 13px;
@@ -9070,7 +9080,7 @@ body.battling .battle-panel .squad-note {
   body.battling .battle-panel {
     width: calc(100vw - 10px);
     bottom: 6px;
-    max-height: 64vh;
+    max-height: calc(var(--app-vh) * 0.64);
     padding: 8px 10px 9px;
     border-width: 10px;
   }
@@ -9312,7 +9322,7 @@ body.battling .battle-panel .squad-note {
   body.battling .battle-intro {
     width: calc(100% - min(56vw, 580px));
     right: auto;
-    padding-top: 3vh;
+    padding-top: calc(var(--app-vh) * 0.03);
   }
 
   body.battling .battle-intro b {
@@ -9335,7 +9345,7 @@ body.battling .battle-panel .squad-note {
 @media (min-width: 1600px) {
   body.battling .battle-panel {
     width: min(1360px, 84vw);
-    max-height: min(66vh, 760px);
+    max-height: min(calc(var(--app-vh) * 0.66), 760px);
     padding: 15px 22px;
   }
 
@@ -10241,7 +10251,7 @@ body.battling .battle-panel {
   bottom: 0;
   width: 100%;
   max-width: none;
-  max-height: min(62vh, 640px);
+  max-height: min(calc(var(--app-vh) * 0.62), 640px);
   padding: 14px 26px 18px;
   border: 0 !important;
   border-top: 1px solid var(--quiet-line) !important;
@@ -11154,7 +11164,7 @@ body.game-page .overlay > .battle .btn.purple:not(.battle-cat):hover {
   }
 
   body.battling .battle-panel {
-    max-height: 68vh;
+    max-height: calc(var(--app-vh) * 0.68);
   }
 
   body.battling .battle-panel .battle-panel-top {
@@ -11584,7 +11594,7 @@ body.game-page .minimap-dock.off {
   body.game-page #panel-achievements {
     width: 100% !important;
     max-width: none;
-    max-height: calc(100vh - 64px);
+    max-height: calc(var(--app-vh) - 64px);
     overflow-y: auto;
   }
 
@@ -11632,7 +11642,8 @@ body.game-page .minimap-dock.off {
   /* Окна прижимаются к верху: на телефоне центрирование обрезает шапку. */
   body.game-page .overlay:not(#battle-overlay) {
     place-items: start center;
-    padding: 52px 4px 8px;
+    padding: calc(52px + var(--safe-top)) calc(4px + var(--safe-right))
+      calc(8px + var(--safe-bottom)) calc(4px + var(--safe-left));
   }
 
   body.game-page .overlay:not(#battle-overlay) > .battle {
@@ -11648,9 +11659,10 @@ body.game-page .minimap-dock.off {
 
 @media (orientation: portrait) and (max-width: 900px) {
   body.game-page .site-head {
-    height: 48px;
-    min-height: 48px;
-    padding: 0 8px;
+    height: calc(48px + var(--safe-top));
+    min-height: calc(48px + var(--safe-top));
+    padding: var(--safe-top) calc(8px + var(--safe-right)) 0
+      calc(8px + var(--safe-left));
   }
 
   body.game-page .nav-btn {
@@ -11660,9 +11672,9 @@ body.game-page .minimap-dock.off {
 
   body.game-page .hero-hud {
     top: auto;
-    bottom: 54px;
-    left: 8px;
-    right: 8px;
+    bottom: calc(54px + var(--safe-bottom));
+    left: calc(8px + var(--safe-left));
+    right: calc(8px + var(--safe-right));
     width: auto;
     max-width: none;
     display: grid;
@@ -11720,9 +11732,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .minimap-dock {
-    top: 56px;
+    top: calc(56px + var(--safe-top));
     bottom: auto;
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     width: 140px;
   }
 
@@ -11745,9 +11757,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .skip-btn {
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     right: auto;
-    bottom: 8px;
+    bottom: calc(8px + var(--safe-bottom));
     min-height: 40px;
     padding: 0 12px;
     border: 1px solid var(--quiet-line) !important;
@@ -11759,15 +11771,15 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .action-btn:not(.skip-btn) {
-    right: 8px;
-    bottom: 8px;
+    right: calc(8px + var(--safe-right));
+    bottom: calc(8px + var(--safe-bottom));
     min-height: 40px;
   }
 
   body.game-page .toast {
-    top: 54px;
+    top: calc(54px + var(--safe-top));
     bottom: auto;
-    max-width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
     padding: 7px 11px;
     font-size: 11.5px;
     text-align: center;
@@ -11775,22 +11787,22 @@ body.game-page .minimap-dock.off {
 
   /* Открытая мини-карта занимает верх слева — тост уходит под неё. */
   body.game-page:has(.minimap-dock:not(.off)) .toast {
-    top: 196px;
+    top: calc(196px + var(--safe-top));
   }
 
   body.game-page .tutorial-panel {
-    top: 144px;
-    right: 8px;
+    top: calc(144px + var(--safe-top));
+    right: calc(8px + var(--safe-right));
     bottom: auto;
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     width: auto;
-    max-height: 36vh;
+    max-height: calc(var(--app-vh) * 0.36);
   }
 
   body.game-page .game-dock {
-    top: 52px;
-    width: calc(100vw - 8px);
-    max-height: calc(100vh - 60px);
+    top: calc(52px + var(--safe-top));
+    width: calc(100vw - 8px - var(--safe-left) - var(--safe-right));
+    max-height: calc(var(--app-vh) - 60px - var(--safe-top) - var(--safe-bottom));
     padding: 0 4px;
   }
 
@@ -11799,7 +11811,7 @@ body.game-page .minimap-dock.off {
   body.game-page #panel-place,
   body.game-page #panel-stats,
   body.game-page #panel-achievements {
-    max-height: calc(100vh - 60px);
+    max-height: calc(var(--app-vh) - 60px - var(--safe-top) - var(--safe-bottom));
   }
 
   body.game-page #panel-inventory .equip-bar {
@@ -11807,28 +11819,28 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page #journal-overlay {
-    padding: 54px 6px 6px;
+    padding: calc(54px + var(--safe-top)) 6px calc(6px + var(--safe-bottom));
   }
 
   body.game-page #journal-box {
     width: 100%;
-    max-height: calc(100vh - 60px);
+    max-height: calc(var(--app-vh) - 60px - var(--safe-top) - var(--safe-bottom));
   }
 
   body.game-page .overlay > .battle:not(#battle-box) {
-    width: calc(100vw - 8px);
+    width: calc(100vw - 8px - var(--safe-left) - var(--safe-right));
     max-width: none;
-    max-height: calc(100vh - 60px);
+    max-height: calc(var(--app-vh) - 60px - var(--safe-top) - var(--safe-bottom));
   }
 
   /* Бой: HUD-строка не должна схлопывать числа в одну точку. */
   body.battling .battle-panel {
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: var(--safe-bottom);
     width: 100%;
     max-width: none;
-    max-height: 64vh;
+    max-height: calc(var(--app-vh) * 0.64);
     padding: 9px 11px 11px;
   }
 
@@ -11911,7 +11923,7 @@ body.game-page .minimap-dock.off {
   }
 
   body.battling .battle-intro {
-    padding-top: 3vh;
+    padding-top: calc(var(--app-vh) * 0.03);
   }
 
   body.battling .battle-intro b {
@@ -11923,9 +11935,10 @@ body.game-page .minimap-dock.off {
 
 @media (orientation: landscape) and (max-height: 560px) and (max-width: 1100px) {
   body.game-page .site-head {
-    height: 40px;
-    min-height: 40px;
-    padding: 0 8px;
+    height: calc(40px + var(--safe-top));
+    min-height: calc(40px + var(--safe-top));
+    padding: var(--safe-top) calc(8px + var(--safe-right)) 0
+      calc(8px + var(--safe-left));
   }
 
   body.game-page .nav-btn {
@@ -11959,7 +11972,8 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .overlay:not(#battle-overlay) {
-    padding: 44px 4px 6px;
+    padding: calc(44px + var(--safe-top)) calc(4px + var(--safe-right))
+      calc(6px + var(--safe-bottom)) calc(4px + var(--safe-left));
   }
 
   body.game-page .overlay > .battle > .battle-head {
@@ -11972,9 +11986,9 @@ body.game-page .minimap-dock.off {
 
   body.game-page .hero-hud {
     top: auto;
-    bottom: 50px;
-    left: 8px;
-    right: 8px;
+    bottom: calc(50px + var(--safe-bottom));
+    left: calc(8px + var(--safe-left));
+    right: calc(8px + var(--safe-right));
     width: auto;
     max-width: none;
     display: grid;
@@ -12015,9 +12029,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .minimap-dock {
-    top: 46px;
+    top: calc(46px + var(--safe-top));
     bottom: auto;
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     width: 150px;
   }
 
@@ -12036,9 +12050,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .skip-btn {
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     right: auto;
-    bottom: 8px;
+    bottom: calc(8px + var(--safe-bottom));
     min-height: 38px;
     padding: 0 10px;
     border: 1px solid var(--quiet-line) !important;
@@ -12050,22 +12064,22 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .action-btn:not(.skip-btn) {
-    right: 8px;
-    bottom: 8px;
+    right: calc(8px + var(--safe-right));
+    bottom: calc(8px + var(--safe-bottom));
     min-height: 38px;
   }
 
   body.game-page .toast {
-    top: 46px;
+    top: calc(46px + var(--safe-top));
     bottom: auto;
-    max-width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px - var(--safe-left) - var(--safe-right));
     padding: 6px 10px;
     font-size: 11px;
     text-align: center;
   }
 
   body.game-page:has(.minimap-dock:not(.off)) .toast {
-    top: 192px;
+    top: calc(192px + var(--safe-top));
   }
 
   body.game-page .tutorial-panel {
@@ -12073,9 +12087,9 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .game-dock {
-    top: 44px;
-    width: min(660px, calc(100vw - 16px));
-    max-height: calc(100vh - 52px);
+    top: calc(44px + var(--safe-top));
+    width: min(660px, calc(100vw - 16px - var(--safe-left) - var(--safe-right)));
+    max-height: calc(var(--app-vh) - 52px - var(--safe-top) - var(--safe-bottom));
     padding: 0 4px;
   }
 
@@ -12084,8 +12098,8 @@ body.game-page .minimap-dock.off {
   body.game-page #panel-place,
   body.game-page #panel-stats,
   body.game-page #panel-achievements {
-    width: min(660px, calc(100vw - 16px)) !important;
-    max-height: calc(100vh - 52px);
+    width: min(660px, calc(100vw - 16px - var(--safe-left) - var(--safe-right))) !important;
+    max-height: calc(var(--app-vh) - 52px - var(--safe-top) - var(--safe-bottom));
   }
 
   body.game-page #panel-inventory .equip-bar {
@@ -12093,30 +12107,30 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page #journal-overlay {
-    padding: 44px 6px 6px;
+    padding: calc(44px + var(--safe-top)) 6px calc(6px + var(--safe-bottom));
   }
 
   body.game-page #journal-box {
-    width: min(760px, calc(100vw - 12px));
-    max-height: calc(100vh - 52px);
+    width: min(760px, calc(100vw - 12px - var(--safe-left) - var(--safe-right)));
+    max-height: calc(var(--app-vh) - 52px - var(--safe-top) - var(--safe-bottom));
   }
 
   body.game-page .overlay > .battle:not(#battle-box) {
-    width: min(760px, calc(100vw - 12px));
+    width: min(760px, calc(100vw - 12px - var(--safe-left) - var(--safe-right)));
     max-width: none;
-    max-height: calc(100vh - 52px);
+    max-height: calc(var(--app-vh) - 52px - var(--safe-top) - var(--safe-bottom));
   }
 
   /* Бой: карта слева, вопрос и ответы — в правой колонке. */
   body.battling .battle-panel {
     left: auto;
-    right: 0;
+    right: var(--safe-right);
     top: 0;
     bottom: 0;
     width: min(56vw, 580px);
-    height: 100%;
+    height: var(--app-vh);
     max-height: none;
-    padding: 9px 13px;
+    padding: 9px 13px calc(9px + var(--safe-bottom));
     border: 0 !important;
     border-left: 1px solid var(--quiet-line) !important;
     border-radius: 0;
@@ -12243,7 +12257,7 @@ body.game-page .minimap-dock.off {
 
   body.battling .battle-intro {
     width: 44vw;
-    padding-top: 3vh;
+    padding-top: calc(var(--app-vh) * 0.03);
   }
 
   body.battling .battle-intro b {
@@ -12266,7 +12280,7 @@ body.game-page .minimap-dock.off {
 @media (pointer: coarse) {
   body.game-page .map-toggle {
     position: absolute;
-    left: 8px;
+    left: calc(8px + var(--safe-left));
     top: 50%;
     transform: translateY(-50%);
     z-index: 72;
@@ -12294,6 +12308,11 @@ body.game-page .minimap-dock.off {
   body.game-page .map-toggle-mark {
     font-size: 13px;
     line-height: 1;
+  }
+
+  /* В бою мини-карта и её кнопка не нужны: они перекрывают заголовок. */
+  body.battling .map-toggle {
+    display: none !important;
   }
 
   body.game-page #entities .ent,
