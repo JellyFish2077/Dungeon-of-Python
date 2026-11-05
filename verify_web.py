@@ -366,6 +366,57 @@ def run_mobile_checks(browser, base):
               foot and foot["bottom"] <= h + 2,
               "сохранения целиком видны, футер не уезжает за экран (%s)" % name,
               {"screen": saves, "foot": foot})
+
+        # Обычный левый клик по клетке должен вести героя, а не только
+        # перетаскивать камеру. Проверяем настоящим кликом после жестов.
+        page.click("#saves-close")
+        page.wait_for_timeout(300)
+        if page.locator("#pause-resume").is_visible():
+            page.click("#pause-resume")
+            page.wait_for_timeout(400)
+        spots = page.evaluate("""([w, h]) => {
+          const hero = document.querySelector('.ent-player');
+          const hr = hero ? hero.getBoundingClientRect() : null;
+          const hx = hr ? hr.x + hr.width / 2 : w / 2;
+          const hy = hr ? hr.y + hr.height / 2 : h / 2;
+          const out = [];
+          for (const t of document.querySelectorAll('.tile.floor')) {
+            const r = t.getBoundingClientRect();
+            const x = r.x + r.width / 2;
+            const y = r.y + r.height / 2;
+            if (r.width < 20 || x < 40 || x > w - 40 || y < 100 || y > h - 100) continue;
+            // Рядом с героем: другой конец карты может быть за стеной.
+            if (Math.abs(x - hx) > 240 || Math.abs(y - hy) > 240) continue;
+            // Свою клетку не считаем: клик по ней ничего не делает.
+            if (hr && Math.abs(x - hx) < 4 && Math.abs(y - hy) < 4) continue;
+            const hit = document.elementFromPoint(x, y);
+            if (!hit || !hit.closest || hit.closest('.tile') !== t) continue;
+            out.push({ x: x, y: y });
+            if (out.length >= 6) break;
+          }
+          return out;
+        }""", [w, h])
+        hero_before = page.evaluate(
+            "() => { const h = document.querySelector('.ent-player');"
+            " return h ? h.parentElement.style.transform : ''; }")
+        routed = False
+        for spot in spots:
+            page.mouse.click(spot["x"], spot["y"])
+            page.wait_for_timeout(500)
+            state = page.evaluate(
+                "() => ({ walk: !!document.querySelector('.walk-target'),"
+                " hero: (() => { const h = document.querySelector('.ent-player');"
+                " return h ? h.parentElement.style.transform : ''; })() })")
+            if state["walk"] or state["hero"] != hero_before:
+                routed = True
+                break
+            if page.evaluate(
+                    "() => !document.getElementById('battle-overlay')"
+                    ".classList.contains('hidden')"):
+                break
+        check(routed, "левый клик по клетке ведёт героя (%s)" % name, spots[:2])
+        page.keyboard.press("ArrowLeft")
+        page.wait_for_timeout(200)
         ctx.close()
 
 

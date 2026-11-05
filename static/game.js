@@ -13025,6 +13025,15 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.14.1",
+      date: "5 ноября 2026",
+      title: "Левый клик снова ведёт героя",
+      items: [
+        "Обычный клик по клетке снова строит маршрут: камера захватывает указатель только при перетаскивании.",
+        "Касание пальцем по клетке тоже ведёт героя, как раньше."
+      ]
+    },
+    {
       version: "1.14.0",
       date: "5 ноября 2026",
       title: "Код на телефоне и ответы касанием",
@@ -15137,7 +15146,6 @@ function topicName(key) {
         if (e.pointerType === "mouse" && e.button !== 0) return;
         if (!canPanCamera()) return;
         camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-        try { mapScroll.setPointerCapture(e.pointerId); } catch (err) {}
         if (camPointers.size === 1) {
           camGesture = {
             mode: "pan",
@@ -15153,6 +15161,12 @@ function topicName(key) {
             dist: cameraPointersDistance(),
             moved: true
           };
+          // Щипок — уже жест: захватываем оба пальца, чтобы не потерять их
+          // за краем карты. Обычный клик не захватываем: иначе click
+          // переадресуется контейнеру и герой не идёт по клетке.
+          camPointers.forEach((pt, id) => {
+            try { mapScroll.setPointerCapture(id); } catch (err) {}
+          });
           G.camera.suppressClickUntil = performance.now() + 600;
         }
       });
@@ -15184,6 +15198,8 @@ function topicName(key) {
         if (!camGesture.moved) {
           if (Math.hypot(dx, dy) < CAM_DRAG_THRESHOLD) return;
           camGesture.moved = true;
+          // Захват только после порога: простой клик должен дойти до плитки.
+          try { mapScroll.setPointerCapture(e.pointerId); } catch (err) {}
         }
         if (!G.camera.panning) {
           G.camera.panning = true;
