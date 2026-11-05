@@ -558,10 +558,12 @@ body.game-page .game-wrap > .panel {
 
 /* Камера едет к новой точке коротким слайдом, а не телепортируется.
    translate3d и will-change держат слой карты на композиторе: движение
-   не перерисовывает тысячу плиток. */
+   не перерисовывает тысячу плиток. Кривая и длительность должны точно
+   совпадать с .entity: герой — ребёнок карты, и при разных кривых он
+   качается на каждом шаге. */
 #map {
   will-change: transform;
-  transition: transform 0.16s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform 0.16s ease;
 }
 
 /* Во время перетаскивания карта должна слушаться пальца без задержки. */
@@ -1418,6 +1420,11 @@ body.game-page.battling .game-wrap > .panel {
   text-transform: uppercase;
   color: #7d92b4;
   margin-bottom: 6px;
+}
+
+/* Инструменты мобильного редактора: на компьютере не нужны. */
+.code-tools {
+  display: none;
 }
 
 .battle-solve .code-editor {
@@ -12331,6 +12338,84 @@ body.game-page .minimap-dock.off {
   body.game-page .game-panel,
   body.game-page .overlay > .battle {
     backdrop-filter: none !important;
+  }
+
+  /* Код на телефоне: крупное поле и кнопки под рукой. 16px не даёт
+     мобильному браузеру приближать страницу при фокусе. */
+  body.game-page .code-editor {
+    min-height: 150px;
+    font-size: 16px;
+    line-height: 1.5;
+    resize: none;
+  }
+
+  body.game-page .code-tools {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    margin: 8px 0 2px;
+  }
+
+  body.game-page .code-tool {
+    min-height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--quiet-line);
+    border-radius: 6px;
+    background: rgba(7, 11, 17, 0.86);
+    color: var(--quiet-text);
+    font: 700 10px/1 var(--font-ui);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  body.game-page .code-check-inline {
+    flex: 1 1 auto;
+    min-height: 40px;
+  }
+
+  body.game-page .code-check-foot {
+    display: none !important;
+  }
+
+  /* Пока в поле кода есть фокус, показываем только задание и редактор на
+     всю видимую высоту. Клавиатура не прячет кнопку проверки. */
+  body.code-focus .battle-panel {
+    left: 0;
+    right: 0;
+    top: var(--vv-top, 0);
+    bottom: auto;
+    width: 100%;
+    height: var(--vvh, var(--app-vh));
+    max-height: none;
+    padding: calc(10px + var(--safe-top)) 12px
+      calc(10px + var(--safe-bottom));
+    border: 0 !important;
+    border-radius: 0;
+    background: rgba(7, 11, 17, 0.98) !important;
+    transform: none !important;
+  }
+
+  body.code-focus.battling .battle-stage {
+    display: none !important;
+  }
+
+  body.code-focus.battling .battle-panel .battle-panel-top,
+  body.code-focus.battling .battle-panel .battle-foot {
+    display: none !important;
+  }
+
+  body.code-focus.battling .battle-panel .battle-mid {
+    padding: 8px 0 0;
+    min-height: 0;
+  }
+
+  body.code-focus.battling .battle-panel .code-tools {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    margin: 10px 0 0;
+    padding: 8px 0 2px;
+    background: rgba(7, 11, 17, 0.97);
   }
 }
 

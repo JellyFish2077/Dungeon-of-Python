@@ -1765,7 +1765,6 @@
   // этого цепь превращалась в тупик: если рядом нет монстров, сорвать её
   // в бою нечем, а шагнуть герой не может.
   const SNARE_WAITS = 5;
-  const LETTERS = ["A", "B", "C", "D"];
   let VIEW_RADIUS = 4.4;
   // В «Густой тьме» видно почти вдвое меньше — это и есть её опасность.
   let DARK_VIEW_RADIUS = 2.6;
@@ -3473,7 +3472,7 @@
       "<div class='battle-options' id='lever-options'>" +
       view.options.map((o, i) =>
         "<button class='option lever-pick' type='button' data-lever='" + i + "'>" +
-        "<span class='key'>" + LETTERS[i] + "</span><span>" + o + "</span></button>").join("") +
+        o + "</button>").join("") +
       "</div>";
     el("dialog-overlay").classList.remove("hidden");
     const close = el("dialog-close");
@@ -5770,7 +5769,7 @@
   // Выход из боя и смерть возвращают обычную камеру. Класс перехода
   // снимаем после анимации, иначе карта щёлкает на место.
   function endBattleMode() {
-    document.body.classList.remove("battling", "battle-outro");
+    document.body.classList.remove("battling", "battle-outro", "code-focus");
     const box = el("battle-box");
     if (box) box.classList.remove("panel-open", "battle-closing");
     const map = el("map");
@@ -9225,6 +9224,8 @@
   // ---------- Бой ----------
 
   function openBattle(enemy, restore) {
+    // Новый бой не должен начинаться в полноэкранном редакторе от прошлого.
+    document.body.classList.remove("code-focus");
     // Бой прерывает маршрут, набранный кликом.
     endWalk();
     cancelBattleClose();
@@ -10407,6 +10408,64 @@
     render();
   }
 
+  // Мобильные инструменты над клавиатурой: отступ и проверка прямо под
+  // полем. На компьютере кнопки скрыты — там есть Tab и кнопка в футере.
+  function codeToolsHtml(checkLabel) {
+    return "<div class='code-tools'>" +
+      "<button class='code-tool' id='code-indent' type='button'>⇥ Отступ</button>" +
+      "<button class='btn purple code-check-inline' id='code-check-inline' type='button'>" +
+      checkLabel + "</button>" +
+      "</div>";
+  }
+
+  function bindCodeEditor(input, checkFn) {
+    if (!input) return;
+    const indent = el("code-indent");
+    if (indent) {
+      indent.addEventListener("click", () => {
+        const start = input.selectionStart == null ? input.value.length : input.selectionStart;
+        const end = input.selectionEnd == null ? start : input.selectionEnd;
+        const pad = "    ";
+        input.value = input.value.slice(0, start) + pad + input.value.slice(end);
+        const caret = start + pad.length;
+        try {
+          input.selectionStart = input.selectionEnd = caret;
+        } catch (e) {}
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      });
+    }
+    const inline = el("code-check-inline");
+    if (inline) inline.addEventListener("click", checkFn);
+
+    let focusTimer = 0;
+    input.addEventListener("focus", () => {
+      if (!isTouchUi()) return;
+      document.body.classList.add("code-focus");
+      clearTimeout(focusTimer);
+      // Клавиатура появляется не мгновенно: после неё подтягиваем поле и
+      // кнопки в видимую часть панели.
+      focusTimer = setTimeout(() => {
+        if (!document.body.classList.contains("code-focus")) return;
+        const solve = input.closest(".battle-solve");
+        const tools = solve ? solve.querySelector(".code-tools") : null;
+        if (tools && typeof tools.scrollIntoView === "function") {
+          try {
+            tools.scrollIntoView({ block: "nearest" });
+          } catch (e) {}
+        }
+      }, 320);
+    });
+    input.addEventListener("blur", () => {
+      setTimeout(() => {
+        if (!document.body.classList.contains("code-focus")) return;
+        const active = document.activeElement;
+        if (active && active.closest && active.closest(".code-tools")) return;
+        document.body.classList.remove("code-focus");
+      }, 180);
+    });
+  }
+
   function renderBattle() {
     const b = G.battle;
     if (!b) return;
@@ -10424,6 +10483,7 @@
     const heroName = (G.name && String(G.name).trim()) || "Герой";
     const isCodeTask = b.phase === "question" && b.challenge &&
       (b.challenge.type === "copy" || b.challenge.type === "code");
+    if (!isCodeTask) document.body.classList.remove("code-focus");
     let footLabel = "";
     let html = "";
     // Бой — не карточка поверх карты, а сцена на самой карте: камера
@@ -10571,7 +10631,8 @@
         html += "</div><div class='battle-solve'>";
         html += "<div class='solve-label'>Решение</div>";
         html += "<div class='copy-note'>Копирование запрещено — перепиши код вручную.</div>";
-        html += "<textarea class='code-editor' id='copy-input' spellcheck='false' autocomplete='off' autocorrect='off' autocapitalize='off' placeholder='Напиши код здесь...'></textarea>";
+        html += "<textarea class='code-editor' id='copy-input' spellcheck='false' autocomplete='off' autocorrect='off' autocapitalize='off' wrap='soft' placeholder='Напиши код здесь...'></textarea>";
+        html += codeToolsHtml("Проверить");
         html += "<div class='battle-feedback' id='copy-feedback'></div>";
         html += "</div>";
       } else {
@@ -10580,7 +10641,8 @@
         html += "<p class='lead' style='margin-bottom:12px'>" + c.task.task + "</p>";
         html += "</div><div class='battle-solve'>";
         html += "<div class='solve-label'>Решение</div>";
-        html += "<textarea class='code-editor' id='code-input' spellcheck='false'></textarea>";
+        html += "<textarea class='code-editor' id='code-input' spellcheck='false' autocomplete='off' autocorrect='off' autocapitalize='off' wrap='soft' placeholder='Напиши код здесь...'></textarea>";
+        html += codeToolsHtml("Проверить и атаковать");
         html += "<div class='test-results' id='test-results'></div>";
         html += "<div class='battle-feedback' id='code-feedback'></div>";
         html += "</div>";
@@ -10632,7 +10694,7 @@
       const atkBtns = [];
       if (ctype === "copy" || ctype === "code") {
         atkBtns.push(
-          "<button class='btn" + (ctype === "code" ? " purple" : "") +
+          "<button class='btn code-check-foot" + (ctype === "code" ? " purple" : "") +
           "' id='check-btn' data-tip=\"" +
           tipAttr("Отправить написанный код на проверку. Ответ решает силу удара.") +
           "\">Проверить и атаковать</button>");
@@ -10772,9 +10834,7 @@
         const btn = document.createElement("button");
         btn.type = "button";
         btn.className = "option";
-        btn.setAttribute("data-tip", tipAttr("Клавиши: " + LETTERS[i] + " или " + (i + 1) + "."));
-        btn.innerHTML = "<span class='key'>" + LETTERS[i] + "</span><span></span>";
-        btn.lastChild.textContent = opt;
+        btn.textContent = opt;
         btn.addEventListener("click", () => answerMC(i));
         opts.appendChild(btn);
       });
@@ -10799,7 +10859,8 @@
       protectAgainstCopy(input);
       protectSample(el("copy-sample"));
       el("check-btn").addEventListener("click", checkCopy);
-      input.focus();
+      bindCodeEditor(input, checkCopy);
+      if (!isTouchUi()) input.focus();
     } else if (b.phase === "question" && b.challenge.type === "code") {
       const input = el("code-input");
       input.value = b.challenge.code;
@@ -10815,7 +10876,8 @@
         }
       });
       el("check-btn").addEventListener("click", checkCode);
-      input.focus();
+      bindCodeEditor(input, checkCode);
+      if (!isTouchUi()) input.focus();
     } else {
       const cont = el("continue-btn");
       if (cont) cont.addEventListener("click", continueBattle);
@@ -10940,6 +11002,19 @@
   // сразу. Но вопрос засчитывается как пробел: он идёт в разбор по темам, в
   // процент похода и возвращается призраком ошибки — иначе пропускать было бы
   // выгоднее, чем отвечать.
+  // Текст правильного варианта вместо буквы A–D: клавишами больше не
+  // отвечают, а буквы на кнопках убраны, поэтому «ответ B» ничего не значит.
+  function correctAnswerText(c, item) {
+    const view = c && c.view;
+    const opts = view && view.options ? view.options : item && item.options;
+    const idx = view && typeof view.answer === "number"
+      ? view.answer
+      : item && typeof item.answer === "number"
+      ? item.answer
+      : -1;
+    return opts && idx >= 0 && opts[idx] !== undefined ? String(opts[idx]) : "";
+  }
+
   function skipQuestion() {
     const b = G.battle;
     if (!b || b.phase !== "question" || b.busy) return;
@@ -10963,7 +11038,7 @@
     applyAttack(
       0,
       "Пропущено: −" + cost + " HP. Правильный ответ: " +
-        LETTERS[c.view ? c.view.answer : item.answer] + ".",
+        (correctAnswerText(c, item) ? "«" + escText(correctAnswerText(c, item)) + "»." : "см. разбор."),
       false,
       item.explanation,
       false
@@ -11397,7 +11472,8 @@
       pushMissed(c.type, item);
       applyAttack(
         0,
-        "Неверно. Правильный ответ: " + LETTERS[c.view ? c.view.answer : item.answer] + ".",
+        "Неверно. Правильный ответ: " +
+          (correctAnswerText(c, item) ? "«" + escText(correctAnswerText(c, item)) + "»." : "см. разбор."),
         true,
         item.explanation,
         false
@@ -11420,17 +11496,36 @@
     }).then((r) => r.json());
   }
 
+  // Кнопка проверки есть и в футере, и рядом с полем на телефоне:
+  // подпись «Проверяем...» и блокировку ставим на обе.
+  function codeCheckNodes() {
+    return ["check-btn", "code-check-inline"]
+      .map((id) => el(id))
+      .filter(Boolean);
+  }
+
+  function setCodeCheckBusy(label) {
+    codeCheckNodes().forEach((node) => {
+      node.disabled = true;
+      node.textContent = label;
+    });
+  }
+
+  function setCodeCheckText(text) {
+    codeCheckNodes().forEach((node) => {
+      if (node.isConnected) node.textContent = text;
+    });
+  }
+
   function checkCode() {
     const b = G.battle;
     if (b.phase !== "question" || b.busy) return;
     b.busy = true;
-    const btn = el("check-btn");
     // Первый запуск Pyodide долгий: без честной подписи «Проверяем...»
     // выглядит как зависшая кнопка. Повторные проверки быстрые.
     const warm = typeof window !== "undefined" && window.__PYQUIZ_CODE_WARM === true;
     const label = warm ? "Проверяем..." : "Запускаю Python...";
-    btn.disabled = true;
-    btn.textContent = label;
+    setCodeCheckBusy(label);
     if (!warm) {
       toast("Первый запуск Python в браузере может занять до 30 секунд", 6000);
     }
@@ -11443,9 +11538,7 @@
         return;
       }
       const sec = Math.floor((Date.now() - started) / 1000);
-      if (btn.isConnected) {
-        btn.textContent = label + (sec >= 2 ? " " + sec + " с" : "");
-      }
+      setCodeCheckText(label + (sec >= 2 ? " " + sec + " с" : ""));
     }, 1000);
 
     requestCodeCheck(b.challenge.code, b.challenge.task.id)
@@ -12931,6 +13024,26 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.14.0",
+      date: "5 ноября 2026",
+      title: "Код на телефоне и ответы касанием",
+      items: [
+        "Поле кода стало крупнее, под ним — «Отступ» и «Проверить».",
+        "При вводе кода панель подстраивается под клавиатуру: вопрос и редактор видны, сцена боя убирается.",
+        "Ответы больше не выбираются клавишами A–D и 1–4; вариант выбирается касанием или кликом.",
+        "В разборе показывается текст правильного ответа, а не буква."
+      ]
+    },
+    {
+      version: "1.13.2",
+      date: "5 ноября 2026",
+      title: "Ровная ходьба на телефоне",
+      items: [
+        "Убраны рывки героя на каждом шаге: камера и герой теперь двигаются с одной кривой анимации.",
+        "Мир плавно едет под героем, а сам герой остаётся на месте — без качания вперёд-назад."
+      ]
+    },
     {
       version: "1.13.1",
       date: "5 ноября 2026",
@@ -14948,6 +15061,13 @@ function topicName(key) {
     // Несколько событий подряд сливаем в один кадр, чтобы не дёргать карту.
     let viewportFrame = 0;
     const syncGameViewport = () => {
+      // Клавиатура и панель браузера меняют visualViewport. Пишем его в
+      // CSS-переменные: по ним код-режим подстраивает высоту под клавиатуру.
+      const vv = window.visualViewport;
+      if (vv) {
+        document.documentElement.style.setProperty("--vvh", Math.round(vv.height) + "px");
+        document.documentElement.style.setProperty("--vv-top", Math.round(vv.offsetTop) + "px");
+      }
       if (viewportFrame) return;
       viewportFrame = requestAnimationFrame(() => {
         viewportFrame = 0;
@@ -14961,7 +15081,9 @@ function topicName(key) {
     window.addEventListener("orientationchange", syncGameViewport);
     if (window.visualViewport) {
       window.visualViewport.addEventListener("resize", syncGameViewport);
+      window.visualViewport.addEventListener("scroll", syncGameViewport);
     }
+    syncGameViewport();
 
     el("map-scroll").addEventListener(
       "wheel",
@@ -15193,32 +15315,14 @@ function topicName(key) {
         }
         return;
       }
-      // В бою с вариантами ответа можно отвечать с клавиатуры: на кнопках
-      // нарисованы буквы A–D, но раньше клавиши ничего не делали — приходилось
-      // целиться мышью. Работают и буквы (в двух раскладках), и цифры 1–4.
+      // Ctrl+Enter отправляет код на проверку. Обычный Enter оставлен
+      // переносу строки: в функциях он нужен куда чаще, чем отправка.
       if (!el("battle-overlay").classList.contains("hidden") && G.battle &&
-          G.battle.phase === "question") {
-        const cb = G.battle.challenge;
-        const mcType = cb.type === "mc" || cb.type === "fill" || cb.type === "error";
-        if (mcType) {
-          const byKey = { a: 0, "ф": 0, b: 1, "и": 1, c: 2, "с": 2, d: 3, "в": 3 };
-          const letter = byKey[e.key.toLowerCase()];
-          const digit = "1234".indexOf(e.key);
-          const idx = letter !== undefined ? letter : digit;
-          const view = cb.view || cb.question || cb.task;
-          if (idx >= 0 && view && view.options && idx < view.options.length) {
-            e.preventDefault();
-            answerMC(idx);
-            return;
-          }
-        }
-        // Ctrl+Enter отправляет код на проверку. Обычный Enter оставлен
-        // переносу строки: в функциях он нужен куда чаще, чем отправка.
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter" && el("check-btn")) {
-          e.preventDefault();
-          el("check-btn").click();
-          return;
-        }
+          G.battle.phase === "question" &&
+          (e.ctrlKey || e.metaKey) && e.key === "Enter" && el("check-btn")) {
+        e.preventDefault();
+        el("check-btn").click();
+        return;
       }
       if (!el("battle-overlay").classList.contains("hidden")) return;
       if (!el("end-overlay").classList.contains("hidden")) return;
