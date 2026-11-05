@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Pages обновляет сборку, но HTML кешируется браузером: без этого новая
+       версия появлялась только после жёсткого обновления страницы. -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>PyDungeon — подземелье Python</title>
   <meta name="description" content="PyDungeon — рогалик-экспедиция: десять этажей, пять боссов и вопросы по Python вместо кубика. Играй в браузере без установки." />
   <meta name="theme-color" content="#0b1220" />
