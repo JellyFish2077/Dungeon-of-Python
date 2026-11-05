@@ -545,9 +545,28 @@ body.game-page .game-wrap > .panel {
   margin-bottom: 16px;
   cursor: grab;
   background: #04070f;
+  /* Карту таскают мышью и пальцем: браузерные жесты и выделение тут лишние. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .map-scroll:active {
+  cursor: grabbing;
+}
+
+/* Камера едет к новой точке коротким слайдом, а не телепортируется.
+   translate3d и will-change держат слой карты на композиторе: движение
+   не перерисовывает тысячу плиток. */
+#map {
+  will-change: transform;
+  transition: transform 0.16s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Во время перетаскивания карта должна слушаться пальца без задержки. */
+#map.cam-drag {
+  transition: none;
   cursor: grabbing;
 }
 
@@ -9154,6 +9173,7 @@ body.battling .battle-panel .squad-note {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  #map,
   #map.battle-cam,
   body.battling .battle-stage .fighter,
   body.battling .battle-panel,
@@ -11754,7 +11774,7 @@ body.game-page .minimap-dock.off {
   }
 
   body.game-page .tutorial-panel {
-    top: 112px;
+    top: 144px;
     right: 8px;
     bottom: auto;
     left: 8px;
@@ -12223,5 +12243,31 @@ body.game-page .minimap-dock.off {
 
   body.battling .battle-intro p {
     font-size: 10.5px;
+  }
+}
+
+/* ---------- Сенсорный экран: меньше постоянной работы ---------- */
+
+/* «Дыхание» спрайтов, пульсации и мигание тайлов — бесконечные анимации,
+   которые держат композитор и фильтры занятыми даже когда герой стоит.
+   На телефоне карта остаётся живой за счёт воды и лавы (они меняются
+   таймером), а постоянную анимацию убираем ради плавности. */
+@media (pointer: coarse) {
+  body.game-page #entities .ent,
+  body.game-page #entities .sprite-img,
+  body.game-page #tiles .tile::before,
+  body.game-page #tiles .tile::after {
+    animation: none !important;
+  }
+
+  /* Полупрозрачный blur поверх движущейся карты пересчитывается каждый
+     кадр. На телефоне фон панелей делаем плотным и без размытия. */
+  body.game-page .tutorial-panel,
+  body.game-page .toast,
+  body.game-page .log,
+  body.game-page .side-panel,
+  body.game-page .game-panel,
+  body.game-page .overlay > .battle {
+    backdrop-filter: none !important;
   }
 }

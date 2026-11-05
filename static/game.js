@@ -1885,7 +1885,18 @@
     // Предметы декора (колонна, фонтан, обломки) — отдельным слоем поверх пола.
     tileObj: [],
     tileAnim: [],
-    camera: { zoomIndex: null, tx: 0, ty: 0, scale: 1 },
+    camera: {
+      zoomIndex: null,
+      tx: 0,
+      ty: 0,
+      scale: 1,
+      // Ручной сдвиг камеры в пикселях экрана: 0 — камера следит за героем.
+      panX: 0,
+      panY: 0,
+      panning: false,
+      // До этого времени клик по карте игнорируется: он был перетаскиванием.
+      suppressClickUntil: 0
+    },
     minimapOn: true,
     // 1 — весь этаж в окне; больше — приближение вокруг героя.
     minimapZoom: 1,
@@ -4460,7 +4471,7 @@
       setTimeout(() => {
         const touch = window.matchMedia && window.matchMedia("(pointer: coarse)").matches;
         toast(touch
-          ? "Коснись клетки — идти · кнопка внизу — действие"
+          ? "Коснись клетки — идти · тяни карту — камера · кнопка внизу — действие"
           : "WASD — идти · E — действие · клик по карте — маршрут", 5200);
       }, 350);
     }
@@ -5546,6 +5557,15 @@
     return viewCache;
   }
 
+  // Ручной сдвиг камеры сбрасывается, когда герой делает шаг: после
+  // осмотра карты взгляд возвращается к герою.
+  function resetCameraPan() {
+    const c = G.camera;
+    if (!c.panX && !c.panY) return;
+    c.panX = 0;
+    c.panY = 0;
+  }
+
   function positionCamera() {
     if (!viewCache.w || !viewCache.h) measureViewport();
     const vw = viewCache.w;
@@ -5606,7 +5626,7 @@
       G.camera.tx = tx;
       G.camera.ty = ty;
       G.camera.scale = z;
-      mapEl.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + z + ")";
+      mapEl.style.transform = "translate3d(" + tx + "px," + ty + "px,0) scale(" + z + ")";
       positionBattleFighters();
       return;
     }
@@ -5614,15 +5634,25 @@
     const cx = m.pad + G.playerPos.x * m.step + m.cell / 2;
     const cy = m.pad + G.playerPos.y * m.step + m.cell / 2;
 
-    let tx = vw / 2 - cx;
-    let ty = vh / 2 - cy;
+    const baseTx = Math.round(vw / 2 - cx);
+    const baseTy = Math.round(vh / 2 - cy);
+    let tx = baseTx + (G.camera.panX || 0);
+    let ty = baseTy + (G.camera.panY || 0);
     // Целые пиксели: слой на дробном сдвиге размывает пиксель-арт.
     tx = Math.round(mapW <= vw ? (vw - mapW) / 2 : clamp(tx, vw - mapW, 0));
     ty = Math.round(mapH <= vh ? (vh - mapH) / 2 : clamp(ty, vh - mapH, 0));
+    if (G.camera.panning) {
+      // У края карты сдвиг обрезается; запоминаем фактический, иначе
+      // после разворота пальца появляется «мёртвая зона».
+      G.camera.panX = tx - baseTx;
+      G.camera.panY = ty - baseTy;
+    }
 
     G.camera.tx = tx;
     G.camera.ty = ty;
-    mapEl.style.transform = "translate(" + tx + "px," + ty + "px)";
+    // translate3d уводит слой карты на композитор: камера двигается без
+    // перерисовки тысячи плиток. Особенно заметно на телефоне.
+    mapEl.style.transform = "translate3d(" + tx + "px," + ty + "px,0)";
   }
 
   // Насколько камера приближается в бою. Как в макете: карта вырастает
@@ -5721,6 +5751,7 @@
   function startBattleCamera() {
     const map = el("map");
     clearTimeout(endBattleMode.timer);
+    resetCameraPan();
     if (map) map.classList.add("battle-cam");
     measureViewport();
     updateCamera();
@@ -5752,6 +5783,17 @@
     // Не рисуем мини-карту повторно в том же кадре: за ход updateCamera
     // может вызываться несколько раз.
     scheduleMinimapDraw();
+  }
+
+  // Смена ступени масштаба карты: колесо мыши и щипок двумя пальцами.
+  function zoomCamera(step) {
+    const base = G.camera.zoomIndex == null ? defaultZoomIndex() : G.camera.zoomIndex;
+    const next = clamp(base + step, 0, CAM_LEVELS.length - 1);
+    if (next === base) return;
+    resetCameraPan();
+    G.camera.zoomIndex = next;
+    updateCamera();
+    renderEntities();
   }
 
   function toggleMinimap() {
@@ -6718,6 +6760,11 @@
       ? countPotions()
       : (wallet.small_potion || 0) + (wallet.big_potion || 0);
     const charges = inRun && G.ability ? (G.ability.left || 0) : abilityCharges();
+    // Панель обычно закрыта, а updateHud зовут на каждом шаге. Без подписи
+    // innerHTML пересобирался бы вхолостую сотни раз за этаж.
+    const sig = hs.dmg + "|" + hs.def + "|" + potions + "|" + charges;
+    if (G.statsPanelSig === sig) return;
+    G.statsPanelSig = sig;
     box.innerHTML =
       "<span>Урон <b>" + hs.dmg + "</b></span>" +
       "<span>Защита <b>" + hs.def + "</b></span>" +
@@ -8010,6 +8057,8 @@
 
   function onMapClick(ev) {
     if (!G.running || G.battle || G.loading) return;
+    // Палец/мышь только что перетаскивали камеру: это не клик по клетке.
+    if (performance.now() < (G.camera.suppressClickUntil || 0)) return;
     if (!el("end-overlay").classList.contains("hidden")) return;
     if (!el("shop-overlay").classList.contains("hidden")) return;
     if (!el("entrance-overlay").classList.contains("hidden")) return;
@@ -8029,6 +8078,7 @@
     }
     walkPath = path;
     G.walkTarget = { x: tx, y: ty };
+    resetCameraPan();
     setMsg("Идём…");
     render();
     walkTick();
@@ -8067,7 +8117,7 @@
     const next = walkPath.shift();
     if (!walkPath.length) endWalk();
     const before = { x: G.playerPos.x, y: G.playerPos.y };
-    move(next.x - before.x, next.y - before.y);
+    move(next.x - before.x, next.y - before.y, true);
     // Если начался бой — маршрут обрывается, дойти сквозь дракона нельзя.
     if (G.battle) {
       endWalk();
@@ -8078,7 +8128,7 @@
     if (G.playerPos.x === before.x && G.playerPos.y === before.y && walkPath && walkPath.length) {
       const again = walkPath.shift();
       if (!walkPath.length) endWalk();
-      move(again.x - G.playerPos.x, again.y - G.playerPos.y);
+      move(again.x - G.playerPos.x, again.y - G.playerPos.y, true);
       if (G.battle) {
         endWalk();
         log("Путь прерван: " + (G.battle.enemy ? G.battle.enemy.name : "препятствие") + ".", "fight");
@@ -8524,6 +8574,7 @@
     // Ожидание отменяет набранный кликом маршрут: иначе герой пошёл бы
     // дальше сам, и «пропуск» превратился бы в обычный шаг.
     endWalk();
+    resetCameraPan();
     // Цепь рвётся сама: если монстров рядом нет, сорвать её в бою нечем,
     // и партия превращалась в тупик (герой не мог ни шагнуть, ни дождаться
     // врага). Пять ожиданий подряд — и цепь слабеет.
@@ -8562,7 +8613,8 @@
     render();
   }
 
-  function move(dx, dy) {
+  // keepPan — шаг по маршруту: камеру не дёргаем, игрок может осматривать этаж.
+  function move(dx, dy, keepPan) {
     if (!G.running || G.battle) return;
     if (!el("end-overlay").classList.contains("hidden")) return;
     if (!el("shop-overlay").classList.contains("hidden")) return;
@@ -8590,6 +8642,7 @@
     // в цепь, то есть практически сразу после спуска.
     hideFloorArrival();
     G.playerPos = { x: nx, y: ny };
+    if (!keepPan) resetCameraPan();
     setMsg("");
 
     // В деревне и в домах нет ни монстров, ни ловушек, ни среды: ход — это
@@ -11732,7 +11785,7 @@ function topicName(key) {
   function tutorialHint() {
     if (typeof window !== "undefined" && window.matchMedia &&
         window.matchMedia("(pointer: coarse)").matches) {
-      return "Коснись клетки — идти · кнопки внизу — действие и пропуск хода.";
+      return "Коснись клетки — идти · тяни карту — камера · кнопки внизу — действие и пропуск хода.";
     }
     return "WASD или стрелки — идти · E — действие · Пробел — пропустить ход.";
   }
@@ -12836,6 +12889,17 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.12.0",
+      date: "5 ноября 2026",
+      title: "Камера под контролем и плавнее на телефоне",
+      items: [
+        "Карту можно тянуть мышью или пальцем, чтобы осмотреть этаж; одиночное касание по-прежнему ведёт героя.",
+        "Щипок двумя пальцами приближает и отдаляет карту, колесо мыши делает то же на компьютере.",
+        "Камера едет коротким слайдом, а не прыгает на каждом шаге; после шага возвращается к герою.",
+        "На телефоне отключены бесконечные анимации спрайтов и мигание тайлов, убрано размытие поверх карты — игра стала плавнее."
+      ]
+    },
     {
       version: "1.11.1",
       date: "5 ноября 2026",
@@ -14828,17 +14892,137 @@ function topicName(key) {
       (e) => {
         if (!G.running || !G.map) return;
         e.preventDefault();
-        const step = e.deltaY < 0 ? 1 : -1;
-        G.camera.zoomIndex = clamp(
-          (G.camera.zoomIndex == null ? defaultZoomIndex() : G.camera.zoomIndex) + step,
-          0,
-          CAM_LEVELS.length - 1
-        );
-        updateCamera();
-        renderEntities();
+        zoomCamera(e.deltaY < 0 ? 1 : -1);
       },
       { passive: false }
     );
+
+    // ---------- Камера: перетаскивание мышью и пальцем ----------
+    // Карта больше не «приколота» к герою: её можно сдвинуть, чтобы
+    // осмотреть этаж. Одиночное касание по-прежнему ведёт героя, поэтому
+    // после настоящего перетаскивания клик по клетке гасится.
+    const mapScroll = el("map-scroll");
+    const camPointers = new Map();
+    let camGesture = null;
+    const CAM_DRAG_THRESHOLD = 6;
+
+    function canPanCamera() {
+      if (!G.running || !G.map || G.battle || G.loading) return false;
+      if (!el("end-overlay").classList.contains("hidden")) return false;
+      if (!el("shop-overlay").classList.contains("hidden")) return false;
+      if (!el("entrance-overlay").classList.contains("hidden")) return false;
+      if (!el("dialog-overlay").classList.contains("hidden")) return false;
+      return true;
+    }
+
+    function endCameraGesture() {
+      const wasGesture = !!camGesture && (camGesture.moved || camGesture.mode === "pinch");
+      camPointers.clear();
+      camGesture = null;
+      G.camera.panning = false;
+      const map = el("map");
+      if (map) map.classList.remove("cam-drag");
+      // Любой жест, даже долгий щипок, не должен заканчиваться шагом героя.
+      if (wasGesture) G.camera.suppressClickUntil = performance.now() + 350;
+    }
+
+    function cameraPointersDistance() {
+      const pts = [...camPointers.values()];
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+    }
+
+    if (mapScroll) {
+      mapScroll.addEventListener("pointerdown", (e) => {
+        // Кнопки, мини-карта и журнал поверх карты не двигают камеру.
+        if (e.target.closest("button, .minimap-dock, .log, .game-msg, .hero-hud")) return;
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        if (!canPanCamera()) return;
+        camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        try { mapScroll.setPointerCapture(e.pointerId); } catch (err) {}
+        if (camPointers.size === 1) {
+          camGesture = {
+            mode: "pan",
+            x: e.clientX,
+            y: e.clientY,
+            panX: G.camera.panX || 0,
+            panY: G.camera.panY || 0,
+            moved: false
+          };
+        } else if (camPointers.size === 2) {
+          camGesture = {
+            mode: "pinch",
+            dist: cameraPointersDistance(),
+            moved: true
+          };
+          G.camera.suppressClickUntil = performance.now() + 600;
+        }
+      });
+
+      mapScroll.addEventListener("pointermove", (e) => {
+        if (!camPointers.has(e.pointerId) || !camGesture) return;
+        camPointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+        if (camGesture.mode === "pinch" && camPointers.size >= 2) {
+          G.camera.suppressClickUntil = performance.now() + 600;
+          const dist = cameraPointersDistance();
+          if (!dist || !camGesture.dist) return;
+          // Каждые ~30% изменения расстояния — одна ступень масштаба.
+          const ratio = dist / camGesture.dist;
+          if (ratio > 1.3) {
+            zoomCamera(1);
+            camGesture.dist = dist;
+          } else if (ratio < 0.77) {
+            zoomCamera(-1);
+            camGesture.dist = dist;
+          }
+          e.preventDefault();
+          return;
+        }
+
+        if (camGesture.mode !== "pan") return;
+        const dx = e.clientX - camGesture.x;
+        const dy = e.clientY - camGesture.y;
+        if (!camGesture.moved) {
+          if (Math.hypot(dx, dy) < CAM_DRAG_THRESHOLD) return;
+          camGesture.moved = true;
+        }
+        if (!G.camera.panning) {
+          G.camera.panning = true;
+          const map = el("map");
+          if (map) map.classList.add("cam-drag");
+        }
+        G.camera.suppressClickUntil = performance.now() + 400;
+        G.camera.panX = camGesture.panX + dx;
+        G.camera.panY = camGesture.panY + dy;
+        positionCamera();
+        e.preventDefault();
+      });
+
+      const finishPointer = (e) => {
+        if (!camPointers.has(e.pointerId)) return;
+        camPointers.delete(e.pointerId);
+        try { mapScroll.releasePointerCapture(e.pointerId); } catch (err) {}
+        // Остался один палец после щипка — продолжаем как перетаскивание,
+        // но уже от текущего сдвига.
+        if (camPointers.size === 1) {
+          const pt = [...camPointers.values()][0];
+          camGesture = {
+            mode: "pan",
+            x: pt.x,
+            y: pt.y,
+            panX: G.camera.panX || 0,
+            panY: G.camera.panY || 0,
+            moved: true
+          };
+          return;
+        }
+        endCameraGesture();
+      };
+      mapScroll.addEventListener("pointerup", finishPointer);
+      mapScroll.addEventListener("pointercancel", finishPointer);
+      mapScroll.addEventListener("lostpointercapture", finishPointer);
+    }
 
     document.addEventListener("keydown", (e) => {
       // P открывает панель разработчика даже поверх меню (F5 больше не нужен).
