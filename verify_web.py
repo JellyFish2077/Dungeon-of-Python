@@ -257,6 +257,45 @@ def run_mobile_checks(browser, base):
             check("Коснись" in toast and "WASD" not in toast,
                   "на телефоне подсказка управления — про касания", toast)
 
+        # Камера: перетаскивание пальцем двигает карту, но не героя.
+        # Синтетические pointer-события проверяют тот же обработчик, что
+        # работает на настоящем телефоне; захват указателя в заглушке
+        # недоступен, поэтому в игре он обёрнут в try/catch.
+        drag = page.evaluate("""() => {
+          const map = document.getElementById('map');
+          const scroll = document.getElementById('map-scroll');
+          const tile = document.querySelector('.tile.floor') || map;
+          const hero = document.querySelector('.ent-player');
+          const before = map.style.transform;
+          const heroBefore = hero ? hero.style.transform : '';
+          const fire = (type, x, y) => tile.dispatchEvent(new PointerEvent(type, {
+            bubbles: true, cancelable: true, pointerId: 7, pointerType: 'touch',
+            isPrimary: true, button: 0, buttons: type === 'pointerup' ? 0 : 1,
+            clientX: x, clientY: y
+          }));
+          fire('pointerdown', 200, 500);
+          fire('pointermove', 120, 380);
+          fire('pointermove', 100, 360);
+          fire('pointerup', 100, 360);
+          tile.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+          return {
+            before: before,
+            after: map.style.transform,
+            heroBefore: heroBefore,
+            heroAfter: hero ? hero.style.transform : '',
+            walk: !!document.querySelector('.walk-target'),
+            touchAction: getComputedStyle(scroll).touchAction
+          };
+        }""")
+        check(drag["before"] != drag["after"] and
+              drag["heroBefore"] == drag["heroAfter"],
+              "перетаскивание двигает камеру, а не героя (%s)" % name, drag)
+        check(not drag["walk"],
+              "после перетаскивания клик не строит маршрут (%s)" % name, drag)
+        check(drag["touchAction"] == "none",
+              "карта забирает жесты у браузера (%s)" % name,
+              drag["touchAction"])
+
         # Инвентарь на всю ширину и не выше экрана; карта и HUD уступают ему.
         page.click('[data-panel="inventory"]')
         page.wait_for_function(

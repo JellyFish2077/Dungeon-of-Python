@@ -1430,6 +1430,18 @@ const gameSrcMobile = fs.readFileSync(path.join(dir, "game.js"), "utf8");
 log(/Коснись клетки/.test(gameSrcMobile) && /\(pointer: coarse\)/.test(gameSrcMobile),
   "на сенсорном экране подсказка говорит про касания, а не WASD");
 
+// ---------- Камера: плавность и ручное управление ----------
+log(/translate3d\(/.test(gameSrcMobile) && /will-change: transform/.test(gameCss),
+  "карта на композитном слое — камера не перерисовывает плитки каждый шаг");
+log(/addEventListener\("pointerdown"/.test(gameSrcMobile) &&
+  /addEventListener\("pointermove"/.test(gameSrcMobile) &&
+  /G\.camera\.panX/.test(gameSrcMobile),
+  "камеру можно двигать мышью и пальцем");
+log(/touch-action: none/.test(gameCss),
+  "карта забирает жесты у браузера, а не прокручивает страницу");
+log(/pointer: coarse\)[\s\S]*?#entities \.sprite-img[\s\S]*?animation: none/.test(gameCss),
+  "на телефоне отключены бесконечные анимации спрайтов");
+
 // Тайлы приходят из набора 32x32, а клетка крупнее (48 px при обычном зуме).
 // Сокращённое `background:` у .tile.floor/.tile.wall сбрасывало repeat и size,
 // и спрайт плитки повторялся внутри клетки — так выглядели «дублированные»
