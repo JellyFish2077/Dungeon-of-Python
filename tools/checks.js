@@ -1412,11 +1412,11 @@ log(/\.battle-panel \{[^}]*width: min\(56vw, 580px\)/.test(landscapeCss) &&
 log(/\.options \{[^}]*grid-template-columns: 1fr 1fr/.test(landscapeCss),
   "в ландшафтном бою ответы стоят в две колонки");
 log(/\.hero-hud \{[^}]*bottom: 54px/.test(portraitCss) &&
-  /\.minimap-dock \{[^}]*bottom: 134px/.test(portraitCss),
-  "в портрете HUD и мини-карта стоят внизу");
+  /\.minimap-dock \{[^}]*top: 56px/.test(portraitCss),
+  "в портрете HUD внизу, мини-карта вверху");
 log(/\.hero-hud \{[^}]*bottom: 50px/.test(landscapeCss) &&
-  /\.minimap-dock \{[^}]*bottom: 50px/.test(landscapeCss),
-  "в ландшафте HUD и мини-карта стоят внизу");
+  /\.minimap-dock \{[^}]*top: 46px/.test(landscapeCss),
+  "в ландшафте HUD внизу, мини-карта вверху");
 log(/\.minimap-dock:not\(\.off\) \{\s*display: block !important/.test(gameCss),
   "на телефоне мини-карта снова показывается, а не только кнопки");
 log(/\.overlay:not\(#battle-overlay\) \{\s*place-items: start center/.test(gameCss),
@@ -1441,6 +1441,16 @@ log(/touch-action: none/.test(gameCss),
   "карта забирает жесты у браузера, а не прокручивает страницу");
 log(/pointer: coarse\)[\s\S]*?#entities \.sprite-img[\s\S]*?animation: none/.test(gameCss),
   "на телефоне отключены бесконечные анимации спрайтов");
+
+// ---------- Мини-карта по кнопке и запас камеры ----------
+log(/id="map-toggle"/.test(gameHtml) &&
+  /\.map-toggle \{\s*display: none/.test(gameCss) &&
+  /body\.game-page \.map-toggle \{[\s\S]*?display: inline-flex/.test(gameCss),
+  "на телефоне есть кнопка мини-карты, на компьютере она скрыта");
+log(/setMinimapOn/.test(gameSrcMobile) && /pydungeon\.minimap/.test(gameSrcMobile),
+  "мини-карта открывается кнопкой и запоминает выбор");
+log(/const overX = Math\.min\(Math\.round\(\(m\.cell \|\| 32\) \* 2\)/.test(gameSrcMobile),
+  "камера уходит на пару клеток за край этажа");
 
 // Тайлы приходят из набора 32x32, а клетка крупнее (48 px при обычном зуме).
 // Сокращённое `background:` у .tile.floor/.tile.wall сбрасывало repeat и size,

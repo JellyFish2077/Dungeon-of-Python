@@ -234,6 +234,22 @@ def run_mobile_checks(browser, base):
         check(hud and hud["y"] >= h * 0.45,
               "HUD героя стоит в нижней части экрана (%s)" % name, hud)
 
+        # Мини-карта на телефоне спрятана и открывается кнопкой в шапке.
+        toggle = page.evaluate(script, "#map-toggle")
+        check(toggle and toggle["display"] != "none" and
+              toggle["x"] >= -1 and toggle["right"] <= w + 1 and
+              toggle["y"] >= -1 and toggle["bottom"] <= h + 1,
+              "кнопка мини-карты видна в шапке (%s)" % name, toggle)
+        closed = page.evaluate(
+            "() => getComputedStyle(document.getElementById('minimap-dock')).display")
+        check(closed == "none",
+              "мини-карта закрыта по умолчанию (%s)" % name, closed)
+        page.click("#map-toggle")
+        page.wait_for_timeout(350)
+        opened = page.evaluate(
+            "() => getComputedStyle(document.getElementById('minimap-dock')).display")
+        check(opened != "none", "кнопка открывает мини-карту (%s)" % name, opened)
+
         minimap = page.evaluate(script, "#minimap")
         dock = page.evaluate(script, "#minimap-dock")
         check(minimap and minimap["display"] != "none" and
@@ -242,8 +258,18 @@ def run_mobile_checks(browser, base):
               minimap["bottom"] <= h + 1,
               "мини-карта видна и вписана в экран (%s)" % name,
               {"map": minimap, "dock": dock})
-        check(dock and dock["y"] >= h * 0.45,
-              "мини-карта стоит в нижней части экрана (%s)" % name, dock)
+        check(dock and dock["y"] <= h * 0.3,
+              "мини-карта стоит в верхней части экрана (%s)" % name, dock)
+
+        # Повторное нажатие убирает её обратно.
+        page.click("#map-toggle")
+        page.wait_for_timeout(300)
+        closed_again = page.evaluate(
+            "() => getComputedStyle(document.getElementById('minimap-dock')).display")
+        check(closed_again == "none",
+              "кнопка закрывает мини-карту обратно (%s)" % name, closed_again)
+        page.click("#map-toggle")
+        page.wait_for_timeout(300)
 
         skip = page.evaluate(script, "#skip-btn")
         check(skip and skip["display"] != "none" and skip["h"] >= 36 and
