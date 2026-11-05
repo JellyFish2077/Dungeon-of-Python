@@ -24,10 +24,10 @@
 const VILLAGE_MAP = [
   "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
   "T.........T........T.........T",
-  "T..#####.FFFFFFFFFFFF.#####..T",
-  "TT.#####.F.T.T..T.T.F.#####.TT",
-  "To.#####.F.T.o..o.T.F.#####o.T",
-  "T..##D##.FFFFF..FFFFF.##D##..T",
+  "T..#####.FFFFFFVFFFFF.#####..T",
+  "TT.#####.F.T.T.pT.T.F.#####.TT",
+  "To.#####.F.T.o.po.T.F.#####o.T",
+  "T..##D##.FFFFF.pFFFFF.##D##..T",
   "T.pppppppppppppppppppppSpppppT",
   "T#####pppppppppppppppppp#####T",
   "T#####ppppppppWppCpppppp#####T",
@@ -104,6 +104,8 @@ const VILLAGE_TILES = {
   "S": { floor: 1, decor: 1, kind: "sign" },
   "G": { floor: 1, decor: 1, kind: "guard" },
   "E": { floor: 1, decor: 1, kind: "entrance" },
+  // Спуск в подземелье: дыра в земле со ступенями. Стоит у стража входа.
+  "V": { floor: 1, kind: "descent", blocked: true },
   // Маркеры НПС в раскладках: «1» — место жителя. Кто именно там стоит —
   // в VILLAGE_NPCS; маркер нужен, чтобы позиция была видна прямо в тексте.
   "1": { floor: 1, kind: "npc" },
@@ -276,6 +278,13 @@ function villageMaterials(parsed, built) {
       }
     }
   });
+  // Дорожки: клетки «p» получают материал path, чтобы земля читалась
+  // как протоптанная тропа, а не как газон.
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (parsed.chars[y][x] === "p" && !mat[y][x]) mat[y][x] = "path";
+    }
+  }
   return { mat: mat, roofKind: roofKind, roofColor: roofColor, props: props };
 }
 
@@ -353,7 +362,7 @@ const HOUSE_MAPS = {
 // Маркер «1» в комнатах ставится там, где стоит житель: сам он берётся отсюда,
 // поэтому координаты жителя и маркера должны совпадать.
 const VILLAGE_NPCS = [
-  { key: "guard", name: "Страж входа", place: "village", at: { x: 27, y: 6 } },
+  { key: "guard", name: "Страж входа", place: "village", at: { x: 14, y: 3 } },
   { key: "trader", name: "Торговец", place: "trader", at: { x: 4, y: 2 } },
   { key: "elder", name: "Староста", place: "elder", at: { x: 2, y: 3 } },
   { key: "mentor", name: "Наставник", place: "village", at: { x: 10, y: 8 } },
