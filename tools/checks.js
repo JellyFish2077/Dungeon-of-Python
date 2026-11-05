@@ -7696,6 +7696,20 @@ if (testDoor) {
   log(false, "не нашлось двери с проходом для проверки");
 }
 
+// Двери подземелья не должны протекать в деревню: раньше они рисовались
+// на площади по своим координатам.
+freshRun(0);
+const dungeonDoor = (G.roomDoors || [])[0];
+const dungeonDoorCount = (G.roomDoors || []).length;
+API.enterVillage();
+log(G.place === "village" && (G.roomDoors || []).length === 0,
+  "при входе в деревню двери подземелья сбрасываются",
+  "было " + dungeonDoorCount + ", стало " + (G.roomDoors || []).length);
+if (dungeonDoor) {
+  log(API.roomDoorAt(dungeonDoor.x, dungeonDoor.y) === null,
+    "старая дверь подземелья не находится в деревне");
+}
+
 // Двери и их состояние должны переживать сохранение и перезагрузку.
 const saveState = API.createFloorState(0);
 saveState.map.doors = saveState.doors = [{ x: 3, y: 3, open: true }];
