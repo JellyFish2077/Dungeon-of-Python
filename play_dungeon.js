@@ -37,6 +37,13 @@
 // Math.random. Постоянное зерно здесь — чтобы колода вопросов была одной и
 // той же в любом запуске, иначе партию по зерну не повторить.
 Math.random = makeRng(0x2545f491);
+// Карта берёт зерно из Date.now() (floorSeed в game.js), поэтому один и тот
+// же --seed давал разные этажи, и замеры не повторялись. В боте часы идут
+// ровным шагом: миллисекунда на обращение. Настоящее время остаётся только
+// для отчёта о скорости прогона.
+const realNow = Date.now.bind(Date);
+let botClock = 1600000000000;
+Date.now = () => (botClock += 1);
 const H = require("./tools/game_harness.js");
 const API = H.API;
 const G = H.G;
@@ -768,7 +775,7 @@ function playOne(opts, rng, trace) {
     // уже null, и по нему бой не классифицировать.
     const battleBoss = !!(G.battle && G.battle.enemy && G.battle.enemy.boss);
     let what;
-    const t0 = Date.now();
+    const t0 = realNow();
     try {
       what = playStep(skill, rng, seen);
     } catch (err) {
@@ -823,7 +830,7 @@ function playOne(opts, rng, trace) {
 
     // Медленный ход — сам по себе затык: значит, внутри игры что-то ушло
     // в бесконечный цикл (например, путь, который не сходится).
-    const stepMs = Date.now() - t0;
+    const stepMs = realNow() - t0;
     if (stepMs > 500) {
       seen.stuck += 1;
       if (trace) console.log("   МЕДЛЕННЫЙ ХОД " + stepMs + " мс: " + what +
@@ -1109,14 +1116,14 @@ function main() {
   }
   let crashed = 0;
   const rows = [];
-  const t0 = Date.now();
+  const t0 = realNow();
   for (let i = 1; i <= opts.games; i++) {
     const seed = baseSeed + i * 7919;
     const rng = makeRng(seed);
     // Карта, враги и добыча берутся из Math.random игры: без подмены партию
     // с тем же зерном бота нельзя было повторить.
     Math.random = makeRng(seed ^ 0x5bd1e995);
-    const g0 = Date.now();
+    const g0 = realNow();
     const r = playOne(opts, rng, opts.trace);
     flushTimers();
     // В кампании герой тратит найденное между походами: восстановить деревню
@@ -1129,10 +1136,10 @@ function main() {
       r.heroSnapshot = { hp: API.heroLevel("hp"), dmg: API.heroLevel("dmg") };
     }
     rows.push(r);
-    const ok = printResult(i, opts, r, (Date.now() - g0) / 1000, seed);
+    const ok = printResult(i, opts, r, (realNow() - g0) / 1000, seed);
     if (!ok) crashed += 1;
   }
-  console.log("итого " + opts.games + " партий за " + ((Date.now() - t0) / 1000).toFixed(1) +
+  console.log("итого " + opts.games + " партий за " + ((realNow() - t0) / 1000).toFixed(1) +
     " с, упало " + crashed);
   printSummary(opts, rows);
   if (opts.campaign) printCampaign(opts, rows);

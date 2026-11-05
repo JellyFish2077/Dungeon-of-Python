@@ -1935,6 +1935,9 @@
     fillQueue: [],
     errorQueue: [],
     missed: [],
+    // План разбора ошибок из прошлой смерти: { topics: [...], left: N }.
+    // Первые N боёв похода идут по этим темам.
+    reviewRun: null,
     stats: null,
     running: false,
     finishedVictory: false,
@@ -2345,10 +2348,12 @@
   // заданий подряд: «вспомни» (вопрос) и «примени» (практика на ту же тему).
   // Раньше враг падал с одного-двух ответов, и подземелье проходили за урок.
   // Опыт за врага от этого множителя не растёт — см. поле xp в makeEnemy.
-  // 3,8, а не 3,5: кто вкладывает золото в кузницу, проходит поход на 7–8%
-  // быстрее, и на 3,5 «Обычный» у такого ученика укладывался меньше чем в
-  // три урока (замер ботом, play_dungeon.js).
-  let ENEMY_HP_MUL = 1.6;
+  // 1,8 подобрано ботом: обычный бой идёт 1,8–2,8 задания (было 1,7),
+  // босс — 3,9–6,2 (было 3,3–5,1), а поход удлиняется на 2–4 минуты.
+  let ENEMY_HP_MUL = 1.8;
+  // Босс — отдельная толщина: обычный бой и босс должны различаться длиной,
+  // а не только запасом здоровья в таблице.
+  let BOSS_HP_MUL = 1.2;
   // Вход в подземелье мягче: на первом этаже враг толще базового лишь на
   // 60% от ENEMY_HP_MUL, дальше +10% за этаж, с пятого — полностью. В начале
   // герой слабее всего, и длинные бои там превращали первые этажи в стену.
@@ -2419,8 +2424,11 @@
     // У боссов свой базовый запас здоровья: иначе слабый по виду Гоблин-вожак
     // остаётся обычным монстром, а Дракон на глубине раздувается в стену.
     const baseHp = isBoss && floorDef(floorIdx).bossHp ? floorDef(floorIdx).bossHp : t.hp;
+    // Боссу достаётся отдельная надбавка: обычный враг и босс должны
+    // различаться длиной боя, а не только запасом здоровья в таблице.
+    const bossBoost = isBoss && floorDef(floorIdx).bossHp ? BOSS_HP_MUL : 1;
     const hp = Math.round(baseHp * (1 + HP_PER_FLOOR * floorIdx) * mul * hpMul *
-      enemyHpMulFor(floorIdx) * deepScale(floorIdx).hp);
+      enemyHpMulFor(floorIdx) * deepScale(floorIdx).hp * bossBoost);
     const dmg = enemyDamageFor(t, floorIdx, mul * dmgMul * deepScale(floorIdx).dmg);
     return {
       uid: ++G.uid,
@@ -9562,6 +9570,18 @@
   // уровня этажа, с перевесом в пользу «Темы этажа» из планки входа.
   function pickBattleTopic(b) {
     const learn = learnState();
+    // Разбор ошибок из прошлой смерти важнее случайной темы: первые бои
+    // похода идут по слабым темам, пока план не кончился.
+    const plan = G.reviewRun;
+    if (plan && plan.left > 0 && Array.isArray(plan.topics) && plan.topics.length) {
+      // Темы чередуются: три боя на две слабые темы.
+      const topic = plan.topics[(plan.left - 1) % plan.topics.length];
+      plan.left -= 1;
+      if (TOPICS[topic]) {
+        b.review = true;
+        return topic;
+      }
+    }
     const { qmin, qmax } = floorLevels();
     const past = Object.keys(learn.topicSeen)
       .filter((t) => TOPICS[t] && learn.topicSeen[t] < G.floorIndex);
@@ -11805,7 +11825,7 @@ function topicName(key) {
     if (amulets > 0) {
       renderDeathWithAmulet(amulets);
     } else {
-      renderDeathReturn(Math.floor((G.player ? G.player.gold : 0) * HUB_DEATH_SHARE));
+      renderDeathReturn();
     }
     el("end-overlay").classList.remove("hidden");
   }
@@ -11879,23 +11899,38 @@ function topicName(key) {
     // Обёртка, а не useRevive напрямую: обработчик передаёт MouseEvent,
     // а useRevive принимает необязательный callback окончания загрузки этажа.
     el("revive-btn").addEventListener("click", () => useRevive());
-    el("to-hub-btn").addEventListener("click", deathToHub);
+    el("to-hub-btn").addEventListener("click", () => deathToHub("gold"));
   }
 
-  // Смерть без амулета: поход окончен. Показываем, сколько золота уцелеет.
-  function renderDeathReturn(banked) {
+  // Смерть без амулета: поход окончен. Показываем выбор — всё золото или
+  // половина и разбор ошибок в следующем походе.
+  function renderDeathReturn() {
+    const gold = G.player ? (G.player.gold || 0) : 0;
+    const banked = Math.floor(gold * HUB_DEATH_SHARE);
+    const half = Math.floor(gold * 0.5);
+    const review = reviewPlan();
+    const reviewText = review.map(topicName).join(", ");
     el("end-box").innerHTML =
       "<div class='big-emoji-free game-over'>Поражение</div>" +
       "<h2 class='game-over'>Поход окончен</h2>" +
-      deathStatsHtml(banked, false) +
+      deathStatsHtml(null, true) +
       "<p class='lead'>Снаряжение, зелья, уровни и кузница этого похода потеряны. " +
-      (banked > 0
-        ? "В деревню перенесено " + banked + " золота — там его можно потратить."
-        : "Золота на дорогу не осталось.") + "</p>" +
+      "Материалы и ключи остались в деревне.</p>" +
+      (review.length
+        ? "<p class='lead'>Что забрать с собой? <b>Золото</b> — всё, что было в походе. " +
+          "<b>Знания</b> — половина золота и три первых боя следующего похода " +
+          "по слабым темам: " + reviewText + ".</p>"
+        : "<p class='lead'>В деревню перенесено " + banked + " золота.</p>") +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
-      "<button class='btn' id='to-hub-btn'>В деревню</button>" +
+      "<button class='btn' id='death-gold-btn'>Забрать золото (" + banked + ")</button>" +
+      (review.length
+        ? "<button class='btn ghost' id='death-knowledge-btn'>Забрать знания (" +
+          half + " золота + разбор)</button>"
+        : "") +
       "</div>";
-    el("to-hub-btn").addEventListener("click", deathToHub);
+    el("death-gold-btn").addEventListener("click", () => deathToHub("gold"));
+    const know = el("death-knowledge-btn");
+    if (know) know.addEventListener("click", () => deathToHub("knowledge"));
   }
 
   // Имя владельца деревни. В деревне поход ещё не начат, и G.name пуст:
@@ -13041,6 +13076,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.16.0",
+      date: "5 ноября 2026",
+      title: "Бой длиннее, смерть — выбор",
+      items: [
+        "Обычный враг держится 2–3 ответа, босс — 4–6: зелья, защита и способности снова нужны.",
+        "После смерти выбираешь: всё золото или половина и разбор ошибок.",
+        "Разбор ошибок даёт три первых боя следующего похода по самым слабым темам."
+      ]
+    },
+    {
       version: "1.15.0",
       date: "5 ноября 2026",
       title: "Мягкий старт, честная глубина",
@@ -13386,8 +13431,48 @@ function topicName(key) {
   }
 
   // Смерть без амулета (или отказ от него): банкуем долю золота и в деревню.
-  function deathToHub() {
-    const banked = bankRunGold(HUB_DEATH_SHARE);
+  // Темы, которые стоит повторить: где больше всего ошибок за поход.
+  // Смерть — не только потеря, но и материал для следующего спуска.
+  function reviewPlan() {
+    const ts = (G.stats && G.stats.topicStats) || {};
+    const rows = Object.keys(ts)
+      .filter((k) => TOPICS[k] && ts[k].total >= 2)
+      .map((k) => ({ k: k, bad: ts[k].total - (ts[k].correct || 0), total: ts[k].total }))
+      .filter((r) => r.bad > 0)
+      .sort((a, b) => (b.bad / b.total) - (a.bad / a.total) || b.bad - a.bad);
+    return rows.slice(0, 2).map((r) => r.k);
+  }
+
+  // План разбора — одноразовый: три первых боя следующего похода идут по
+  // темам, где ученик ошибался. Хранится в профиле, чтобы пережить смерть.
+  function saveReviewPlan(topics) {
+    const prof = hubProfile();
+    if (!prof || !topics || !topics.length) return false;
+    prof.reviewRun = { topics: topics.slice(0, 2), left: 3 };
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    return true;
+  }
+
+  // Забрать план из профиля при старте похода: он одноразовый.
+  function takeReviewPlan(name) {
+    const prof = typeof getProfile === "function" ? getProfile(name) : null;
+    if (!prof || !prof.reviewRun) return null;
+    const plan = prof.reviewRun;
+    delete prof.reviewRun;
+    putProfile(name, prof);
+    syncProfile(name);
+    return plan;
+  }
+
+  // Смерть без амулета: поход окончен. Игрок выбирает, что забрать с собой —
+  // всё золото или половину и разбор своих ошибок. Раньше золото уходило
+  // в кошелёк само, и смерть ничего не стоила.
+  function deathToHub(mode) {
+    const review = mode === "knowledge" ? reviewPlan() : [];
+    const share = review.length ? 0.5 : HUB_DEATH_SHARE;
+    const banked = bankRunGold(share);
+    if (review.length) saveReviewPlan(review);
     el("end-overlay").classList.add("hidden");
     clearSave();
     reset();
@@ -13727,6 +13812,9 @@ function topicName(key) {
     G.nick = dungeonNick(name);
     setLastName(name);
     clearSave();
+    // Разбор ошибок, выбранный при смерти: три первых боя похода идут по
+    // темам, где ученик ошибался. План одноразовый и живёт в профиле.
+    G.reviewRun = takeReviewPlan(name);
     // Версия кампании фиксируется на старте забега: флаг, включённый
     // посреди похода, не должен менять таблицу этажей под ногами.
     G.campaign = CAMPAIGN_V2 ? 2 : 1;
@@ -15974,7 +16062,7 @@ function topicName(key) {
     "difficulty.easy.enemyScale", "difficulty.normal.enemyScale", "difficulty.hard.enemyScale",
     "difficulty.easy.qBonus", "difficulty.normal.qBonus", "difficulty.hard.qBonus",
     "hazard.frost", "hazard.lava",
-    "enemy.hpMul", "combat.missStep", "combat.missCap", "guard.hpMul", "guard.dmgMul",
+    "enemy.hpMul", "enemy.bossHpMul", "combat.missStep", "combat.missCap", "guard.hpMul", "guard.dmgMul",
     "learn.reviewChance", "learn.floorTopic",
     "hub.deathGoldShare", "hub.amuletPrice", "hub.amuletFindChance", "hub.amuletMax",
     "village.view", "combat.skipShare", "enemy.hpStart",
@@ -16040,6 +16128,7 @@ function topicName(key) {
       case "hazard.frost": HAZARD_DENSITY.frost = value; return true;
       case "hazard.lava": HAZARD_DENSITY.lava = value; return true;
       case "enemy.hpMul": ENEMY_HP_MUL = value; return true;
+      case "enemy.bossHpMul": BOSS_HP_MUL = value; return true;
       case "combat.missStep": MISS_STEP = value; return true;
       case "combat.missCap": MISS_CAP = value; return true;
       case "guard.hpMul": GUARD.hpMul = value; return true;
@@ -16141,6 +16230,7 @@ function topicName(key) {
       case "hazard.frost": return HAZARD_DENSITY.frost;
       case "hazard.lava": return HAZARD_DENSITY.lava;
       case "enemy.hpMul": return ENEMY_HP_MUL;
+      case "enemy.bossHpMul": return BOSS_HP_MUL;
       case "combat.missStep": return MISS_STEP;
       case "combat.missCap": return MISS_CAP;
       case "guard.hpMul": return GUARD.hpMul;

@@ -3259,8 +3259,8 @@ API.showDeath();
 log(G.dead === true, "смерть помечена флагом");
 log(G.running === false, "после смерти партия остановлена");
 const deathHtml = el("end-box").innerHTML;
-log(deathHtml.indexOf("to-hub-btn") >= 0,
-  "без амулета на экране смерти есть кнопка «В деревню»");
+log(deathHtml.indexOf("death-gold-btn") >= 0,
+  "без амулета на экране смерти есть выбор «Забрать золото»");
 log(deathHtml.indexOf("revive-btn") < 0,
   "без амулета возрождения не предлагают");
 log(/Поход окончен/.test(deathHtml), "смерть сообщает об окончании похода");
@@ -3332,6 +3332,34 @@ log(API.balanceSnapshot()["hub.deathGoldShare"] === 1,
   String(API.balanceSnapshot()["hub.deathGoldShare"]));
 log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
   "после возврата в деревню сейв похода стёрт");
+
+// Разбор ошибок: раз две смерти не равны, слабые темы можно забрать с собой.
+// План живёт в профиле, забирается один раз и даёт три первых боя похода.
+freshRun(0);
+G.stats.topicStats = {
+  control: { correct: 1, total: 5 },
+  strings: { correct: 3, total: 4 },
+  syntax: { correct: 4, total: 4 }
+};
+const weakTopics = API.reviewPlan();
+log(weakTopics[0] === "control" && weakTopics.length === 2 && weakTopics[1] === "strings",
+  "разбор берёт две самые слабые темы", JSON.stringify(weakTopics));
+API.saveReviewPlan(weakTopics);
+const savedPlan = getProfile(G.name).reviewRun;
+log(savedPlan && savedPlan.left === 3 && savedPlan.topics.join(",") === "control,strings",
+  "план разбора сохранён в профиль", JSON.stringify(savedPlan));
+const takenPlan = API.takeReviewPlan(G.name);
+log(takenPlan && !getProfile(G.name).reviewRun, "план забирается из профиля один раз");
+G.reviewRun = takenPlan;
+const reviewBattle = {};
+const reviewTopic = API.pickBattleTopic(reviewBattle);
+log(reviewTopic === "control" && reviewBattle.review === true,
+  "первый бой похода идёт по слабой теме", reviewTopic);
+API.pickBattleTopic({});
+API.pickBattleTopic({});
+log(G.reviewRun.left === 0, "после трёх боёв план разбора кончился",
+  String(G.reviewRun.left));
+G.reviewRun = null;
 
 // Загрузка «мёртвого» сейва больше не воскрешает бесплатно. Перезагрузка
 // страницы обходила экран смерти: этаж пересоздавался, золото и снаряжение
