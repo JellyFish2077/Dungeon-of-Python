@@ -7589,4 +7589,58 @@ if (vault) {
 
 freshRun(0);
 
+// ================= 24. Сундуки, двери комнат и запечатанный тайник =====
+// Сундуков было 4–7 на этаж: этаж читался как склад. Теперь 2–4 обычных,
+// остальное — награда за тайник. Двери комнат — порог на полу, а тайник
+// обязан быть запечатан: войти в обход двери нельзя.
+let chestMax = 0;
+let doorsOk = true;
+let vaultOpen = 0;
+let vaultCount = 0;
+let vaultOpenInfo = [];
+function checkFloorContent(i) {
+  const st = API.buildCheckedFloor(i);
+  if (!st.plan) return;
+  const vault = (st.vaults || [])[0];
+  const normal = Math.max(0, (st.treasures || []).length - (vault ? 2 : 0));
+  if (normal > chestMax) chestMax = normal;
+  (st.doors || []).forEach((d) => {
+    if (!st.map.grid[d.y] || st.map.grid[d.y][d.x] !== 1) doorsOk = false;
+  });
+  if (!vault) return;
+  vaultCount += 1;
+  let cells = [];
+  if (vault.planned) {
+    const room = st.plan.rooms.find((r) => r.role === "vault");
+    cells = (room && room.cells) || [];
+  } else {
+    const dx = Math.sign(vault.door.x - vault.from.x);
+    const dy = Math.sign(vault.door.y - vault.from.y);
+    for (let deep = 1; deep <= 3; deep += 1) {
+      for (let side = -1; side <= 1; side += 1) {
+        cells.push({
+          x: vault.door.x + dx * deep + (dx === 0 ? side : 0),
+          y: vault.door.y + dy * deep + (dy === 0 ? side : 0)
+        });
+      }
+    }
+  }
+  const grid = st.map.grid;
+  const was = grid[vault.door.y][vault.door.x];
+  grid[vault.door.y][vault.door.x] = 0;
+  const reach = API.genGridReach(grid, st.map.w, st.map.h, st.playerPos);
+  grid[vault.door.y][vault.door.x] = was;
+  if (cells.some((c) => grid[c.y] && grid[c.y][c.x] === 1 &&
+      reach.has(c.x + "," + c.y))) {
+    vaultOpen += 1;
+    vaultOpenInfo.push((i + 1) + (vault.planned ? "п" : "л"));
+  }
+}
+for (let i = 0; i < API.FLOORS.length; i += 1) checkFloorContent(i);
+for (let t = 0; t < 30 && vaultCount === 0; t += 1) checkFloorContent(4);
+log(chestMax > 0 && chestMax <= 4, "обычных сундуков на этаже не больше четырёх", chestMax);
+log(doorsOk, "двери комнат стоят на полу, а не в стене");
+log(vaultCount > 0 && vaultOpen === 0, "в тайник нельзя войти в обход двери",
+  "открытых: " + vaultOpen + " из " + vaultCount + " " + vaultOpenInfo.join(","));
+
 console.log("__JSON__" + JSON.stringify(out));
