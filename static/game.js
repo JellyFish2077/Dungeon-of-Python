@@ -3213,13 +3213,15 @@
     return out;
   }
 
-  // Двери между комнатой и коридором. Это порог на клетке выхода: он не
-  // мешает ходу (двери в подземелье открыты), но отделяет комнату от
-  // коридора — без него этаж читался как один зал с перегородками.
-  function placeRoomDoors(state) {
+  // Двери между комнатой и коридором. Дверь ставится в проём, суженный до
+  // одной клетки: широкий проём в 2–3 клетки двери не держит, и порог
+  // выглядел как дверь, стоящая посреди пола.
+  function placeRoomDoors(state, used) {
     const plan = state.plan;
     if (!plan || !plan.rooms || !plan.rooms.length) return [];
     const grid = state.map.grid;
+    const w = state.map.w;
+    const h = state.map.h;
     const start = state.playerPos;
     const end = state.stairsDown;
     const out = [];
@@ -3231,7 +3233,7 @@
         !(end && e.x === end.x && e.y === end.y) &&
         !taken.has(e.x + "," + e.y));
       if (!exits.length) return;
-      // Широкий проём занимает несколько клеток подряд — на него одна дверь.
+      // Смежные клетки одного проёма — одна дверь.
       const groups = [];
       exits.forEach((e) => {
         const near = groups.find((g) => g.some((c) =>
@@ -3241,6 +3243,50 @@
       });
       groups.forEach((g) => {
         const mid = g[Math.floor(g.length / 2)];
+        const center = room.center || { x: room.rect.x + 1, y: room.rect.y + 1 };
+        // Ось прохода: от центра комнаты к двери. Боковые клетки —
+        // перпендикуляр к ней: их и замуровываем, чтобы получилась рама.
+        const axisX = Math.abs(mid.x - center.x) >= Math.abs(mid.y - center.y);
+        const px = axisX ? 0 : 1;
+        const py = axisX ? 1 : 0;
+        const sides = [
+          { x: mid.x + px, y: mid.y + py },
+          { x: mid.x - px, y: mid.y - py }
+        ].filter((c) => grid[c.y] && grid[c.y][c.x] === 1);
+        // Клетку с предметом в стену не закладываем: сундук в стене хуже
+        // двери, а враг в стене — сломанный этаж.
+        if (sides.some((c) => used.has(key(c.x, c.y)))) return;
+        const hazardWas = sides.map((c) =>
+          state.hazard ? state.hazard[c.y][c.x] : null);
+        sides.forEach((c) => {
+          grid[c.y][c.x] = 0;
+          // Стена не может быть лавой или морозом: среда живёт только на полу.
+          if (state.hazard) state.hazard[c.y][c.x] = null;
+        });
+        // Проверяем, что стены не отрезали ни комнату, ни добычу.
+        const reach = genGridReach(grid, w, h, start);
+        const points = [];
+        plan.rooms.forEach((r) => { if (r.center) points.push(r.center); });
+        (state.treasures || []).forEach((t) => points.push(t));
+        (state.nodes || []).forEach((n) => points.push(n));
+        (state.camps || []).forEach((c) => points.push(c));
+        (state.levers || []).forEach((l) => points.push(l));
+        (state.vaults || []).forEach((v) => { if (v.door) points.push(v.door); });
+        // Враги и страж: если стена отрежет стража лестницы, спуск не
+        // откроется, и этаж станет непроходимым.
+        (state.enemies || []).forEach((e) => points.push(e));
+        (state.traders || []).forEach((t) => points.push(t));
+        if (end) points.push(end);
+        let lost = points.some((p) => !reach.has(p.x + "," + p.y));
+        if (!lost) lost = !reach.has(mid.x + "," + mid.y);
+        if (lost) {
+          sides.forEach((c, i) => {
+            grid[c.y][c.x] = 1;
+            if (state.hazard) state.hazard[c.y][c.x] = hazardWas[i];
+          });
+          return;
+        }
+        sides.forEach((c) => used.add(key(c.x, c.y)));
         taken.add(mid.x + "," + mid.y);
         out.push({ x: mid.x, y: mid.y });
       });
@@ -3270,7 +3316,7 @@
     state.signs = placePlanSigns(state, used);
     state.tributes = placePlanTributes(state, f, index, used, free);
     placePlanHazards(state, index, used);
-    state.doors = placeRoomDoors(state);
+    state.doors = placeRoomDoors(state, used);
     return state;
   }
 
@@ -13186,6 +13232,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.17.1",
+      date: "5 ноября 2026",
+      title: "Двери в проёмах",
+      items: [
+        "Двери больше не стоят посреди пола: проём сужен до одной клетки, по бокам — стены.",
+        "Если проход нельзя сузить, не задев добычу или стража, дверь не ставится."
+      ]
+    },
     {
       version: "1.17.0",
       date: "5 ноября 2026",
