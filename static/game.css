@@ -12688,3 +12688,20 @@ body.battling .battle-panel .result-actions .result-explain-btn {
   flex: 0 0 auto;
   font-size: 10px;
 }
+
+/* Текст варианта — по центру кнопки. Буква A/B/C/D остаётся слева и не
+   сдвигает сам ответ. */
+body.battling .battle-panel .option {
+  position: relative;
+  justify-content: center;
+  padding-left: 30px;
+  padding-right: 30px;
+  text-align: center;
+}
+
+body.battling .battle-panel .option .key {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+}
