@@ -11547,8 +11547,9 @@
     if (b.enemyTurn) {
       roundNote = "Ход врага";
     } else if (b.phase !== "question") {
-      if (b.playerDead || G.player.hp <= 0) roundNote = "Поражение";
-      else if (b.won) roundNote = "Победа";
+      // Победу и поражение уже показывает крупный баннер на сцене:
+      // не дублируем их ещё и в строке над здоровьем.
+      if (b.playerDead || G.player.hp <= 0 || b.won) roundNote = "";
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
     }
     html += "<div class='battle-stage'>";
@@ -11561,18 +11562,11 @@
       "<div class='battle-scene'>" +
       "<div class='scene-arena'>" +
       "<div class='fighter fighter-hero" + (heroHp <= 0 ? " down" : "") + "'>" +
-      "<div class='fighter-hpbar'><i style='width:" + heroPct + "%'></i></div>" +
       "<div class='battle-portrait hero'>" + playerBodyHtml() + "</div>" +
-      "<div class='fighter-tag'><b>" + escText(heroName) + "</b>" +
-      "<span>Уровень " + G.player.level +
-      (G.player.poison > 0 ? " · яд " + G.player.poison : "") + "</span></div>" +
       "</div>" +
       "<div class='fighter fighter-enemy" + (e.hp <= 0 ? " down" : "") + "'>" +
-      "<div class='fighter-hpbar enemy'><i style='width:" + hpPct + "%'></i></div>" +
       "<div class='battle-portrait" + (e.boss ? " boss" : "") + "'>" +
       spriteImg(e.key) + "</div>" +
-      "<div class='fighter-tag'><b style='color:" + e.color + "'>" + escText(e.name) + "</b>" +
-      "<span>" + (e.boss ? "Босс" : e.elite ? "Элита" : "Монстр") + "</span></div>" +
       "</div>" +
       "</div>" +
       (e.hp <= 0 ? "<div class='scene-banner win'>Победа</div>" : "") +
@@ -11589,7 +11583,7 @@
       "<i style='width:" + heroPct + "%'></i></span>" +
       "<span class='num'>" + heroHp + " / " + heroMax + "</span>" +
       "</div>" +
-      "<span class='round-note'>" + roundNote + "</span>" +
+      (roundNote ? "<span class='round-note'>" + roundNote + "</span>" : "") +
       "<div class='combatant enemy'>" +
       "<span class='name' style='color:" + e.color + "'>" + escText(e.name) + "</span>" +
       "<span class='hp-bar enemy'><i style='width:" + hpPct + "%'></i></span>" +
@@ -11728,7 +11722,7 @@
       const headline = isDead
         ? "Поражение"
         : b.won
-        ? "Победа"
+        ? "Попадание"
         : isSkip
         ? "Пропуск"
         : good
@@ -14475,6 +14469,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.25.7",
+      date: "6 ноября 2026",
+      title: "Без дублей в бою",
+      items: [
+        "Имена и полосы здоровья бойцов остались только в верхней строке панели.",
+        "Крупная надпись «Победа» на сцене больше не дублируется в строке состояния и карточке."
+      ]
+    },
     {
       version: "1.25.6",
       date: "6 ноября 2026",
