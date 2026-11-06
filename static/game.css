@@ -1568,18 +1568,6 @@ body.game-page.battling .game-wrap > .panel {
   text-transform: uppercase;
 }
 
-.battle .enemy-options .option {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: default;
-}
-
-.battle .enemy-options .option:hover {
-  border-color: #2a3b5a;
-  background: #101f38;
-}
-
 .battle .options {
   gap: 8px;
 }
