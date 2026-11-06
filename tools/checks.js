@@ -430,8 +430,9 @@ G.player.hp = 500;
 const savedRandomForTurn = Math.random;
 Math.random = () => 0.99;
 API.startEnemyTurn();
-log(G.battle.enemyTurn && G.battle.enemyTurn.correct === false && mistakeEnemy.hp < 900,
-  "враг может ошибиться, и тогда получает урон",
+log(G.battle.enemyTurn && G.battle.enemyTurn.correct === false &&
+    mistakeEnemy.hp === 900 && G.battle.enemyTurn.dealt === 0,
+  "враг может ошибиться — действие не срабатывает, но урона за это нет",
   "HP врага " + mistakeEnemy.hp);
 Math.random = savedRandomForTurn;
 G.battle = null;
@@ -482,7 +483,7 @@ log(hurtAlly.hp > allyBefore, "жрица лечит раненых врагов
 log(G.enemies[0].hp === G.enemies[0].maxHp, "но себя не лечит — её видно по полному здоровью");
 G.battle = null;
 
-// Некромант поднимает слугу на ошибке героя, но не больше двух.
+// Некромант поднимает слугу особым приёмом, но не больше двух.
 freshRun(7);
 const necro = API.makeEnemy("necromancer", 7);
 necro.x = G.playerPos.x + 1;
@@ -492,11 +493,10 @@ G.player.hp = 500;
 API.openBattle(necro);
 const enemiesBefore = G.enemies.length;
 for (let i = 0; i < 4; i += 1) {
-  G.battle = G.battle || { enemy: necro, phase: "question", challenge: { type: "mc" } };
-  API.applyAttack(0, "промах", true, "");
+  API.resolveEnemySpecial(necro, G.battle, { feedback: "" });
 }
 const minions = G.enemies.filter((o) => o.summonedBy === necro.uid);
-log(G.enemies.length > enemiesBefore, "некромант поднимает слуг на ошибках",
+log(G.enemies.length > enemiesBefore, "некромант поднимает слуг особым приёмом",
   enemiesBefore + " -> " + G.enemies.length);
 log(minions.length <= 2, "но не больше двух слуг сразу", minions.length);
 G.battle = null;
@@ -3315,12 +3315,12 @@ log(wrongEnemy.hp === hpBeforeWrong,
   "за неверный ответ враг НЕ получает урона",
   hpBeforeWrong + " -> " + wrongEnemy.hp);
 log(G.player.hp === myHpBeforeWrong,
-  "за неверный ответ герой не получает урон мгновенно",
+  "неверный ответ сам по себе не наносит урон герою",
   myHpBeforeWrong + " -> " + G.player.hp);
-log(G.battle.missStreak > 0, "но ошибка усилит следующий ход врага", G.battle.missStreak);
+log(G.battle.missStreak > 0, "ошибка подряд усиливает следующий удар", G.battle.missStreak);
 log(G.battle.good === false, "неверный ответ помечен красным, а не зелёным");
 API.continueBattle();
-log(!!G.battle.enemyTurn, "после ошибки наступает ход врага");
+log(!!G.battle.enemyTurn, "после ошибки ход переходит врагу");
 G.battle = null;
 
 // Сверка по буквам: отступы — часть задания, значит это ошибка.
@@ -4938,7 +4938,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const tsBad = G.stats.topicStats[topicOf("code", task)] || { correct: 0, total: 0 };
   log(G.player.hp > 0 && G.battle.missStreak > 0 && G.stats.codeTried === 1 &&
     G.battle.phase === "result" && tsBad.total === 1 && tsBad.correct === 0,
-    "ошибка в программе ученика готовит ход врага и попадает в разбор по темам",
+    "ошибка в программе ученика передаёт ход врагу и попадает в разбор по темам",
     "HP " + G.player.hp + ", тема " + topicOf("code", task) + " " + tsBad.correct + "/" + tsBad.total);
   G.battle = null;
 
@@ -5407,6 +5407,8 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const takeMiss = () => {
     const before = G.player.hp;
     API.applyAttack(0, "промах", true, "", false);
+    // Сам промах не бьёт: удар врага разыгрывается отдельно, но с учётом
+    // накопленной серии ошибок.
     API.playerTakeHit();
     return before - G.player.hp;
   };

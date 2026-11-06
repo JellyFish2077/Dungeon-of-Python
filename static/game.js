@@ -1757,9 +1757,9 @@
   const TASK_POWER = {
     mc: 1,
     fill: 1,
-    error: 1.1,
-    copy: 1.35,
-    code: 1.5
+    error: 1.05,
+    copy: 1.15,
+    code: 1.3
   };
 
   // Элиты — те же семнадцать видов, но с усиленной способностью и
@@ -2394,6 +2394,12 @@
   // На десятом этаже крыса бьёт уже вчетверо сильнее, чем на первом.
   let ENEMY_DMG_PER_FLOOR = 0.32;
   let ENEMY_DMG_RAMP = 0.28;
+  let ENEMY_DMG_MUL = 1.8;
+  // Игрок больше не должен перебивать врага в четыре раза за один точный
+  // ответ: без снаряжения его удар держится ближе к урону монстра.
+  // 0,73 — после прогонов ботом: обычный вопрос бьёт ~35, удар врага ~13
+  // вместо прежних 47 и 11. Задания на код срезаны отдельно: см. codeDamage.
+  let PLAYER_DMG_MUL = 0.73;
   let HP_PER_FLOOR = 0.10;
   // Кривая урона по глубине. Первые этажи мягче: ученик с половиной верных
   // ответов не должен умирать на втором этаже, не увидев игры. Последние —
@@ -2410,17 +2416,21 @@
   // заданий подряд: «вспомни» (вопрос) и «примени» (практика на ту же тему).
   // Раньше враг падал с одного-двух ответов, и подземелье проходили за урок.
   // Опыт за врага от этого множителя не растёт — см. поле xp в makeEnemy.
-  // 2,4 подобрано ботом после жалобы на одноударные бои: при 80% верных
-  // ответов обычный бой идёт 2,6 задания, босс — 3,0; при 70% — 2,8 и 3,0.
-  // Прежние 1,8 давали 1,9 и 1,2: точный ответ с серией снимал моба сразу.
-  let ENEMY_HP_MUL = 2.4;
+  // 1,9 подобрано после прогонов ботом: при 80% верных ответов обычный бой
+  // идёт ~3,0 задания, босс — ~2,5–3,0; при 70% — 3,4–3,5 и 3,0. Прежние
+  // 1,8 давали 1,9 и 1,2: точный ответ с серией снимал моба сразу.
+  let ENEMY_HP_MUL = 1.9;
   // Босс — отдельная толщина: обычный бой и босс должны различаться длиной,
   // а не только запасом здоровья в таблице. Боссу при этом не достаётся
   // «мягкий вход» первых этажей — иначе первый босс падал за один-два удара.
-  let BOSS_HP_MUL = 1.5;
+  // 1,0: финальный босс и так толще по базовой таблице. Прежние 1,5 в сумме
+  // с ENEMY_HP_MUL делали его непроходимым: бот доходил до 15-го этажа,
+  // но не выигрывал ни одной кампании из сорока.
+  let BOSS_HP_MUL = 1.0;
   // Вход в подземелье мягче: на первом этаже враг получает 45% от полной
-  // толщины, дальше доля растёт за этаж, к седьмому — полностью. В начале
-  // герой слабее всего, и длинные бои там превращали первые этажи в стену.
+  // толщины, дальше доля растёт за этаж, к седьмому — полностью. Мягкий
+  // вход безопасен только потому, что урон игрока тоже снижен: иначе
+  // первые мобы падали с одного удара и ход врага не успевал начаться.
   // Мягкий вход: на первом этаже враг получает долю HP_START от полной толщины,
   // к EASE_FLOORS-му этажу — всё. Так бой на первых этажах короче: длина боя —
   // главное, что убивает слабого ученика (замер ботом: при 50% верных ответов
@@ -2476,7 +2486,7 @@
     const base = type.dmg + floorIdx * ENEMY_DMG_PER_FLOOR;
     const ramp = type.dmg * ENEMY_DMG_RAMP * floorIdx;
     return Math.max(1, Math.round((base + ramp) * mul * endlessDepthMul(floorIdx) *
-      depthDamageShare(floorIdx)));
+      depthDamageShare(floorIdx) * ENEMY_DMG_MUL));
   }
 
   function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx, isBoss) {
@@ -10873,17 +10883,19 @@
       (playerAttackPower() * bonusMulFor(kind) + level * 6 + rand(0, 5)) *
         streakMul() *
         critRoll() *
-        taskPowerMul()
+        taskPowerMul() *
+        PLAYER_DMG_MUL
     );
   }
 
   function codeDamage(kind) {
     const q = setQuality(kind || "perfect");
     return Math.round(
-      (playerAttackPower() * 2 * bonusMulFor(q) + 10) *
+      (playerAttackPower() * 1.5 * bonusMulFor(q) + 10) *
         streakMul() *
         critRoll() *
-        taskPowerMul()
+        taskPowerMul() *
+        PLAYER_DMG_MUL
     );
   }
 
@@ -11220,11 +11232,10 @@
         parts.push("Враг впадает в ярость!");
       }
       if (!phaseBreak && counter) {
-        // Ошибка — это топливо некроманта: он поднимает слугу.
-        if (ability === "summon") summonMinion(e);
-        // Урон за ошибку больше не приходит мгновенно: у врага будет
-        // отдельный ход с вопросом. Ошибка лишь усиливает его ответ.
-        parts.push("Ошибка. В свой ход враг ответит сильнее — готовься.");
+        // Промах сам по себе не бьёт: ни враг, ни герой не получают урон
+        // за неправильный ответ. Ошибка только передаёт ход врагу и
+        // усиливает его следующий удар.
+        parts.push("Ошибка. Ход переходит врагу.");
       }
     }
     b.feedback = parts.join(" ");
@@ -11707,6 +11718,8 @@
         ? "В бой с " + b.squadNext.name
         : b.won
         ? "Продолжить"
+        : b.skipEnemyTurn
+        ? "Следующий вопрос"
         : "Ход врага";
     }
 
@@ -12781,33 +12794,12 @@
   }
 
   function resolveEnemyMistake(e, b, turn) {
-    let hit = Math.max(1, Math.round(playerAttackPower() * ENEMY_QUIZ.mistakePower));
-    if (abilityOf(e) === "armor") {
-      hit = Math.max(1, hit - Math.floor(hit * (e.armorPct || 0.2)));
-    }
-    if (abilityOf(e) === "bulwark") {
-      hit = Math.max(1, hit - Math.floor(hit * (e.elite ? 0.45 : 0.35)));
-    }
-    if (b.enemyGuard) {
-      hit = Math.max(1, Math.round(hit * (1 - b.enemyGuard)));
-      b.enemyGuard = 0;
-    }
-    e.hp = Math.max(0, e.hp - hit);
-    turn.dealt = hit;
+    // Ошибка врага отменяет его действие, но не наносит ему урон.
+    // Удар за ошибку — такая же бесплатная атака, как и ответный удар
+    // за ошибку игрока; пока убираем обе.
     const answer = turn.view.options[turn.chosen];
-    turn.feedback = "Враг ответил «" + answer + "» — ошибся. Ты бьёшь на " + hit + " урона.";
-    if (e.hp <= 0) {
-      defeatEnemy(e);
-      b.won = true;
-      // Отряд: ошибка врага не должна заканчивать бой, пока живы соседи.
-      const nextSquad = nextSquadEnemy(b);
-      if (nextSquad) {
-        b.squadNext = nextSquad;
-        turn.feedback += " В бой вступает «" + nextSquad.name + "»!";
-      } else if (b.squad && b.squad.length) {
-        turn.feedback += " Отряд повержен.";
-      }
-    }
+    turn.dealt = 0;
+    turn.feedback = "Враг ответил «" + answer + "» — ошибся. Действие не сработало.";
   }
 
   function resolveEnemySpecial(e, b, turn) {
@@ -14419,6 +14411,17 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.25.0",
+      date: "6 ноября 2026",
+      title: "Урон и честный промах",
+      items: [
+        "Урон героя снижен: обычный вопрос бьёт ~34 вместо ~47, задача на код — ~31 вместо 59.",
+        "Враги бьют больнее: множитель урона врага поднят с 1,5 до 1,8.",
+        "Промах больше не бьёт ни игрока, ни врага: ошибка только передаёт ход.",
+        "Бой стал короче и честнее: толщина врагов 1,9, бонус здоровья боссу убран — финальный босс снова проходим."
+      ]
+    },
     {
       version: "1.24.0",
       date: "6 ноября 2026",
@@ -17672,7 +17675,7 @@ function topicName(key) {
     "squad.from", "squad.chance", "squad.maxSize",
     "combat.aggro", "combat.view", "combat.darkView", "combat.hazardDmg",
     "combat.rangedDmg", "combat.hintCap", "combat.streakStep", "combat.streakCap",
-    "player.levelDmg", "player.levelHp", "player.xpBase",
+    "player.levelDmg", "player.levelHp", "player.xpBase", "player.dmgMul",
     "econ.goldBase", "econ.goldDepth", "econ.bossGold", "econ.priceDepth",
     "econ.sellRate", "econ.shopMarkup",
     "econ.forgeBase", "econ.forgeStep", "econ.forgeDepth",
@@ -17680,7 +17683,7 @@ function topicName(key) {
     "difficulty.easy.enemyScale", "difficulty.normal.enemyScale", "difficulty.hard.enemyScale",
     "difficulty.easy.qBonus", "difficulty.normal.qBonus", "difficulty.hard.qBonus",
     "hazard.frost", "hazard.lava",
-    "enemy.hpMul", "enemy.bossHpMul", "combat.missStep", "combat.missCap", "guard.hpMul", "guard.dmgMul",
+    "enemy.hpMul", "enemy.bossHpMul", "enemy.dmgMul", "combat.missStep", "combat.missCap", "guard.hpMul", "guard.dmgMul",
     "learn.reviewChance", "learn.floorTopic",
     "hub.deathGoldShare", "hub.knowledgeGoldShare", "hub.retreatGoldShare",
     "hub.amuletPrice", "hub.amuletFindChance", "hub.amuletMax",
@@ -17726,6 +17729,7 @@ function topicName(key) {
       case "player.levelDmg": LEVEL_DMG = value; return true;
       case "player.levelHp": LEVEL_HP = value; return true;
       case "player.xpBase": XP_BASE = value; return true;
+      case "player.dmgMul": PLAYER_DMG_MUL = value; return true;
       case "econ.goldBase": ECON.goldBase = value; return true;
       case "econ.goldDepth": ECON.goldDepth = value; return true;
       case "econ.bossGold": ECON.bossGold = value; return true;
@@ -17748,6 +17752,7 @@ function topicName(key) {
       case "hazard.lava": HAZARD_DENSITY.lava = value; return true;
       case "enemy.hpMul": ENEMY_HP_MUL = value; return true;
       case "enemy.bossHpMul": BOSS_HP_MUL = value; return true;
+      case "enemy.dmgMul": ENEMY_DMG_MUL = value; return true;
       case "combat.missStep": MISS_STEP = value; return true;
       case "combat.missCap": MISS_CAP = value; return true;
       case "guard.hpMul": GUARD.hpMul = value; return true;
@@ -17830,6 +17835,7 @@ function topicName(key) {
       case "player.levelDmg": return LEVEL_DMG;
       case "player.levelHp": return LEVEL_HP;
       case "player.xpBase": return XP_BASE;
+      case "player.dmgMul": return PLAYER_DMG_MUL;
       case "econ.goldBase": return ECON.goldBase;
       case "econ.goldDepth": return ECON.goldDepth;
       case "econ.bossGold": return ECON.bossGold;
@@ -17852,6 +17858,7 @@ function topicName(key) {
       case "hazard.lava": return HAZARD_DENSITY.lava;
       case "enemy.hpMul": return ENEMY_HP_MUL;
       case "enemy.bossHpMul": return BOSS_HP_MUL;
+      case "enemy.dmgMul": return ENEMY_DMG_MUL;
       case "combat.missStep": return MISS_STEP;
       case "combat.missCap": return MISS_CAP;
       case "guard.hpMul": return GUARD.hpMul;
