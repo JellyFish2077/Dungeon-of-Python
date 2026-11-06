@@ -353,23 +353,34 @@ if ((G.camps || []).length) {
   log(G.player.hp === hpAfterFirst, "тот же костёр второй раз не работает");
 }
 
-// Действия героя: оборона ослабляет удар, отступление выводит из боя.
+// Действия героя: оборона пропускает вопрос и передаёт ход врагу,
+// отступление выводит из боя.
 quietFloor(5);
 const braceEnemy = enemyOnPlayerCell("orc", 500);
 G.enemies = [braceEnemy];
 API.openBattle(braceEnemy);
 G.player.hp = 400;
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
-const hpBeforeBrace = G.player.hp;
 API.defendTurn();
-log(G.player.hp < hpBeforeBrace, "оборона пропускает удар врага", hpBeforeBrace + " -> " + G.player.hp);
+log(!!G.battle.enemyTurn, "оборона пропускает вопрос и передаёт ход врагу");
 log(G.battle && G.battle.blockLeft >= 1, "и даёт заряд блока", "блок: " + (G.battle && G.battle.blockLeft));
-const braceLoss = hpBeforeBrace - G.player.hp;
-const rawHit = Math.max(1, braceEnemy.dmg);
-log(braceLoss < rawHit + 4, "но удар при обороне слабее полного",
-  braceLoss + " против удара " + rawHit);
-if (G.battle) API.fleeBattle();
-log(G.battle === null, "отступление заканчивает бой");
+G.battle = null;
+
+// Стойка ослабляет удар врага в его ход.
+quietFloor(5);
+const bracedEnemy = enemyOnPlayerCell("orc", 500);
+G.enemies = [bracedEnemy];
+API.openBattle(bracedEnemy);
+G.player.hp = 500;
+G.player.defBonus = 0;
+bracedEnemy.dmg = 20;
+G.battle.braced = true;
+const bracedBefore = G.player.hp;
+API.playerTakeHit();
+const bracedLoss = bracedBefore - G.player.hp;
+log(bracedLoss > 0 && bracedLoss < 20, "оборона ослабляет удар врага",
+  "урон " + bracedLoss + " из 20");
+G.battle = null;
 quietFloor(5);
 const runEnemy = enemyOnPlayerCell("orc", 500);
 G.enemies = [runEnemy];
@@ -379,6 +390,73 @@ const hpBeforeRun = G.player.hp;
 API.fleeBattle();
 log(G.player.hp < hpBeforeRun && G.battle === null, "а само отступление стоит удара",
   hpBeforeRun + " -> " + G.player.hp);
+// После ответа игрока начинается отдельный ход врага: он получает свой
+// вопрос и отвечает на него сам.
+quietFloor(5);
+const turnEnemy = enemyOnPlayerCell("orc", 4000);
+G.enemies = [turnEnemy];
+API.openBattle(turnEnemy);
+G.player.hp = 500;
+G.player.defBonus = 0;
+const turnQ = API.QUESTIONS[0];
+G.battle.challenge = {
+  type: "mc",
+  question: turnQ,
+  view: { options: turnQ.options, answer: turnQ.answer }
+};
+G.stats.streak = 0;
+API.answerMC(turnQ.answer);
+log(!G.battle.enemyTurn, "после ответа игрока враг ещё не бьёт");
+API.continueBattle();
+log(!!G.battle.enemyTurn && !!G.battle.enemyTurn.question &&
+    !!G.battle.enemyTurn.view && typeof G.battle.enemyTurn.correct === "boolean",
+  "у врага свой ход с вопросом и своим ответом");
+log(!!G.battle.enemyTurn.feedback, "ход врага показывает итог действия");
+API.renderBattle();
+const enemyTurnHtml = el("battle-box").innerHTML;
+log(/Ход врага/.test(enemyTurnHtml) && /Враг ответил/.test(enemyTurnHtml) &&
+    /enemy-options/.test(enemyTurnHtml),
+  "в бою виден вопрос врага, его ответ и разметка вариантов");
+G.battle.enemyTurn = null;
+G.battle = null;
+
+// Враг может ошибиться — тогда герой бьёт в ответ.
+quietFloor(5);
+const mistakeEnemy = enemyOnPlayerCell("orc", 4000);
+G.enemies = [mistakeEnemy];
+API.openBattle(mistakeEnemy);
+mistakeEnemy.hp = 900;
+G.player.hp = 500;
+const savedRandomForTurn = Math.random;
+Math.random = () => 0.99;
+API.startEnemyTurn();
+log(G.battle.enemyTurn && G.battle.enemyTurn.correct === false && mistakeEnemy.hp < 900,
+  "враг может ошибиться, и тогда получает урон",
+  "HP врага " + mistakeEnemy.hp);
+Math.random = savedRandomForTurn;
+G.battle = null;
+
+// Верный ответ врага запускает его действие: атака бьёт героя.
+quietFloor(5);
+const actionEnemy = enemyOnPlayerCell("orc", 4000);
+G.enemies = [actionEnemy];
+API.openBattle(actionEnemy);
+actionEnemy.dmg = 10;
+G.player.hp = 500;
+const enemyAttackTurn = { action: "attack", actionName: "Атака", feedback: "", taken: 0, dealt: 0 };
+API.resolveEnemyAction(actionEnemy, G.battle, enemyAttackTurn);
+log(G.player.hp < 500 && enemyAttackTurn.taken > 0,
+  "действие врага «атака» бьёт героя",
+  "HP героя 500 -> " + G.player.hp);
+const enemyDefendTurn = { action: "defend", actionName: "Защита", feedback: "", taken: 0, dealt: 0 };
+API.resolveEnemyAction(actionEnemy, G.battle, enemyDefendTurn);
+log(G.battle.enemyGuard > 0, "враг умеет закрываться защитой");
+actionEnemy.hp = 100;
+const enemyHealTurn = { action: "heal", actionName: "Лечение", feedback: "", taken: 0, dealt: 0 };
+API.resolveEnemyAction(actionEnemy, G.battle, enemyHealTurn);
+log(actionEnemy.hp > 100, "враг умеет лечиться", "HP врага 100 -> " + actionEnemy.hp);
+G.battle = null;
+
 quietFloor(5);
 const bossEnemy = enemyOnPlayerCell("dragon", 500);
 G.enemies = [bossEnemy];
@@ -465,8 +543,10 @@ let vamp = enemyOnPlayerCell("vampire", 400);
 G.player.hp = 200;
 API.openBattle(vamp);
 vamp.hp = 200;
-API.applyAttack(10, "тест", true, "");
-log(vamp.hp > 200, "вампир лечится от удара игрока", vamp.hp);
+vamp.dmg = 10;
+G.battle.phase = "result";
+API.playerTakeHit();
+log(vamp.hp > 200, "вампир лечится от удара по герою", vamp.hp);
 G.battle = null;
 
 // ================= Пропуск вопроса =================
@@ -506,6 +586,9 @@ log((G.stats.topicStats[skipQ.topic] || { total: 0 }).total === skipTotal + 1,
   "пропуск засчитан как пробел по теме");
 log(/Пропущено/.test(el("battle-box").innerHTML), "в бою сказано, что вопрос пропущен");
 log(G.stats.wrong > 0, "пропуск честно портит процент похода", G.stats.wrong);
+API.continueBattle();
+log(G.battle.phase === "question" && !G.battle.enemyTurn,
+  "пропуск вопроса не запускает ход врага");
 
 // Мало здоровья — пропускать нечего: убить себя кнопкой «не знаю» нельзя.
 freshRun(3);
@@ -981,7 +1064,7 @@ if (block) {
     G.battle.won = false;
     G.battle.playerDead = false;
     G.battle.blocked = false;
-    API.applyAttack(10, "тест", true, "");
+    API.playerTakeHit();
     if (G.player.hp === 300) blocked++; else hurt++;
   }
   log(blocked === charges, "блок гасит ровно N ударов", blocked + "/" + charges +
@@ -3231,10 +3314,13 @@ API.answerMC(1);
 log(wrongEnemy.hp === hpBeforeWrong,
   "за неверный ответ враг НЕ получает урона",
   hpBeforeWrong + " -> " + wrongEnemy.hp);
-log(G.player.hp < myHpBeforeWrong,
-  "за неверный ответ получает герой",
+log(G.player.hp === myHpBeforeWrong,
+  "за неверный ответ герой не получает урон мгновенно",
   myHpBeforeWrong + " -> " + G.player.hp);
+log(G.battle.missStreak > 0, "но ошибка усилит следующий ход врага", G.battle.missStreak);
 log(G.battle.good === false, "неверный ответ помечен красным, а не зелёным");
+API.continueBattle();
+log(!!G.battle.enemyTurn, "после ошибки наступает ход врага");
 G.battle = null;
 
 // Сверка по буквам: отступы — часть задания, значит это ошибка.
@@ -4850,9 +4936,9 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   globalThis.fetch = answer({ ok: false, error: "SyntaxError: expected ':'", results: [] });
   API.checkCode();
   const tsBad = G.stats.topicStats[topicOf("code", task)] || { correct: 0, total: 0 };
-  log(G.player.hp < 150 && G.stats.codeTried === 1 && G.battle.phase === "result" &&
-    tsBad.total === 1 && tsBad.correct === 0,
-    "ошибка в программе ученика стоит удара и попадает в разбор по темам",
+  log(G.player.hp > 0 && G.battle.missStreak > 0 && G.stats.codeTried === 1 &&
+    G.battle.phase === "result" && tsBad.total === 1 && tsBad.correct === 0,
+    "ошибка в программе ученика готовит ход врага и попадает в разбор по темам",
     "HP " + G.player.hp + ", тема " + topicOf("code", task) + " " + tsBad.correct + "/" + tsBad.total);
   G.battle = null;
 
@@ -5321,6 +5407,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const takeMiss = () => {
     const before = G.player.hp;
     API.applyAttack(0, "промах", true, "", false);
+    API.playerTakeHit();
     return before - G.player.hp;
   };
   const hit1 = takeMiss();

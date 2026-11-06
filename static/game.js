@@ -1884,6 +1884,12 @@
   // умение тратит заряд похода.
   let BRACE_CUT = 0.5;          // какая доля урона врага проходит при обороне
   let FLEE_HIT = 1;             // доля урона прощального удара при отступлении
+  // Ход врага — отдельный вопрос. Враг отвечает сам и может ошибиться:
+  // тогда герой бьёт в ответ. Точность растёт с глубиной, но не до 100%.
+  const ENEMY_QUIZ = {
+    accuracy: 0.55, floorStep: 0.012, max: 0.85, min: 0.35,
+    mistakePower: 1
+  };
   let ABILITY_CHARGES = 2;      // зарядов умения на поход
   let ABILITY_STRIKE_MUL = 2;   // во сколько раз бьёт «Точный удар»
   let ABILITY_BREATH = 0.4;     // сколько здоровья возвращает «Второе дыхание»
@@ -10136,6 +10142,10 @@
       quality: null,
       qualityMul: 1,
       blockLeft: null,
+      enemyTurn: null,
+      enemyGuard: 0,
+      skipEnemyTurn: false,
+      braced: false,
       quip: typeof enemyQuip === "function" ? enemyQuip(enemy.key) : "",
       // Первые секунды боя — заставка, пока камера подъезжает. Повторная
       // отрисовка боя не должна запускать её заново.
@@ -10162,6 +10172,10 @@
         G.battle.results = restore.results || null;
         G.battle.bossBreak = restore.bossBreak || null;
         G.battle.bossPhase = restore.bossPhase || enemy.bossPhase || 0;
+        G.battle.enemyTurn = restore.enemyTurn || null;
+        G.battle.enemyGuard = restore.enemyGuard || 0;
+        G.battle.skipEnemyTurn = !!restore.skipEnemyTurn;
+        G.battle.braced = !!restore.braced;
         // Восстановленный итог не закрываем таймером: игрок сам нажмёт
         // «Забрать добычу» / «Следующий вопрос».
         G.battle.restored = true;
@@ -10897,7 +10911,9 @@
   function playerTakeHit(hitMul) {
     const b = G.battle;
     const e = b.enemy;
-    const share = hitMul == null ? 1 : Math.max(0, hitMul);
+    const braced = b.braced ? (1 - BRACE_CUT) : 1;
+    const share = (hitMul == null ? 1 : Math.max(0, hitMul)) * braced;
+    if (b.braced) b.braced = false;
     // Дальнобойный: между выстрелами есть перезарядка, иначе он бьёт
     // каждый ход и герой не успевает ни ответить, ни выпить зелье.
     if ((e.range || 1) > 1) {
@@ -11026,6 +11042,9 @@
 
   function applyAttack(damage, message, counter, explanation, correct) {
     const b = G.battle;
+    // Пропуск (correct: false, counter: false) уже стоит здоровья и не
+    // должен запускать отдельный ход врага.
+    if (correct === false && !counter) b.skipEnemyTurn = true;
     // Точность для адаптивных вопросов считаем здесь, а не в answerMC:
     // так в окно попадают и вопросы, и код, и «повтори», и пропуски.
     if (correct != null) noteAnswer(!!correct);
@@ -11082,6 +11101,14 @@
         hit = Math.max(1, hit - absorbed);
         parts.push("Щит «" + e.name + "» гасит " + absorbed + " урона.");
       }
+    }
+    // Враг потратил свой ход на защиту: следующий удар героя слабее.
+    if (b.enemyGuard && hit > 0) {
+      const cut = Math.min(0.8, b.enemyGuard);
+      const absorbed = Math.max(1, Math.round(hit * cut));
+      hit = Math.max(1, hit - absorbed);
+      b.enemyGuard = 0;
+      parts.push(e.name + " держит защиту: удар слабее на " + absorbed + ".");
     }
     if (ability === "charge" && hit > 0) {
       e.dmgBoost = Math.min(e.chargeCap || 10, (e.dmgBoost || 0) + (e.chargeStep || 2));
@@ -11192,35 +11219,12 @@
         }
         parts.push("Враг впадает в ярость!");
       }
-      if (counter && !phaseBreak) {
-        // Ошибка — это и есть топливо некроманта: он поднимает слугу.
+      if (!phaseBreak && counter) {
+        // Ошибка — это топливо некроманта: он поднимает слугу.
         if (ability === "summon") summonMinion(e);
-        taken = playerTakeHit();
-        if (b.blocked) {
-          parts.push("Щит гасит удар «" + e.name + "».");
-        } else if (taken > 0) {
-          const dist = Math.round(
-            Math.hypot(e.x - G.playerPos.x, e.y - G.playerPos.y)
-          );
-          if (b.rangedShot) {
-            parts.push(
-              e.name + " выпускает снаряд с " + dist + " клеток: " + taken + " урона."
-            );
-            effectFlash("Снаряд · " + taken + " урона");
-          } else {
-            parts.push(e.name + " бьёт тебя на " + taken + " урона.");
-          }
-          if (missMul(b.missStreak) > 1) {
-            parts.push("Ошибка подряд — удар ×" + missMul(b.missStreak).toFixed(1).replace(".", ",") + ".");
-          }
-        } else if (b.rangedCdMsg) {
-          parts.push(e.name + " " + b.rangedCdMsg);
-        }
-        if (b.drainHeal > 0) parts.push("Вампир впитывает " + b.drainHeal + " здоровья.");
-        b.poisonTick = playerPoisonTick();
-        if (b.poisonTick > 0) {
-          parts.push("Яд отнимает ещё " + b.poisonTick + " здоровья.");
-        }
+        // Урон за ошибку больше не приходит мгновенно: у врага будет
+        // отдельный ход с вопросом. Ошибка лишь усиливает его ответ.
+        parts.push("Ошибка. В свой ход враг ответит сильнее — готовься.");
       }
     }
     b.feedback = parts.join(" ");
@@ -11358,7 +11362,7 @@
     if (globalThis.__PYQUIZ_SYNC_FLOORS) return;
     battleCloseTimer = setTimeout(() => {
       const b = G.battle;
-      if (!b || b.phase !== "result" || !b.won || b.squadNext ||
+      if (!b || b.phase !== "result" || !b.won || b.squadNext || b.enemyTurn ||
           b.playerDead || b.restored || !G.player || G.player.hp <= 0) return;
       // Пока окно боя гаснет, возвращаем фигурки на карту: иначе герой
       // сначала медленно исчезает вместе с окном, и только потом появляется
@@ -11440,6 +11444,28 @@
     });
   }
 
+  // Карточка хода врага: тот же вопрос, но варианты не нажимаются. Видно,
+  // что выбрал враг и где был верный ответ.
+  function enemyTurnQuestionHtml(turn) {
+    const q = turn.question || {};
+    let html = "<div class='challenge-tag enemy'>Вопрос врага</div>";
+    html += "<div class='challenge-q'>" + escText(q.text || "") + "</div>";
+    if (q.code) html += "<pre class='code'>" + escText(q.code) + "</pre>";
+    html += "<div class='options enemy-options'>";
+    (turn.view.options || []).forEach((opt, i) => {
+      let cls = "option";
+      if (i === turn.chosen) cls += turn.correct ? " correct" : " wrong";
+      else if (i === turn.view.answer) cls += " correct";
+      html += "<div class='" + cls + "'><span class='key'>" +
+        String.fromCharCode(65 + i) + "</span>" + escText(opt) + "</div>";
+    });
+    html += "</div>";
+    html += "<div class='battle-note'>Враг ответил: «" +
+      escText(turn.view.options[turn.chosen]) + "» — " +
+      (turn.correct ? "верно." : "ошибся.") + "</div>";
+    return html;
+  }
+
   function renderBattle() {
     const b = G.battle;
     if (!b) return;
@@ -11465,7 +11491,9 @@
     // выезжает панель с вопросом. Карточку по центру убрали: она закрывала
     // ту самую карту, ради которой игрок и ходит по подземелью.
     let roundNote = "Ход героя";
-    if (b.phase !== "question") {
+    if (b.enemyTurn) {
+      roundNote = "Ход врага";
+    } else if (b.phase !== "question") {
       if (b.playerDead || G.player.hp <= 0) roundNote = "Поражение";
       else if (b.won) roundNote = "Победа";
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
@@ -11629,6 +11657,22 @@
         html += "<div class='battle-feedback' id='code-feedback'></div>";
         html += "</div>";
       }
+    } else if (b.enemyTurn) {
+      const turn = b.enemyTurn;
+      html += "<div class='enemy-turn-tag'>Ход врага · " +
+        escText(turn.actionName || "Действие") + "</div>";
+      html += "<div class='battle-feedback " + (turn.correct ? "bad" : "good") + "'>" +
+        escText(turn.feedback) + "</div>";
+      html += enemyTurnQuestionHtml(turn);
+      if (turn.explanation) {
+        html += "<div class='battle-explain'><b>Разбор:</b> " +
+          escText(turn.explanation) + "</div>";
+      }
+      footLabel = b.playerDead || G.player.hp <= 0
+        ? "Продолжить"
+        : b.won
+        ? "Продолжить"
+        : "Следующий вопрос";
     } else {
       html += "<div class='battle-feedback " + (b.good ? "good" : "bad") + "'>" + b.feedback + "</div>";
       if (b.explanation) {
@@ -11663,7 +11707,7 @@
         ? "В бой с " + b.squadNext.name
         : b.won
         ? "Продолжить"
-        : "Следующий вопрос";
+        : "Ход врага";
     }
 
     html += "</div>";
@@ -12169,9 +12213,9 @@
     const action = [];
     defense.push(
       "<button class='btn ghost' id='defend-btn' type='button' data-tip=\"" +
-      tipAttr("Пропустить ход и закрыться: удар врага пройдёт вполсилы, а на следующий удар " +
-        "будет заряд блока. Ждать выгодно не всегда: враг всё равно бьёт, яд тикает, " +
-        "а «огонь» и «натиск» за время обороны только крепнут.") +
+      tipAttr("Пропустить вопрос: ход перейдёт врагу, а его следующий удар пройдёт вполсилы. " +
+        "Заряд блока сохранится до следующего попадания. Ждать выгодно не всегда: враг " +
+        "всё равно действует, яд тикает, а «огонь» и «натиск» за время обороны крепнут.") +
       "\">Оборона</button>");
     flee.push(
       "<button class='btn ghost" + (canRun && !deadly ? "" : " idle") + "' id='flee-btn' type='button' data-tip=\"" +
@@ -12225,16 +12269,15 @@
   function defendTurn() {
     const b = G.battle;
     if (!b || b.phase !== "question" || b.busy) return;
+    // Оборона — это пропуск вопроса. Урон не приходит мгновенно:
+    // ход переходит врагу, а стойка ослабляет его следующий удар.
     b.phase = "result";
     b.braced = true;
     G.stats.braces = (G.stats.braces || 0) + 1;
-    const dmg = playerTakeHit(1 - BRACE_CUT);
     b.blockLeft = (b.blockLeft == null ? 0 : b.blockLeft) + 1;
-    b.feedback = dmg > 0
-      ? "Герой закрылся: удар прошёл слабее (−" + dmg + "). Следующий удар примет блок."
-      : "Герой закрылся: удар не прошёл.";
-    log("Оборона: удар врага ослаблен (−" + dmg + ").", "fight");
-    effectFlash("Оборона · блок +1");
+    b.feedback = "Герой пропускает вопрос и готовится к удару. Ход переходит врагу.";
+    log("Оборона: вопрос пропущен, ход переходит врагу.", "fight");
+    effectFlash("Оборона · ход врагу");
     renderBattle();
     continueBattle();
   }
@@ -12653,6 +12696,244 @@
     }
   }
 
+  // ---------- Ход врага ----------
+  // Враг не бьёт «за каждый ответ». У него свой ход: он выбирает действие,
+  // получает вопрос, отвечает сам и может ошибиться. Тогда герой бьёт в ответ.
+
+  const ENEMY_ACTION_NAMES = {
+    attack: "Атака", defend: "Защита", heal: "Лечение", special: "Особый приём"
+  };
+
+  const ENEMY_SPECIAL_NAMES = {
+    poison: "Ядовитый укус", fire: "Огненный выпад", curse: "Проклятие",
+    summon: "Призыв", charge: "Натиск", drain: "Вампиризм",
+    regen: "Регенерация", heal: "Молитва", armor: "Каменная стойка",
+    bulwark: "Щит", phasing: "Мерцание", bossrage: "Ярость"
+  };
+
+  function enemyAccuracy() {
+    const b = G.battle;
+    const e = b && b.enemy;
+    if (!e) return ENEMY_QUIZ.accuracy;
+    let acc = ENEMY_QUIZ.accuracy + G.floorIndex * ENEMY_QUIZ.floorStep;
+    if (e.elite) acc += 0.05;
+    if (e.boss) acc += 0.08;
+    // Ошибка героя даёт врагу уверенность: следующий его ответ точнее.
+    acc += Math.min(0.15, (b.missStreak || 0) * 0.05);
+    return clamp(acc, ENEMY_QUIZ.min, ENEMY_QUIZ.max);
+  }
+
+  function enemyActionName(e, action) {
+    if (action !== "special") return ENEMY_ACTION_NAMES[action] || "Действие";
+    const ab = abilityOf(e);
+    return ENEMY_SPECIAL_NAMES[ab] || "Особый приём";
+  }
+
+  function chooseEnemyAction(e, b) {
+    const ab = abilityOf(e);
+    const share = e.maxHp ? e.hp / e.maxHp : 1;
+    if (share < 0.45 && (ab === "regen" || ab === "heal" || ab === "drain") &&
+        Math.random() < 0.55) return "heal";
+    if (share < 0.3 && Math.random() < 0.25) return "defend";
+    if (ab && Math.random() < 0.45) return "special";
+    if (share < 0.55 && Math.random() < 0.15) return "defend";
+    return Math.random() < 0.08 ? "defend" : "attack";
+  }
+
+  function wrongAnswerIndex(view) {
+    const total = view && view.options ? view.options.length : 4;
+    const right = view ? view.answer : 0;
+    const wrong = [];
+    for (let i = 0; i < total; i += 1) if (i !== right) wrong.push(i);
+    return wrong.length ? wrong[rand(0, wrong.length - 1)] : right;
+  }
+
+  function enemyAttackPlayer(e, b, turn, verb) {
+    const dmg = playerTakeHit();
+    turn.taken = dmg;
+    if (b.blocked) {
+      turn.feedback = "Щит гасит удар «" + e.name + "».";
+    } else if (dmg > 0) {
+      const dist = Math.round(Math.hypot(e.x - G.playerPos.x, e.y - G.playerPos.y));
+      if (b.rangedShot) {
+        turn.feedback = e.name + " выпускает снаряд с " + dist + " клеток: " + dmg + " урона.";
+        effectFlash("Снаряд · " + dmg + " урона");
+      } else {
+        turn.feedback = e.name + (verb || " бьёт тебя на ") + dmg + " урона.";
+      }
+      if (missMul(b.missStreak || 1) > 1) {
+        turn.feedback += " Ошибка подряд — удар ×" +
+          missMul(b.missStreak).toFixed(1).replace(".", ",") + ".";
+      }
+    } else if (b.rangedCdMsg) {
+      turn.feedback = e.name + " " + b.rangedCdMsg;
+    } else {
+      turn.feedback = e.name + " не достаёт до героя.";
+    }
+    if (b.drainHeal > 0) turn.feedback += " Вампир впитывает " + b.drainHeal + " здоровья.";
+    if (G.player.hp <= 0) b.playerDead = true;
+  }
+
+  function healEnemy(e, share) {
+    const was = e.hp;
+    e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(e.maxHp * share)));
+    return e.hp - was;
+  }
+
+  function resolveEnemyMistake(e, b, turn) {
+    let hit = Math.max(1, Math.round(playerAttackPower() * ENEMY_QUIZ.mistakePower));
+    if (abilityOf(e) === "armor") {
+      hit = Math.max(1, hit - Math.floor(hit * (e.armorPct || 0.2)));
+    }
+    if (abilityOf(e) === "bulwark") {
+      hit = Math.max(1, hit - Math.floor(hit * (e.elite ? 0.45 : 0.35)));
+    }
+    if (b.enemyGuard) {
+      hit = Math.max(1, Math.round(hit * (1 - b.enemyGuard)));
+      b.enemyGuard = 0;
+    }
+    e.hp = Math.max(0, e.hp - hit);
+    turn.dealt = hit;
+    const answer = turn.view.options[turn.chosen];
+    turn.feedback = "Враг ответил «" + answer + "» — ошибся. Ты бьёшь на " + hit + " урона.";
+    if (e.hp <= 0) {
+      defeatEnemy(e);
+      b.won = true;
+      // Отряд: ошибка врага не должна заканчивать бой, пока живы соседи.
+      const nextSquad = nextSquadEnemy(b);
+      if (nextSquad) {
+        b.squadNext = nextSquad;
+        turn.feedback += " В бой вступает «" + nextSquad.name + "»!";
+      } else if (b.squad && b.squad.length) {
+        turn.feedback += " Отряд повержен.";
+      }
+    }
+  }
+
+  function resolveEnemySpecial(e, b, turn) {
+    const ab = abilityOf(e);
+    if (ab === "poison") {
+      G.player.poison = Math.min(3, (G.player.poison || 0) + 1 + (e.poisonBonus || 0));
+      turn.feedback = e.name + " отравляет героя. Яд: " + G.player.poison + ".";
+      return;
+    }
+    if (ab === "fire") {
+      e.fireScale = (e.fireScale || 1) * (e.fireMul || 1.15);
+      e.dmg = Math.max(1, Math.round(e.baseDmg * e.fireScale * (e.shotScale || 1)));
+      turn.feedback = e.name + " разжигает пламя: следующий удар будет сильнее.";
+      return;
+    }
+    if (ab === "curse") {
+      b.cursed = true;
+      turn.feedback = e.name + " проклинает героя: подсказка не работает.";
+      return;
+    }
+    if (ab === "summon") {
+      const minion = summonMinion(e);
+      turn.feedback = minion
+        ? e.name + " поднимает слугу: " + minion.name + "."
+        : e.name + " пытается позвать слугу, но рядом нет места.";
+      return;
+    }
+    if (ab === "charge") {
+      e.dmgBoost = Math.min(e.chargeCap || 10, (e.dmgBoost || 0) + (e.chargeStep || 2));
+      turn.feedback = e.name + " накапливает силу: следующий удар сильнее.";
+      return;
+    }
+    if (ab === "regen") {
+      const healed = healEnemy(e, e.elite ? 0.14 : 0.08);
+      turn.feedback = e.name + " затягивает раны: +" + healed + " здоровья.";
+      return;
+    }
+    if (ab === "heal") {
+      const healed = healEnemy(e, 0.1);
+      healFloorAllies(e);
+      turn.feedback = e.name + " лечит себя и раненых союзников.";
+      if (healed > 0) turn.feedback += " Себе: +" + healed + ".";
+      return;
+    }
+    if (ab === "armor" || ab === "bulwark") {
+      b.enemyGuard = Math.max(b.enemyGuard || 0, abilityOf(e) === "bulwark" ? 0.5 : 0.35);
+      turn.feedback = e.name + " закрывается: следующий удар будет слабее.";
+      return;
+    }
+    if (ab === "drain") {
+      enemyAttackPlayer(e, b, turn, " впивается и забирает ");
+      return;
+    }
+    if (ab === "bossrage") {
+      e.nextDmgMul = Math.max(e.nextDmgMul || 1, 1.25);
+      enemyAttackPlayer(e, b, turn, " обрушивает ярость на ");
+      return;
+    }
+    // phasing и неизвестные способности: обычный удар.
+    enemyAttackPlayer(e, b, turn);
+  }
+
+  function resolveEnemyAction(e, b, turn) {
+    if (turn.action === "defend") {
+      b.enemyGuard = Math.max(b.enemyGuard || 0, 0.5);
+      turn.feedback = e.name + " закрывается. Следующий удар будет слабее.";
+      return;
+    }
+    if (turn.action === "heal") {
+      const healed = healEnemy(e, e.elite ? 0.2 : 0.15);
+      turn.feedback = e.name + " затягивает раны: +" + healed + " здоровья.";
+      return;
+    }
+    if (turn.action === "special") {
+      resolveEnemySpecial(e, b, turn);
+      return;
+    }
+    enemyAttackPlayer(e, b, turn);
+  }
+
+  function startEnemyTurn() {
+    const b = G.battle;
+    if (!b || !b.enemy || b.enemy.hp <= 0) return;
+    const e = b.enemy;
+    const action = chooseEnemyAction(e, b);
+    const question = pickQuestion();
+    const view = shuffleChoices(question.options, question.answer);
+    const correct = Math.random() < enemyAccuracy();
+    const turn = {
+      action: action,
+      actionName: enemyActionName(e, action),
+      question: question,
+      view: view,
+      chosen: correct ? view.answer : wrongAnswerIndex(view),
+      correct: correct,
+      feedback: "",
+      explanation: question.explanation || "",
+      taken: 0,
+      dealt: 0
+    };
+    // Яд тикает в начале хода врага: это его действие, а не наказание
+    // за верный ответ игрока.
+    const poison = playerPoisonTick();
+    if (poison > 0) turn.feedback = "Яд отнимает " + poison + " здоровья. ";
+    if (G.player.hp <= 0) {
+      b.playerDead = true;
+      turn.feedback += "Герой не выдерживает яда.";
+    } else if (correct) {
+      resolveEnemyAction(e, b, turn);
+    } else {
+      resolveEnemyMistake(e, b, turn);
+    }
+    // Стойка действует только на этот ход врага. Если враг выбрал
+    // защиту или лечение, она не переносится на следующий раунд.
+    b.braced = false;
+    // После действия в тексте ошибки могла остаться только часть фразы.
+    turn.feedback = (turn.feedback || "").trim();
+    b.enemyTurn = turn;
+    b.phase = "result";
+    b.feedback = "";
+    b.explanation = "";
+    b.results = null;
+    renderBattle();
+    updateHud();
+  }
+
   function continueBattle() {
     const b = G.battle;
     // Смерть проверяется первой. Раньше ветка b.won стояла выше, а шипы
@@ -12669,6 +12950,25 @@
       b.bossBreak = null;
       closeBattle();
       setMsg("Босс ждёт у следующего якоря. Иди через зал.");
+      return;
+    }
+    // Показали ход врага — возвращаемся к вопросу игрока.
+    if (b.enemyTurn) {
+      b.enemyTurn = null;
+      if (b.squadNext) {
+        const next = b.squadNext;
+        b.squadNext = null;
+        startSquadMember(b, next);
+        nextChallenge();
+        renderBattle();
+        return;
+      }
+      if (b.won) {
+        closeBattle();
+        return;
+      }
+      nextChallenge();
+      renderBattle();
       return;
     }
     // Отряд: выбил одного — бой продолжается с следующим, уйти нельзя.
@@ -12689,6 +12989,16 @@
         log("Ты разорвал цепь ударом.", "fight");
       }
       closeBattle();
+      return;
+    }
+    if (b.skipEnemyTurn) {
+      b.skipEnemyTurn = false;
+      nextChallenge();
+      renderBattle();
+      return;
+    }
+    if (b.enemy && b.enemy.hp > 0) {
+      startEnemyTurn();
       return;
     }
     nextChallenge();
@@ -14109,6 +14419,18 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.24.0",
+      date: "6 ноября 2026",
+      title: "Ход врага",
+      items: [
+        "Бой разделён на ход игрока и ход врага: у врага свой вопрос, свой ответ и свои ошибки.",
+        "Враг выбирает действие: атаку, защиту, лечение или особый приём — яд, огонь, проклятие, призыв, натиск.",
+        "Ошибся враг — герой бьёт в ответ. Ответил верно — срабатывает его действие.",
+        "Оборона теперь пропускает вопрос и передаёт ход врагу: следующий удар приходит вполсилы.",
+        "Пропуск вопроса не запускает ход врага."
+      ]
+    },
     {
       version: "1.23.0",
       date: "6 ноября 2026",
@@ -15787,6 +16109,10 @@ function topicName(key) {
             bossPhase: G.battle.bossPhase || 0,
             playerDead: !!G.battle.playerDead,
             results: G.battle.results || null,
+            enemyTurn: G.battle.enemyTurn || null,
+            enemyGuard: G.battle.enemyGuard || 0,
+            skipEnemyTurn: !!G.battle.skipEnemyTurn,
+            braced: !!G.battle.braced,
             squadNextUid: G.battle.squadNext ? G.battle.squadNext.uid : 0
           }
           : null,
