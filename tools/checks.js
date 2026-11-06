@@ -467,11 +467,14 @@ API.openBattle(cardEnemy);
 cardEnemy.hp = cardEnemy.maxHp;
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
 API.attachChoices(G.battle.challenge);
+G.battle.enemyGuard = 0.5;
 API.answerMC(G.battle.challenge.view.answer);
 const cardHtml = el("battle-box").innerHTML;
 log(/result-card/.test(cardHtml) && /result-damage/.test(cardHtml) &&
     /Попадание/.test(cardHtml), "итог удара показан карточкой результата");
-log(/result-chip/.test(cardHtml), "модификаторы удара вынесены в чипы");
+log(/result-chip/.test(cardHtml) && /Защита/.test(cardHtml),
+  "модификаторы удара вынесены в чипы");
+log(!/Первая попытка/.test(cardHtml), "чип «Первая попытка» убран");
 log(!/id='battle-explain'/.test(cardHtml), "после верного ответа пояснение свёрнуто");
 log(/explain-btn/.test(cardHtml) && /Пояснение/.test(cardHtml),
   "рядом с продолжением есть кнопка «Пояснение»");
