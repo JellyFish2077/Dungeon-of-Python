@@ -204,7 +204,10 @@ const ITEM_POOL = [
     desc: "Полное здоровье и снимает яд. Второго шанса не будет." },
   { id: "purifying_draught", name: "Очищающий настой", slot: "potion", heal: 45, rarity: "rare", tier: 3,
     effect: { kind: "cleanse" },
-    desc: "Лечит 45 HP и смывает яд, который уже попал в кровь." }
+    desc: "Лечит 45 HP и смывает яд, который уже попал в кровь." },
+  { id: "hint_scroll", name: "Свиток подсказки", slot: "potion", heal: 0, rarity: "rare", tier: 2,
+    effect: { kind: "hint" },
+    desc: "Один раз даёт подсказку в бою, не отнимая здоровья." }
 ];
 
 function itemById(id) {
@@ -224,6 +227,7 @@ const EFFECT_NAMES = {
   block: "Гасит первые атаки врага",
   thorns: "Шипы бьют сильнее при верном ответе",
   hintFree: "Бесплатные подсказки без −10 HP",
+  hint: "Одна подсказка в бою без потери здоровья",
   goldBonus: "Больше золота за верные ответы",
   poisonImmune: "Не действует яд",
   reveal: "Все враги видны на этаже",

@@ -363,7 +363,14 @@ G.player.hp = 400;
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
 API.defendTurn();
 log(!!G.battle.enemyTurn, "оборона пропускает вопрос и передаёт ход врагу");
-log(G.battle && G.battle.blockLeft >= 1, "и даёт заряд блока", "блок: " + (G.battle && G.battle.blockLeft));
+G.player.defBonus = 0;
+const bareBrace = API.braceCutForPlayer();
+G.player.defBonus = 15;
+const gearedBrace = API.braceCutForPlayer();
+log(Math.abs(bareBrace - 0.15) < 0.001, "без снаряжения оборона блокирует только 15%",
+  Math.round(bareBrace * 100) + "%");
+log(gearedBrace > bareBrace, "снаряжение усиливает оборону",
+  Math.round(bareBrace * 100) + "% -> " + Math.round(gearedBrace * 100) + "%");
 G.battle = null;
 
 // Стойка ослабляет удар врага в его ход.
@@ -375,8 +382,12 @@ G.player.hp = 500;
 G.player.defBonus = 0;
 bracedEnemy.dmg = 20;
 G.battle.braced = true;
+G.battle.braceCut = API.braceCutForPlayer();
 const bracedBefore = G.player.hp;
+const savedBraceRandom = Math.random;
+Math.random = () => 0;
 API.playerTakeHit();
+Math.random = savedBraceRandom;
 const bracedLoss = bracedBefore - G.player.hp;
 log(bracedLoss > 0 && bracedLoss < 20, "оборона ослабляет удар врага",
   "урон " + bracedLoss + " из 20");
@@ -387,9 +398,26 @@ G.enemies = [runEnemy];
 API.openBattle(runEnemy);
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
 const hpBeforeRun = G.player.hp;
+const savedFleeRandom = Math.random;
+Math.random = () => 0.01;
 API.fleeBattle();
+Math.random = savedFleeRandom;
 log(G.player.hp < hpBeforeRun && G.battle === null, "а само отступление стоит удара",
   hpBeforeRun + " -> " + G.player.hp);
+
+// Неудачное отступление не выводит из боя, а передаёт ход врагу.
+quietFloor(5);
+const failedRunEnemy = enemyOnPlayerCell("orc", 500);
+G.enemies = [failedRunEnemy];
+API.openBattle(failedRunEnemy);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+G.player.hp = 500;
+const savedFailRandom = Math.random;
+Math.random = () => 0.99;
+API.fleeBattle();
+Math.random = savedFailRandom;
+log(!!G.battle && !!G.battle.enemyTurn, "неудачное отступление передаёт ход врагу");
+G.battle = null;
 // После ответа игрока начинается отдельный ход врага: он получает свой
 // вопрос и отвечает на него сам.
 quietFloor(5);
@@ -605,8 +633,8 @@ API.renderBattle();
 const skipLabel = el("battle-box").innerHTML;
 log(/skip-question-btn/.test(skipLabel), "в бою есть кнопка «Пропустить вопрос»");
 const skipPrice = API.skipCost();
-log(skipLabel.indexOf("Пропустить вопрос (−" + skipPrice + " HP)") >= 0,
-  "на кнопке написана цена", "ждём −" + skipPrice + " HP");
+log(/Пропустить вопрос \(шанс \d+%, −\d+ HP\)/.test(skipLabel),
+  "на кнопке написаны шанс и цена", "ждём шанс и −" + skipPrice + " HP");
 log(skipPrice >= Math.round(G.player.maxHp * 0.15) && skipPrice <= Math.round(G.player.maxHp * 0.3),
   "цена ощутимая — доля от здоровья, а не мелочь",
   skipPrice + " при максимуме " + G.player.maxHp);
@@ -615,7 +643,10 @@ const skipHp = G.player.hp;
 const skipEnemyHp = G.battle.enemy.hp;
 const skipTotal = (G.stats.topicStats[skipQ.topic] || { total: 0 }).total;
 G.player.hp = Math.max(G.player.hp, 500);
+const savedSkipRandom = Math.random;
+Math.random = () => 0.01;
 API.skipQuestion();
+Math.random = savedSkipRandom;
 log(G.battle.phase === "result", "после пропуска бой идёт дальше", G.battle.phase);
 log(G.player.hp === 500 - API.skipCost(),
   "здоровье ушло ровно на цену пропуска — враг не бил",
@@ -629,6 +660,22 @@ log(G.stats.wrong > 0, "пропуск честно портит процент 
 API.continueBattle();
 log(G.battle.phase === "question" && !G.battle.enemyTurn,
   "пропуск вопроса не запускает ход врага");
+
+// Неудачный пропуск: вопрос сгорает, здоровье платится, враг получает ход.
+freshRun(3);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+const failSkipQ = API.QUESTIONS[0];
+G.battle.challenge = { type: "mc", question: failSkipQ };
+API.attachChoices(G.battle.challenge);
+G.player.hp = 500;
+const savedFailSkipRandom = Math.random;
+Math.random = () => 0.99;
+API.skipQuestion();
+Math.random = savedFailSkipRandom;
+log(G.battle.phase === "result" && !G.battle.skipEnemyTurn && G.battle.missStreak > 0,
+  "неудачный пропуск передаёт ход врагу");
+log(G.player.hp === 500 - API.skipCost(), "неудачный пропуск всё равно стоит здоровья");
+G.battle = null;
 
 // Мало здоровья — пропускать нечего: убить себя кнопкой «не знаю» нельзя.
 freshRun(3);
@@ -673,7 +720,10 @@ API.renderBattle();
 G.player.hp = 500;
 const codeSkipEnemyHp = G.battle.enemy.hp;
 const codeSkipWrong = G.stats.wrong;
+const savedCodeSkipRandom = Math.random;
+Math.random = () => 0.01;
 API.skipCodeQuestion();
+Math.random = savedCodeSkipRandom;
 log(G.battle.phase === "result", "пропуск кода завершает ход", G.battle.phase);
 log(G.player.hp === 500 - API.skipCost(), "пропуск кода стоит здоровья",
   "стало " + G.player.hp);
@@ -694,6 +744,49 @@ log(/attack_power\(10, 5\)/.test(codeHint) && /15/.test(codeHint) &&
   "подсказка к функции показывает первую проверку с ожидаемым значением",
   codeHint);
 G.battle = null;
+
+// Свиток подсказки — редкий предмет: его можно купить или найти, а в бою
+// он даёт подсказку без потери здоровья.
+const hintItem = API.ITEM_POOL.find((i) => i.id === "hint_scroll");
+log(!!hintItem && hintItem.rarity === "rare" && hintItem.effect &&
+    hintItem.effect.kind === "hint", "свиток подсказки — редкий предмет");
+log(API.SHOP_WARES.some((w) => w.id === "hint_scroll"), "свиток есть у торговца");
+log(API.itemsForFloor(2).some((i) => i.id === "hint_scroll"), "свиток может выпасть в подземелье");
+freshRun(4);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+G.inventory.push(Object.assign({}, hintItem));
+G.player.hp = 400;
+const hintHpBefore = G.player.hp;
+API.useHint();
+log(!G.inventory.some((i) => i.id === "hint_scroll"), "свиток подсказки расходуется");
+log(G.player.hp === hintHpBefore, "свиток не отнимает здоровье",
+  "HP " + hintHpBefore + " → " + G.player.hp);
+log(G.battle.challenge.hintUsed === true && Array.isArray(G.battle.challenge.hidden),
+  "свиток даёт обычную подсказку");
+G.battle = null;
+
+// Шанс пропуска и отступления зависит от здоровья героя и врага.
+const chanceEnemy = API.makeEnemy("orc", 3);
+chanceEnemy.hp = chanceEnemy.maxHp;
+G.player.hp = G.player.maxHp;
+G.stats.streak = 0;
+const fullSkipChance = API.skipChance(chanceEnemy);
+G.player.hp = Math.max(1, Math.round(G.player.maxHp * 0.2));
+const lowSkipChance = API.skipChance(chanceEnemy);
+log(lowSkipChance < fullSkipChance, "низкое здоровье героя снижает шанс пропуска",
+  Math.round(lowSkipChance * 100) + "% < " + Math.round(fullSkipChance * 100) + "%");
+G.player.hp = G.player.maxHp;
+chanceEnemy.hp = Math.max(1, Math.round(chanceEnemy.maxHp * 0.2));
+const hurtEnemyChance = API.skipChance(chanceEnemy);
+log(hurtEnemyChance > fullSkipChance, "раненый враг повышает шанс пропуска",
+  Math.round(hurtEnemyChance * 100) + "% > " + Math.round(fullSkipChance * 100) + "%");
+const bossChance = API.makeEnemy("dragon", 3);
+G.player.hp = G.player.maxHp;
+G.stats.streak = 0;
+log(API.fleeChance(bossChance) < API.fleeChance(chanceEnemy),
+  "от босса уйти труднее, чем от обычного врага");
 
 // минотавр копит силу
 freshRun(6);
@@ -1776,7 +1869,7 @@ log(twoHtml.indexOf("effect-dot lifesteal") >= 0 &&
 // Все 12 видов эффектов должны иметь человеческое описание, иначе
 // игрок увидит сырой идентификатор вида effect-dot-что-то.
 const allKinds = [...new Set(ITEM_POOL.filter((i) => i.effect).map((i) => i.effect.kind))];
-log(allKinds.length === 12, "в пуле ровно 12 видов особых эффектов", allKinds.length);
+log(allKinds.length === 13, "в пуле ровно 13 видов особых эффектов", allKinds.length);
 log(!!API.EFFECT_HINTS, "таблица подсказок EFFECT_HINTS экспортируется");
 const rawKinds = allKinds.filter((k) => !API.EFFECT_HINTS || !API.EFFECT_HINTS[k]);
 log(rawKinds.length === 0, "у каждого вида эффекта есть русская подсказка", rawKinds.join(","));
