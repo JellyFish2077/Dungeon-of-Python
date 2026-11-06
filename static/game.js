@@ -11193,7 +11193,6 @@
       dealt = hit;
       if (wasQuality === "perfect" && wasMul > 1) {
         parts.push("Точный ответ с первого раза — удар усилен.");
-        resultMods.push({ key: "first", text: "Первая попытка" });
         effectFlash("Точный ответ · удар ×" + wasMul.toFixed(2));
       } else if (wasQuality && wasQuality !== "perfect" && wasMul < 1.5) {
         parts.push("Ответ с погрешностью — удар слабее.");
@@ -11743,7 +11742,10 @@
         "<span class='result-title'>" + headline + "</span>" +
         (dealt > 0 ? "<span class='result-damage'>" + dealt + " урона</span>" : "") +
         "</div>";
-      const mods = Array.isArray(b.resultMods) ? b.resultMods : [];
+      // Старые сохранения могли запомнить чип «Первая попытка» — не
+      // показываем его и после загрузки.
+      const mods = (Array.isArray(b.resultMods) ? b.resultMods : [])
+        .filter((m) => m && m.key !== "first");
       if (mods.length) {
         html += "<div class='result-mods'>" + mods.map((m) =>
           "<span class='result-chip'>" + escText(m.text || "") + "</span>").join("") + "</div>";
@@ -14473,6 +14475,14 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.25.6",
+      date: "6 ноября 2026",
+      title: "Без чипа «Первая попытка»",
+      items: [
+        "Из карточки результата убран чип «Первая попытка»."
+      ]
+    },
     {
       version: "1.25.5",
       date: "6 ноября 2026",
