@@ -10160,6 +10160,8 @@
       enemyTurn: null,
       enemyGuard: 0,
       skipEnemyTurn: false,
+      skipFailed: false,
+      fleeFailed: false,
       braced: false,
       // Короткий итог последнего удара для карточки результата: текст без
       // цифр-модификаторов, сами модификаторы и служебная строка хода.
@@ -10202,6 +10204,8 @@
         }
         G.battle.enemyGuard = restore.enemyGuard || 0;
         G.battle.skipEnemyTurn = !!restore.skipEnemyTurn;
+        G.battle.skipFailed = !!restore.skipFailed;
+        G.battle.fleeFailed = !!restore.fleeFailed;
         G.battle.braced = !!restore.braced;
         G.battle.resultText = restore.resultText || "";
         G.battle.resultMods = restore.resultMods || null;
@@ -10304,6 +10308,8 @@
     b.resultTurnNote = "";
     b.resultInfo = null;
     b.explainOpen = true;
+    b.skipFailed = false;
+    b.fleeFailed = false;
     b.squad = squadMembersOf(e);
     const ab = abilityOf(e);
     if (ab === "curse" && Math.random() < (e.curseChance == null ? 0.35 : e.curseChance)) {
@@ -10759,6 +10765,8 @@
     const b = G.battle;
     const step = b.step || 0;
     b.step = step + 1;
+    b.skipFailed = false;
+    b.fleeFailed = false;
     let c = null;
 
     // Призрак ошибки начинает бой с задания, на котором ученик ошибся, а
@@ -11829,12 +11837,17 @@
             "\">" + hintLabel + "</button>");
         }
         const codeSkipChance = Math.round(skipChance(b.enemy) * 100);
+        const codeSkipBlocked = !!b.skipFailed;
         atkBtns.push(
-          "<button class='btn ghost' id='skip-code-btn' type='button' data-tip=\"" +
-          tipAttr("Шанс " + codeSkipChance + "% зависит от здоровья героя и врага. " +
-            "При успехе задание пропускается, враг не бьёт. " +
-            "При неудаче задание сгорит, а враг получит ход. Здоровье не тратится.") +
-          "\">Пропустить вопрос (шанс " + codeSkipChance + "%)</button>");
+          "<button class='btn ghost" + (codeSkipBlocked ? " idle" : "") +
+          "' id='skip-code-btn' type='button' data-tip=\"" +
+          tipAttr(codeSkipBlocked
+            ? "Пропуск уже не удался. Ответь на задание — повторной попытки нет."
+            : "Шанс " + codeSkipChance + "% зависит от здоровья героя и врага. " +
+              "При успехе задание пропускается, враг не бьёт. " +
+              "При неудаче задание остаётся, здоровье не тратится.") +
+          "\">" + (codeSkipBlocked ? "Пропуск не удался" :
+            "Пропустить вопрос (шанс " + codeSkipChance + "%)") + "</button>");
       } else {
         // «Вспомни»: подсказка (если её ещё не брали) и пропуск вопроса.
         // Пропуск не тратит здоровье: только бросает шанс и уводит вопрос
@@ -11856,12 +11869,17 @@
             "\">" + hintLabel + "</button>");
         }
         const skipChancePct = Math.round(skipChance(b.enemy) * 100);
+        const skipBlocked = !!b.skipFailed;
         atkBtns.push(
-          "<button class='btn ghost' id='skip-question-btn' type='button' data-tip=\"" +
-          tipAttr("Шанс " + skipChancePct + "% зависит от здоровья героя и врага. " +
-            "При успехе вопрос пропускается, враг не бьёт. " +
-            "При неудаче вопрос сгорит, а враг получит ход. Здоровье не тратится.") +
-          "\">Пропустить вопрос (шанс " + skipChancePct + "%)</button>");
+          "<button class='btn ghost" + (skipBlocked ? " idle" : "") +
+          "' id='skip-question-btn' type='button' data-tip=\"" +
+          tipAttr(skipBlocked
+            ? "Пропуск уже не удался. Ответь на вопрос — повторной попытки нет."
+            : "Шанс " + skipChancePct + "% зависит от здоровья героя и врага. " +
+              "При успехе вопрос пропускается, враг не бьёт. " +
+              "При неудаче вопрос остаётся, здоровье не тратится.") +
+          "\">" + (skipBlocked ? "Пропуск не удался" :
+            "Пропустить вопрос (шанс " + skipChancePct + "%)") + "</button>");
       }
       const hero = heroActionBtns(b);
       html += battleGroupHtml("Атака", atkBtns, "attack");
@@ -12138,30 +12156,30 @@
     if (!b || b.phase !== "question" || b.busy) return;
     const c = b.challenge;
     if (!c || c.type === "copy" || c.type === "code") return;
+    if (b.skipFailed) {
+      toast("Пропуск уже не удался — ответь на вопрос");
+      return;
+    }
     const chance = skipChance(b.enemy);
     const pct = Math.round(chance * 100);
     const success = Math.random() < chance;
     const item = c.question || c.task;
     const topic = item.topic || "syntax";
+    if (!success) {
+      // Неудача не сжигает вопрос и не передаёт ход: игрок остаётся на том
+      // же задании. Повторять попытку нельзя — иначе шанс ничего не решает.
+      b.skipFailed = true;
+      log("Пропуск не удался (шанс " + pct + "%). Вопрос остаётся.", "fight");
+      toast("Пропуск не удался: шанс " + pct + "%. Ответь на вопрос");
+      renderBattle();
+      return;
+    }
     G.stats.wrong += 1;
     G.stats.streak = 0;
     G.stats.topicStats[topic] = G.stats.topicStats[topic] || { correct: 0, total: 0 };
     G.stats.topicStats[topic].total += 1;
     pushMissed(c.type, item);
     setQuality("partial");
-    if (!success) {
-      log("Пропуск не удался (шанс " + pct + "%): враг перехватывает ход.", "fight");
-      toast("Пропуск не удался: шанс " + pct + "%");
-      applyAttack(
-        0,
-        "Пропуск не удался (шанс " + pct + "%): вопрос сгорел, ход переходит врагу.",
-        true,
-        item.explanation,
-        false
-      );
-      updateHud();
-      return;
-    }
     log("Вопрос пропущен (шанс " + pct + "%). Он вернётся призраком.", "fight");
     toast("Пропуск удался: шанс " + pct + "%");
     applyAttack(
@@ -12183,26 +12201,25 @@
     if (!b || b.phase !== "question" || b.busy) return;
     const c = b.challenge;
     if (!c || (c.type !== "code" && c.type !== "copy")) return;
+    if (b.skipFailed) {
+      toast("Пропуск уже не удался — ответь на задание");
+      return;
+    }
     const chance = skipChance(b.enemy);
     const pct = Math.round(chance * 100);
     const success = Math.random() < chance;
+    if (!success) {
+      // Неудача оставляет то же задание и не запускает ход врага.
+      b.skipFailed = true;
+      log("Пропуск задания не удался (шанс " + pct + "%). Задание остаётся.", "fight");
+      toast("Пропуск не удался: шанс " + pct + "%. Ответь на задание");
+      renderBattle();
+      return;
+    }
     G.stats.wrong += 1;
     G.stats.streak = 0;
     countTaskTopic(c.type, c.task, false);
     setQuality("partial");
-    if (!success) {
-      log("Пропуск задания не удался (шанс " + pct + "%): враг перехватывает ход.", "fight");
-      toast("Пропуск не удался: шанс " + pct + "%");
-      applyAttack(
-        0,
-        "Пропуск не удался (шанс " + pct + "%): задание сгорело, ход переходит врагу.",
-        true,
-        c.task.explanation,
-        false
-      );
-      updateHud();
-      return;
-    }
     log("Задание пропущено (шанс " + pct + "%). Разбор — ниже.", "fight");
     toast("Пропуск удался: шанс " + pct + "%");
     applyAttack(
@@ -12318,6 +12335,7 @@
     const e = b.enemy;
     const st = abilityState();
     const canRun = canFlee(e);
+    const fleeFailed = !!b.fleeFailed;
     const fleePct = Math.round(fleeChance(e) * 100);
     const defense = [];
     const flee = [];
@@ -12331,13 +12349,18 @@
         "«натиск» за время обороны крепнут.") +
       "\">Оборона</button>");
     flee.push(
-      "<button class='btn ghost" + (canRun ? "" : " idle") + "' id='flee-btn' type='button' data-tip=\"" +
-      tipAttr(!canRun
+      "<button class='btn ghost" + (canRun && !fleeFailed ? "" : " idle") +
+      "' id='flee-btn' type='button' data-tip=\"" +
+      tipAttr(fleeFailed
+        ? "Отступление уже не удалось. Ответь на вопрос — повторной попытки нет."
+        : !canRun
         ? "Отсюда не уйти: дракон, страж лестницы, отряд и щитоносец держат героя."
         : "Шанс " + fleePct + "% зависит от здоровья героя и врага. При успехе бой " +
-          "прекращается, герой отходит на клетку. При неудаче враг получает ход. " +
+          "прекращается, герой отходит на клетку. При неудаче вопрос остаётся. " +
           "Здоровье не тратится.") +
-      "\">" + (canRun
+      "\">" + (fleeFailed
+        ? "Отступление не удалось"
+        : canRun
         ? "Отступить (шанс " + fleePct + "%)"
         : "Отступить нельзя") + "</button>");
     if (abilityUnlocked()) {
@@ -12411,23 +12434,19 @@
     if (!b || b.phase !== "question" || b.busy) return;
     const e = b.enemy;
     if (!canFlee(e)) { toast("Отсюда не уйти: враг держит героя"); return; }
+    if (b.fleeFailed) {
+      toast("Отступление уже не удалось — ответь на вопрос");
+      return;
+    }
     const chance = fleeChance(e);
     const pct = Math.round(chance * 100);
     if (Math.random() >= chance) {
-      b.phase = "result";
-      b.good = false;
-      b.feedback = "Отступление не удалось (шанс " + pct + "%). Враг перехватывает ход.";
-      b.explanation = "";
-      b.resultText = "Отступление не удалось.";
-      b.resultMods = [];
-      b.resultTurnNote = "Ход врага";
-      b.resultInfo = { dealt: 0, taken: 0, correct: false };
-      b.explainOpen = false;
-      G.stats.streak = 0;
-      log("Отступление не удалось (шанс " + pct + "%): враг перехватывает ход.", "fight");
-      toast("Отступление не удалось: шанс " + pct + "%");
+      // Неудача не выводит из боя и не передаёт ход: игрок остаётся на том
+      // же задании. Повторять попытку нельзя.
+      b.fleeFailed = true;
+      log("Отступление не удалось (шанс " + pct + "%). Вопрос остаётся.", "fight");
+      toast("Отступление не удалось: шанс " + pct + "%. Ответь на вопрос");
       renderBattle();
-      continueBattle();
       return;
     }
     b.phase = "result";
@@ -14545,6 +14564,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.28.0",
+      date: "6 ноября 2026",
+      title: "Неудачная попытка не сжигает вопрос",
+      items: [
+        "Если пропуск или отступление не удались, игрок остаётся на том же задании.",
+        "Повторная попытка не даётся: вопрос нужно ответить.",
+        "Враг не получает ход из-за неудачной попытки."
+      ]
+    },
+    {
       version: "1.27.0",
       date: "6 ноября 2026",
       title: "Без цены HP",
@@ -16341,6 +16370,8 @@ function topicName(key) {
             enemyTurn: G.battle.enemyTurn || null,
             enemyGuard: G.battle.enemyGuard || 0,
             skipEnemyTurn: !!G.battle.skipEnemyTurn,
+            skipFailed: !!G.battle.skipFailed,
+            fleeFailed: !!G.battle.fleeFailed,
             braced: !!G.battle.braced,
             resultText: G.battle.resultText || "",
             resultMods: G.battle.resultMods || null,
