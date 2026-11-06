@@ -10156,7 +10156,6 @@
       enemyGuard: 0,
       skipEnemyTurn: false,
       braced: false,
-      quip: typeof enemyQuip === "function" ? enemyQuip(enemy.key) : "",
       // Первые секунды боя — заставка, пока камера подъезжает. Повторная
       // отрисовка боя не должна запускать её заново.
       showIntro: !restore,
@@ -10278,7 +10277,6 @@
     b.quality = null;
     b.qualityMul = 1;
     b.blockLeft = null;
-    b.quip = typeof enemyQuip === "function" ? enemyQuip(e.key) : "";
     b.showIntro = true;
     b.results = null;
     b.squadNext = null;
@@ -11296,9 +11294,6 @@
       log("Элита повержена: " + e.name + " пала в бою.", "fight");
       effectFlash("Элита повержена");
     }
-    if (G.battle && G.battle.enemy === e) {
-      G.battle.quip = typeof enemyDefeatQuip === "function" ? enemyDefeatQuip(e.key) : "";
-    }
     const xp = e.xp || e.maxHp;
     G.player.xp += xp;
     const quip = typeof enemyDefeatQuip === "function" ? enemyDefeatQuip(e.key) : "";
@@ -11493,15 +11488,11 @@
       else if (b.won) roundNote = "Победа";
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
     }
-    const introSub = b.quip ? "«" + b.quip + "»" : "Ответь верно — и удар будет твоим.";
     html += "<div class='battle-stage'>";
     html +=
       "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
-      "<span class='battle-intro-kicker'>" + escText(floorNameAt(G.floorIndex)) +
-      " · этаж " + (G.floorIndex + 1) + "</span>" +
       "<b>" + escText(e.name) + " преграждает путь</b>" +
       "<i></i>" +
-      "<p>" + escText(introSub) + "</p>" +
       "</div>";
     html +=
       "<div class='battle-scene'>" +
@@ -14391,6 +14382,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.25.2",
+      date: "6 ноября 2026",
+      title: "Чистая шапка боя",
+      items: [
+        "В шапке боя осталось только название: «Скелет преграждает путь».",
+        "Убраны строка с названием этажа и реплика под заголовком."
+      ]
+    },
     {
       version: "1.25.1",
       date: "6 ноября 2026",
