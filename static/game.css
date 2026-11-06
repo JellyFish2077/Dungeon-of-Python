@@ -12473,8 +12473,10 @@ body.game-page .minimap-dock.off {
   body.battling .battle-panel {
     left: 50%;
     right: auto;
+    top: calc(var(--app-vh) * 0.46);
+    bottom: auto;
     width: min(clamp(560px, 46vw, 820px), calc(100vw - 24px));
-    max-height: min(calc(var(--app-vh) * 0.62), 560px);
+    max-height: min(calc(var(--app-vh) * 0.54 - 12px), 560px);
     padding: 10px 12px 11px;
     transform: translate(-50%, calc(100% + 40px));
   }
