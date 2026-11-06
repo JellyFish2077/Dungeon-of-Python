@@ -458,6 +458,43 @@ API.resolveEnemyAction(actionEnemy, G.battle, enemyHealTurn);
 log(actionEnemy.hp > 100, "враг умеет лечиться", "HP врага 100 -> " + actionEnemy.hp);
 G.battle = null;
 
+// Карточка результата: итог, модификаторы, пояснение и ручное продолжение.
+freshRun(4);
+const cardEnemy = enemyOnPlayerCell("orc", 4000);
+G.enemies = [cardEnemy];
+G.player.hp = 500;
+API.openBattle(cardEnemy);
+cardEnemy.hp = cardEnemy.maxHp;
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+API.answerMC(G.battle.challenge.view.answer);
+const cardHtml = el("battle-box").innerHTML;
+log(/result-card/.test(cardHtml) && /result-damage/.test(cardHtml) &&
+    /Попадание/.test(cardHtml), "итог удара показан карточкой результата");
+log(/result-chip/.test(cardHtml), "модификаторы удара вынесены в чипы");
+log(!/id='battle-explain'/.test(cardHtml), "после верного ответа пояснение свёрнуто");
+log(/explain-btn/.test(cardHtml) && /Пояснение/.test(cardHtml),
+  "рядом с продолжением есть кнопка «Пояснение»");
+API.toggleBattleExplanation();
+log(/id='battle-explain'/.test(el("battle-box").innerHTML), "пояснение раскрывается по кнопке");
+
+freshRun(4);
+const wrongCardEnemy = enemyOnPlayerCell("orc", 4000);
+G.enemies = [wrongCardEnemy];
+G.player.hp = 500;
+API.openBattle(wrongCardEnemy);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+const wrongView = G.battle.challenge.view;
+API.answerMC((wrongView.answer + 1) % wrongView.options.length);
+const wrongCardHtml = el("battle-box").innerHTML;
+log(/Промах/.test(wrongCardHtml) && /result-turn/.test(wrongCardHtml) &&
+    /Ход врага/.test(wrongCardHtml), "ошибка показывает промах и переход хода");
+log(/id='battle-explain'/.test(wrongCardHtml), "после ошибки пояснение открыто сразу");
+log(G.player.hp === 500, "ошибка сама по себе не бьёт героя",
+  "HP " + G.player.hp);
+G.battle = null;
+
 quietFloor(5);
 const bossEnemy = enemyOnPlayerCell("dragon", 500);
 G.enemies = [bossEnemy];

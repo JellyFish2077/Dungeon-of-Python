@@ -10156,6 +10156,14 @@
       enemyGuard: 0,
       skipEnemyTurn: false,
       braced: false,
+      // Короткий итог последнего удара для карточки результата: текст без
+      // цифр-модификаторов, сами модификаторы и служебная строка хода.
+      resultText: "",
+      resultMods: null,
+      resultTurnNote: "",
+      resultInfo: null,
+      explainOpen: true,
+      lootLeft: false,
       // Первые секунды боя — заставка, пока камера подъезжает. Повторная
       // отрисовка боя не должна запускать её заново.
       showIntro: !restore,
@@ -10191,6 +10199,12 @@
         G.battle.enemyGuard = restore.enemyGuard || 0;
         G.battle.skipEnemyTurn = !!restore.skipEnemyTurn;
         G.battle.braced = !!restore.braced;
+        G.battle.resultText = restore.resultText || "";
+        G.battle.resultMods = restore.resultMods || null;
+        G.battle.resultTurnNote = restore.resultTurnNote || "";
+        G.battle.resultInfo = restore.resultInfo || null;
+        G.battle.explainOpen = restore.explainOpen !== false;
+        G.battle.lootLeft = !!restore.lootLeft;
         // Восстановленный итог не закрываем таймером: игрок сам нажмёт
         // «Забрать добычу» / «Следующий вопрос».
         G.battle.restored = true;
@@ -10282,6 +10296,12 @@
     b.squadNext = null;
     b.rangedShot = false;
     b.rangedCdMsg = "";
+    b.resultText = "";
+    b.resultMods = null;
+    b.resultTurnNote = "";
+    b.resultInfo = null;
+    b.explainOpen = true;
+    b.lootLeft = false;
     b.squad = squadMembersOf(e);
     const ab = abilityOf(e);
     if (ab === "curse" && Math.random() < (e.curseChance == null ? 0.35 : e.curseChance)) {
@@ -11097,6 +11117,11 @@
     b.rangedShot = false;
     b.rangedCdMsg = "";
     const parts = [message];
+    // Короткая версия для карточки результата: без «Ты нанёс N урона» и
+    // без модификаторов — они уходят в отдельные чипы.
+    const resultParts = [message];
+    const resultMods = [];
+    let resultTurnNote = "";
     let dealt = 0;
     let taken = 0;
     let hit = Math.max(0, damage);
@@ -11108,6 +11133,7 @@
       if (absorbed > 0) {
         hit = Math.max(1, hit - absorbed);
         parts.push("Каменная броня гасит " + absorbed + " урона.");
+        resultMods.push({ key: "armor", text: "Броня −" + absorbed });
       }
     }
     // Щитоносец: щит гасит часть урона и не даёт отступить (см. canFlee).
@@ -11116,6 +11142,7 @@
       if (absorbed > 0) {
         hit = Math.max(1, hit - absorbed);
         parts.push("Щит «" + e.name + "» гасит " + absorbed + " урона.");
+        resultMods.push({ key: "bulwark", text: "Щит −" + absorbed });
       }
     }
     // Враг потратил свой ход на защиту: следующий удар героя слабее.
@@ -11125,17 +11152,22 @@
       hit = Math.max(1, hit - absorbed);
       b.enemyGuard = 0;
       parts.push(e.name + " держит защиту: удар слабее на " + absorbed + ".");
+      resultMods.push({ key: "guard", text: "Защита −" + absorbed });
     }
     if (ability === "charge" && hit > 0) {
       e.dmgBoost = Math.min(e.chargeCap || 10, (e.dmgBoost || 0) + (e.chargeStep || 2));
       parts.push("Минотавр накапливает силу: его удары станут сильнее.");
+      resultParts.push("Минотавр накапливает силу.");
     }
     e.hp = Math.max(0, e.hp - hit);
     if (ability === "bossrage" && e.enraged && hit > 0 && e.hp > 0) {
       const healed = Math.max(1, Math.round(e.maxHp * (e.elite ? 0.12 : 0.08)));
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + healed);
-      if (e.hp > before) parts.push("Дракон восстанавливает " + (e.hp - before) + " здоровья в ярости!");
+      if (e.hp > before) {
+        parts.push("Дракон восстанавливает " + (e.hp - before) + " здоровья в ярости!");
+        resultParts.push("Дракон восстанавливает силы.");
+      }
     }
     // Тролль затягивает раны прямо в бою: его надо либо бить быстро, либо
     // не связываться вовсе.
@@ -11143,7 +11175,10 @@
       const healed = Math.max(1, Math.round(e.maxHp * (e.elite ? 0.14 : 0.08)));
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + healed);
-      if (e.hp > before) parts.push("Тролль затягивает раны: +" + (e.hp - before) + ".");
+      if (e.hp > before) {
+        parts.push("Тролль затягивает раны: +" + (e.hp - before) + ".");
+        resultParts.push("Тролль затягивает раны.");
+      }
     }
     // «Каменный дар»: монстры этажа затягивают раны после каждого
     // твоего удара — бонус героя оплачен их живучестью.
@@ -11154,18 +11189,27 @@
       e.hp = Math.min(e.maxHp, e.hp + healed);
       if (e.hp > before) {
         parts.push("«" + e.name + "» затягивает раны: +" + (e.hp - before) + " здоровья.");
+        resultParts.push("«" + e.name + "» затягивает раны.");
       }
     }
     if (damage > 0) {
       dealt = hit;
       if (wasQuality === "perfect" && wasMul > 1) {
         parts.push("Точный ответ с первого раза — удар усилен.");
+        resultMods.push({ key: "first", text: "Первая попытка" });
         effectFlash("Точный ответ · удар ×" + wasMul.toFixed(2));
       } else if (wasQuality && wasQuality !== "perfect" && wasMul < 1.5) {
         parts.push("Ответ с погрешностью — удар слабее.");
+        resultMods.push({ key: "quality", text: "Погрешность" });
       }
-      if (wasExecute) parts.push("Добивание: удар по раненому врагу усилен.");
-      if (wasCrit > 1) parts.push("Критический удар ×" + wasCrit + "!");
+      if (wasExecute) {
+        parts.push("Добивание: удар по раненому врагу усилен.");
+        resultMods.push({ key: "execute", text: "Добивание" });
+      }
+      if (wasCrit > 1) {
+        parts.push("Критический удар ×" + wasCrit + "!");
+        resultMods.push({ key: "crit", text: "Крит ×" + wasCrit });
+      }
       parts.push("Ты нанёс " + hit + " урона.");
       if (wasCrit > 1) effectFlash("Крит ×" + wasCrit);
       else if (wasExecute) effectFlash("Добивание · удар усилен");
@@ -11177,6 +11221,7 @@
         G.player.hp = Math.min(G.player.maxHp, G.player.hp + healed);
         if (G.player.hp > before) {
           parts.push("Клинок тянет жизнь: +" + (G.player.hp - before) + " здоровья.");
+          resultParts.push("Клинок тянет жизнь: +" + (G.player.hp - before) + ".");
           effectFlash("Вампиризм +" + (G.player.hp - before) + " HP");
         }
       }
@@ -11187,6 +11232,7 @@
         e.hp = Math.max(0, e.hp - extra);
         dealt += extra;
         parts.push("Шипы на щите впиваются: " + extra + " урона.");
+        resultMods.push({ key: "thorns", text: "Шипы +" + extra });
       }
     }
     if (e.hp <= 0) {
@@ -11199,8 +11245,10 @@
         parts.push(
           "Союзник рядом: в бой вступает «" + nextSquad.name + "»!"
         );
+        resultParts.push("В бой вступает «" + nextSquad.name + "»!");
       } else if (b.squad && b.squad.length) {
         parts.push("Отряд повержен.");
+        resultParts.push("Отряд повержен.");
       }
     } else {
       let phaseBreak = 0;
@@ -11218,6 +11266,7 @@
         b.bossBreak = { phase: phaseBreak };
         b.won = false;
         parts.push("Босс отступает. Начинается фаза " + phaseBreak + ".");
+        resultParts.push("Босс отступает. Начинается фаза " + phaseBreak + ".");
       } else if (e.boss && !e.enraged && !phasedBoss && e.hp <= e.maxHp * 0.4) {
         e.enraged = true;
         e.dmg = Math.round(e.dmg * 1.5);
@@ -11231,18 +11280,28 @@
             e.dmg = Math.round(e.dmg * (1 + tribute.dmgPct));
             parts.push("Дракон чувствует дань: +" + Math.round(tribute.hpPct * 100) +
               "% HP и +" + Math.round(tribute.dmgPct * 100) + "% урона.");
+            resultParts.push("Дракон чувствует дань.");
           }
         }
         parts.push("Враг впадает в ярость!");
+        resultParts.push("Враг впадает в ярость!");
       }
       if (!phaseBreak && counter) {
         // Промах сам по себе не бьёт: ни враг, ни герой не получают урон
         // за неправильный ответ. Ошибка только передаёт ход врагу и
         // усиливает его следующий удар.
         parts.push("Ошибка. Ход переходит врагу.");
+        resultTurnNote = "Ход врага";
       }
     }
     b.feedback = parts.join(" ");
+    b.resultText = resultParts.join(" ");
+    b.resultMods = resultMods;
+    b.resultTurnNote = resultTurnNote;
+    b.resultInfo = { dealt: dealt, taken: taken, correct: correct == null ? null : !!correct };
+    // Ошибка и пропуск открывают разбор сразу: там он нужнее всего.
+    // После верного ответа карточка остаётся компактной.
+    b.explainOpen = correct === true ? false : true;
     // Пункт 3: зелёный/красный итог боя теперь говорит именно о верности
     // ответа, а не о том, «нанесён ли хоть какой-то урон». Раньше промах,
     // отскочивший от шипов, подсвечивался как успех.
@@ -11326,6 +11385,8 @@
       bagItem = e.boss ? bossDrop() : randomItemForFloor(G.floorIndex);
     }
     const bag = ensureLootBag(e.x, e.y, bagGold, bagItem);
+    const bagOnPlayer = bag.x === G.playerPos.x && bag.y === G.playerPos.y;
+    if (G.battle) G.battle.lootLeft = !bagOnPlayer;
     if (bagItem) {
       log("На месте врага остался мешочек: " + bagItem.name + ".", "loot");
       toast("Добыча в мешочке: " + bagItem.name);
@@ -11334,7 +11395,10 @@
     }
     // Если бой закончился на клетке героя, мешочек подбирается сразу —
     // иначе он остался бы под ногами и требовал лишнего шага.
-    if (bag.x === G.playerPos.x && bag.y === G.playerPos.y) pickupLootBag(bag);
+    if (bagOnPlayer) {
+      if (G.battle) G.battle.lootLeft = false;
+      pickupLootBag(bag);
+    }
 
     // Страж лестницы повержен — спуск открыт.
     if (e.guard && G.stairsDown && !G.stairsDown.active) {
@@ -11454,6 +11518,13 @@
         document.body.classList.remove("code-focus");
       }, 180);
     });
+  }
+
+  function toggleBattleExplanation() {
+    const b = G.battle;
+    if (!b) return;
+    b.explainOpen = b.explainOpen === false;
+    renderBattle();
   }
 
   function renderBattle() {
@@ -11657,12 +11728,44 @@
         ? "Продолжить"
         : "Следующий вопрос";
     } else {
-      html += "<div class='battle-feedback " + (b.good ? "good" : "bad") + "'>" + b.feedback + "</div>";
-      if (b.explanation) {
-        html += "<div class='battle-explain'><b>Пояснение:</b> " + b.explanation + "</div>";
+      const good = !!b.good;
+      const info = b.resultInfo || {};
+      const dealt = Math.max(0, Number(info.dealt) || 0);
+      const isDead = !!b.playerDead || (G.player && G.player.hp <= 0);
+      const isSkip = !!b.skipEnemyTurn && !b.won && !isDead;
+      const headline = isDead
+        ? "Поражение"
+        : b.won
+        ? "Победа"
+        : isSkip
+        ? "Пропуск"
+        : good
+        ? "Попадание"
+        : "Промах";
+      const explainOpen = b.explainOpen !== false;
+      html += "<div class='result-card " + (good ? "good" : "bad") + "'>";
+      html +=
+        "<div class='result-head'>" +
+        "<span class='result-icon'>" + (good ? "✓" : "✗") + "</span>" +
+        "<span class='result-title'>" + headline + "</span>" +
+        (dealt > 0 ? "<span class='result-damage'>" + dealt + " урона</span>" : "") +
+        "</div>";
+      const mods = Array.isArray(b.resultMods) ? b.resultMods : [];
+      if (mods.length) {
+        html += "<div class='result-mods'>" + mods.map((m) =>
+          "<span class='result-chip'>" + escText(m.text || "") + "</span>").join("") + "</div>";
       }
-      if (b.won && b.restored) {
-        html += "<div class='battle-note'>Добыча осталась на земле — подбери её на карте.</div>";
+      if (b.resultTurnNote) {
+        html += "<div class='result-turn'>" + escText(b.resultTurnNote) + "</div>";
+      }
+      html += "<div class='battle-feedback " + (good ? "good" : "bad") + "'>" +
+        (b.resultText || b.feedback) + "</div>";
+      if (b.explanation && explainOpen) {
+        html += "<div class='battle-explain' id='battle-explain'><b>Пояснение:</b> " +
+          b.explanation + "</div>";
+      }
+      if (b.won && (b.lootLeft || b.restored)) {
+        html += "<div class='battle-note loot-note'>Добыча осталась на земле — подбери её на карте.</div>";
       }
       if (b.results) {
         html += "<div class='test-results'>";
@@ -11679,6 +11782,7 @@
         });
         html += "</div>";
       }
+      html += "</div>";
       // Мёртв — так и пишем. Раньше проверка стояла последней, и павшему
       // герою с добитым шипами врагом предлагали «Забрать добычу».
       // Подпись запоминаем: сама кнопка уезжает в футер карточки.
@@ -11783,16 +11887,14 @@
       html += battleGroupHtml("Защита", hero.defense, "defense");
       html += battleGroupHtml("Побег", hero.flee, "flee");
     } else {
-      // Победа закрывает окно сама: короткая пауза, затем плавное исчезновение.
-      // Кнопка «Забрать добычу» больше не нужна — мешочек ждёт на карте.
-      if (b.phase === "result" && b.won && !b.squadNext && !b.restored &&
-          !b.playerDead && G.player && G.player.hp > 0) {
-        html += "<div class='battle-cat-wide battle-auto-note'>" +
-          "Бой завершён · добыча осталась на земле</div>";
-      } else {
-        html += "<div class='battle-cat-wide'>" +
-          "<button class='btn' id='continue-btn'>" + footLabel + "</button></div>";
-      }
+      const explainOpen = b.explainOpen !== false;
+      const explainBtn = b.phase === "result" && b.explanation && !b.enemyTurn
+        ? "<button class='btn ghost result-explain-btn' id='explain-btn' " +
+          "aria-expanded='" + explainOpen + "' aria-controls='battle-explain'>" +
+          (explainOpen ? "Скрыть пояснение" : "Пояснение") + "</button>"
+        : "";
+      html += "<div class='battle-cat-wide result-actions'>" + explainBtn +
+        "<button class='btn' id='continue-btn'>" + footLabel + "</button></div>";
     }
     html += "</div>";
     html += "<div class='effect-list battle-effects' id='battle-effects'></div>";
@@ -11894,6 +11996,8 @@
     } else {
       const cont = el("continue-btn");
       if (cont) cont.addEventListener("click", continueBattle);
+      const ex = el("explain-btn");
+      if (ex) ex.addEventListener("click", toggleBattleExplanation);
     }
 
     if (b.phase === "question" &&
@@ -11904,12 +12008,9 @@
       if (sc) sc.addEventListener("click", skipCodeQuestion);
     }
 
-    if (b.phase === "result" && b.won && !b.squadNext &&
-        !b.playerDead && G.player && G.player.hp > 0) {
-      scheduleBattleClose();
-    } else {
-      cancelBattleClose();
-    }
+    // Итог боя больше не закрывается сам: игрок читает пояснение и
+    // нажимает «Продолжить», когда готов.
+    cancelBattleClose();
 
     // Заставка живёт чуть дольше подлёта камеры и гаснет сама. Повторная
     // отрисовка (ответ, удар) заставку уже не запускает.
@@ -14383,6 +14484,17 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.25.4",
+      date: "6 ноября 2026",
+      title: "Карточка результата",
+      items: [
+        "Итог боя теперь карточка: урон, модификаторы и пояснение отдельно.",
+        "Пояснение можно свернуть и раскрыть кнопкой.",
+        "Победа не закрывает бой сама — сначала можно прочитать разбор.",
+        "Добыча показывается, если мешочек остался на карте."
+      ]
+    },
+    {
       version: "1.25.3",
       date: "6 ноября 2026",
       title: "Узкое окно боя",
@@ -16115,6 +16227,12 @@ function topicName(key) {
             enemyGuard: G.battle.enemyGuard || 0,
             skipEnemyTurn: !!G.battle.skipEnemyTurn,
             braced: !!G.battle.braced,
+            resultText: G.battle.resultText || "",
+            resultMods: G.battle.resultMods || null,
+            resultTurnNote: G.battle.resultTurnNote || "",
+            resultInfo: G.battle.resultInfo || null,
+            explainOpen: G.battle.explainOpen !== false,
+            lootLeft: !!G.battle.lootLeft,
             squadNextUid: G.battle.squadNext ? G.battle.squadNext.uid : 0
           }
           : null,
