@@ -10183,6 +10183,12 @@
         G.battle.bossBreak = restore.bossBreak || null;
         G.battle.bossPhase = restore.bossPhase || enemy.bossPhase || 0;
         G.battle.enemyTurn = restore.enemyTurn || null;
+        // Старые сохранения хранили в итоге хода ответ врага. Вопрос и
+        // варианты больше не показываем, поэтому чистим и текст.
+        if (G.battle.enemyTurn &&
+            /^Враг ответил/.test(G.battle.enemyTurn.feedback || "")) {
+          G.battle.enemyTurn.feedback = "Враг ошибся. Действие не сработало.";
+        }
         G.battle.enemyGuard = restore.enemyGuard || 0;
         G.battle.skipEnemyTurn = !!restore.skipEnemyTurn;
         G.battle.braced = !!restore.braced;
@@ -11455,28 +11461,6 @@
     });
   }
 
-  // Карточка хода врага: тот же вопрос, но варианты не нажимаются. Видно,
-  // что выбрал враг и где был верный ответ.
-  function enemyTurnQuestionHtml(turn) {
-    const q = turn.question || {};
-    let html = "<div class='challenge-tag enemy'>Вопрос врага</div>";
-    html += "<div class='challenge-q'>" + escText(q.text || "") + "</div>";
-    if (q.code) html += "<pre class='code'>" + escText(q.code) + "</pre>";
-    html += "<div class='options enemy-options'>";
-    (turn.view.options || []).forEach((opt, i) => {
-      let cls = "option";
-      if (i === turn.chosen) cls += turn.correct ? " correct" : " wrong";
-      else if (i === turn.view.answer) cls += " correct";
-      html += "<div class='" + cls + "'><span class='key'>" +
-        String.fromCharCode(65 + i) + "</span>" + escText(opt) + "</div>";
-    });
-    html += "</div>";
-    html += "<div class='battle-note'>Враг ответил: «" +
-      escText(turn.view.options[turn.chosen]) + "» — " +
-      (turn.correct ? "верно." : "ошибся.") + "</div>";
-    return html;
-  }
-
   function renderBattle() {
     const b = G.battle;
     if (!b) return;
@@ -11672,13 +11656,10 @@
       const turn = b.enemyTurn;
       html += "<div class='enemy-turn-tag'>Ход врага · " +
         escText(turn.actionName || "Действие") + "</div>";
+      // Вопрос врага и его варианты не показываем: игрок видит только
+      // итог хода — какое действие выбрал враг и чем оно закончилось.
       html += "<div class='battle-feedback " + (turn.correct ? "bad" : "good") + "'>" +
         escText(turn.feedback) + "</div>";
-      html += enemyTurnQuestionHtml(turn);
-      if (turn.explanation) {
-        html += "<div class='battle-explain'><b>Разбор:</b> " +
-          escText(turn.explanation) + "</div>";
-      }
       footLabel = b.playerDead || G.player.hp <= 0
         ? "Продолжить"
         : b.won
@@ -12797,9 +12778,8 @@
     // Ошибка врага отменяет его действие, но не наносит ему урон.
     // Удар за ошибку — такая же бесплатная атака, как и ответный удар
     // за ошибку игрока; пока убираем обе.
-    const answer = turn.view.options[turn.chosen];
     turn.dealt = 0;
-    turn.feedback = "Враг ответил «" + answer + "» — ошибся. Действие не сработало.";
+    turn.feedback = "Враг ошибся. Действие не сработало.";
   }
 
   function resolveEnemySpecial(e, b, turn) {
@@ -14411,6 +14391,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.25.1",
+      date: "6 ноября 2026",
+      title: "Ход врага без вопроса",
+      items: [
+        "Во время хода врага больше не показываются его вопрос и варианты ответа — только выбранное действие и результат.",
+        "Старые сохранения с открытым ходом врага очищаются от текста ответа при загрузке."
+      ]
+    },
     {
       version: "1.25.0",
       date: "6 ноября 2026",

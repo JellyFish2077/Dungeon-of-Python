@@ -414,9 +414,9 @@ log(!!G.battle.enemyTurn && !!G.battle.enemyTurn.question &&
 log(!!G.battle.enemyTurn.feedback, "ход врага показывает итог действия");
 API.renderBattle();
 const enemyTurnHtml = el("battle-box").innerHTML;
-log(/Ход врага/.test(enemyTurnHtml) && /Враг ответил/.test(enemyTurnHtml) &&
-    /enemy-options/.test(enemyTurnHtml),
-  "в бою виден вопрос врага, его ответ и разметка вариантов");
+log(/Ход врага/.test(enemyTurnHtml) && !/Вопрос врага/.test(enemyTurnHtml) &&
+    !/enemy-options/.test(enemyTurnHtml) && !/Враг ответил/.test(enemyTurnHtml),
+  "в бою виден только итог хода врага, без его вопроса и вариантов");
 G.battle.enemyTurn = null;
 G.battle = null;
 
