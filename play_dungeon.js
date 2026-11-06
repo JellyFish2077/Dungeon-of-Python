@@ -7,6 +7,7 @@
 // Запуск: node play_dungeon.js [--games 3] [--skill 0.8] [--seed 1] [--mode endless]
 //                               [--difficulty easy|normal|hard]
 //                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge] [--skip 0.2]
+//                               [--omen steady|blood|quiet]
 //
 // --balance принимает числа в том же виде, что и админ-панель /admin: так
 // настройку можно проверить ботом, прежде чем менять её для класса.
@@ -74,7 +75,7 @@ function flushTimers() {
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
     difficulty: "normal", forge: true, amulets: 1, bank: 600, skip: 0, campaign: false,
-    maxed: false };
+    omen: "steady", maxed: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--games") out.games = Number(argv[++i]);
@@ -83,6 +84,7 @@ function parseArgs(argv) {
     else if (a === "--mode") out.mode = argv[++i];
     else if (a === "--turns") out.turns = Number(argv[++i]);
     else if (a === "--difficulty") out.difficulty = argv[++i];
+    else if (a === "--omen") out.omen = argv[++i];
     else if (a === "--balance") out.balance = JSON.parse(argv[++i]);
     else if (a === "--trace") out.trace = true;
     else if (a === "--no-forge") out.forge = false;
@@ -114,6 +116,9 @@ function parseArgs(argv) {
   }
   if (out.balance !== undefined && (!out.balance || typeof out.balance !== "object" || Array.isArray(out.balance))) {
     throw new Error("--balance: нужен объект JSON, например '{\"enemy.hpMul\": 2.5}'");
+  }
+  if (["steady", "blood", "quiet"].indexOf(out.omen) < 0) {
+    throw new Error("--omen: steady, blood или quiet");
   }
   return out;
 }
@@ -553,6 +558,7 @@ function startGame(opts, rng) {
   globalThis.localStorage.setItem("pyquiz_session_v1",
     JSON.stringify({ name: "Бот", role: "student", token: "" }));
   G.difficulty = opts.difficulty;
+  API.pickOmen(opts.omen);
   // Оверлеи прячем СРАЗУ, до прохода по деревне: в заглушке classList пуст,
   // и непроявленное окно выглядит открытым — тогда walkTo и doInteract
   // решают, что поверх карты окно, и деревня проходится вхолостую.
@@ -1049,6 +1055,10 @@ function printSummary(opts, rows) {
   console.log("");
   console.log("сводка: " + ok.length + " партий, сложность «" + names[opts.difficulty] + "», верных ответов " +
     Math.round(opts.skill * 100) + "%");
+  if (opts.omen !== "steady") {
+    const omenNames = { blood: "Кровавая луна", quiet: "Тихий спуск" };
+    console.log("  знамение: " + (omenNames[opts.omen] || opts.omen));
+  }
   if (opts.mode === "endless") {
     // В бесконечном режиме победы не бывает: партия кончается смертью или
     // лимитом ходов. Поэтому вместо «побед» — докуда дошёл и как часто гибнул.

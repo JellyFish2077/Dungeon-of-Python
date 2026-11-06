@@ -10,6 +10,18 @@ log(API.ERROR_TASKS.length >= 10, "ERROR_TASKS >= 10", API.ERROR_TASKS.length);
 log(API.CODE_TASKS.length === 11, "CODE_TASKS = 11", API.CODE_TASKS.length);
 log(API.COPY_TASKS.length === 12, "COPY_TASKS = 12", API.COPY_TASKS.length);
 log(API.QUESTIONS.length >= 85, "QUESTIONS >= 85", API.QUESTIONS.length);
+// Пустая клетка «тема × уровень» ломает адаптив: на поднятом уровне тема
+// исчезает из выбора. Проверка держит матрицу заполненной.
+const missingBankCells = [];
+Object.keys(API.TOPICS).forEach((topic) => {
+  [1, 2, 3, 4].forEach((level) => {
+    if (!API.QUESTIONS.some((q) => q.topic === topic && q.level === level)) {
+      missingBankCells.push(topic + " L" + level);
+    }
+  });
+});
+log(missingBankCells.length === 0, "в банке нет пустых клеток тема × уровень",
+  missingBankCells.join(", "));
 log(!!API.TERRAIN_DECOR_NAMES && !!API.TERRAIN_DECOR_NAMES[10], "новые декорации 6..10 загружены",
   API.TERRAIN_DECOR_NAMES ? Object.keys(API.TERRAIN_DECOR_NAMES).length + " видов" : "нет");
 log(API.TRAP_TYPES.length === 6, "TRAP_TYPES = 6 ловушек", API.TRAP_TYPES.length);
@@ -317,19 +329,25 @@ if ((G.signs || []).length) {
   API.closeDialog();
 }
 
-// Привал: лечит и пополняет заряды, но привалов на поход мало.
+// Привал: полностью лечит, пополняет заряды и снимает временные дебаффы.
 quietFloor(5);
 if ((G.camps || []).length) {
   const camp = G.camps[0];
   G.player.hp = Math.round(G.player.maxHp * 0.4);
+  G.player.poison = 4;
+  G.player.snared = true;
+  G.player.cursedNext = true;
   const hpBeforeRest = G.player.hp;
   G.ability = { key: "strike", left: 0 };
-  G.restsLeft = 2;
+  G.restsLeft = 1;
   G.playerPos = { x: camp.x, y: camp.y };
   API.doInteract();
-  log(G.player.hp > hpBeforeRest, "привал лечит", hpBeforeRest + " -> " + G.player.hp);
+  log(G.player.hp > hpBeforeRest && G.player.hp === G.player.maxHp,
+    "привал лечит полностью", hpBeforeRest + " -> " + G.player.hp);
   log(G.ability.left > 0, "и пополняет заряды умения", "зарядов: " + G.ability.left);
-  log(G.restsLeft === 1 && camp.used === true, "привал потрачен", "осталось: " + G.restsLeft);
+  log(G.player.poison === 0 && G.player.snared === false && G.player.cursedNext === false,
+    "привал снимает яд, цепь и проклятие");
+  log(G.restsLeft === 0 && camp.used === true, "привал потрачен", "осталось: " + G.restsLeft);
   const hpAfterFirst = G.player.hp;
   API.doInteract();
   log(G.player.hp === hpAfterFirst, "тот же костёр второй раз не работает");
@@ -1879,6 +1897,20 @@ log(dmgMax === dmg4 || dmgMax >= dmg4,
   "серия 99 -> " + dmgMax);
 log(API.STREAK_CAP === 5, "потолок серии зафиксирован константой", API.STREAK_CAP);
 
+// Серия — награда внутри боя, а не вечный множитель. Иначе после удачного
+// боя герой входил в следующий уже с ×1.75 и снимал моба первым ударом.
+freshRun(1);
+const stReset = API.createFloorState(1);
+G.map = stReset.map;
+G.playerPos = { ...stReset.playerPos };
+G.enemies = [];
+G.traps = [];
+G.stats.streak = 4;
+const resetEnemy = enemyOnPlayerCell("orc", 4000);
+API.openBattle(resetEnemy);
+log(G.stats.streak === 0, "новая схватка начинается без серии ударов", G.stats.streak);
+G.battle = null;
+
 // Серия гаснет после неверного ответа — награда не копится «в долг».
 freshRun(1);
 const stBrk = API.createFloorState(1);
@@ -2777,14 +2809,16 @@ log(lavaTile.cls.indexOf("hazard-lava") >= 0, "лава видна на плит
 log(!API.blessOffered(0, null) && !API.blessOffered(2, null),
   "на первых этажах выбора нет");
 log(API.blessOffered(3, null) && !API.blessOffered(3, "curse") &&
-  !API.blessOffered(3, "blessing"),
+  !API.blessOffered(3, "blessing") && !API.blessOffered(3, "pass"),
   "на четвёртом этаже выбор есть, но только один раз");
 log(API.BLESSINGS.curse.good && API.BLESSINGS.curse.extra &&
-  API.BLESSINGS.blessing.good && API.BLESSINGS.blessing.extra,
+  API.BLESSINGS.blessing.good && API.BLESSINGS.blessing.extra &&
+  API.BLESSINGS.pass.good,
   "у каждой сделки есть выгода и цена");
 log(API.blessingFor(3, "curse").key === "curse" &&
-  API.blessingFor(3, "blessing").key === "blessing",
-  "обе сделки описаны");
+  API.blessingFor(3, "blessing").key === "blessing" &&
+  API.blessingFor(3, "pass").key === "pass",
+  "все три варианта развилки описаны");
 
 // Тёмная сделка: монстры бьют сильнее, но золото удваивается.
 freshRun(4);
@@ -2800,7 +2834,42 @@ log(Math.abs(API.curseDmgMul() - API.BLESS.curseEnemyDmg) < 0.001,
 log(API.goldMulForFloor() === API.BLESS.curseGoldMul,
   "золото с монстров удвоено", API.goldMulForFloor());
 
+// «Пройти мимо» — третий вариант развилки: ничего не даёт и ничего не стоит.
+freshRun(4);
+G.player.gold = 0;
+const passHp = G.player.maxHp;
+G.blessingOffer = 4;
+API.chooseBlessing("pass");
+log(G.blessings[4] === "pass" && G.player.gold === 0 && G.player.maxHp === passHp,
+  "третий вариант ничего не меняет", JSON.stringify(G.blessings));
+log(API.blessingOnFloor() && API.blessingOnFloor().key === "pass",
+  "этаж остаётся обычным", API.blessingOnFloor() && API.blessingOnFloor().key);
+
+// Знамения похода: меняют состав этажа и экономику, но не сложность.
+freshRun(8);
+const steadyCap = API.eliteCapFor(8);
+const steadyChance = API.eliteChanceFor(8, false);
+API.pickOmen("blood");
+log(G.omen === "blood" && API.eliteCapFor(8) === steadyCap + 1 &&
+  API.goldMulForFloor() > 1,
+  "Кровавая луна добавляет элиту и золото",
+  "элит " + API.eliteCapFor(8) + ", золото ×" + API.goldMulForFloor());
+API.pickOmen("quiet");
+log(G.omen === "quiet" && API.eliteChanceFor(8, false) === 0 &&
+  API.goldMulForFloor() < 1 && API.omenRestBonus() === 1,
+  "Тихий спуск убирает элит, но добавляет привал",
+  "золото ×" + API.goldMulForFloor() + ", привал +" + API.omenRestBonus());
+const quietOre = getProfile(G.name).loot.ore || 0;
+API.gainLoot("ore", 4);
+log((getProfile(G.name).loot.ore || 0) - quietOre === 5,
+  "Тихий спуск даёт больше материалов",
+  "было " + quietOre + ", стало " + getProfile(G.name).loot.ore);
+API.pickOmen("steady");
+log(API.eliteChanceFor(8, false) === steadyChance && API.goldMulForFloor() === 1,
+  "Ровный спуск возвращает обычные правила");
+
 // Средний урон по двумстам ударам: со сделкой он выше.
+freshRun(4);
 function averageHit() {
   const foe = API.makeEnemy("slime", 4);
   foe.x = G.playerPos.x + 1;
@@ -3315,10 +3384,8 @@ log(G.player.level === G.floorCheckpoint.level,
   G.player.level + " / этаж начинался с " + G.floorCheckpoint.level);
 log(G.player.level < 8, "опыт текущего этажа при возрождении потерян", G.player.level);
 
-// Возврат в деревню банкует всё золото похода и стирает сейв. Раньше
-// переходила четверть, и смерть была наказанием без награды: походы копили
-// на постоянные улучшения, а стена впереди держится силой врагов, поэтому
-// теперь ресурсы героя не отбираются.
+// Возврат в деревню после смерти банкует половину золота похода и стирает
+// сейв: остальное — цена ошибки, но постоянные материалы и ключи целы.
 freshRun(4);
 const profB = getProfile(G.name);
 profB.wallet.gold = 100;
@@ -3327,14 +3394,59 @@ putProfile(G.name, profB);
 G.player.gold = 400;
 API.showDeath();
 API.deathToHub();
-log(getProfile(G.name).wallet.gold === 500,
-  "в деревню перешло всё золото похода (100 + 400)",
+log(getProfile(G.name).wallet.gold === 300,
+  "в деревню перешла половина золота похода (100 + 200)",
   String(getProfile(G.name).wallet.gold));
-log(API.balanceSnapshot()["hub.deathGoldShare"] === 1,
-  "доля золота при смерти — единица, терять нечего",
+log(API.balanceSnapshot()["hub.deathGoldShare"] === 0.5,
+  "доля золота при смерти — половина",
   String(API.balanceSnapshot()["hub.deathGoldShare"]));
+log(API.balanceSnapshot()["hub.knowledgeGoldShare"] === 0.25,
+  "разбор ошибок стоит ещё четверти золота",
+  String(API.balanceSnapshot()["hub.knowledgeGoldShare"]));
 log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
   "после возврата в деревню сейв похода стёрт");
+
+// Разбор стоит ещё четверти золота, но даёт три первых боя по слабым темам.
+freshRun(3);
+const profKnow = getProfile(G.name);
+profKnow.wallet.gold = 0;
+putProfile(G.name, profKnow);
+G.player.gold = 400;
+G.stats.topicStats = { control: { correct: 0, total: 4 } };
+API.showDeath();
+const knowHtml = el("end-box").innerHTML;
+log(/50%/.test(knowHtml) && /25%/.test(knowHtml),
+  "экран смерти показывает обе доли золота");
+API.deathToHub("knowledge");
+log(getProfile(G.name).wallet.gold === 100,
+  "разбор оставляет четверть золота", String(getProfile(G.name).wallet.gold));
+log(!!getProfile(G.name).reviewRun &&
+  getProfile(G.name).reviewRun.topics.indexOf("control") >= 0,
+  "разбор сохранён в профиль", JSON.stringify(getProfile(G.name).reviewRun));
+
+// Добровольное сворачивание: поход кончается, в банк уходит 75% золота.
+freshRun(2);
+const profRetreat = getProfile(G.name);
+profRetreat.wallet.gold = 0;
+putProfile(G.name, profRetreat);
+G.player.gold = 400;
+globalThis.localStorage.setItem("pyquiz_session_v1",
+  JSON.stringify({ name: G.name, role: "student", token: "" }));
+API.saveGame();
+log(API.retreatGold(API.readSave()) === 300,
+  "сворачивание обещает три четверти золота", String(API.retreatGold(API.readSave())));
+API.updateResumeButton();
+log(el("retreat-btn").style.display !== "none" &&
+  /300/.test(el("retreat-btn").textContent),
+  "у стража видна кнопка сворачивания с суммой",
+  el("retreat-btn").textContent);
+log(API.retreatRun() === true, "поход сворачивается");
+log(getProfile(G.name).wallet.gold === 300,
+  "в банк ушло 75% походного золота", String(getProfile(G.name).wallet.gold));
+log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
+  "после сворачивания сейв похода стёрт");
+log(G.place === "village", "герой возвращается в деревню", G.place);
+globalThis.localStorage.removeItem("pyquiz_session_v1");
 
 // Разбор ошибок: раз две смерти не равны, слабые темы можно забрать с собой.
 // План живёт в профиле, забирается один раз и даёт три первых боя похода.
@@ -3385,8 +3497,8 @@ log(G.dead === false, "мёртвый сейв без амулета не ост
 log(G.place === "village", "а возвращает в деревню, а не на этаж", G.place);
 log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
   "мёртвый сейв без амулета стирается");
-log(getProfile(G.name).wallet.gold === 250,
-  "золото похода при этом переходит в деревню",
+log(getProfile(G.name).wallet.gold === 125,
+  "мёртвый сейв без амулета банкует половину золота похода",
   String(getProfile(G.name).wallet.gold));
 
 // С амулетом подняться можно, но амулет обязан потратиться.
@@ -3422,6 +3534,7 @@ G.battle = null;
 // ================= 23. Пункт 5: бесконечный режим =================
 // Замысел: после десятого этажа подземелье не кончается — этажи
 // синтезируются, а не берутся из короткого массива FLOORS.
+API.setCampaign(1);
 log(API.FLOORS_V1.length === 10, "в FLOORS_V1 десять этажей — пять биомов",
   API.FLOORS_V1.length);
 log(API.FLOORS_V2.length === 15, "в FLOORS_V2 пятнадцать этажей — пять биомов",
@@ -4275,6 +4388,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     "лавовая клетка-опасность рисуется плиткой лавы во всех кадрах");
 
   freshRun(6);
+  API.setCampaign(1);
   let lavaCells = 0;
   let lavaDrawn = 0;
   for (let y = 0; y < G.map.h; y++) {
@@ -5252,6 +5366,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     "на первых этажах бои короче: враги толще не сразу");
 
   // --- стража этажа ---
+  API.setCampaign(1);
   freshRun(2);
   const guards = G.enemies.filter((x) => x.guard);
   const gd = guards[0];
@@ -5288,6 +5403,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(!!bossT && /дракон/.test(bossT.label), "закрытая драконом лестница подписана честно", bossT && bossT.label);
 
   // --- повторение и тема этажа ---
+  API.setCampaign(1);
   freshRun(6);
   API.learnState().topicSeen = { strings: 1, operators: 2 };
   G.stats.topicStats = { strings: { correct: 1, total: 10 }, operators: { correct: 9, total: 10 } };
@@ -6046,6 +6162,14 @@ log(!el("entrance-overlay").classList.contains("hidden"), "страж откры
 log(/id="entrance-overlay"/.test(gameHtml) && /id="game-mode"/.test(gameHtml) &&
   /id="difficulty"/.test(gameHtml) && /id="begin-btn"/.test(gameHtml),
   "в окне входа есть режим, сложность и кнопка спуска");
+const omenHtml = el("omen-list").innerHTML;
+log(/Кровавая луна/.test(omenHtml) && /Тихий спуск/.test(omenHtml) &&
+  /Ровный спуск/.test(omenHtml),
+  "в окне стража три знамения");
+API.pickOmen("blood");
+log(/class='mode active' data-omen='blood'/.test(el("omen-list").innerHTML),
+  "выбранное знамение подсвечено");
+API.pickOmen("steady");
 API.closeEntrance();
 log(el("entrance-overlay").classList.contains("hidden"), "окно входа закрывается");
 
@@ -6198,6 +6322,18 @@ log(payFor("smith") && API.upgradeCap() === 5,
 API.buyHeroUpgrade("hp");
 log(getProfile(G.name).hero.hp === 4, "и четвёртый уровень покупается");
 
+// Вторые уровни построек: каждый обязан дать то, что написано в окне.
+log(payFor("barn") && getProfile(G.name).village.barn === 2,
+  "амбар II строится", "уровень " + getProfile(G.name).village.barn);
+log(payFor("forge") && getProfile(G.name).village.forge === 2,
+  "кузница II строится", "уровень " + getProfile(G.name).village.forge);
+log(API.amuletCap() === API.balanceSnapshot()["hub.amuletMax"] + 1,
+  "кузница II поднимает потолок амулетов", "потолок " + API.amuletCap());
+log(payFor("smith") && getProfile(G.name).village.smith === 2,
+  "дом мастера II строится", "уровень " + getProfile(G.name).village.smith);
+log(API.abilityCharges() === API.balanceSnapshot()["ability.charges"] + 1,
+  "дом мастера II даёт заряд умения", "зарядов " + API.abilityCharges());
+
 // Колодец: здоровье в каждом походе.
 log(payFor("well") && getProfile(G.name).village.well === 1,
   "колодец восстанавливается за руду");
@@ -6219,6 +6355,8 @@ log(G.player.dmgBase === 12 + progNow.hero.dmg * API.HERO_STEPS.dmg,
   "и с прибавкой к урону", G.player.dmgBase);
 log(API.progOf("loot") === progNow.hero.loot * API.HERO_STEPS.loot,
   "добыча героя учтена", String(API.progOf("loot")));
+log(G.restsLeft === API.balanceSnapshot()["rest.perRun"] + 1,
+  "амбар II добавляет привал в походе", "привалов " + G.restsLeft);
 
 // Материалы: находка уходит в профиль сразу и амбар её увеличивает.
 const before = getProfile(G.name).loot.wood;
@@ -6226,6 +6364,8 @@ API.gainLoot("wood", 2);
 log(getProfile(G.name).loot.wood === before + 3,
   "амбар увеличивает находки в полтора раза",
   before + " -> " + getProfile(G.name).loot.wood);
+log(API.rewardText({ ore: 2 }) === "руда 3",
+  "окно старосты показывает награду с прибавкой амбара", API.rewardText({ ore: 2 }));
 
 // Смерть не отбирает материалы и ключи — они уже в профиле.
 const lootBeforeDeath = JSON.parse(JSON.stringify(getProfile(G.name).loot));
@@ -6797,6 +6937,8 @@ if (vault) {
   const savedFloor = G.floorIndex;
   G.floorIndex = 0;
   G.difficulty = "normal";
+  // Адаптив проверяется отдельным блоком: здесь важна чистая калибровка.
+  G.stats.recentAnswers = [];
   G.knowledgeLevel = 1;
   const low = API.floorLevels();
   G.knowledgeLevel = 2;
@@ -6838,6 +6980,71 @@ if (vault) {
   log(neutral.knowledge.level === 0 && neutral.knowledge.total === 0,
     "калибровка: новый профиль начинается без уровня",
     JSON.stringify(neutral.knowledge));
+}
+
+// ================= Адаптивные вопросы =================
+{
+  const savedFloor = G.floorIndex;
+  const savedDifficulty = G.difficulty;
+  const savedKnowledge = G.knowledgeLevel;
+  const savedRecent = (G.stats.recentAnswers || []).slice();
+
+  G.floorIndex = 0;
+  G.difficulty = "normal";
+  G.knowledgeLevel = 2;
+  G.stats.recentAnswers = [];
+  log(API.adaptiveOffset() === 0, "адаптив: до восьми ответов не вмешивается");
+
+  G.stats.recentAnswers = [];
+  API.noteAnswer(true);
+  API.noteAnswer(false);
+  for (let i = 0; i < 12; i += 1) API.noteAnswer(true);
+  log(G.stats.recentAnswers.length === 10 &&
+      G.stats.recentAnswers.every((v) => v === 1),
+    "адаптив: окно хранит только последние десять ответов",
+    G.stats.recentAnswers.length);
+
+  G.stats.recentAnswers = [];
+  G.tutorial = { active: true, moves: 0 };
+  API.noteAnswer(true);
+  log(G.stats.recentAnswers.length === 0,
+    "адаптив: учебный бой не меняет сложность");
+  G.tutorial = null;
+
+  // 8 ответов, 7 верных — 87,5%: уровень выше.
+  G.stats.recentAnswers = [1, 1, 1, 1, 1, 1, 1, 0];
+  const high = API.floorLevels();
+  log(API.adaptiveOffset() === 1 && high.qmin === 2 && high.qmax === 3,
+    "адаптив: высокая точность поднимает вопросы на ступень",
+    high.qmin + "–" + high.qmax);
+
+  // 8 ответов, 1 верный — 12,5%: уровень ниже.
+  G.stats.recentAnswers = [1, 0, 0, 0, 0, 0, 0, 0];
+  const low = API.floorLevels();
+  log(API.adaptiveOffset() === -1 && low.qmin === 1 && low.qmax === 1,
+    "адаптив: низкая точность опускает вопросы на ступень",
+    low.qmin + "–" + low.qmax);
+
+  // Ровно 50% — адаптив молчит, остаётся калибровка «уверенный».
+  G.stats.recentAnswers = [1, 0, 1, 0, 1, 0, 1, 0];
+  G.knowledgeLevel = 3;
+  const calibrated = API.floorLevels();
+  log(API.adaptiveOffset() === 0 && calibrated.qmin === 2 && calibrated.qmax === 3,
+    "адаптив: при средней точности решает калибровка",
+    calibrated.qmin + "–" + calibrated.qmax);
+
+  // Даже на глубоком этаже уровень не выходит за 4.
+  G.floorIndex = 9;
+  G.knowledgeLevel = 2;
+  G.stats.recentAnswers = Array(10).fill(1);
+  const capped = API.floorLevels();
+  log(capped.qmax === 4, "адаптив: не поднимает вопросы выше четвёртого уровня",
+    capped.qmin + "–" + capped.qmax);
+
+  G.floorIndex = savedFloor;
+  G.difficulty = savedDifficulty;
+  G.knowledgeLevel = savedKnowledge;
+  G.stats.recentAnswers = savedRecent;
 }
 
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
@@ -7325,7 +7532,8 @@ if (vault) {
       });
       state.signs.forEach((sign) => {
         const role = roleAt[sign.x + "," + sign.y];
-        if (role && role !== "lore") bad += 1;
+        if (role && role !== "lore" &&
+            !(role === "junction" && sign.title === "Развилка")) bad += 1;
       });
       state.levers.forEach((lever) => {
         if (lever.shortcut) return;
@@ -7580,12 +7788,113 @@ if (vault) {
   const firstBoss = API.floorDef(2);
   log(firstBoss.boss === true && firstBoss.w === 30 && firstBoss.h === 22,
     "v2: первая арена 30×22", firstBoss.w + "×" + firstBoss.h);
-  const st = API.createFloorState(0);
-  log(st.map.w === 40 && st.map.h === 28 && st.enemies.length > 0,
-    "v2: этаж создаётся старой геометрией", st.enemies.length + " врагов");
+  const arenaState = API.createFloorState(2);
+  log(!!arenaState.arena && arenaState.enemies.length === 1 &&
+    arenaState.stairsDown.active === false && arenaState.signs.length === 1,
+    "v2: арена — предзал, один босс и закрытая лестница",
+    arenaState.enemies.length + " врагов, якоря " +
+      (arenaState.arena ? arenaState.arena.anchors.length : 0));
+  const arenaProblems = API.validateFloorState(arenaState);
+  log(arenaProblems.length === 0, "v2: арена проходима до босса и лестницы",
+    arenaProblems.join("; "));
+  // Фазы: босс отступает к якорю, зал получает ловушки/среду, лестница
+  // остаётся закрытой до победы.
+  API.activateFloor(2);
+  const arenaBoss = G.enemies[0];
+  const trapsBefore = G.traps.length;
+  API.startBossPhase(arenaBoss, 2);
+  log(arenaBoss.bossPhase === 2 && arenaBoss.phaseHold === true &&
+    G.traps.length > trapsBefore,
+    "v2: вторая фаза двигает босса и добавляет опасность",
+    "якорь " + arenaBoss.x + "," + arenaBoss.y + ", ловушек " + G.traps.length);
+  API.startBossPhase(arenaBoss, 3);
+  log(arenaBoss.bossPhase === 3 && arenaBoss.phaseHold === true,
+    "v2: третья фаза двигает босса к последнему якорю", "фаза " + arenaBoss.bossPhase);
+  const phaseProblems = API.validateFloorState({
+    map: G.map, playerPos: G.playerPos, stairsDown: G.stairsDown,
+    stairsUp: G.stairsUp, enemies: G.enemies
+  });
+  log(phaseProblems.length === 0, "v2: после смены фаз путь к боссу есть",
+    phaseProblems.join("; "));
+  // Порог срабатывает от удара, а не только от ручного вызова фазы.
+  API.setCampaign(2);
+  freshRun(0);
+  API.activateFloor(2);
+  const thresholdBoss = G.enemies[0];
+  const bossMax = thresholdBoss.maxHp;
+  API.openBattle(thresholdBoss);
+  API.applyAttack(Math.ceil(bossMax * 0.31), "Проверка порога", false, "", true);
+  log(!!G.battle && !!G.battle.bossBreak && thresholdBoss.bossPhase === 2,
+    "v2: удар ниже 70% открывает вторую фазу",
+    "HP " + thresholdBoss.hp + " из " + bossMax);
+  API.continueBattle();
+  log(G.battle === null && thresholdBoss.phaseHold === true,
+    "v2: после фазы бой закрывается, босс ждёт у якоря");
+  API.openBattle(thresholdBoss);
+  API.applyAttack(Math.ceil(bossMax * 0.4), "Проверка порога", false, "", true);
+  log(!!G.battle && thresholdBoss.bossPhase === 3,
+    "v2: удар ниже 35% открывает третью фазу", "фаза " + thresholdBoss.bossPhase);
+  API.continueBattle();
+  log(G.battle === null, "v2: третья фаза тоже возвращает на карту");
   log(API.floorHazard(2, 2) === null && API.floorHazard(3, 2) &&
     API.floorHazard(3, 2).key === "dark",
     "v2: у арены нет среды, у катакомб тьма");
+  // Все пять арен: предзал, один босс, три якоря и проходимый зал после
+  // каждой смены фазы.
+  const arenaIndexes = API.FLOORS_V2
+    .map((f, i) => (f.boss ? i : -1)).filter((i) => i >= 0);
+  log(arenaIndexes.length === 5, "v2: пять арен в кампании", arenaIndexes.length);
+  let arenaBad = 0;
+  const arenaHazards = [];
+  for (const idx of arenaIndexes) {
+    freshRun(0);
+    API.activateFloor(idx);
+    const boss = G.enemies[0];
+    const a = G.arena;
+    if (!a || !boss || G.enemies.length !== 1 || API.validateFloorState({
+      map: G.map, playerPos: G.playerPos, stairsDown: G.stairsDown,
+      stairsUp: G.stairsUp, enemies: G.enemies
+    }).length) {
+      arenaBad += 1;
+      continue;
+    }
+    API.startBossPhase(boss, 2);
+    const p2 = API.validateFloorState({
+      map: G.map, playerPos: G.playerPos, stairsDown: G.stairsDown,
+      stairsUp: G.stairsUp, enemies: G.enemies
+    });
+    API.startBossPhase(boss, 3);
+    const p3 = API.validateFloorState({
+      map: G.map, playerPos: G.playerPos, stairsDown: G.stairsDown,
+      stairsUp: G.stairsUp, enemies: G.enemies
+    });
+    if (p2.length || p3.length || boss.bossPhase !== 3) arenaBad += 1;
+    arenaHazards.push(boss.key + ":" + (G.arenaHazardKey || "нет") +
+      (G.arenaDark ? "/dark" + G.arenaDark : ""));
+    if (idx === API.FLOORS_V2.length - 1 && G.portal) arenaBad += 1;
+  }
+  log(arenaBad === 0, "v2: все арены проходимы после двух смен фазы", arenaBad);
+  log(arenaHazards.join(", ").indexOf("frost") >= 0 &&
+    arenaHazards.join(", ").indexOf("lava") >= 0 &&
+    arenaHazards.join(", ").indexOf("dark") >= 0,
+    "v2: фазы включают лёд, лаву и тьму", arenaHazards.join(", "));
+  // Указатели на развилках называют награду ветки, а не только «куда-то».
+  let branchHintFloors = 0;
+  for (let i = 0; i < 8; i++) {
+    const st = API.createFloorState(i);
+    if ((st.signs || []).some((s) => s.title === "Развилка")) branchHintFloors += 1;
+  }
+  log(branchHintFloors >= 3, "указатели на развилках показывают награды",
+    branchHintFloors + " из 8 этажей");
+  API.pickOmen("quiet");
+  let quietElites = 0;
+  for (let i = 0; i < 8; i++) {
+    const st = API.createFloorState(i);
+    quietElites += (st.enemies || []).filter((e) => e.elite).length;
+  }
+  log(quietElites === 0, "Тихий спуск убирает элит и на обычных этажах v2",
+    quietElites + " элит");
+  API.pickOmen("steady");
   API.setCampaign(1);
   log(API.activeFloors() === API.FLOORS_V1, "v1: таблица возвращается");
 }

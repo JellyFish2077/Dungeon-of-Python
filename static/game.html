@@ -7,10 +7,10 @@
        версия появлялась только после жёсткого обновления страницы. -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
   <title>PyDungeon — подземелье Python</title>
-  <meta name="description" content="PyDungeon — рогалик-экспедиция: десять этажей, пять боссов и вопросы по Python вместо кубика. Играй в браузере без установки." />
+  <meta name="description" content="PyDungeon — рогалик-экспедиция: пятнадцать этажей, пять боссов и вопросы по Python вместо кубика. Играй в браузере без установки." />
   <meta name="theme-color" content="#0b1220" />
   <meta property="og:title" content="PyDungeon — подземелье Python" />
-  <meta property="og:description" content="Рогалик-экспедиция: десять этажей, пять боссов и вопросы по Python вместо кубика." />
+  <meta property="og:description" content="Рогалик-экспедиция: пятнадцать этажей, пять боссов и вопросы по Python вместо кубика." />
   <meta property="og:type" content="website" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
   <link rel="stylesheet" href="/static/style.css" />
@@ -265,7 +265,7 @@
       <div class="battle-head">
         <div>
           <div class="enemy-name">Страж входа</div>
-          <div class="hud-num">Подземелье: <b>10 этажей</b> · дракон в конце</div>
+          <div class="hud-num">Подземелье: <b>15 этажей</b> · дракон в конце</div>
         </div>
         <button class="exit-btn" id="entrance-close" type="button" data-tip="Закрыть. Клавиша Escape.">Закрыть</button>
       </div>
@@ -281,7 +281,7 @@
           <div class="mode active" data-mode="dungeon" role="radio" aria-checked="true" tabindex="0">
             <span class="mode-mark" aria-hidden="true"></span>
             <b>Обычный спуск</b>
-            <span class="mode-note">10 этажей до дракона. Победа закрывает поход</span>
+            <span class="mode-note">15 этажей до дракона. Победа закрывает поход</span>
           </div>
           <div class="mode" data-mode="endless" role="radio" aria-checked="false" tabindex="0">
             <span class="mode-mark" aria-hidden="true"></span>
@@ -315,9 +315,15 @@
         <div class="modes" id="ability-list" role="radiogroup" aria-label="Умение похода"></div>
         <p class="mode-note" id="ability-note"></p>
       </div>
+      <div class="pick" id="omen-pick">
+        <p class="pick-label">Знамение похода</p>
+        <div class="modes" id="omen-list" role="radiogroup" aria-label="Знамение похода"></div>
+        <p class="mode-note" id="omen-note"></p>
+      </div>
       <div class="setup-actions">
         <button class="btn" id="begin-btn" type="button">Спуститься</button>
         <button class="btn ghost" id="resume-btn" type="button" style="display:none">Продолжить</button>
+        <button class="btn ghost" id="retreat-btn" type="button" style="display:none">Свернуть поход</button>
       </div>
     </div>
   </div>
@@ -516,7 +522,7 @@
           </p>
           <p class="menu-note">
             Каждый поход начинается у стража: он показывает сложность и режим.
-            Десять этажей, пять боссов и дракон в конце. Управление и звук —
+            Пятнадцать этажей, пять боссов и дракон в конце. Управление и звук —
             в настройках.
           </p>
           <p class="menu-note">

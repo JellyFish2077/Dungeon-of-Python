@@ -2996,6 +2996,11 @@ pre.code {
   border-color: rgba(74, 222, 128, 0.7);
 }
 
+.bless-card.pass:hover {
+  box-shadow: 0 0 22px rgba(148, 163, 184, 0.28);
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
 .bless-icon {
   font-size: 34px;
   line-height: 1;
@@ -3007,6 +3012,10 @@ pre.code {
 
 .bless-card.blessing .bless-icon {
   color: #4ade80;
+}
+
+.bless-card.pass .bless-icon {
+  color: #94a3b8;
 }
 
 .bless-name {
@@ -3021,6 +3030,10 @@ pre.code {
 
 .bless-card.blessing .bless-good {
   color: #bbf7d0;
+}
+
+.bless-card.pass .bless-good {
+  color: #cbd5e1;
 }
 
 .bless-extra {
@@ -3712,7 +3725,8 @@ h2 {
 }
 
 #begin-btn,
-#resume-btn {
+#resume-btn,
+#retreat-btn {
   flex: 0 1 auto;
   min-width: 240px;
   max-width: 320px;
@@ -3913,7 +3927,8 @@ kbd {
   }
 
   #begin-btn,
-  #resume-btn {
+  #resume-btn,
+  #retreat-btn {
     flex: 1 1 100%;
     max-width: none;
   }

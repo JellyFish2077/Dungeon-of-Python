@@ -285,6 +285,7 @@
       G.running = true;
       G.name = "Проверка";
       G.difficulty = "normal";
+      G.omen = "steady";
       G.startedAt = Date.now();
       G.floorIndex = 0;
       G.visited = new Set([0]);

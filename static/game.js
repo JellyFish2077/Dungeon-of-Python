@@ -26,8 +26,8 @@
     { key: "dragon", name: "Дракон", color: "#dc2626", hp: 260, dmg: 25, boss: true, ability: "bossrage", abilityText: "Дракон впадает в ярость и усиливает удары" }
   ];
 
-  // Пять биомов по два этажа: одна большая комната биома и босс.
-  // Так кампания остаётся короткой: десять этажей, пять боссов.
+  // Кампания v1: пять биомов по два этажа — короткий спуск.
+  // Основная кампания v2 — пятнадцать этажей и арены, см. BIOMES_V2.
   // Пул обычного этажа — объединение старых комнат биома, чтобы не терять
   // разнообразие врагов после сокращения.
   const BIOMES = [
@@ -335,10 +335,11 @@
     return FLOORS.length - 1;
   }
 
-  // Два независимых флага этапа 0–1. Оба выключены по умолчанию:
-  // основная игра остаётся десятиэтажной, пока кампания не принята.
+  // Генератор v2 и 15-этажная кампания включены по умолчанию. Старые
+  // сохранения остаются десятиэтажными: версия кампании записана в сейве
+  // и не меняется на ходу.
   let GEN_V2 = true;
-  let CAMPAIGN_V2 = false;
+  let CAMPAIGN_V2 = true;
 
   function activeFloors() {
     return FLOORS;
@@ -829,6 +830,10 @@
     }
 
     const counts = { vault: 0, rest: 0, elite: 0, secret: 0 };
+    // Знамение меняет число элит и в плане v2, а не только в старом
+    // генераторе: иначе «Тихий спуск» не убирал бы элит на обычных этажах.
+    const omenEliteCap = Math.max(0,
+      (Number(f.eliteCap) || 0) + (currentOmen().eliteCap || 0));
     const byStem = {};
     rooms.filter((room) => room.kind === "branch").forEach((room) => {
       if (!byStem[room.stem]) byStem[room.stem] = [];
@@ -855,7 +860,7 @@
           if (counts.secret < 1) allowed.push("secret");
         } else {
           allowed = ["treasure"];
-          if (counts.elite < (Number(f.eliteCap) || 0)) allowed.push("elite");
+          if (counts.elite < omenEliteCap) allowed.push("elite");
           if (f.vault && counts.vault < 1) allowed.push("vault");
         }
         const role = genPick(rng, allowed) || "treasure";
@@ -891,7 +896,7 @@
       return Math.abs(room.originSpineIndex - (spineRooms.length - 1)) <= 1;
     }
     // Элита — до тайника: иначе тайник займёт единственный глубокий лист.
-    if ((Number(f.eliteCap) || 0) > 0 &&
+    if (omenEliteCap > 0 &&
         !leaves.some((room) => room.role === "elite")) {
       let target = leaves.find((room) => room.depth === 3 &&
         room.role !== "resource" && room.role !== "treasure" &&
@@ -1835,7 +1840,9 @@
   // находки. Раньше доля золота при смерти была 0,25, и смерть была наказанием
   // без награды — теперь походы копят на улучшения, а стена впереди держится
   // не потерей ресурсов, а силой врагов (см. DEEP_* ниже).
-  let HUB_DEATH_SHARE = 1;      // доля походного золота, уцелевшая после смерти
+  let HUB_DEATH_SHARE = 0.5;    // доля походного золота, уцелевшая после смерти
+  let HUB_KNOWLEDGE_SHARE = 0.25; // доля золота, если забрать разбор ошибок
+  let HUB_RETREAT_SHARE = 0.75;  // доля золота при добровольном сворачивании похода
   let HUB_AMULET_PRICE = 150;   // цена амулета возврата в лавке деревни
   let HUB_AMULET_FIND = 0.02;   // шанс найти амулет в сундуке вместо предмета
   let HUB_AMULET_MAX = 3;       // потолок амулетов у героя
@@ -1854,6 +1861,10 @@
   let VILLAGE_WELL_HP = 10;
   let VILLAGE_BARN_BONUS = 0.5;
   let VILLAGE_COST_MUL = 1;
+  // Кузница II поднимает потолок амулетов возврата на один. Это отдельное
+  // число, а не правка HUB_AMULET_MAX: база остаётся настройкой админки,
+  // а постройка добавляет к ней бонус.
+  let VILLAGE_FORGE_AMULET = 1;
   // Глубинная тяжесть: с шестого этажа враги растут быстрее, чем герой за один
   // поход. Это и есть стена первых попыток: спуститься глубже можно только
   // с постоянными улучшениями и постройками. На десятом этаже здоровье врагов
@@ -1878,8 +1889,8 @@
   let ABILITY_BREATH = 0.4;     // сколько здоровья возвращает «Второе дыхание»
   // Привал: костёр в подземелье лечит и пополняет заряды умения, но
   // пользоваться им можно лишь несколько раз за поход.
-  let REST_HEAL = 0.35;
-  let REST_PER_RUN = 2;
+  let REST_HEAL = 1;
+  let REST_PER_RUN = 1;
 
   // Множители «глубинной тяжести» для этажа. Единица — на мелких этажах.
   function deepScale(floorIdx) {
@@ -1947,6 +1958,8 @@
     prog: { hp: 0, dmg: 0, potions: 0, loot: 0, armor: 0 },
     // Умение похода и его заряды: одно на выбор перед спуском (см. ABILITIES).
     ability: { key: "", left: 0 },
+    // Знамение похода: steady / blood / quiet. Меняет этаж, а не масштаб.
+    omen: "steady",
     // Ключи от тайников: походные, а не профильные — тайник на каждом этаже свой.
     vaultKeys: 0,
     // Сколько привалов ещё осталось в этом походе.
@@ -1956,6 +1969,10 @@
     // Опасная среда текущего этажа: матрица ключей ("" — обычная клетка).
     // Для «тьмы» матрица пустая, её эффект действует на весь этаж.
     hazard: null,
+    // Арена босса: якоря, закрытый коридор и добавленные фазами стены.
+    arena: null,
+    arenaDark: 0,
+    arenaHazardKey: "",
     // Выбранная сделка на каждый этаж: { 3: "curse", 5: "blessing" }.
     blessings: {},
     // Этаж, на котором сейчас ждём выбор (показывается один раз).
@@ -1989,7 +2006,8 @@
     // Снимок героя на входе на этаж: смерть откатывает этаж, и опыт,
     // набранный на нём, теряется. Золото и снаряжение остаются.
     floorCheckpoint: null,
-    // Режим забега: "dungeon" — десять этажей с драконом в конце,
+    // Режим забега: "dungeon" — кампания с драконом в конце,
+    // "endless" — бесконечный спуск.
     // "endless" — бесконечный спуск.
     mode: "dungeon",
     // Лавка открыта у торговца на этаже (без наценки) и подобранный под этаж
@@ -2386,14 +2404,16 @@
   // заданий подряд: «вспомни» (вопрос) и «примени» (практика на ту же тему).
   // Раньше враг падал с одного-двух ответов, и подземелье проходили за урок.
   // Опыт за врага от этого множителя не растёт — см. поле xp в makeEnemy.
-  // 1,8 подобрано ботом: обычный бой идёт 1,8–2,8 задания (было 1,7),
-  // босс — 3,9–6,2 (было 3,3–5,1), а поход удлиняется на 2–4 минуты.
-  let ENEMY_HP_MUL = 1.8;
+  // 2,4 подобрано ботом после жалобы на одноударные бои: при 80% верных
+  // ответов обычный бой идёт 2,6 задания, босс — 3,0; при 70% — 2,8 и 3,0.
+  // Прежние 1,8 давали 1,9 и 1,2: точный ответ с серией снимал моба сразу.
+  let ENEMY_HP_MUL = 2.4;
   // Босс — отдельная толщина: обычный бой и босс должны различаться длиной,
-  // а не только запасом здоровья в таблице.
-  let BOSS_HP_MUL = 1.2;
-  // Вход в подземелье мягче: на первом этаже враг толще базового лишь на
-  // 60% от ENEMY_HP_MUL, дальше +10% за этаж, с пятого — полностью. В начале
+  // а не только запасом здоровья в таблице. Боссу при этом не достаётся
+  // «мягкий вход» первых этажей — иначе первый босс падал за один-два удара.
+  let BOSS_HP_MUL = 1.5;
+  // Вход в подземелье мягче: на первом этаже враг получает 45% от полной
+  // толщины, дальше доля растёт за этаж, к седьмому — полностью. В начале
   // герой слабее всего, и длинные бои там превращали первые этажи в стену.
   // Мягкий вход: на первом этаже враг получает долю HP_START от полной толщины,
   // к EASE_FLOORS-му этажу — всё. Так бой на первых этажах короче: длина боя —
@@ -2465,9 +2485,14 @@
     // Боссу достаётся отдельная надбавка: обычный враг и босс должны
     // различаться длиной боя, а не только запасом здоровья в таблице.
     const bossBoost = isBoss && floorDef(floorIdx).bossHp ? BOSS_HP_MUL : 1;
+    // Босс не получает «мягкий вход» первых этажей: он и так стоит в конце
+    // биома, а долгий бой — его главная роль. Иначе первый же босс падал
+    // с одного-двух точных ответов, как обычный моб.
+    const hpEase = isBoss ? ENEMY_HP_MUL : enemyHpMulFor(floorIdx);
     const hp = Math.round(baseHp * (1 + HP_PER_FLOOR * floorIdx) * mul * hpMul *
-      enemyHpMulFor(floorIdx) * deepScale(floorIdx).hp * bossBoost);
-    const dmg = enemyDamageFor(t, floorIdx, mul * dmgMul * deepScale(floorIdx).dmg);
+      hpEase * deepScale(floorIdx).hp * bossBoost);
+    const dmg = Math.round(enemyDamageFor(t, floorIdx, mul * dmgMul * deepScale(floorIdx).dmg) *
+      (currentOmen().enemyDmgMul || 1));
     return {
       uid: ++G.uid,
       key: t.key,
@@ -2505,6 +2530,10 @@
       dmgBoost: 0,
       nextDmgMul: 1,
       enraged: false,
+      bossPhase: isBoss ? 1 : 0,
+      phaseHold: false,
+      phaseAbility: null,
+      phaseAbilityText: "",
       x: 0,
       y: 0
     };
@@ -2530,7 +2559,9 @@
 
   function eliteChanceFor(floorIdx, isBossFloor) {
     if (isBossFloor) return 0;
-    const chance = ELITE.chanceBase + floorIdx * ELITE.chanceStep;
+    const omen = currentOmen();
+    if (omen.key === "quiet") return 0;
+    const chance = ELITE.chanceBase + floorIdx * ELITE.chanceStep + (omen.eliteChance || 0);
     return Math.max(0, Math.min(1, chance));
   }
 
@@ -2539,7 +2570,8 @@
   // (min(0.7, 3)), ничего не ограничивали, и на глубине бездны элитой был
   // каждый монстр этажа.
   function eliteCapFor(floorIdx) {
-    return floorIdx >= ELITE.lateFrom ? ELITE.capLate : ELITE.capNear;
+    const base = floorIdx >= ELITE.lateFrom ? ELITE.capLate : ELITE.capNear;
+    return Math.max(0, base + (currentOmen().eliteCap || 0));
   }
 
   // Отряд собирается из обычных монстров того же этажа: столько же видов,
@@ -2559,6 +2591,7 @@
 
   function abilityOf(e) {
     if (!e) return null;
+    if (e.phaseAbility) return e.phaseAbility;
     if (e.ability === null) return null;
     if (typeof e.ability === "string") return e.ability;
     const t = ENEMY_TYPES.find((x) => x.key === e.key);
@@ -2566,7 +2599,9 @@
   }
 
   function abilityTextOf(e) {
-    if (!e || !abilityOf(e)) return "";
+    if (!e) return "";
+    if (e.phaseAbilityText) return e.phaseAbilityText;
+    if (!abilityOf(e)) return "";
     if (e.elite) {
       return ELITE_ABILITY_TEXT[abilityOf(e)] || "Усиленная способность";
     }
@@ -2575,12 +2610,444 @@
     return t.abilityText || "";
   }
 
+  // ---------- Арены кампании v2 ----------
+  // Босс — не «толстый враг в лабиринте», а предзал и зал. Зал строится
+  // фиксированной схемой: симметричные колонны, три якоря отступления и
+  // свободный центр. Фазы меняют не только цифры босса, но и пространство.
+  const ARENA_INFO = {
+    goblin: {
+      phases: ["Открытый круг", "Баррикада", "Обвал"],
+      rule: "Не гонись за вожаком через шипы: у баррикады есть обход по краю."
+    },
+    necromancer: {
+      phases: ["Светлый зал", "Тьма", "Алтарь"],
+      rule: "В темноте держись фонарей и мини-карты, а не памяти."
+    },
+    golem: {
+      phases: ["Твёрдый центр", "Трещины", "Колонны"],
+      rule: "Держись твёрдого пола: лёд отнимает ходы на скольжение."
+    },
+    demon: {
+      phases: ["Два моста", "Один мост", "Разлом"],
+      rule: "Выбери мост заранее и не жадничай до последнего сундука."
+    },
+    dragon: {
+      phases: ["Тёмный зал", "Сокровищница", "Последняя тьма"],
+      rule: "Каждая взятая куча золота усиливает дракона в третьей фазе."
+    }
+  };
+
+  function arenaInfo(key) {
+    return ARENA_INFO[key] || { phases: ["Первая", "Вторая", "Третья"], rule: "" };
+  }
+
+  // Планировка арены: предзал снизу, зал сверху, один коридор между ними.
+  // Колонны — обычные стены, поэтому для них не нужен новый арт. Всё, что
+  // меняется в фазах, тоже состоит из стен, пола, среды и существующих ловушек.
+  function generateArenaFloor(f, index) {
+    const w = f.w;
+    const h = f.h;
+    const grid = [];
+    const decor = [];
+    for (let y = 0; y < h; y++) {
+      grid.push(new Array(w).fill(0));
+      decor.push(new Array(w).fill(0));
+    }
+    const carve = (x0, y0, x1, y1) => {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (x > 0 && y > 0 && x < w - 1 && y < h - 1) grid[y][x] = 1;
+        }
+      }
+    };
+    const cx = Math.floor(w / 2);
+    const left = 2;
+    const right = w - 3;
+    const top = 2;
+    const bottom = h - 9;
+    const anteTop = h - 6;
+    const anteBottom = h - 3;
+    const anteLeft = cx - 3;
+    const anteRight = cx + 3;
+    // Зал, предзал и короткий коридор. Стены между ними остаются стенами.
+    carve(left, top, right, bottom);
+    carve(anteLeft, anteTop, anteRight, anteBottom);
+    carve(cx, bottom + 1, cx, anteTop - 1);
+    // Вход — в предзале, а не в зале: босс не должен ждать у порога.
+    const start = { x: cx, y: anteBottom - 1 };
+    const stairsUp = { x: cx + 2, y: anteTop + 1 };
+    const end = { x: right - 2, y: top + 1 };
+    const portal = { x: left + 2, y: bottom - 2 };
+    const sign = { x: cx - 2, y: anteTop + 1 };
+    const midY = Math.floor((top + bottom) / 2);
+    const anchors = [
+      { x: cx, y: top + 1 },
+      { x: left + 4, y: top + 2 },
+      { x: right - 4, y: bottom - 3 }
+    ];
+    const columns = [
+      { x: left + 3, y: top + 3 },
+      { x: right - 3, y: top + 3 },
+      { x: left + 3, y: bottom - 3 },
+      { x: right - 3, y: bottom - 3 },
+      { x: cx - 4, y: midY },
+      { x: cx + 4, y: midY }
+    ];
+    const reserved = new Set();
+    [start, stairsUp, end, portal, sign].forEach((p) => {
+      reserved.add(p.x + "," + p.y);
+    });
+    anchors.forEach((p) => reserved.add(p.x + "," + p.y));
+    columns.forEach((c) => {
+      if (reserved.has(c.x + "," + c.y)) return;
+      if (c.x <= left || c.x >= right || c.y <= top || c.y >= bottom) return;
+      grid[c.y][c.x] = 0;
+    });
+    const spots = [];
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        if (grid[y][x] === 1) spots.push({ x, y });
+      }
+    }
+    return {
+      grid,
+      decor,
+      start,
+      end,
+      spots,
+      stairsUp,
+      portal,
+      sign,
+      arena: {
+        key: f.bossKey || "dragon",
+        anchors,
+        columns,
+        left,
+        right,
+        top,
+        bottom,
+        cx,
+        anteTop,
+        anteBottom,
+        seal: { x: cx, y: bottom + 1 },
+        sealed: false,
+        addedWalls: []
+      }
+    };
+  }
+
+  // Ловушки, которые стоят в зале ещё до первой фазы. Дальше фазы только
+  // добавляют их: снимать уже показанную опасность было бы нечестно.
+  function arenaInitialTraps(key, a) {
+    const out = [];
+    const add = (x, y, kind) => {
+      out.push({ uid: ++G.uid, x, y, kind, armed: true });
+    };
+    const midY = Math.floor((a.top + a.bottom) / 2);
+    if (key === "goblin") {
+      add(a.cx - 2, midY, "spikes");
+      add(a.cx + 2, midY, "spikes");
+    } else if (key === "dragon") {
+      add(a.cx - 2, midY + 1, "spikes");
+      add(a.cx + 2, midY + 1, "spikes");
+    }
+    return out;
+  }
+
+  function placeArenaContent(state, f, index, gen) {
+    const a = gen.arena;
+    state.map = { w: f.w, h: f.h, grid: gen.grid, decor: gen.decor, doors: [] };
+    state.playerPos = { ...gen.start };
+    state.stairsDown = { x: gen.end.x, y: gen.end.y, active: false };
+    // Из зала назад в предзал нет хода: коридор закрывается за игроком.
+    // Поэтому отдельной лестницы наверх здесь нет — только вперёд, к боссу.
+    state.stairsUp = null;
+    state.portal = f.finalBoss || f.endless ? null : { ...gen.portal };
+    state.plan = null;
+    state.arena = a;
+    state.arenaDark = 0;
+    state.arenaHazardKey = "";
+    state.hazard = null;
+    state.traps = arenaInitialTraps(a.key, a);
+    state.signs = [{
+      uid: ++G.uid,
+      x: gen.sign.x,
+      y: gen.sign.y,
+      title: "Предзал",
+      subtitle: f.bossName || "Арена",
+      text: "Впереди — " + (f.bossName || "босс") + ". Фаз: три. " +
+        arenaInfo(a.key).rule
+    }];
+    state.enemies = [];
+    const e = makeEnemy(f.bossKey || "dragon", index, false, 0, 0, true);
+    e.x = a.anchors[0].x;
+    e.y = a.anchors[0].y;
+    e.bossPhase = 1;
+    // До первого контакта босс ждёт в зале: арена — не коридор, где он
+    // должен сам бежать навстречу. Флаг снимается в openBattle.
+    e.phaseHold = true;
+    state.enemies.push(e);
+    state.discovered = new Set();
+  }
+
+  // Клетка зала, которую можно менять: пол, не занятый героем, боссом,
+  // лестницей, порталом или другой важной точкой.
+  function arenaCellFree(x, y) {
+    if (!G.map || !G.map.grid) return false;
+    if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) return false;
+    if (G.map.grid[y][x] !== 1) return false;
+    if (G.playerPos && G.playerPos.x === x && G.playerPos.y === y) return false;
+    if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) return false;
+    if (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) return false;
+    if (G.portal && G.portal.x === x && G.portal.y === y) return false;
+    if ((G.enemies || []).some((e) => e.x === x && e.y === y)) return false;
+    return true;
+  }
+
+  function arenaAddWall(x, y) {
+    const a = G.arena;
+    if (!a) return false;
+    if (!arenaCellFree(x, y)) return false;
+    G.map.grid[y][x] = 0;
+    a.addedWalls = a.addedWalls || [];
+    if (!a.addedWalls.some((c) => c[0] === x && c[1] === y)) {
+      a.addedWalls.push([x, y]);
+    }
+    return true;
+  }
+
+  function arenaClearWalls() {
+    const a = G.arena;
+    if (!a || !a.addedWalls) return;
+    a.addedWalls.forEach(([x, y]) => {
+      if (G.map && G.map.grid && G.map.grid[y] && G.map.grid[y][x] === 0) {
+        G.map.grid[y][x] = 1;
+      }
+    });
+    a.addedWalls = [];
+  }
+
+  function arenaAddTrap(x, y, kind) {
+    if (!arenaCellFree(x, y)) return false;
+    if ((G.traps || []).some((t) => t.x === x && t.y === y)) return false;
+    if (hazardAt(x, y) === "lava") return false;
+    G.traps = G.traps || [];
+    G.traps.push({ uid: ++G.uid, x, y, kind: kind || "spikes", armed: true });
+    return true;
+  }
+
+  // Среда зала. Для лавы и льда заполняем матрицу клеток, для тьмы —
+  // отдельный радиус: у арены нет «этажной» среды, поэтому оба состояния
+  // хранятся в G.arenaHazardKey и G.arenaDark.
+  function setArenaEnvironment(key, cells, darkRadius) {
+    G.arenaHazardKey = key || "";
+    G.arenaDark = key === "dark" ? Math.max(1, Math.round(darkRadius || DARK_VIEW_RADIUS)) : 0;
+    if (key && key !== "dark") {
+      const w = G.map.w;
+      const h = G.map.h;
+      const m = [];
+      for (let y = 0; y < h; y++) m.push(new Array(w).fill(""));
+      (cells || []).forEach((c) => {
+        if (c.x < 0 || c.y < 0 || c.x >= w || c.y >= h) return;
+        if (G.map.grid[c.y][c.x] !== 1) return;
+        if (!arenaCellFree(c.x, c.y)) return;
+        // Ловушка на лаве — двойной налог за одну клетку. Оставляем под
+        // снарядом твёрдый пол: опасность должна читаться, а не складываться.
+        if ((G.traps || []).some((t) => t.x === c.x && t.y === c.y)) return;
+        m[c.y][c.x] = key;
+      });
+      G.hazard = m;
+    } else {
+      G.hazard = null;
+    }
+    const mapEl = el("map");
+    if (mapEl) mapEl.dataset.hazard = key || "";
+    const scroll = el("map-scroll");
+    if (scroll) scroll.classList.toggle("hazard-dark", !!G.arenaDark);
+  }
+
+  function arenaRingCells(a, thickness) {
+    const cells = [];
+    for (let y = a.top; y <= a.bottom; y++) {
+      for (let x = a.left; x <= a.right; x++) {
+        if (G.map.grid[y][x] !== 1) continue;
+        if (x <= a.left + thickness || x >= a.right - thickness ||
+            y <= a.top + thickness || y >= a.bottom - thickness) {
+          cells.push({ x, y });
+        }
+      }
+    }
+    return cells;
+  }
+
+  function arenaBandCells(a, radius) {
+    const cells = [];
+    const mid = Math.floor((a.top + a.bottom) / 2);
+    for (let y = mid - radius; y <= mid + radius; y++) {
+      for (let x = a.left + 2; x <= a.right - 2; x++) {
+        if (G.map.grid[y][x] !== 1) continue;
+        // Крест безопасных проходов: через центр всегда можно пройти.
+        if (x === a.cx || y === mid) continue;
+        cells.push({ x, y });
+      }
+    }
+    return cells;
+  }
+
+  // Переход босса в новую фазу: он отступает к якорю, зал меняется, а бой
+  // закрывается. Игрок сам идёт через изменившийся зал — это и есть выбор
+  // позиции, которого не было в старом «толстом враге».
+  function startBossPhase(e, phase) {
+    const a = G.arena;
+    if (!a || !e || phase < 2 || phase > 3) return false;
+    e.bossPhase = phase;
+    e.phaseHold = true;
+    arenaClearWalls();
+    const anchor = a.anchors[Math.min(phase - 1, a.anchors.length - 1)];
+    if (anchor && arenaCellFree(anchor.x, anchor.y)) {
+      e.x = anchor.x;
+      e.y = anchor.y;
+    }
+    const midY = Math.floor((a.top + a.bottom) / 2);
+    const key = a.key || e.key;
+    let dmgMul = 1;
+    let hazardKey = "";
+    let hazardCells = [];
+    let darkRadius = 0;
+    let phaseAbility = e.ability || null;
+    let phaseText = "";
+    let armorPct = e.armorPct;
+    let enraged = false;
+
+    if (key === "goblin") {
+      dmgMul = phase === 2 ? 1.15 : 1.25;
+      phaseText = phase === 2
+        ? "Вожак уходит за баррикаду: бьёт сильнее и прячется за укрытием."
+        : "Баррикада рушится, у входа открываются ямы.";
+      if (phase === 2) {
+        arenaAddWall(a.cx - 3, a.top + 3);
+        arenaAddWall(a.cx - 2, a.top + 3);
+        arenaAddWall(a.cx + 2, a.top + 3);
+        arenaAddWall(a.cx + 3, a.top + 3);
+        [[a.cx - 4, midY], [a.cx + 4, midY], [a.cx, midY - 3], [a.cx, midY + 3]]
+          .forEach(([x, y]) => arenaAddTrap(x, y, "spikes"));
+      } else {
+        [[a.cx - 1, a.bottom - 1], [a.cx + 1, a.bottom - 1]]
+          .forEach(([x, y]) => arenaAddTrap(x, y, "pit"));
+      }
+    } else if (key === "necromancer") {
+      dmgMul = phase === 2 ? 1.1 : 1.2;
+      darkRadius = phase === 2 ? 4 : 3;
+      hazardKey = "dark";
+      phaseAbility = phase === 2 ? "curse" : "summon";
+      phaseText = phase === 2
+        ? "Тьма сгущается: подсказки гаснут, в нишах горят только фонари."
+        : "Некромант уходит к алтарю и поднимает слуг.";
+      [[a.cx - 3, midY], [a.cx + 3, midY], [a.cx, midY + 3]]
+        .forEach(([x, y]) => arenaAddTrap(x, y, "crystal_shard"));
+    } else if (key === "golem") {
+      dmgMul = phase === 2 ? 1.1 : 1.2;
+      armorPct = phase === 2 ? 0.35 : 0.45;
+      phaseAbility = "armor";
+      phaseText = phase === 2
+        ? "Лёд ползёт от стен, две колонны рушатся."
+        : "Вокруг центра поднимаются колонны: держись твёрдых островков.";
+      hazardKey = "frost";
+      hazardCells = arenaRingCells(a, phase === 2 ? 3 : 4);
+      if (phase === 2) {
+        (a.columns || []).slice(0, 2).forEach((c) => {
+          if (arenaCellFree(c.x, c.y)) G.map.grid[c.y][c.x] = 1;
+        });
+      } else {
+        [[a.cx - 4, midY - 3], [a.cx + 4, midY - 3],
+         [a.cx - 4, midY + 3], [a.cx + 4, midY + 3]]
+          .forEach(([x, y]) => arenaAddWall(x, y));
+      }
+    } else if (key === "demon") {
+      dmgMul = phase === 2 ? 1.15 : 1.3;
+      hazardKey = "lava";
+      hazardCells = arenaBandCells(a, phase === 2 ? 2 : 4);
+      phaseAbility = phase === 2 ? "fire" : "bossrage";
+      phaseText = phase === 2
+        ? "Один мост рушится: остаётся узкий проход между огнём."
+        : "Разлом расширяется, владыка уходит на дальний остров.";
+      [[a.cx - 3, midY - 2], [a.cx + 3, midY + 2], [a.cx, midY + 4]]
+        .forEach(([x, y]) => arenaAddTrap(x, y, "pit"));
+      if (phase === 3) enraged = true;
+    } else if (key === "dragon") {
+      dmgMul = phase === 2 ? 1.15 : 1.25;
+      darkRadius = phase === 2 ? 4 : 3;
+      hazardKey = "dark";
+      phaseAbility = "bossrage";
+      phaseText = phase === 2
+        ? "Дракон уходит к сокровищнице: золото рассыпано, тьма густеет."
+        : "Две колонны рушатся, тьма сжимается до трёх шагов.";
+      [[a.cx - 4, midY], [a.cx + 4, midY], [a.cx - 2, midY + 3], [a.cx + 2, midY + 3]]
+        .forEach(([x, y]) => arenaAddTrap(x, y, "spikes"));
+      if (phase === 3) {
+        (a.columns || []).slice(0, 2).forEach((c) => {
+          if (arenaCellFree(c.x, c.y)) G.map.grid[c.y][c.x] = 1;
+        });
+        enraged = true;
+        const tribute = tributeBossBonus(G.stats && G.stats.tributeTaken);
+        if (tribute.count > 0) {
+          const beforeMax = e.maxHp;
+          e.maxHp = Math.round(e.maxHp * (1 + tribute.hpPct));
+          e.hp = Math.min(e.maxHp, e.hp + (e.maxHp - beforeMax));
+        }
+      }
+    }
+
+    if (key === "dragon" && phase === 3) {
+      const tribute = tributeBossBonus(G.stats && G.stats.tributeTaken);
+      if (tribute.count > 0) {
+        dmgMul *= 1 + tribute.dmgPct;
+      }
+    }
+    e.baseDmg = e.baseDmg || e.dmg;
+    e.dmg = Math.max(1, Math.round(e.baseDmg * dmgMul));
+    e.armorPct = armorPct;
+    e.enraged = enraged;
+    e.phaseAbility = phaseAbility;
+    e.phaseAbilityText = phaseText;
+    if (G.battle && G.battle.enemy === e) G.battle.bossPhase = phase;
+    setArenaEnvironment(hazardKey, hazardCells, darkRadius);
+    render();
+    updateHud();
+    const info = arenaInfo(key);
+    const title = info.phases[phase - 1] || ("Фаза " + phase);
+    log("Босс отступает. Фаза " + phase + ": " + title + ". " + phaseText, "fight");
+    toast("Фаза " + phase + " · " + title, 4800);
+    scheduleSave();
+    return true;
+  }
+
+  // Коридор закрывается, когда герой входит в зал. Если вернуться нельзя,
+  // это должно быть видно и в тексте, и в карте, а не молчаливой стеной.
+  function maybeSealArena() {
+    const a = G.arena;
+    if (!a || a.sealed || G.place !== "dungeon") return false;
+    if (!G.playerPos || G.playerPos.y > a.bottom) return false;
+    if (!a.seal || !G.map.grid[a.seal.y]) return false;
+    a.sealed = true;
+    G.map.grid[a.seal.y][a.seal.x] = 0;
+    setMsg("Дверь предзала закрылась за спиной.");
+    log("Дверь предзала закрылась за спиной: назад пути нет, только вперёд.", "floor");
+    toast("Дверь за спиной закрылась");
+    render();
+    scheduleSave();
+    return true;
+  }
+
   function createFloorState(index, opts) {
     const f = floorDef(index);
     const o = opts || {};
+    const arenaFloor = !!f.boss && f.campaign === 2 && !o.legacy && !f.endless;
     const useV2 = (o.forceV2 || GEN_V2) && !o.legacy && !f.boss && !f.endless;
     let gen;
-    if (useV2) {
+    if (arenaFloor) {
+      gen = generateArenaFloor(f, index);
+    } else if (useV2) {
       try {
         gen = generateFloorV2(f, index, o);
       } catch (err) {
@@ -2597,6 +3064,11 @@
       playerPos: { x: gen.start.x, y: gen.start.y },
       // План — транзиентное поле: в serializeFloor он не попадает.
       plan: gen.plan || null,
+      // Арена: якоря босса, коридор, который закрывается за игроком, и
+      // добавленные фазами стены. Для обычных этажей здесь null.
+      arena: gen.arena || null,
+      arenaDark: 0,
+      arenaHazardKey: "",
       stairsDown: { x: gen.end.x, y: gen.end.y, active: !bossFloor },
       stairsUp: index > 0 ? { x: gen.start.x, y: gen.start.y } : null,
       enemies: [],
@@ -2628,6 +3100,13 @@
         !(s.x === gen.end.x && s.y === gen.end.y)
     );
     shuffle(far);
+
+    // Для арен содержимое ставит отдельная функция: предзал, один босс,
+    // лестница за ним и портал после победы.
+    if (state.arena) {
+      placeArenaContent(state, f, index, gen);
+      return state;
+    }
 
     // Для плана v2 содержимое ставится по ролям комнат, а не по случайным
     // клеткам. Старый путь ниже остаётся для legacy-этажей и арен.
@@ -3175,6 +3654,33 @@
       out.push({
         uid: ++G.uid, x: spot.x, y: spot.y,
         text: tips.length ? tips[Math.floor(Math.random() * tips.length)] : ""
+      });
+    });
+    // Указатели на развилках: до входа в ветку видно, что в ней лежит.
+    // Это не новая карта и не новый арт — только текст на существующей
+    // табличке, но выбор ветки перестаёт быть слепым.
+    const byId = {};
+    state.plan.rooms.forEach((room) => { byId[room.id] = room; });
+    const roleNames = {
+      treasure: "сокровищница", elite: "логово элиты", rest: "привал",
+      resource: "жила", lore: "архив", ambush: "засада",
+      secret: "скрытая дверь", vault: "тайник"
+    };
+    state.plan.rooms.filter((room) => room.role === "junction").forEach((room) => {
+      const near = [];
+      (state.plan.edges || []).forEach((edge) => {
+        const otherId = edge.a === room.id ? edge.b : (edge.b === room.id ? edge.a : null);
+        const other = otherId != null ? byId[otherId] : null;
+        if (!other || !roleNames[other.role]) return;
+        if (near.indexOf(roleNames[other.role]) < 0) near.push(roleNames[other.role]);
+      });
+      if (!near.length) return;
+      const spot = planTake(room, used);
+      if (!spot) return;
+      out.push({
+        uid: ++G.uid, x: spot.x, y: spot.y,
+        title: "Развилка", subtitle: "Куда сворачивать",
+        text: "Рядом: " + near.join(", ") + "."
       });
     });
     return out;
@@ -3832,8 +4338,15 @@
     const st = abilityState();
     const before = st.left;
     st.left = abilityCharges();
+    // Привал снимает временные дебаффы, но не постоянные штрафы и не
+    // проклятия снаряжения: это передышка, а не очищение всего похода.
+    G.player.poison = 0;
+    G.player.snared = false;
+    G.player.snareWaits = 0;
+    G.player.cursedNext = false;
     log("Привал: +" + (G.player.hp - was) + " здоровья, заряды умения пополнены (" +
-      before + " → " + st.left + "). Осталось привалов: " + G.restsLeft + ".", "loot");
+      before + " → " + st.left + "), яд и цепь сняты. Осталось привалов: " +
+      G.restsLeft + ".", "loot");
     toast("Привал: +" + (G.player.hp - was) + " HP");
     updateHud();
     render();
@@ -3926,6 +4439,8 @@
   let VILLAGE_VIEW_RADIUS = 9;
 
   function darknessActive() {
+    if (G.place !== "dungeon") return false;
+    if (G.arenaDark > 0) return true;
     const hz = currentFloorHazard();
     if (!hz || hz.key !== "dark") return false;
     const f = floorDef(G.floorIndex);
@@ -3936,6 +4451,7 @@
 
   function viewRadius() {
     if (G.place !== "dungeon") return VILLAGE_VIEW_RADIUS;
+    if (G.arenaDark > 0) return G.arenaDark;
     return darknessActive() ? DARK_VIEW_RADIUS : VIEW_RADIUS;
   }
 
@@ -3965,11 +4481,13 @@
       : 1;
   }
 
-  // Множитель золота: по сделке монстры этажа отдают вдвое больше.
+  // Множитель золота: сделка этажа и знамение похода складываются
+  // умножением, а не заменяют друг друга.
   function goldMulForFloor() {
-    return G.blessings && G.blessings[G.floorIndex] === "curse"
+    const blessing = G.blessings && G.blessings[G.floorIndex] === "curse"
       ? BLESS.curseGoldMul
       : 1;
+    return blessing * (currentOmen().goldMul || 1);
   }
 
   function blessingOnFloor() {
@@ -3990,6 +4508,9 @@
       traders: G.traders,
       traps: G.traps,
       hazard: G.hazard,
+      arena: G.arena,
+      arenaDark: G.arenaDark || 0,
+      arenaHazardKey: G.arenaHazardKey || "",
       discovered: G.discovered,
       // Интерактив этажа. Без этих полей каждый автосейв (а он идёт через
       // snapshotCurrent) стирал тайники, рычаги, жилы, таблички и костры:
@@ -4320,6 +4841,9 @@
     G.portal = state.portal || null;
     G.vaultNeedsKey = !!state.vaultNeedsKey;
     G.hazard = state.hazard || null;
+    G.arena = state.arena || null;
+    G.arenaDark = state.arenaDark || 0;
+    G.arenaHazardKey = state.arenaHazardKey || "";
     G.playerPos = { ...state.playerPos };
     G.visible = new Set();
     G.discovered = state.discovered || new Set();
@@ -4330,7 +4854,8 @@
     G.tileObj = [];
     G.camera.zoomIndex = null;
     el("map").dataset.theme = String(floorDef(index).theme != null ? floorDef(index).theme : index % 10);
-    const hz = currentFloorHazard();
+    const hz = currentFloorHazard() ||
+      (G.arenaHazardKey ? hazardByKey(G.arenaHazardKey) : null);
     el("map").dataset.hazard = hz ? hz.key : "";
     // Винетка тьмы живёт на вьюпорте, а не на карте: камера держит героя
     // в центре экрана, и темнота должна сгущаться вокруг него.
@@ -4558,7 +5083,7 @@
     if (!G.stats) {
       G.stats = { correct: 0, wrong: 0, codePassed: 0, codeTried: 0, copyPassed: 0,
         copyTried: 0, hintsUsed: 0, goldEarned: 0, tributeTaken: 0,
-        topicStats: {}, floorsCleared: 0, kills: 0 };
+        topicStats: {}, floorsCleared: 0, kills: 0, recentAnswers: [] };
     }
     // В деревне героя нет, но панель деревни показывает, с чем он уйдёт
     // в подземелье: улучшения читаются из того же progressBonus.
@@ -4619,6 +5144,9 @@
     G.traders = [];
     G.traps = [];
     G.hazard = null;
+    G.arena = null;
+    G.arenaDark = 0;
+    G.arenaHazardKey = "";
     // Интерактив подземелья не переносится в деревню и дома. Иначе тайники,
     // рычаги, жилы, костры и таблички с координатами этажа остаются на карте
     // деревни: рисуются, перехватывают E и блокируют проход.
@@ -4792,8 +5320,8 @@
     html += "<p class='lead'><b>Золото и материалы:</b> " +
       walletText(prof.wallet) + "</p>";
     html += "<p class='lead'><b>Амулеты возврата:</b> " +
-      "●".repeat(rev) + "○".repeat(Math.max(0, HUB_AMULET_MAX - rev)) +
-      " (" + rev + " из " + HUB_AMULET_MAX + ")</p>";
+      "●".repeat(rev) + "○".repeat(Math.max(0, amuletCap() - rev)) +
+      " (" + rev + " из " + amuletCap() + ")</p>";
     html += "<p class='lead'><b>Рекорд:</b> " + (best
       ? "этаж " + best.floors + ", " + best.percent + "%" +
         (best.victory ? " — победа над драконом" : "")
@@ -4883,7 +5411,12 @@
   function rewardText(reward) {
     const parts = [];
     if (reward.gold) parts.push(reward.gold + " золота");
-    LOOT_KINDS.forEach((k) => { if (reward[k]) parts.push(LOOT_NAMES[k] + " " + reward[k]); });
+    // Материалы в награде проходят через тот же множитель амбара, что и
+    // находки, поэтому окно старосты показывает реальную выдачу, а не
+    // базовое число из таблицы.
+    LOOT_KINDS.forEach((k) => {
+      if (reward[k]) parts.push(LOOT_NAMES[k] + " " + Math.max(0, Math.round(reward[k] * lootMul())));
+    });
     return parts.join(" и ") || "ничего";
   }
 
@@ -4899,7 +5432,7 @@
       "<li><b>Деревня</b> — колодец, амбар, кузницу и дом мастера восстанавливают за материалы " +
       "из подземелья. Кузница даёт улучшения героя, и без неё глубоко не спуститься.</li>" +
       "<li><b>Амулет возврата</b> — второй шанс: поднимет на месте и сохранит поход. " +
-      "Унести можно не больше " + HUB_AMULET_MAX + ".</li>" +
+      "Унести можно не больше " + amuletCap() + ".</li>" +
       "<li><b>Карта</b> — клавиша M, зум — колесо мыши.</li>" +
       "</ul>";
     return html;
@@ -4929,10 +5462,17 @@
     if (!def) return "";
     const level = villageLevel(key);
     const cost = buildCost(key);
+    const current = villageEffectText(key, level);
+    const next = level > 0 && level < def.effects.length ? def.effects[level]() : "";
     let html = "<div class='build-block'>" +
       "<div class='hub-card-head'><b>" + def.name + "</b><span class='hub-price'>уровень " +
       level + " из " + def.levels.length + "</span></div>" +
-      "<p class='hub-card-note'>" + def.effect() + "</p>";
+      "<p class='hub-card-note'>" + (current
+        ? "Сейчас: " + current
+        : "Даёт: " + def.effects[0]()) + "</p>";
+    if (next) {
+      html += "<p class='hub-card-note'><b>Следующий уровень:</b> " + next + "</p>";
+    }
     if (!cost) {
       html += "<span class='hub-stock full'>построено до конца</span></div>";
       return html;
@@ -5053,7 +5593,7 @@
     putProfile(hubName(), prof);
     syncProfile(hubName());
     log("Деревня: " + def.name + " — уровень " + prof.village[key] + ".", "loot");
-    toast(def.name + ": " + def.effect());
+    toast(def.name + ": " + villageEffectText(key, prof.village[key]));
     // Постройка меняет внешний вид деревни: убираем леса, меняем табличку
     // и перерисовываем дверь. Позиция героя сохраняется.
     G.prog = progressBonus();
@@ -5101,6 +5641,7 @@
     // Игрок нашёл стража — подсказка «Первый спуск» больше не нужна.
     G.firstGoalDone = true;
     markCodex("npcs", "guard");
+    renderOmenPick();
     renderAbilityPick();
     el("entrance-overlay").classList.remove("hidden");
     updateResumeButton();
@@ -5118,6 +5659,32 @@
         try { target.focus(); } catch (e) {}
       }, 30);
     }
+  }
+
+  // Выбор знамения: не сохраняется в профиль, потому что это ставка
+  // конкретного похода, а не постоянное умение.
+  function renderOmenPick() {
+    const box = el("omen-list");
+    const note = el("omen-note");
+    if (!box) return;
+    const pick = currentOmen().key;
+    box.innerHTML = OMEN_KEYS.map((key) => {
+      const o = OMENS[key];
+      return "<div class='mode" + (key === pick ? " active" : "") + "' data-omen='" + key +
+        "' role='radio' aria-checked='" + (key === pick ? "true" : "false") + "' tabindex='0'>" +
+        "<span class='mode-mark' aria-hidden='true'></span><b>" + o.name + "</b>" +
+        "<span class='mode-note'>" + o.good + " " + o.extra + "</span></div>";
+    }).join("");
+    if (note) {
+      note.textContent = "Знамение действует весь поход и не меняет сложность боя.";
+    }
+  }
+
+  function pickOmen(key) {
+    if (!OMENS[key]) return false;
+    G.omen = key;
+    renderOmenPick();
+    return true;
   }
 
   // Выбор умения перед спуском. Умения открывает дом мастера: без него блок
@@ -5392,8 +5959,8 @@
     }
     html +=
       "<p class='lead'><b>Амулеты:</b> " +
-      "●".repeat(rev) + "○".repeat(Math.max(0, HUB_AMULET_MAX - rev)) +
-      " (" + rev + " из " + HUB_AMULET_MAX + ")</p>";
+      "●".repeat(rev) + "○".repeat(Math.max(0, amuletCap() - rev)) +
+      " (" + rev + " из " + amuletCap() + ")</p>";
     // Материалы — то, чем растёт деревня, поэтому они всегда на виду: без
     // этого ученик не понимает, зачем таскает руду из подземелья.
     html += "<p class='lead'><b>Материалы:</b> " + LOOT_KINDS.map((k) =>
@@ -5427,6 +5994,9 @@
       const carriedGear = carried.filter((i) => i && i.slot !== "potion");
       html += "<p class='lead'><b>Поход на паузе:</b> этаж " +
         ((paused.floorIndex || 0) + 1) + ", золото " + carriedGold +
+        (paused.omen && paused.omen !== "steady"
+          ? ", знамение: " + omenDef(paused.omen).name
+          : "") +
         (carriedGear.length
           ? ", снаряжение: " + carriedGear.map((i) => escText(i.name)).join(", ")
           : "") +
@@ -5480,7 +6050,7 @@
       log("Тёмная сделка: монстры этого этажа бьют на 25% сильнее, " +
         "но золото с них удваивается. Получено " + BLESS.curseGold + " золота.", "hurt");
       effectFlash("Тёмная сделка · +" + BLESS.curseGold + " золота");
-    } else {
+    } else if (kind === "blessing") {
       G.player.baseMaxHp += BLESS.blessingHp;
       // Снимок входа на этаж сделан до выбора. Без этой строки смерть
       // откатывала базовое здоровье, и дар пропадал, а плата за него —
@@ -5493,6 +6063,9 @@
       log("Каменный дар: +" + BLESS.blessingHp + " к максимуму здоровья, " +
         "здоровье восстановлено полностью. Монстры этажа стали живучее.", "loot");
       effectFlash("Каменный дар · +" + BLESS.blessingHp + " HP");
+    } else {
+      log("Ты проходишь мимо сделки: этаж остаётся обычным.", "floor");
+      effectFlash("Пройти мимо");
     }
     render();
     updateHud();
@@ -8963,6 +9536,7 @@
     hideFloorArrival();
     const prevPos = { ...G.playerPos };
     G.playerPos = { x: nx, y: ny };
+    maybeSealArena();
     // Дверь закрывается за спиной: она открыта ровно на один шаг. Иначе
     // проём оставался пустым навсегда, и враги шли следом.
     const prevDoor = roomDoorAt(prevPos.x, prevPos.y);
@@ -9286,6 +9860,9 @@
     const py = G.playerPos.y;
     for (const e of G.enemies.slice()) {
       if (e.hp <= 0) continue;
+      // Босс между фазами ждёт у якоря: игрок должен успеть дойти по
+      // изменившемуся залу, а не получить удар в спину на переходе.
+      if (e.phaseHold) continue;
       if (e.trapHold > 0) {
         e.trapHold -= 1;
         continue;
@@ -9516,13 +10093,22 @@
   function openBattle(enemy, restore) {
     // Новый бой не должен начинаться в полноэкранном редакторе от прошлого.
     document.body.classList.remove("code-focus");
+    // Серия верных ответов — награда внутри боя, а не вечный множитель,
+    // который переносится из боя в бой. Раньше после нескольких удачных
+    // вопросов герой входил в следующий бой уже с ×1.75 и снимал моба
+    // первым же ударом.
+    G.stats.streak = 0;
     // Бой прерывает маршрут, набранный кликом.
     endWalk();
     cancelBattleClose();
     markCodex("enemies", enemy.key);
+    // Босс дождался героя у якоря: с этого момента он снова участвует в бою.
+    if (enemy.boss) enemy.phaseHold = false;
     G.battle = {
       enemy,
       phase: "question",
+      bossPhase: enemy.bossPhase || 0,
+      bossBreak: null,
       challenge: null,
       feedback: "",
       explanation: "",
@@ -9574,6 +10160,8 @@
         G.battle.won = !!restore.won;
         G.battle.playerDead = !!restore.playerDead;
         G.battle.results = restore.results || null;
+        G.battle.bossBreak = restore.bossBreak || null;
+        G.battle.bossPhase = restore.bossPhase || enemy.bossPhase || 0;
         // Восстановленный итог не закрываем таймером: игрок сам нажмёт
         // «Забрать добычу» / «Следующий вопрос».
         G.battle.restored = true;
@@ -9809,11 +10397,77 @@
     return clamp(level - 2, -1, 1);
   }
 
-  // Уровни вопросов этажа с поправкой на сложность и калибровку.
-  function floorLevels() {
+  // Адаптивная поправка по последним ответам. Калибровка — снимок на входе,
+  // а здесь игра смотрит, как ученик отвечает прямо сейчас. Окно короткое:
+  // после десяти ответов видно и разогрев, и усталость. Порог 80% поднимает
+  // уровень, ниже 50% — опускает; между ними остаётся калибровка.
+  const ADAPTIVE = { window: 10, minAnswered: 8, high: 0.8, low: 0.5 };
+
+  function recentAnswers() {
+    const st = G.stats || (G.stats = {});
+    if (!Array.isArray(st.recentAnswers)) st.recentAnswers = [];
+    return st.recentAnswers;
+  }
+
+  function recentAccuracy() {
+    const list = recentAnswers();
+    if (list.length < ADAPTIVE.minAnswered) return null;
+    const ok = list.reduce((n, v) => n + (v ? 1 : 0), 0);
+    return ok / list.length;
+  }
+
+  function adaptiveOffset() {
+    const acc = recentAccuracy();
+    if (acc == null) return 0;
+    if (acc >= ADAPTIVE.high) return 1;
+    if (acc < ADAPTIVE.low) return -1;
+    return 0;
+  }
+
+  // Живая точность важнее старой калибровки, но только когда она уже
+  // набралась. Иначе на первых ответах вопросами управляет калибровка.
+  function difficultyOffset() {
+    const adaptive = adaptiveOffset();
+    return adaptive !== 0 ? adaptive : knowledgeOffset();
+  }
+
+  function noteAnswer(correct) {
+    // Учебный бой не должен с первого раза поднимать сложность: там игрок
+    // ещё знакомится с управлением, а не показывает уровень знаний.
+    if (G.tutorial && G.tutorial.active) return;
+    const list = recentAnswers();
+    list.push(correct ? 1 : 0);
+    if (list.length > ADAPTIVE.window) list.shift();
+  }
+
+  // Подпись для боя: игрок должен понимать, почему задания стали сложнее
+  // или проще, а не догадываться по случайным вопросам.
+  function adaptiveNote() {
+    const list = recentAnswers();
+    const acc = recentAccuracy();
+    if (acc == null) return "";
+    const off = adaptiveOffset();
+    if (off === 0) return "";
+    // На самом глубоком этаже потолок уже 4: подпись «выше» там была бы
+    // обманом. Сравниваем с тем, что дала бы одна калибровка.
     const f = floorDef(G.floorIndex);
     const qb = DIFFICULTY[G.difficulty].qBonus;
     const kb = knowledgeOffset();
+    const baseMin = clamp(f.qmin + qb + kb, 1, 4);
+    const baseMax = clamp(f.qmax + qb + kb, baseMin, 4);
+    const live = floorLevels();
+    if (live.qmin === baseMin && live.qmax === baseMax) return "";
+    const pct = Math.round(acc * 100);
+    return off > 0
+      ? "Задания на ступень выше: " + pct + "% верных за последние " + list.length + " ответов."
+      : "Задания на ступень ниже: " + pct + "% верных за последние " + list.length + " ответов.";
+  }
+
+  // Уровни вопросов этажа с поправкой на сложность и живую точность.
+  function floorLevels() {
+    const f = floorDef(G.floorIndex);
+    const qb = DIFFICULTY[G.difficulty].qBonus;
+    const kb = difficultyOffset();
     const qmin = clamp(f.qmin + qb + kb, 1, 4);
     const qmax = clamp(f.qmax + qb + kb, qmin, 4);
     return { qmin: qmin, qmax: qmax };
@@ -10372,6 +11026,9 @@
 
   function applyAttack(damage, message, counter, explanation, correct) {
     const b = G.battle;
+    // Точность для адаптивных вопросов считаем здесь, а не в answerMC:
+    // так в окно попадают и вопросы, и код, и «повтори», и пропуски.
+    if (correct != null) noteAnswer(!!correct);
     if (correct) sfx("correct");
     else if (counter) sfx("wrong");
     const e = b.enemy;
@@ -10503,7 +11160,22 @@
         parts.push("Отряд повержен.");
       }
     } else {
-      if (e.boss && !e.enraged && e.hp <= e.maxHp * 0.4) {
+      let phaseBreak = 0;
+      const phasedBoss = e.boss && e.bossPhase > 0 &&
+        floorDef(G.floorIndex).campaign === 2;
+      if (phasedBoss && e.bossPhase < 3) {
+        const next = e.bossPhase + 1;
+        const threshold = next === 2 ? 0.7 : 0.35;
+        if (e.hp <= e.maxHp * threshold) phaseBreak = next;
+      }
+      if (phaseBreak) {
+        // Босс отступает и меняет зал. Удар врага в этот ход не проходит:
+        // переход фазы не должен быть бесплатной атакой.
+        startBossPhase(e, phaseBreak);
+        b.bossBreak = { phase: phaseBreak };
+        b.won = false;
+        parts.push("Босс отступает. Начинается фаза " + phaseBreak + ".");
+      } else if (e.boss && !e.enraged && !phasedBoss && e.hp <= e.maxHp * 0.4) {
         e.enraged = true;
         e.dmg = Math.round(e.dmg * 1.5);
         if (ability === "bossrage") {
@@ -10520,7 +11192,7 @@
         }
         parts.push("Враг впадает в ярость!");
       }
-      if (counter) {
+      if (counter && !phaseBreak) {
         // Ошибка — это и есть топливо некроманта: он поднимает слугу.
         if (ability === "summon") summonMinion(e);
         taken = playerTakeHit();
@@ -10578,7 +11250,7 @@
     if (idx >= 0) G.enemies.splice(idx, 1);
     if (G.portal && !G.enemies.length) {
       toast("Портал в деревню открыт");
-      log("Этаж зачищен. У лестницы открылся портал в деревню.", "floor");
+      log("Этаж зачищен. Открылся портал в деревню.", "floor");
       // Если следующий спуск запечатан, объясняем это сразу после зачистки,
       // пока игрок стоит у портала, а не только по нажатию E на ступеньку.
       if (!canDescend()) {
@@ -10861,6 +11533,10 @@
       (abilityText
         ? "<div class='enemy-ability'>" + abilityText + "</div>"
         : "") +
+      (e.boss && b.bossPhase > 1
+        ? "<div class='enemy-ability'>Фаза " + b.bossPhase + " из 3: " +
+          escText((arenaInfo(e.key).phases[b.bossPhase - 1] || "")) + "</div>"
+        : "") +
       (b.cursed
         ? "<div class='enemy-ability curse'>Проклятие лича: подсказка не работает</div>"
         : "") +
@@ -10894,6 +11570,10 @@
       : "";
     if (missPart) {
       html += "<div class='battle-topic'>" + missPart + "</div>";
+    }
+    const adaptNote = b.phase === "question" ? adaptiveNote() : "";
+    if (adaptNote) {
+      html += "<div class='battle-note adaptive'>" + escText(adaptNote) + "</div>";
     }
 
     if (b.phase === "question") {
@@ -10977,6 +11657,8 @@
       // Подпись запоминаем: сама кнопка уезжает в футер карточки.
       footLabel = b.playerDead || G.player.hp <= 0
         ? "Продолжить"
+        : b.bossBreak
+        ? "Идти за боссом"
         : b.squadNext
         ? "В бой с " + b.squadNext.name
         : b.won
@@ -11397,6 +12079,46 @@
     }
   };
   const ABILITY_KEYS = ["insight", "strike", "breath"];
+
+  // Знамения похода: выбор перед спуском, который меняет не правила боя,
+  // а состав этажа и экономику. Это не «сложность»: сложность меняет
+  // масштаб врагов, а знамение — характер забега.
+  const OMENS = {
+    steady: {
+      key: "steady", name: "Ровный спуск", icon: "·",
+      good: "Без изменений.",
+      extra: "Обычные элиты, золото и урон.",
+      eliteChance: 0, eliteCap: 0, goldMul: 1, enemyDmgMul: 1,
+      restBonus: 0, materialMul: 1
+    },
+    blood: {
+      key: "blood", name: "Кровавая луна", icon: "☾",
+      good: "Элиты чаще, +50% золота с монстров.",
+      extra: "Монстры бьют на 10% сильнее.",
+      eliteChance: 0.12, eliteCap: 1, goldMul: 1.5, enemyDmgMul: 1.1,
+      restBonus: 0, materialMul: 1
+    },
+    quiet: {
+      key: "quiet", name: "Тихий спуск", icon: "≈",
+      good: "Элит нет, +1 привал и +25% материалов.",
+      extra: "Золота с монстров на 15% меньше.",
+      eliteChance: -0.2, eliteCap: -2, goldMul: 0.85, enemyDmgMul: 1,
+      restBonus: 1, materialMul: 1.25
+    }
+  };
+  const OMEN_KEYS = ["steady", "blood", "quiet"];
+
+  function omenDef(key) {
+    return OMENS[key] || OMENS.steady;
+  }
+
+  function currentOmen() {
+    return omenDef(G.omen);
+  }
+
+  function omenRestBonus() {
+    return currentOmen().restBonus || 0;
+  }
 
   function abilityState() {
     if (!G.ability) G.ability = { key: "", left: 0 };
@@ -11941,6 +12663,14 @@
       showDeath();
       return;
     }
+    // Босс отступил: закрываем бой, но не заканчиваем его. Игрок идёт по
+    // изменившемуся залу к следующему якорю, босс ждёт и не двигается.
+    if (b.bossBreak) {
+      b.bossBreak = null;
+      closeBattle();
+      setMsg("Босс ждёт у следующего якоря. Иди через зал.");
+      return;
+    }
     // Отряд: выбил одного — бой продолжается с следующим, уйти нельзя.
     if (b.squadNext) {
       const next = b.squadNext;
@@ -12115,7 +12845,7 @@ function topicName(key) {
       ? currentGold
       : (banked == null ? goldEarned : banked);
     const rows = [
-      ["Этаж", floor + (o.victory ? " из 10" : "")],
+      ["Этаж", floor + (o.victory ? " из " + FLOORS.length : "")],
       ["Золото за поход", goldEarned],
       [o.keepGold ? "Золото сейчас" : "В банк", goldValue],
       ["Монстры", s.kills || 0],
@@ -12126,6 +12856,7 @@ function topicName(key) {
     ];
     const tribute = Math.min(5, s.tributeTaken || 0);
     if (tribute > 0) rows.push(["Дань дракону", tribute + " из 5"]);
+    if (currentOmen().key !== "steady") rows.push(["Знамение", currentOmen().name]);
     let html = "<h3 class='run-title'>Итог похода</h3>" +
       "<div class='run-summary'>";
     rows.forEach((row) => {
@@ -12152,6 +12883,8 @@ function topicName(key) {
   // Смерть с амулетом: спрашиваем игрока. Возрождение оставляет поход целым
   // (золото, снаряжение и пройденные этажи на месте) — в этом его ценность.
   function renderDeathWithAmulet(amulets) {
+    const gold = G.player ? (G.player.gold || 0) : 0;
+    const banked = Math.floor(gold * HUB_DEATH_SHARE);
     el("end-box").innerHTML =
       "<div class='big-emoji-free game-over'>Поражение</div>" +
       "<h2 class='game-over'>Ты пал в бою</h2>" +
@@ -12160,7 +12893,7 @@ function topicName(key) {
       "Использовать — герой встанет на этом же этаже, поход продолжится.</p>" +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='revive-btn'>Использовать амулет</button>" +
-      "<button class='btn ghost' id='to-hub-btn'>Вернуться в деревню</button>" +
+      "<button class='btn ghost' id='to-hub-btn'>В деревню (" + banked + " зол.)</button>" +
       "</div>";
     // Обёртка, а не useRevive напрямую: обработчик передаёт MouseEvent,
     // а useRevive принимает необязательный callback окончания загрузки этажа.
@@ -12168,14 +12901,16 @@ function topicName(key) {
     el("to-hub-btn").addEventListener("click", () => deathToHub("gold"));
   }
 
-  // Смерть без амулета: поход окончен. Показываем выбор — всё золото или
-  // половина и разбор ошибок в следующем походе.
+  // Смерть без амулета: поход окончен. Показываем выбор — половина золота
+  // или четверть и разбор ошибок в следующем походе.
   function renderDeathReturn() {
     const gold = G.player ? (G.player.gold || 0) : 0;
     const banked = Math.floor(gold * HUB_DEATH_SHARE);
-    const half = Math.floor(gold * 0.5);
+    const knowledgeGold = Math.floor(gold * HUB_KNOWLEDGE_SHARE);
     const review = reviewPlan();
     const reviewText = review.map(topicName).join(", ");
+    const goldPct = Math.round(HUB_DEATH_SHARE * 100);
+    const knowPct = Math.round(HUB_KNOWLEDGE_SHARE * 100);
     el("end-box").innerHTML =
       "<div class='big-emoji-free game-over'>Поражение</div>" +
       "<h2 class='game-over'>Поход окончен</h2>" +
@@ -12183,15 +12918,16 @@ function topicName(key) {
       "<p class='lead'>Снаряжение, зелья, уровни и кузница этого похода потеряны. " +
       "Материалы и ключи остались в деревне.</p>" +
       (review.length
-        ? "<p class='lead'>Что забрать с собой? <b>Золото</b> — всё, что было в походе. " +
-          "<b>Знания</b> — половина золота и три первых боя следующего похода " +
-          "по слабым темам: " + reviewText + ".</p>"
-        : "<p class='lead'>В деревню перенесено " + banked + " золота.</p>") +
+        ? "<p class='lead'>Что забрать с собой? <b>Золото</b> — " + goldPct +
+          "% походной казны. <b>Знания</b> — " + knowPct +
+          "% и три первых боя следующего похода по слабым темам: " + reviewText + ".</p>"
+        : "<p class='lead'>В деревню перенесено " + banked + " золота (" +
+          goldPct + "% походной казны).</p>") +
       "<div class='battle-actions' style='justify-content:center;flex-wrap:wrap'>" +
       "<button class='btn' id='death-gold-btn'>Забрать золото (" + banked + ")</button>" +
       (review.length
         ? "<button class='btn ghost' id='death-knowledge-btn'>Забрать знания (" +
-          half + " золота + разбор)</button>"
+          knowledgeGold + " золота + разбор)</button>"
         : "") +
       "</div>";
     el("death-gold-btn").addEventListener("click", () => deathToHub("gold"));
@@ -12435,7 +13171,8 @@ function topicName(key) {
     if (LOOT_KINDS.indexOf(kind) < 0) return 0;
     const prof = hubProfile();
     if (!prof) return 0;
-    const amount = Math.max(0, Math.round((Number(n) || 0) * lootMul()));
+    const amount = Math.max(0, Math.round((Number(n) || 0) * lootMul() *
+      (currentOmen().materialMul || 1)));
     if (amount <= 0) return 0;
     prof.loot[kind] = (prof.loot[kind] || 0) + amount;
     putProfile(hubName(), prof);
@@ -12483,36 +13220,67 @@ function topicName(key) {
   // третьего этажа, обломки с пятого), ключи — со стражей лестницы.
   // Постройки открывают силу героя, поэтому деревня и есть замок на победу:
   // без кузницы улучшений не купить, без дома мастера не поднять выше третьего.
-  // Эффекты описаны функциями: числа берутся в момент показа окна, а не при
-  // загрузке страницы — иначе правка баланса в админке оставила бы в подписи
-  // старое число.
+  // effects — прибавки по уровням: второй уровень каждой постройки обязан
+  // что-то менять, иначе его цена выглядит обманом. Тексты динамические:
+  // числа берутся в момент показа окна, а не при загрузке страницы.
   const VILLAGE_BUILDINGS = {
     well: {
       name: "Колодец", yard: true,
-      effect: () => "+" + Math.round(VILLAGE_WELL_HP) + " здоровья в каждом походе",
+      effects: [
+        () => "+" + Math.round(VILLAGE_WELL_HP) + " здоровья в каждом походе",
+        () => "ещё +" + Math.round(VILLAGE_WELL_HP) + " здоровья (всего +" +
+          Math.round(VILLAGE_WELL_HP * 2) + ")"
+      ],
       levels: [{ ore: 3 }, { ore: 8, shard: 3 }]
     },
     barn: {
       name: "Амбар",
-      effect: () => "+" + Math.round(VILLAGE_BARN_BONUS * 100) + "% находок материалов",
+      effects: [
+        () => "+" + Math.round(VILLAGE_BARN_BONUS * 100) + "% находок материалов",
+        () => "+1 привал за поход"
+      ],
       levels: [{ wood: 3, key: "barn" }, { wood: 8, ore: 4 }]
     },
     forge: {
       name: "Кузница",
-      effect: () => "улучшения героя до " + (villageLevel("smith") > 0 ? 3 : 3) + " уровня, II — амулет сверх потолка",
+      effects: [
+        () => "улучшения героя до 3 уровня",
+        () => "+" + VILLAGE_FORGE_AMULET + " амулет возврата сверх потолка"
+      ],
       levels: [{ ore: 4, wood: 2 }, { shard: 8, ore: 6 }]
     },
     smith: {
       name: "Дом мастера",
-      effect: () => "улучшения героя до 5 уровня",
+      effects: [
+        () => "потолок улучшений героя — 5",
+        () => "+1 заряд умения за поход"
+      ],
       levels: [{ key: "smith", shard: 3 }, { shard: 10 }]
     }
   };
+
+  // Что постройка даёт на этом уровне. Для нулевого уровня — пустая строка:
+  // в окне вместо неё стоит «Даёт: первый эффект».
+  function villageEffectText(key, level) {
+    const def = VILLAGE_BUILDINGS[key];
+    if (!def || !def.effects) return "";
+    const n = Math.max(0, Math.min(Number(level) || 0, def.effects.length));
+    if (!n) return "";
+    return def.effects.slice(0, n).map((f) => f()).join(" · ");
+  }
 
   function villageLevel(key) {
     const prof = hubProfile();
     const v = (prof && prof.village) || {};
     return Math.max(0, Math.floor(Number(v[key]) || 0));
+  }
+
+  // Сколько амулетов возврата можно унести. База — настройка админки,
+  // кузница II добавляет бонус. Все проверки потолка идут сюда, иначе
+  // витрина обещала бы больше, чем пускает находка или лавка.
+  function amuletCap() {
+    const bonus = villageLevel("forge") >= 2 ? VILLAGE_FORGE_AMULET : 0;
+    return Math.max(0, HUB_AMULET_MAX + bonus);
   }
 
   // Открыта ли постройка. Жилые дома деревни открыты всегда; амбар, кузницу
@@ -13342,6 +14110,60 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.23.0",
+      date: "6 ноября 2026",
+      title: "Бой и банк вопросов",
+      items: [
+        "Серия верных ответов больше не переносится между боями: первый удар снова честный.",
+        "Босс больше не получает поблажку первых этажей, а обычные враги стали толще. Бой идёт 2–3 вопроса, босс — 3–4.",
+        "Задания подстраиваются под точность: при 80%+ уровень выше, ниже 50% — ниже. В бою видно, почему вопросы изменились.",
+        "Банк вырос до 292 вопросов: у каждой темы и уровня есть минимум три вопроса, дубли убраны."
+      ]
+    },
+    {
+      version: "1.22.0",
+      date: "5 ноября 2026",
+      title: "Знамения и развилки",
+      items: [
+        "Перед спуском выбирается знамение похода: ровный спуск, кровавая луна или тихий спуск.",
+        "Кровавая луна добавляет элит и золото, но усиливает монстров. Тихий спуск убирает элит, даёт привал и больше материалов, но платит меньше золота.",
+        "На развилке теперь три варианта: тёмная сделка, каменный дар или пройти мимо.",
+        "Таблички на развилках называют награды соседних веток: сокровищница, элита, привал, жила."
+      ]
+    },
+    {
+      version: "1.21.0",
+      date: "5 ноября 2026",
+      title: "Ставка похода",
+      items: [
+        "Смерть больше не возвращает всё золото: 50% в банк или 25% и разбор слабых тем для следующего похода.",
+        "У стража входа появилось «Свернуть поход»: 75% золота в банк, но поход и снаряжение заканчиваются.",
+        "Привал теперь один за поход, лечит полностью и снимает яд, цепь и проклятие. Амбар II даёт второй привал.",
+        "Победа по-прежнему забирает всё золото похода и награду за боссов."
+      ]
+    },
+    {
+      version: "1.20.0",
+      date: "5 ноября 2026",
+      title: "Арены и пятнадцать этажей",
+      items: [
+        "Кампания на 15 этажей включена по умолчанию: два обычных этажа на биом и арена. Старые сохранения остаются десятиэтажными.",
+        "Пять боссов получили предзал и зал с тремя фазами: на 70% и 35% здоровья босс отступает, а зал меняется.",
+        "Фазы включают шипы, лёд, лаву, тьму и обрушенные колонны. Дверь предзала закрывается за спиной.",
+        "Победа над боссом открывает лестницу глубже и портал в деревню, кроме финального дракона."
+      ]
+    },
+    {
+      version: "1.19.0",
+      date: "5 ноября 2026",
+      title: "Опоры деревни",
+      items: [
+        "Вторые уровни построек теперь дают то, что обещают: кузница II — лишний амулет возврата, дом мастера II — заряд умения, амбар II — привал.",
+        "В окне постройки видно, что уже работает и что добавит следующий уровень.",
+        "Потолок амулетов в лавке, находках и подписях считается с учётом кузницы."
+      ]
+    },
+    {
       version: "1.18.1",
       date: "5 ноября 2026",
       title: "Иконка спуска",
@@ -13817,13 +14639,65 @@ function topicName(key) {
   // в кошелёк само, и смерть ничего не стоила.
   function deathToHub(mode) {
     const review = mode === "knowledge" ? reviewPlan() : [];
-    const share = review.length ? 0.5 : HUB_DEATH_SHARE;
+    // Знания стоят части золота: разбор — это второй шанс на следующий
+    // поход, а не бесплатная прибавка к нему.
+    const share = review.length ? HUB_KNOWLEDGE_SHARE : HUB_DEATH_SHARE;
     const banked = bankRunGold(share);
     if (review.length) saveReviewPlan(review);
     el("end-overlay").classList.add("hidden");
     clearSave();
     reset();
     if (banked > 0) toast("В деревню перенесено " + banked + " золота");
+  }
+
+  // Добровольное сворачивание похода. Это не пауза: поход заканчивается,
+  // снаряжение и уровни теряются, материалы и ключи уже в профиле, а в банк
+  // уходит только часть походного золота. Так у игрока есть третий исход
+  // между победой и смертью — уйти раньше, но дешевле.
+  function retreatRun() {
+    const data = pausedRun();
+    if (!data || data.over) {
+      toast("Нет похода, который можно свернуть");
+      return false;
+    }
+    const gold = data.player ? (data.player.gold || 0) : 0;
+    const amount = retreatGold(data);
+    const prof = hubProfile();
+    if (prof && amount > 0) {
+      prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+      prof.wallet.gold = (prof.wallet.gold || 0) + amount;
+      putProfile(hubName(), prof);
+      syncProfile(hubName());
+    }
+    clearSave();
+    reset();
+    log("Поход свёрнут: в банк ушло " + amount + " из " + gold +
+      " золота. Материалы и ключи остались в профиле.", "floor");
+    toast(amount > 0
+      ? "Поход свёрнут: в банк " + amount + " золота"
+      : "Поход свёрнут: забирать было нечего");
+    return true;
+  }
+
+  function askRetreat() {
+    const data = pausedRun();
+    if (!data || data.over) {
+      toast("Нет похода, который можно свернуть");
+      return false;
+    }
+    const gold = data.player ? (data.player.gold || 0) : 0;
+    const amount = retreatGold(data);
+    askInGame({
+      title: "Свернуть поход?",
+      text: "В банк уйдёт " + amount + " из " + gold + " золота (" +
+        Math.round(HUB_RETREAT_SHARE * 100) + "%). Снаряжение, зелья, " +
+        "уровни и кузница этого похода пропадут. Материалы и ключи уже в деревне. " +
+        "Продолжить поход можно у стража, пока он не свёрнут.",
+      confirmLabel: "Свернуть поход",
+      cancelLabel: "Остаться в походе",
+      danger: true
+    }, retreatRun);
+    return true;
   }
 
   // Тратит один амулет и поднимает героя на этом же этаже. Поведение этажа
@@ -13848,7 +14722,7 @@ function topicName(key) {
   function findAmulet() {
     const prof = hubProfile();
     if (!prof || !prof.hub) return false;
-    if (prof.hub.revive >= HUB_AMULET_MAX) return false;
+    if (prof.hub.revive >= amuletCap()) return false;
     if (Math.random() >= HUB_AMULET_FIND) return false;
     prof.hub.revive += 1;
     putProfile(hubName(), prof);
@@ -13901,7 +14775,7 @@ function topicName(key) {
   function hubShopOffers() {
     const offers = [{
       kind: "amulet", name: "Амулет возврата", price: HUB_AMULET_PRICE,
-      note: "Второй шанс: возрождает героя на месте. Уносить можно не больше " + HUB_AMULET_MAX + "."
+      note: "Второй шанс: возрождает героя на месте. Уносить можно не больше " + amuletCap() + "."
     }];
     const small = itemById("small_potion");
     const big = itemById("big_potion");
@@ -13917,14 +14791,14 @@ function topicName(key) {
     const gold = (prof.wallet && prof.wallet.gold) || 0;
     let stock = "";
     if (offer.kind === "amulet") {
-      stock = prof.hub.revive >= HUB_AMULET_MAX
-        ? "<span class='hub-stock full'>максимум " + HUB_AMULET_MAX + "</span>"
-        : "<span class='hub-stock'>в запасе: " + prof.hub.revive + " из " + HUB_AMULET_MAX + "</span>";
+      stock = prof.hub.revive >= amuletCap()
+        ? "<span class='hub-stock full'>максимум " + amuletCap() + "</span>"
+        : "<span class='hub-stock'>в запасе: " + prof.hub.revive + " из " + amuletCap() + "</span>";
     } else if (offer.kind === "small_potion" || offer.kind === "big_potion") {
       stock = "<span class='hub-stock'>в кошельке: " + (prof.wallet[offer.kind] || 0) + "</span>";
     }
     const can = gold >= offer.price &&
-      !(offer.kind === "amulet" && prof.hub.revive >= HUB_AMULET_MAX);
+      !(offer.kind === "amulet" && prof.hub.revive >= amuletCap());
     return "<div class='hub-card'>" +
       "<div class='hub-card-head'><b>" + offer.name + "</b><span class='hub-price'>" + offer.price + " зол.</span></div>" +
       "<p class='hub-card-note'>" + (offer.note || "") + "</p>" +
@@ -13947,8 +14821,8 @@ function topicName(key) {
         bank.innerHTML =
           "<p class='lead'><b>Банк деревни:</b> " + walletText(prof.wallet) + "</p>" +
           "<p class='lead'><b>Амулеты возврата:</b> " +
-          "●".repeat(rev) + "○".repeat(Math.max(0, HUB_AMULET_MAX - rev)) +
-          " (" + rev + " из " + HUB_AMULET_MAX + ")</p>";
+          "●".repeat(rev) + "○".repeat(Math.max(0, amuletCap() - rev)) +
+          " (" + rev + " из " + amuletCap() + ")</p>";
       }
     }
     if (list) {
@@ -13964,8 +14838,8 @@ function topicName(key) {
     const offer = hubShopOffers().find((o) => o.kind === kind);
     if (!offer) return;
     prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
-    if (kind === "amulet" && prof.hub.revive >= HUB_AMULET_MAX) {
-      toast("Больше " + HUB_AMULET_MAX + " амулетов не унести");
+    if (kind === "amulet" && prof.hub.revive >= amuletCap()) {
+      toast("Больше " + amuletCap() + " амулетов не унести");
       return;
     }
     if ((prof.wallet.gold || 0) < offer.price) {
@@ -14141,7 +15015,8 @@ function topicName(key) {
         text: "У тебя уже есть незаконченный поход: этаж " +
           ((paused.floorIndex || 0) + 1) + ", золото " +
           ((paused.player && paused.player.gold) || 0) +
-          ". Новый поход начнётся с первого этажа, а текущий будет потерян.",
+          ". Новый поход начнётся с первого этажа, а текущий будет потерян. " +
+          "Чтобы забрать часть золота, сверни поход отдельной кнопкой.",
         confirmLabel: "Начать новый",
         cancelLabel: "Оставить текущий",
         danger: true
@@ -14166,6 +15041,9 @@ function topicName(key) {
     // посреди похода, не должен менять таблицу этажей под ногами.
     G.campaign = CAMPAIGN_V2 ? 2 : 1;
     setCampaign(G.campaign);
+    // Знамение выбирается в окне стража и действует весь поход. Это не
+    // сложность: оно меняет состав этажа и экономику, а не масштаб врагов.
+    G.omen = OMENS[G.omen] ? G.omen : "steady";
     G.startedAt = Date.now();
     updateWalletLine();
     G.floorIndex = 0;
@@ -14207,7 +15085,11 @@ function topicName(key) {
     G.ability = { key: chosenAbility(), left: G.ability && G.ability.key === chosenAbility()
       ? Math.max(0, G.ability.left || 0) : abilityCharges() };
     // Привалы: базовое число плюс один от восстановленного амбара.
-    G.restsLeft = REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0);
+    G.restsLeft = REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0) + omenRestBonus();
+    if (currentOmen().key !== "steady") {
+      log("Знамение похода: " + currentOmen().name + ". " + currentOmen().good +
+        " " + currentOmen().extra, "floor");
+    }
     if (progOf("hp") || progOf("dmg") || progOf("potions")) {
       log("Улучшения из деревни: +" + progOf("hp") + " здоровья, +" + progOf("dmg") +
         " урона, зелий сверх стартового: " + progOf("potions") + ".", "floor");
@@ -14228,6 +15110,10 @@ function topicName(key) {
     G.stats = {
       correct: 0,
       wrong: 0,
+      // Последние ответы для адаптивных вопросов: 1 — верно, 0 — ошибка
+      // или пропуск. Живёт вместе со статистикой похода и переживает
+      // перезагрузку, поэтому «окно» не сбрасывается на каждом экране.
+      recentAnswers: [],
       codePassed: 0,
       codeTried: 0,
       copyPassed: 0,
@@ -14254,6 +15140,9 @@ function topicName(key) {
     G.blessings = {};
     G.blessingOffer = null;
     G.hazard = null;
+    G.arena = null;
+    G.arenaDark = 0;
+    G.arenaHazardKey = "";
     G.finishedVictory = false;
     G.victoryBanked = false;
     G.victoryBankedAmount = 0;
@@ -14320,7 +15209,7 @@ function topicName(key) {
         (prof.dungeonBest.victory ? " (победа)" : "") + "."
       : " Подземелье ещё не пройдено.";
     const rev = prof.hub ? prof.hub.revive : 0;
-    const amulets = rev > 0 ? " Амулетов возврата: " + rev + " из " + HUB_AMULET_MAX + "." : "";
+    const amulets = rev > 0 ? " Амулетов возврата: " + rev + " из " + amuletCap() + "." : "";
     line.textContent = "Кошелёк: " + walletText(prof.wallet) + "." + best + amulets;
     let b = el("game-badges");
     if (!b) {
@@ -14393,6 +15282,8 @@ function topicName(key) {
     G.running = false;
     G.campaign = CAMPAIGN_V2 ? 2 : 1;
     setCampaign(G.campaign);
+    // Поход закончен: следующее знамение выбирается заново.
+    G.omen = "steady";
     G.battle = null;
     G.shopStock = null;
     G.shopTrader = false;
@@ -14465,6 +15356,10 @@ function topicName(key) {
         dmg: e.dmg,
         boss: !!e.boss,
         enraged: !!e.enraged,
+        bossPhase: e.bossPhase || 0,
+        phaseHold: !!e.phaseHold,
+        phaseAbility: e.phaseAbility || null,
+        phaseAbilityText: e.phaseAbilityText || "",
         ability: e.ability || null,
         elite: !!e.elite,
         title: e.title || "",
@@ -14515,12 +15410,25 @@ function topicName(key) {
       levers: (st.levers || []).map((l) => ({ uid: l.uid, x: l.x, y: l.y, vault: l.vault || 0, shortcut: l.shortcut || 0, used: !!l.used })),
       shortcuts: (st.shortcuts || []).map((s) => ({ uid: s.uid, kind: s.kind, cells: s.cells, open: !!s.open })),
       crypts: (st.crypts || []).map((c) => ({ x: c.x, y: c.y })),
-      signs: (st.signs || []).map((s2) => ({ uid: s2.uid, x: s2.x, y: s2.y, text: s2.text })),
+      signs: (st.signs || []).map((s2) => ({ uid: s2.uid, x: s2.x, y: s2.y,
+        title: s2.title || "", subtitle: s2.subtitle || "", text: s2.text })),
       portal: st.portal ? { x: st.portal.x, y: st.portal.y } : null,
       vaultNeedsKey: !!st.vaultNeedsKey,
       // Опасная среда: без неё после перезагрузки этаж «выздоравливал» —
       // лава и лёд исчезали, а тьма переставала сужать обзор.
       hazard: st.hazard || null,
+      arena: st.arena ? {
+        key: st.arena.key,
+        anchors: st.arena.anchors,
+        columns: st.arena.columns,
+        left: st.arena.left, right: st.arena.right,
+        top: st.arena.top, bottom: st.arena.bottom,
+        cx: st.arena.cx, anteTop: st.arena.anteTop, anteBottom: st.arena.anteBottom,
+        seal: st.arena.seal, addedWalls: st.arena.addedWalls || [],
+        sealed: !!st.arena.sealed
+      } : null,
+      arenaDark: st.arenaDark || 0,
+      arenaHazardKey: st.arenaHazardKey || "",
       discovered: Array.from(st.discovered || [])
     };
   }
@@ -14542,6 +15450,7 @@ function topicName(key) {
           { poison: 0, poisonBonus: 0, armorPct: 0.2, fireMul: 1.15, chargeStep: 2,
             chargeCap: 10, drainPct: 0.5, curseChance: 0.35, phaseChance: 0.25,
             dmgBoost: 0, nextDmgMul: 1, enraged: false, ability: null,
+            bossPhase: 0, phaseHold: false, phaseAbility: null, phaseAbilityText: "",
             elite: false, title: "", baseDmg: 0, fireScale: 1, shotScale: 1,
             payload: null, squadId: 0, squadIdx: 0, range: 1, guard: false, xp: 0,
             summonedBy: 0 },
@@ -14567,6 +15476,9 @@ function topicName(key) {
       portal: o.portal ? { x: o.portal.x, y: o.portal.y } : null,
       vaultNeedsKey: !!o.vaultNeedsKey,
       hazard: o.hazard || null,
+      arena: o.arena || null,
+      arenaDark: o.arenaDark || 0,
+      arenaHazardKey: o.arenaHazardKey || "",
       discovered: new Set(o.discovered || [])
     };
   }
@@ -14820,6 +15732,7 @@ function topicName(key) {
         difficulty: G.difficulty,
         floorIndex: G.floorIndex,
         campaign: G.campaign || 1,
+        omen: G.omen || "steady",
         startedAt: G.startedAt,
         player: G.player,
         equipment: G.equipment,
@@ -14870,6 +15783,8 @@ function topicName(key) {
             explanation: G.battle.explanation || "",
             good: !!G.battle.good,
             won: !!G.battle.won,
+            bossBreak: G.battle.bossBreak || null,
+            bossPhase: G.battle.bossPhase || 0,
             playerDead: !!G.battle.playerDead,
             results: G.battle.results || null,
             squadNextUid: G.battle.squadNext ? G.battle.squadNext.uid : 0
@@ -14946,8 +15861,14 @@ function topicName(key) {
     return data;
   }
 
+  function retreatGold(data) {
+    const gold = data && data.player ? (data.player.gold || 0) : 0;
+    return Math.floor(gold * Math.max(0, Math.min(1, HUB_RETREAT_SHARE)));
+  }
+
   function updateResumeButton() {
     const btn = el("resume-btn");
+    const retreat = el("retreat-btn");
     if (!btn) return;
     const data = readSave();
     // «Продолжить» видит только вошедший владелец сейва: на общем
@@ -14968,8 +15889,13 @@ function topicName(key) {
       } else {
         btn.textContent = "Продолжить: этаж " + (data.floorIndex + 1);
       }
+      if (retreat) {
+        retreat.style.display = data.over ? "none" : "";
+        retreat.textContent = "Свернуть поход (+" + retreatGold(data) + " зол.)";
+      }
     } else {
       btn.style.display = "none";
+      if (retreat) retreat.style.display = "none";
     }
   }
 
@@ -15023,6 +15949,7 @@ function topicName(key) {
     // Флаг влияет только на новые забеги и не переносит начатый поход.
     G.campaign = data.campaign === 2 ? 2 : 1;
     setCampaign(G.campaign);
+    G.omen = OMENS[data.omen] ? data.omen : "steady";
     // Окно стража должно закрыться: иначе загрузка идёт «за» открытой
     // модалкой, и кажется, что кнопка «Продолжить» ничего не сделала.
     closeEntrance();
@@ -15064,7 +15991,7 @@ function topicName(key) {
     // получает обычный запас на поход.
     G.restsLeft = typeof data.restsLeft === "number"
       ? data.restsLeft
-      : REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0);
+      : REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0) + omenRestBonus();
     G.vaultKeys = data.vaultKeys || 0;
     G.shopStock = null;
     G.shopTrader = false;
@@ -15372,6 +16299,7 @@ function topicName(key) {
 
     el("begin-btn").addEventListener("click", beginFromEntrance);
     el("resume-btn").addEventListener("click", () => loadGame());
+    el("retreat-btn").addEventListener("click", askRetreat);
     const tutorialSkipBtn = el("tutorial-skip");
     if (tutorialSkipBtn) tutorialSkipBtn.addEventListener("click", tutorialSkip);
     const calibrationBtn = el("calibration-btn");
@@ -15491,6 +16419,12 @@ function topicName(key) {
       if (card) pickAbility(card.dataset.ab);
     });
 
+    // Знамение похода: выбор карточки в окне стража.
+    el("omen-list").addEventListener("click", (e) => {
+      const card = e.target.closest ? e.target.closest("[data-omen]") : null;
+      if (card) pickOmen(card.dataset.omen);
+    });
+
     el("difficulty").addEventListener("click", (e) => {
       const mode = e.target.closest(".mode");
       if (!mode) return;
@@ -15500,7 +16434,7 @@ function topicName(key) {
       syncPickState();
     });
 
-    // Режим похода: обычные десять этажей или бесконечный спуск.
+    // Режим похода: обычная кампания или бесконечный спуск.
     el("game-mode").addEventListener("click", (e) => {
       const mode = e.target.closest(".mode");
       if (!mode) return;
@@ -15878,6 +16812,9 @@ function topicName(key) {
     // Обновление страницы всегда возвращает в главное меню. Поход не
     // поднимаем за спиной: игрок сам решает, нажать «Продолжить» или начать
     // новый. Иначе после F5 он неожиданно оказывался в бою.
+    // Новая кампания по умолчанию — пятнадцать этажей. Старый сейв
+    // переопределит таблицу при загрузке, поэтому здесь только дефолт.
+    setCampaign(CAMPAIGN_V2 ? 2 : 1);
     enterVillage(null);
     if (window.PyMenu && typeof window.PyMenu.boot === "function") {
       window.PyMenu.boot({ resumed: false });
@@ -16419,7 +17356,8 @@ function topicName(key) {
     "hazard.frost", "hazard.lava",
     "enemy.hpMul", "enemy.bossHpMul", "combat.missStep", "combat.missCap", "guard.hpMul", "guard.dmgMul",
     "learn.reviewChance", "learn.floorTopic",
-    "hub.deathGoldShare", "hub.amuletPrice", "hub.amuletFindChance", "hub.amuletMax",
+    "hub.deathGoldShare", "hub.knowledgeGoldShare", "hub.retreatGoldShare",
+    "hub.amuletPrice", "hub.amuletFindChance", "hub.amuletMax",
     "village.view", "combat.skipShare", "enemy.hpStart",
     "endless.depthDmg",
     "deep.from", "deep.hpMul", "deep.dmgMul",
@@ -16491,6 +17429,8 @@ function topicName(key) {
       case "learn.reviewChance": LEARN.reviewChance = value; return true;
       case "learn.floorTopic": LEARN.floorTopicChance = value; return true;
       case "hub.deathGoldShare": HUB_DEATH_SHARE = value; return true;
+      case "hub.knowledgeGoldShare": HUB_KNOWLEDGE_SHARE = value; return true;
+      case "hub.retreatGoldShare": HUB_RETREAT_SHARE = value; return true;
       case "hub.amuletPrice": HUB_AMULET_PRICE = value; return true;
       case "hub.amuletFindChance": HUB_AMULET_FIND = value; return true;
       case "hub.amuletMax": HUB_AMULET_MAX = Math.max(0, Math.floor(value)); return true;
@@ -16593,6 +17533,8 @@ function topicName(key) {
       case "learn.reviewChance": return LEARN.reviewChance;
       case "learn.floorTopic": return LEARN.floorTopicChance;
       case "hub.deathGoldShare": return HUB_DEATH_SHARE;
+      case "hub.knowledgeGoldShare": return HUB_KNOWLEDGE_SHARE;
+      case "hub.retreatGoldShare": return HUB_RETREAT_SHARE;
       case "hub.amuletPrice": return HUB_AMULET_PRICE;
       case "hub.amuletFindChance": return HUB_AMULET_FIND;
       case "hub.amuletMax": return HUB_AMULET_MAX;

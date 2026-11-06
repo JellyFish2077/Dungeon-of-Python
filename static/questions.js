@@ -815,10 +815,10 @@ const QUESTIONS = [
     topic: "modules",
     level: 4,
     text: "Что выведет этот код?",
-    code: "import math\nprint(math.sqrt(16))",
-    options: ["4", "4.0", "16", "Ошибка"],
-    answer: 1,
-    explanation: "Функция sqrt() из модуля math возвращает float: 4.0."
+    code: "import math\nprint(math.isclose(0.1 + 0.2, 0.3))",
+    options: ["True", "False", "0.30000000000000004", "Ошибка: isclose не существует"],
+    answer: 0,
+    explanation: "0.1 + 0.2 не равно 0.3 точно из-за двоичных дробей, но math.isclose сравнивает с допуском и возвращает True."
   },
   {
     id: 83,
@@ -909,6 +909,450 @@ const QUESTIONS = [
     options: ["['меч'] и ['меч', 'щит']", "['меч'] и ['щит']", "['меч', 'щит'] в обоих вызовах", "Ошибка: список в аргументе"],
     answer: 0,
     explanation: "Значение по умолчанию создаётся один раз, при определении функции, поэтому список один и тот же во всех вызовах. Безопасно: bag=None, а внутри if bag is None: bag = []."
+  },
+  // ----- Добавлено после ревизии банка: пустые клетки тем и уровней -----
+  {
+    id: 92,
+    topic: "syntax",
+    level: 2,
+    text: "Что произойдёт при запуске этого кода?",
+    code: "if True:\nprint(\"да\")",
+    options: ["Ошибка отступа: print должен быть сдвинут вправо", "Напечатает «да»", "Напечатает True", "Ничего не выведет"],
+    answer: 0,
+    explanation: "Тело if задаётся отступом. Без отступа print не входит в блок, и Python сообщает IndentationError."
+  },
+  {
+    id: 93,
+    topic: "syntax",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "a, b = 1, 2\na, b = b, a\nprint(a, b)",
+    options: ["2 1", "1 2", "1 1", "Ошибка: так нельзя"],
+    answer: 0,
+    explanation: "Справа сначала вычисляется кортеж (b, a), затем он распаковывается в a и b. Поэтому значения меняются местами."
+  },
+  {
+    id: 94,
+    topic: "syntax",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "x = 10\nprint(\"много\" if x > 5 else \"мало\")",
+    options: ["много", "мало", "True", "Ошибка синтаксиса"],
+    answer: 0,
+    explanation: "Тернарное выражение выбирает значение: условие x > 5 истинно, поэтому берётся «много»."
+  },
+  {
+    id: 95,
+    topic: "errors",
+    level: 1,
+    text: "Какая ошибка в этом коде?",
+    code: "print(\"привет\"",
+    options: ["SyntaxError: не закрыта скобка", "NameError: нет print", "TypeError: строка не подходит", "Код сработает и напечатает привет"],
+    answer: 0,
+    explanation: "У print не закрыта скобка. Python не может разобрать строку и выдаёт SyntaxError ещё до выполнения."
+  },
+  {
+    id: 96,
+    topic: "errors",
+    level: 2,
+    text: "Что произойдёт при запуске?",
+    code: "print(10 / 0)",
+    options: ["ZeroDivisionError", "Напечатает 0", "Напечатает 10", "SyntaxError"],
+    answer: 0,
+    explanation: "Делить на ноль нельзя: Python выбрасывает ZeroDivisionError. Деление стоит проверять условием или try/except."
+  },
+  {
+    id: 97,
+    topic: "errors",
+    level: 3,
+    text: "Что произойдёт при запуске?",
+    code: "number = int(\"12a\")\nprint(number)",
+    options: ["ValueError: строку нельзя превратить в число", "Напечатает 12", "Напечатает 12a", "TypeError: int не функция"],
+    answer: 0,
+    explanation: "int() понимает только строку, целиком состоящую из числа. «12a» содержит букву, поэтому возникает ValueError."
+  },
+  {
+    id: 98,
+    topic: "functions",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "def answer():\n    return 42\n\nprint(answer())",
+    options: ["42", "answer", "None", "Ошибка: функция не вызвана"],
+    answer: 0,
+    explanation: "def создаёт функцию, а answer() вызывает её. return 42 возвращает число, и print выводит 42."
+  },
+  {
+    id: 99,
+    topic: "functions",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "def add(a, b):\n    return a + b\n\nprint(add(2, 3))",
+    options: ["5", "23", "a + b", "None"],
+    answer: 0,
+    explanation: "В функцию передаются 2 и 3: a=2, b=3. return возвращает их сумму 5, её и печатает print."
+  },
+  {
+    id: 100,
+    topic: "functions",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "def greet(name=\"мир\"):\n    return \"привет, \" + name\n\nprint(greet())",
+    options: ["привет, мир", "привет, name", "Ошибка: name не передан", "None"],
+    answer: 0,
+    explanation: "У параметра name есть значение по умолчанию «мир». При вызове без аргумента используется оно."
+  },
+  {
+    id: 101,
+    topic: "modules",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.sqrt(49))",
+    options: ["7.0", "7", "49", "Ошибка: sqrt не подключён"],
+    answer: 0,
+    explanation: "import math подключает модуль, а math.sqrt(49) вызывает функцию из него. sqrt возвращает float — 7.0."
+  },
+  {
+    id: 102,
+    topic: "modules",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "from math import pi\nprint(round(pi, 2))",
+    options: ["3.14", "3.1", "3.14159", "Ошибка: pi не число"],
+    answer: 0,
+    explanation: "from math import pi берёт только число pi. round(pi, 2) округляет до двух знаков после запятой — 3.14."
+  },
+  {
+    id: 103,
+    topic: "strings",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "word = \"кот\"\nprint(word[1])",
+    options: ["о", "к", "т", "кот"],
+    answer: 0,
+    explanation: "Индексы начинаются с нуля: word[0] — «к», word[1] — «о», word[2] — «т»."
+  },
+  {
+    id: 104,
+    topic: "control",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "age = 12\nif age >= 18:\n    print(\"взрослый\")\nelse:\n    print(\"ребёнок\")",
+    options: ["ребёнок", "взрослый", "12", "Ничего"],
+    answer: 0,
+    explanation: "12 меньше 18, поэтому условие ложно и выполняется ветка else — «ребёнок»."
+  },
+  {
+    id: 105,
+    topic: "collections",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "items = [10, 20, 30]\nprint(len(items))",
+    options: ["3", "30", "2", "[10, 20, 30]"],
+    answer: 0,
+    explanation: "len() возвращает количество элементов в списке. В списке три числа, поэтому 3."
+  },
+  {
+    id: 106,
+    topic: "operators",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(2 ** 3 ** 2)",
+    options: ["512", "64", "36", "8"],
+    answer: 0,
+    explanation: "Возведение в степень выполняется справа налево: сначала 3 ** 2 = 9, затем 2 ** 9 = 512."
+  },
+  {
+    id: 107,
+    topic: "strings",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "print(\"a,b,c\".split(\",\")[1])",
+    options: ["b", "a", "c", "['a', 'b', 'c']"],
+    answer: 0,
+    explanation: "split(\",\") возвращает список ['a', 'b', 'c'], а индекс [1] берёт второй элемент — b."
+  },
+  // ----- Вторая партия: синтаксис и исключения до трёх вопросов на уровень -----
+  {
+    id: 108,
+    topic: "syntax",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "x = 4\nx += 3\nprint(x)",
+    options: ["7", "43", "3", "Ошибка: += не существует"],
+    answer: 0,
+    explanation: "x += 3 — короткая запись x = x + 3. К 4 прибавляется 3, получается 7."
+  },
+  {
+    id: 109,
+    topic: "syntax",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "print(\"a\", \"b\", sep=\"-\")",
+    options: ["a-b", "a b", "ab", "Ошибка: sep не существует"],
+    answer: 0,
+    explanation: "Параметр sep задаёт разделитель между аргументами print. По умолчанию там пробел, а здесь — дефис."
+  },
+  {
+    id: 110,
+    topic: "syntax",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "point = (3, 4)\nx, y = point\nprint(x + y)",
+    options: ["7", "34", "3 4", "Ошибка: кортеж нельзя распаковать"],
+    answer: 0,
+    explanation: "Кортеж (3, 4) распаковывается в x и y: x=3, y=4. Сумма равна 7."
+  },
+  {
+    id: 111,
+    topic: "syntax",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "x = 10\ndef f():\n    x = 5\nf()\nprint(x)",
+    options: ["10", "5", "15", "Ошибка: x не видна"],
+    answer: 0,
+    explanation: "Присваивание x = 5 внутри функции создаёт локальную переменную. Глобальная x остаётся 10; чтобы её изменить, нужно global x."
+  },
+  {
+    id: 112,
+    topic: "syntax",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "print((n := 3) + n)",
+    options: ["6", "3", "33", "Ошибка: := не существует"],
+    answer: 0,
+    explanation: "Оператор := (walrus) присваивает значение и сразу возвращает его. n становится 3, выражение даёт 3 + 3 = 6."
+  },
+  {
+    id: 113,
+    topic: "syntax",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "print(1 < 2 < 3)",
+    options: ["True", "False", "Ошибка: две операции сравнения", "1"],
+    answer: 0,
+    explanation: "В Python сравнения можно объединять в цепочку: 1 < 2 < 3 означает (1 < 2) and (2 < 3). Оба условия истинны."
+  },
+  {
+    id: 114,
+    topic: "errors",
+    level: 1,
+    text: "Что произойдёт при запуске?",
+    code: "print(score)",
+    options: ["NameError: переменная score не определена", "Напечатает 0", "Напечатает score", "SyntaxError: нет скобок"],
+    answer: 0,
+    explanation: "Python ищет score среди переменных и не находит. Пока переменной нет, обращение к ней даёт NameError."
+  },
+  {
+    id: 115,
+    topic: "errors",
+    level: 1,
+    text: "Что произойдёт при запуске?",
+    code: "print(\"5\" + 5)",
+    options: ["TypeError: строку и число нельзя сложить", "Напечатает 10", "Напечатает 55", "ValueError: строка не число"],
+    answer: 0,
+    explanation: "Оператор + у строки означает склейку, а число 5 — не строка. Python не угадывает, что нужно превратить 5 в \"5\", и выбрасывает TypeError."
+  },
+  {
+    id: 116,
+    topic: "errors",
+    level: 2,
+    text: "Что произойдёт при запуске?",
+    code: "items = [1, 2]\nprint(items[3])",
+    options: ["IndexError: в списке нет индекса 3", "Напечатает 2", "Напечатает 3", "Напечатает None"],
+    answer: 0,
+    explanation: "Индексы списка из двух элементов — 0 и 1. Обращение к items[3] выходит за границы и даёт IndexError."
+  },
+  {
+    id: 117,
+    topic: "errors",
+    level: 2,
+    text: "Что произойдёт при запуске?",
+    code: "hero = {\"hp\": 10}\nprint(hero[\"gold\"])",
+    options: ["KeyError: ключа gold нет", "Напечатает 10", "Напечатает None", "Напечатает 0"],
+    answer: 0,
+    explanation: "В словаре есть только ключ hp. Обращение к отсутствующему ключу даёт KeyError; безопаснее hero.get(\"gold\")."
+  },
+  {
+    id: 118,
+    topic: "errors",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "try:\n    print(10 / 0)\nexcept ZeroDivisionError:\n    print(\"поймали\")",
+    options: ["поймали", "Ошибка ZeroDivisionError", "0", "Ничего"],
+    answer: 0,
+    explanation: "Деление на ноль попадает в except ZeroDivisionError, поэтому программа не падает и печатает «поймали»."
+  },
+  {
+    id: 119,
+    topic: "errors",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "try:\n    x = 10 / 2\nexcept ZeroDivisionError:\n    print(\"ошибка\")\nelse:\n    print(\"ок\")",
+    options: ["ок", "ошибка", "5", "Ничего"],
+    answer: 0,
+    explanation: "Исключения не было, поэтому блок except пропускается, а else выполняется — печатается «ок»."
+  },
+  // ----- Третья партия: функции L1–L2 и модули L1–L3 -----
+  {
+    id: 120,
+    topic: "functions",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "def hello():\n    print(\"привет\")\n\nhello()",
+    options: ["привет", "hello", "None", "Ошибка: функция не вызвана"],
+    answer: 0,
+    explanation: "def объявляет функцию, а строка hello() вызывает её. Внутри стоит print, поэтому на экране будет «привет»."
+  },
+  {
+    id: 121,
+    topic: "functions",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "def square(x):\n    return x * x\n\nprint(square(4))",
+    options: ["16", "8", "4", "None"],
+    answer: 0,
+    explanation: "В функцию передаётся 4: x=4. return возвращает 4 * 4 = 16, и print выводит результат."
+  },
+  {
+    id: 122,
+    topic: "functions",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "def greet(name):\n    return \"привет, \" + name\n\nprint(greet(\"Аня\"))",
+    options: ["привет, Аня", "привет, name", "Аня", "None"],
+    answer: 0,
+    explanation: "Аргумент «Аня» попадает в параметр name. Функция склеивает строки и возвращает «привет, Аня»."
+  },
+  {
+    id: 123,
+    topic: "modules",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.floor(3.7))",
+    options: ["3", "4", "3.7", "Ошибка: floor не подключён"],
+    answer: 0,
+    explanation: "import math подключает модуль, а math.floor() округляет вниз до целого. Для 3.7 это 3."
+  },
+  {
+    id: 124,
+    topic: "modules",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "from math import ceil\nprint(ceil(2.1))",
+    options: ["3", "2", "2.1", "Ошибка: ceil не подключён"],
+    answer: 0,
+    explanation: "from math import ceil берёт из модуля только функцию ceil. Она округляет вверх: 2.1 превращается в 3."
+  },
+  {
+    id: 125,
+    topic: "modules",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "import math as m\nprint(m.sqrt(36))",
+    options: ["6.0", "6", "36", "Ошибка: m не модуль"],
+    answer: 0,
+    explanation: "import math as m даёт модулю короткое имя m. Дальше функции вызывают через m, а sqrt возвращает float — 6.0."
+  },
+  {
+    id: 126,
+    topic: "modules",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.pow(2, 3))",
+    options: ["8.0", "8", "6", "9"],
+    answer: 0,
+    explanation: "math.pow(2, 3) возводит 2 в третью степень и возвращает float: 8.0, а не 8."
+  },
+  // ----- Четвёртая партия: последние тонкие клетки -----
+  {
+    id: 127,
+    topic: "operators",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(10 % 4 + 2 ** 2)",
+    options: ["6", "8", "4", "14"],
+    answer: 0,
+    explanation: "Сначала выполняются % и **: 10 % 4 = 2, 2 ** 2 = 4. Затем сложение: 2 + 4 = 6."
+  },
+  {
+    id: 128,
+    topic: "strings",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "print(\"кот\"[0])",
+    options: ["к", "о", "т", "кот"],
+    answer: 0,
+    explanation: "Индексы начинаются с нуля: [0] — первый символ строки, то есть «к»."
+  },
+  {
+    id: 129,
+    topic: "strings",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "print(\"да\" * 2)",
+    options: ["дада", "да да", "2", "Ошибка: строку нельзя умножать"],
+    answer: 0,
+    explanation: "Умножение строки на число повторяет её: «да» * 2 даёт «дада»."
+  },
+  {
+    id: 130,
+    topic: "strings",
+    level: 4,
+    text: "Что выведет этот код?",
+    code: "print(\"abcdef\"[1:4])",
+    options: ["bcd", "abcd", "bcde", "abc"],
+    answer: 0,
+    explanation: "Срез [1:4] берёт символы с индексом 1 включительно до 4 не включая: b, c, d."
+  },
+  {
+    id: 131,
+    topic: "control",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "x = 3\nif x > 0:\n    print(\"плюс\")",
+    options: ["плюс", "3", "True", "Ничего"],
+    answer: 0,
+    explanation: "3 больше нуля, поэтому условие истинно и выполняется тело if — печатается «плюс»."
+  },
+  {
+    id: 132,
+    topic: "control",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "x = 0\nif x:\n    print(\"да\")\nelse:\n    print(\"нет\")",
+    options: ["нет", "да", "0", "Ничего"],
+    answer: 0,
+    explanation: "Ноль в условии считается ложью, поэтому выполняется ветка else — печатается «нет»."
+  },
+  {
+    id: 133,
+    topic: "collections",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "print([10, 20, 30][2])",
+    options: ["30", "20", "10", "Ошибка: у списка нет индексов"],
+    answer: 0,
+    explanation: "Индексы списка начинаются с нуля: [0] — 10, [1] — 20, [2] — 30."
+  },
+  {
+    id: 134,
+    topic: "collections",
+    level: 1,
+    text: "Что выведет этот код?",
+    code: "items = [\"меч\", \"щит\"]\nprint(items[0])",
+    options: ["меч", "щит", "0", "['меч', 'щит']"],
+    answer: 0,
+    explanation: "Первый элемент списка имеет индекс 0. Поэтому items[0] — это «меч»."
+  },
+  {
+    id: 135,
+    topic: "types",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(isinstance(True, int))",
+    options: ["True", "False", "TypeError", "None"],
+    answer: 0,
+    explanation: "bool — подкласс int: True и False ведут себя как 1 и 0. Поэтому isinstance(True, int) возвращает True."
   },
 ];
 

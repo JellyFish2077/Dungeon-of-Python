@@ -510,6 +510,23 @@
     for (const q of generate(96)) QUESTIONS.push(q);
     // Нижние этажи (qmin: 4) получают собственный запас строгих заданий.
     for (const q of generateHard(72)) QUESTIONS.push(q);
+    // Генератор иногда повторяет авторский вопрос или другой
+    // сгенерированный. Оставляем первый вариант: дубль в выборе — это
+    // потерянный ход, а не разнообразие. Авторские вопросы не трогаем.
+    const seen = new Set();
+    const keyOf = (q) => String(q.text || "") + "|" + String(q.code || "");
+    QUESTIONS.forEach((q) => { if (!q.generated) seen.add(keyOf(q)); });
+    for (let i = 0; i < QUESTIONS.length; ) {
+      const q = QUESTIONS[i];
+      if (!q.generated) { i += 1; continue; }
+      const key = keyOf(q);
+      if (seen.has(key)) {
+        QUESTIONS.splice(i, 1);
+        continue;
+      }
+      seen.add(key);
+      i += 1;
+    }
   }
 
   // Перемешивает варианты ответа. Возвращает новый порядок:
