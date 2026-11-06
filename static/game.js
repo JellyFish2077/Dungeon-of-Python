@@ -1880,10 +1880,9 @@
   let QUEST_GOLD = 60;          // награда за повторяемый квест
   let QUEST_MATERIAL = 2;       // материалов в награду за квест
   // Действия героя в бою: оборона, отступление и умение. Оборона пропускает
-  // ход и ослабляет удар врага вдвое, отступление стоит прощального удара,
+  // ход и ослабляет удар врага, отступление выводит из боя без цены HP,
   // умение тратит заряд похода.
-  let BRACE_CUT = 0.5;          // какая доля урона врага проходит при обороне
-  let FLEE_HIT = 1;             // доля урона прощального удара при отступлении
+  let BRACE_CUT = 0.5;          // максимальная доля блока при обороне
   // Ход врага — отдельный вопрос. Враг отвечает сам и может ошибиться:
   // тогда герой бьёт в ответ. Точность растёт с глубиной, но не до 100%.
   const ENEMY_QUIZ = {
@@ -2449,10 +2448,6 @@
   // ошибается изредка, это почти не мешает, а тыкать наугад — смертельно.
   let MISS_STEP = 0.5;
   let MISS_CAP = 2.5;
-  // Пропуск вопроса в бою: цена — здоровье, и ощутимая. Доля от максимума, а
-  // не фиксированное число: на первом уровне 10 HP — это десятая часть, а на
-  // двадцатом сотая, и фиксированная цена перестала бы что-то значить.
-  let SKIP_HP_SHARE = 0.2;
   // Страж этажа стоит у лестницы вниз: пока он жив, спуска нет.
   const GUARD = { hpMul: 1.5, dmgMul: 1.1, xpMul: 2 };
   // Повторение пройденного: с reviewFrom-го этажа (счёт с нуля) часть боёв
@@ -11818,67 +11813,55 @@
           tipAttr("Отправить написанный код на проверку. Ответ решает силу удара.") +
           "\">Проверить и атаковать</button>");
         // У кода нет вариантов, но игрок не должен запираться в задании:
-        // подсказка показывает первую проверку, пропуск стоит здоровья.
+        // подсказка показывает первую проверку, но только за свиток.
         if (!b.challenge.hintUsed) {
           const hintSrc = hintSources();
           const hintLabel = b.cursed ? "Подсказка не работает" : hintButtonLabel(hintSrc);
+          const canHint = hintSrc.hasScroll && !b.cursed;
           atkBtns.push(
-            "<button class='btn ghost" + (b.cursed ? " idle" : "") +
+            "<button class='btn ghost" + (canHint ? "" : " idle") +
             "' id='code-hint-btn' type='button' data-tip=\"" +
             tipAttr(b.cursed
               ? "Проклятие лича: подсказка не работает, и тратить на неё здоровье не нужно."
               : hintSrc.hasScroll
               ? "Свиток подсказки: покажет первую проверку без потери здоровья."
-              : ctype === "copy"
-              ? "Подсказка по образцу: пояснит, что делает код. Стоит 10 здоровья."
-              : "Подсказка покажет первую проверку задачи и стоит 10 здоровья.") +
+              : "Нужен свиток подсказки — его покупают у торговца или находят в подземелье.") +
             "\">" + hintLabel + "</button>");
         }
-        const codeSkipPrice = skipCost();
-        const codePoor = G.player.hp <= codeSkipPrice;
         const codeSkipChance = Math.round(skipChance(b.enemy) * 100);
         atkBtns.push(
-          "<button class='btn ghost" + (codePoor ? " idle" : "") +
-          "' id='skip-code-btn' type='button' data-tip=\"" +
-          tipAttr(codePoor
-            ? "Здоровья меньше, чем стоит пропуск (" + codeSkipPrice + " HP). Выпей зелье или попробуй ещё."
-            : "Шанс " + codeSkipChance + "% зависит от здоровья героя и врага. " +
-              "Цена платится в любом случае. При успехе уйдёт " + codeSkipPrice +
-              " здоровья, враг не бьёт. При неудаче задание сгорит, а враг получит ход.") +
-          "\">Пропустить вопрос (шанс " + codeSkipChance + "%, −" + codeSkipPrice + " HP)</button>");
+          "<button class='btn ghost' id='skip-code-btn' type='button' data-tip=\"" +
+          tipAttr("Шанс " + codeSkipChance + "% зависит от здоровья героя и врага. " +
+            "При успехе задание пропускается, враг не бьёт. " +
+            "При неудаче задание сгорит, а враг получит ход. Здоровье не тратится.") +
+          "\">Пропустить вопрос (шанс " + codeSkipChance + "%)</button>");
       } else {
         // «Вспомни»: подсказка (если её ещё не брали) и пропуск вопроса.
-        // Пропуск стоит здоровья и не даёт врагу ударить: платишь только
-        // здоровьем, зато вопрос уходит в пробелы и вернётся призраком.
+        // Пропуск не тратит здоровье: только бросает шанс и уводит вопрос
+        // в пробелы, откуда он вернётся призраком.
         const btns = [];
         if (!b.challenge.hintUsed) {
           const hintSrc = hintSources();
           const hintLabel = b.cursed ? "Подсказка не работает" : hintButtonLabel(hintSrc);
+          const canHint = hintSrc.hasScroll && !b.cursed;
           atkBtns.push(
-            "<button class='btn ghost" + (b.cursed ? " idle" : "") + "' id='hint-btn' type='button' data-tip=\"" +
+            "<button class='btn ghost" + (canHint ? "" : " idle") + "' id='hint-btn' type='button' data-tip=\"" +
             tipAttr(
               b.cursed
                 ? "Проклятие лича: подсказка не работает, и тратить на неё здоровье не нужно."
                 : hintSrc.hasScroll
                 ? "Свиток подсказки: убирает два неверных варианта без потери здоровья."
-                : hintSrc.free && hintSrc.free.charges
-                ? "Подсказка убирает два неверных варианта. Амулет даёт " + hintSrc.free.charges +
-                  " бесплатных за поход — осталось " + hintSrc.freeLeft + "."
-                : "Подсказка убирает два неверных варианта и стоит 10 здоровья."
+                : "Нужен свиток подсказки — его покупают у торговца или находят в подземелье."
             ) +
             "\">" + hintLabel + "</button>");
         }
-        const skipPrice = skipCost();
-        const poor = G.player.hp <= skipPrice;
         const skipChancePct = Math.round(skipChance(b.enemy) * 100);
         atkBtns.push(
-          "<button class='btn ghost" + (poor ? " idle" : "") + "' id='skip-question-btn' type='button' data-tip=\"" +
-          tipAttr(poor
-            ? "Здоровья меньше, чем стоит пропуск (" + skipPrice + " HP). Выпей зелье или ответь."
-            : "Шанс " + skipChancePct + "% зависит от здоровья героя и врага. " +
-              "Цена платится в любом случае. При успехе уйдёт " + skipPrice +
-              " здоровья, враг не бьёт. При неудаче вопрос сгорит, а враг получит ход.") +
-          "\">Пропустить вопрос (шанс " + skipChancePct + "%, −" + skipPrice + " HP)</button>");
+          "<button class='btn ghost' id='skip-question-btn' type='button' data-tip=\"" +
+          tipAttr("Шанс " + skipChancePct + "% зависит от здоровья героя и врага. " +
+            "При успехе вопрос пропускается, враг не бьёт. " +
+            "При неудаче вопрос сгорит, а враг получит ход. Здоровье не тратится.") +
+          "\">Пропустить вопрос (шанс " + skipChancePct + "%)</button>");
       }
       const hero = heroActionBtns(b);
       html += battleGroupHtml("Атака", atkBtns, "attack");
@@ -12106,13 +12089,6 @@
     renderBattle();
   }
 
-  // Сколько здоровья стоит пропустить вопрос. Никогда не убивает: если
-  // здоровья меньше цены, пропуск запрещён — умирать от собственной кнопки
-  // «не знаю» было бы издевательством.
-  function skipCost() {
-    return Math.max(8, Math.round((G.player.maxHp || 1) * SKIP_HP_SHARE));
-  }
-
   // Шанс «срезать» бой зависит от того, кто сейчас сильнее: доля здоровья
   // героя против доли здоровья врага, яда, серии и ранга монстра.
   function combatChance(e, base) {
@@ -12162,17 +12138,11 @@
     if (!b || b.phase !== "question" || b.busy) return;
     const c = b.challenge;
     if (!c || c.type === "copy" || c.type === "code") return;
-    const cost = skipCost();
-    if (G.player.hp <= cost) {
-      toast("Мало здоровья, чтобы пропустить вопрос");
-      return;
-    }
     const chance = skipChance(b.enemy);
     const pct = Math.round(chance * 100);
     const success = Math.random() < chance;
     const item = c.question || c.task;
     const topic = item.topic || "syntax";
-    if (!devGod()) G.player.hp -= cost;
     G.stats.wrong += 1;
     G.stats.streak = 0;
     G.stats.topicStats[topic] = G.stats.topicStats[topic] || { correct: 0, total: 0 };
@@ -12180,13 +12150,11 @@
     pushMissed(c.type, item);
     setQuality("partial");
     if (!success) {
-      log("Пропуск не удался (шанс " + pct + "%): −" + cost +
-        " здоровья, враг перехватывает ход.", "hurt");
+      log("Пропуск не удался (шанс " + pct + "%): враг перехватывает ход.", "fight");
       toast("Пропуск не удался: шанс " + pct + "%");
       applyAttack(
         0,
-        "Пропуск не удался (шанс " + pct + "%): −" + cost +
-          " HP. Вопрос сгорел, ход переходит врагу.",
+        "Пропуск не удался (шанс " + pct + "%): вопрос сгорел, ход переходит врагу.",
         true,
         item.explanation,
         false
@@ -12194,12 +12162,11 @@
       updateHud();
       return;
     }
-    log("Вопрос пропущен (шанс " + pct + "%): −" + cost +
-      " здоровья. Он вернётся призраком.", "hurt");
+    log("Вопрос пропущен (шанс " + pct + "%). Он вернётся призраком.", "fight");
     toast("Пропуск удался: шанс " + pct + "%");
     applyAttack(
       0,
-      "Пропущено (шанс " + pct + "%): −" + cost + " HP. Правильный ответ: " +
+      "Пропущено (шанс " + pct + "%). Правильный ответ: " +
         (correctAnswerText(c, item) ? "«" + escText(correctAnswerText(c, item)) + "»." : "см. разбор."),
       false,
       item.explanation,
@@ -12209,34 +12176,26 @@
   }
 
   // Пропуск задания с кодом. В отличие от вопроса с вариантами, правильного
-  // ответа-буквы здесь нет: показываем разбор после хода. Цена та же — HP,
-  // враг не бьёт, попытка уходит в статистику темы.
+  // ответа-буквы здесь нет: показываем разбор после хода. Здоровье не
+  // тратится, попытка уходит в статистику темы.
   function skipCodeQuestion() {
     const b = G.battle;
     if (!b || b.phase !== "question" || b.busy) return;
     const c = b.challenge;
     if (!c || (c.type !== "code" && c.type !== "copy")) return;
-    const cost = skipCost();
-    if (G.player.hp <= cost) {
-      toast("Мало здоровья, чтобы пропустить вопрос");
-      return;
-    }
     const chance = skipChance(b.enemy);
     const pct = Math.round(chance * 100);
     const success = Math.random() < chance;
-    if (!devGod()) G.player.hp -= cost;
     G.stats.wrong += 1;
     G.stats.streak = 0;
     countTaskTopic(c.type, c.task, false);
     setQuality("partial");
     if (!success) {
-      log("Пропуск задания не удался (шанс " + pct + "%): −" + cost +
-        " здоровья, враг перехватывает ход.", "hurt");
+      log("Пропуск задания не удался (шанс " + pct + "%): враг перехватывает ход.", "fight");
       toast("Пропуск не удался: шанс " + pct + "%");
       applyAttack(
         0,
-        "Пропуск не удался (шанс " + pct + "%): −" + cost +
-          " HP. Задание сгорело, ход переходит врагу.",
+        "Пропуск не удался (шанс " + pct + "%): задание сгорело, ход переходит врагу.",
         true,
         c.task.explanation,
         false
@@ -12244,12 +12203,11 @@
       updateHud();
       return;
     }
-    log("Задание пропущено (шанс " + pct + "%): −" + cost +
-      " здоровья. Разбор — ниже.", "hurt");
+    log("Задание пропущено (шанс " + pct + "%). Разбор — ниже.", "fight");
     toast("Пропуск удался: шанс " + pct + "%");
     applyAttack(
       0,
-      "Пропущено (шанс " + pct + "%): −" + cost + " HP. Разбор — ниже.",
+      "Пропущено (шанс " + pct + "%). Разбор — ниже.",
       false,
       c.task.explanation,
       false
@@ -12359,8 +12317,6 @@
   function heroActionBtns(b) {
     const e = b.enemy;
     const st = abilityState();
-    const hit = Math.max(1, Math.round((e.dmg + (e.dmgBoost || 0)) * FLEE_HIT));
-    const deadly = G.player.hp <= hit;
     const canRun = canFlee(e);
     const fleePct = Math.round(fleeChance(e) * 100);
     const defense = [];
@@ -12375,15 +12331,14 @@
         "«натиск» за время обороны крепнут.") +
       "\">Оборона</button>");
     flee.push(
-      "<button class='btn ghost" + (canRun && !deadly ? "" : " idle") + "' id='flee-btn' type='button' data-tip=\"" +
+      "<button class='btn ghost" + (canRun ? "" : " idle") + "' id='flee-btn' type='button' data-tip=\"" +
       tipAttr(!canRun
         ? "Отсюда не уйти: дракон, страж лестницы, отряд и щитоносец держат героя."
-        : deadly
-        ? "Удар на прощание может добить героя — отступать поздно."
-        : "Шанс " + fleePct + "% зависит от здоровья героя и врага. При успехе враг бьёт " +
-          "вослед, бой прекращается, герой отходит на клетку. При неудаче враг получает ход.") +
-      "\">" + (canRun && !deadly
-        ? "Отступить (шанс " + fleePct + "%, −" + hit + " HP)"
+        : "Шанс " + fleePct + "% зависит от здоровья героя и врага. При успехе бой " +
+          "прекращается, герой отходит на клетку. При неудаче враг получает ход. " +
+          "Здоровье не тратится.") +
+      "\">" + (canRun
+        ? "Отступить (шанс " + fleePct + "%)"
         : "Отступить нельзя") + "</button>");
     if (abilityUnlocked()) {
       const has = !!st.key && st.left > 0;
@@ -12449,8 +12404,8 @@
     continueBattle();
   }
 
-  // Отступление: прощальный удар и шаг назад. Враг остаётся рядом и снова
-  // пойдёт следом — отступление спасает от смерти, но не от боя.
+  // Отступление: шаг назад без цены HP. Враг остаётся рядом и снова пойдёт
+  // следом — отступление спасает от смерти, но не от боя.
   function fleeBattle() {
     const b = G.battle;
     if (!b || b.phase !== "question" || b.busy) return;
@@ -12476,16 +12431,10 @@
       return;
     }
     b.phase = "result";
-    const dmg = playerTakeHit(FLEE_HIT);
-    if (G.player.hp <= 0) {
-      b.playerDead = true;
-      continueBattle();
-      return;
-    }
     toast("Отступление удалось: шанс " + pct + "%");
     G.stats.flees = (G.stats.flees || 0) + 1;
     G.stats.streak = 0;
-    log("Герой отступает: " + dmg + " урона на прощание.", "fight");
+    log("Герой отступает без потери здоровья.", "fight");
     const back = retreatCell(e);
     closeBattle();
     if (back) G.playerPos = { x: back.x, y: back.y };
@@ -12543,40 +12492,23 @@
     renderBattle();
   }
 
-  // Подсказку можно взять из свитка (редкий предмет), из талисмана или
-  // оплатить здоровьем. Свиток расходуется первым: это и есть его смысл.
+  // Подсказка теперь берётся только из свитка — редкого предмета. Без
+  // свитка кнопка не работает: здоровьем её больше не оплатить.
   function hintSources() {
     const inv = G.inventory || [];
     const scrollIndex = inv.findIndex((it) => it && it.effect && it.effect.kind === "hint");
-    const free = equippedEffect("hintFree");
-    const freeLeft = free && free.charges
-      ? Math.max(0, free.charges - (G.player.freeHints || 0))
-      : 0;
-    return { scrollIndex: scrollIndex, hasScroll: scrollIndex >= 0, free: free, freeLeft: freeLeft };
+    return { scrollIndex: scrollIndex, hasScroll: scrollIndex >= 0 };
   }
 
   function hintButtonLabel(src) {
-    if (src.hasScroll) return "Подсказка (свиток)";
-    if (src.freeLeft > 0) {
-      return "Подсказка (бесплатно, " + (G.player.freeHints || 0) + "/" +
-        src.free.charges + ")";
-    }
-    return "Подсказка (−10 HP)";
+    return src.hasScroll ? "Подсказка (свиток)" : "Нет свитка";
   }
 
   function consumeHintCost() {
     const src = hintSources();
-    if (src.hasScroll) {
-      G.inventory.splice(src.scrollIndex, 1);
-      return { ok: true, source: "scroll" };
-    }
-    if (src.freeLeft > 0) {
-      G.player.freeHints = (G.player.freeHints || 0) + 1;
-      return { ok: true, source: "free", free: src.free };
-    }
-    if (G.player.hp <= 10) return { ok: false, source: "hp" };
-    if (!devGod()) G.player.hp -= 10;
-    return { ok: true, source: "hp" };
+    if (!src.hasScroll) return { ok: false, source: "none" };
+    G.inventory.splice(src.scrollIndex, 1);
+    return { ok: true, source: "scroll" };
   }
 
   function useHint() {
@@ -12593,7 +12525,7 @@
     }
     const paid = consumeHintCost();
     if (!paid.ok) {
-      toast("Мало здоровья для подсказки");
+      toast("Нужен свиток подсказки");
       return;
     }
     G.stats.hintsUsed = (G.stats.hintsUsed || 0) + 1;
@@ -12612,14 +12544,8 @@
     for (let i = 0; i < total; i++) if (i !== answerIdx) wrong.push(i);
     shuffle(wrong);
     c.hidden = wrong.slice(0, Math.min(2, Math.max(0, total - 2)));
-    if (paid.source === "scroll") {
-      toast("Свиток подсказки использован");
-      effectFlash("Свиток · подсказка");
-    } else if (paid.source === "free") {
-      toast("Талисман: подсказка бесплатна (" + G.player.freeHints + "/" +
-        paid.free.charges + ")");
-      effectFlash("Талисман · бесплатная подсказка");
-    }
+    toast("Свиток подсказки использован");
+    effectFlash("Свиток · подсказка");
     updateHud();
     renderBattle();
   }
@@ -12656,7 +12582,7 @@
     }
     const paid = consumeHintCost();
     if (!paid.ok) {
-      toast("Мало здоровья для подсказки");
+      toast("Нужен свиток подсказки");
       return;
     }
     G.stats.hintsUsed = (G.stats.hintsUsed || 0) + 1;
@@ -12666,8 +12592,7 @@
     // серия верных ответов сгорает — так же, как в обычном вопросе.
     setQuality("hinted");
     G.stats.streak = 0;
-    toast(paid.source === "scroll" ? "Свиток подсказки использован" :
-      paid.source === "free" ? "Талисман: подсказка бесплатна" : "Подсказка взята");
+    toast("Свиток подсказки использован");
     updateHud();
     renderBattle();
   }
@@ -14619,6 +14544,15 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.27.0",
+      date: "6 ноября 2026",
+      title: "Без цены HP",
+      items: [
+        "Пропуск вопроса и отступление больше не тратят здоровье.",
+        "Подсказка теперь берётся только из свитка: без него кнопка не работает."
+      ]
+    },
     {
       version: "1.26.0",
       date: "6 ноября 2026",
@@ -17984,7 +17918,7 @@ function topicName(key) {
     "learn.reviewChance", "learn.floorTopic",
     "hub.deathGoldShare", "hub.knowledgeGoldShare", "hub.retreatGoldShare",
     "hub.amuletPrice", "hub.amuletFindChance", "hub.amuletMax",
-    "village.view", "combat.skipShare", "enemy.hpStart",
+    "village.view", "enemy.hpStart",
     "endless.depthDmg",
     "deep.from", "deep.hpMul", "deep.dmgMul",
     "hero.hpStep", "hero.dmgStep", "hero.lootStep", "hero.armorStep",
@@ -17993,7 +17927,7 @@ function topicName(key) {
     "village.wellHp", "village.barnBonus", "village.costMul",
     "loot.oreChance", "loot.woodChance", "loot.shardChance",
     "quest.gold", "quest.material",
-    "combat.braceCut", "combat.fleeHit",
+    "combat.braceCut",
     "ability.charges", "ability.strikeMul", "ability.breath",
     "rest.heal", "rest.perRun"
   ];
@@ -18063,7 +17997,6 @@ function topicName(key) {
       case "hub.amuletFindChance": HUB_AMULET_FIND = value; return true;
       case "hub.amuletMax": HUB_AMULET_MAX = Math.max(0, Math.floor(value)); return true;
       case "village.view": VILLAGE_VIEW_RADIUS = value; return true;
-      case "combat.skipShare": SKIP_HP_SHARE = value; return true;
       case "enemy.hpStart": HP_START = value; return true;
       case "endless.depthDmg": ENDLESS_DEPTH_DMG = value; return true;
       case "deep.from": DEEP_FROM = value; return true;
@@ -18088,7 +18021,6 @@ function topicName(key) {
       case "quest.gold": QUEST_GOLD = value; return true;
       case "quest.material": QUEST_MATERIAL = value; return true;
       case "combat.braceCut": BRACE_CUT = value; return true;
-      case "combat.fleeHit": FLEE_HIT = value; return true;
       case "ability.charges": ABILITY_CHARGES = Math.max(0, Math.floor(value)); return true;
       case "ability.strikeMul": ABILITY_STRIKE_MUL = value; return true;
       case "ability.breath": ABILITY_BREATH = value; return true;
@@ -18169,7 +18101,6 @@ function topicName(key) {
       case "hub.amuletFindChance": return HUB_AMULET_FIND;
       case "hub.amuletMax": return HUB_AMULET_MAX;
       case "village.view": return VILLAGE_VIEW_RADIUS;
-      case "combat.skipShare": return SKIP_HP_SHARE;
       case "enemy.hpStart": return HP_START;
       case "endless.depthDmg": return ENDLESS_DEPTH_DMG;
       case "deep.from": return DEEP_FROM;
@@ -18194,7 +18125,6 @@ function topicName(key) {
       case "quest.gold": return QUEST_GOLD;
       case "quest.material": return QUEST_MATERIAL;
       case "combat.braceCut": return BRACE_CUT;
-      case "combat.fleeHit": return FLEE_HIT;
       case "ability.charges": return ABILITY_CHARGES;
       case "ability.strikeMul": return ABILITY_STRIKE_MUL;
       case "ability.breath": return ABILITY_BREATH;

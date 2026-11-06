@@ -402,7 +402,7 @@ const savedFleeRandom = Math.random;
 Math.random = () => 0.01;
 API.fleeBattle();
 Math.random = savedFleeRandom;
-log(G.player.hp < hpBeforeRun && G.battle === null, "а само отступление стоит удара",
+log(G.player.hp === hpBeforeRun && G.battle === null, "отступление не тратит здоровье",
   hpBeforeRun + " -> " + G.player.hp);
 
 // Неудачное отступление не выводит из боя, а передаёт ход врагу.
@@ -632,12 +632,9 @@ API.attachChoices(G.battle.challenge);
 API.renderBattle();
 const skipLabel = el("battle-box").innerHTML;
 log(/skip-question-btn/.test(skipLabel), "в бою есть кнопка «Пропустить вопрос»");
-const skipPrice = API.skipCost();
-log(/Пропустить вопрос \(шанс \d+%, −\d+ HP\)/.test(skipLabel),
-  "на кнопке написаны шанс и цена", "ждём шанс и −" + skipPrice + " HP");
-log(skipPrice >= Math.round(G.player.maxHp * 0.15) && skipPrice <= Math.round(G.player.maxHp * 0.3),
-  "цена ощутимая — доля от здоровья, а не мелочь",
-  skipPrice + " при максимуме " + G.player.maxHp);
+log(/Пропустить вопрос \(шанс \d+%\)/.test(skipLabel),
+  "на кнопке написан шанс без цены HP");
+log(!/Пропустить вопрос[^<]*HP/.test(skipLabel), "цена HP у пропуска убрана");
 
 const skipHp = G.player.hp;
 const skipEnemyHp = G.battle.enemy.hp;
@@ -648,8 +645,7 @@ Math.random = () => 0.01;
 API.skipQuestion();
 Math.random = savedSkipRandom;
 log(G.battle.phase === "result", "после пропуска бой идёт дальше", G.battle.phase);
-log(G.player.hp === 500 - API.skipCost(),
-  "здоровье ушло ровно на цену пропуска — враг не бил",
+log(G.player.hp === 500, "успешный пропуск не тратит здоровье",
   "было 500, стало " + G.player.hp);
 log(G.battle.enemy.hp === skipEnemyHp, "враг за пропуск урона не получил");
 log(G.missed.some((m) => m.id === skipQ.id), "пропущенный вопрос вернётся призраком");
@@ -661,7 +657,7 @@ API.continueBattle();
 log(G.battle.phase === "question" && !G.battle.enemyTurn,
   "пропуск вопроса не запускает ход врага");
 
-// Неудачный пропуск: вопрос сгорает, здоровье платится, враг получает ход.
+// Неудачный пропуск: вопрос сгорает, но здоровье не тратится.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 const failSkipQ = API.QUESTIONS[0];
@@ -674,20 +670,22 @@ API.skipQuestion();
 Math.random = savedFailSkipRandom;
 log(G.battle.phase === "result" && !G.battle.skipEnemyTurn && G.battle.missStreak > 0,
   "неудачный пропуск передаёт ход врагу");
-log(G.player.hp === 500 - API.skipCost(), "неудачный пропуск всё равно стоит здоровья");
+log(G.player.hp === 500, "неудачный пропуск тоже не тратит здоровье");
 G.battle = null;
 
-// Мало здоровья — пропускать нечего: убить себя кнопкой «не знаю» нельзя.
+// Даже с малым здоровьем пропуск не убивает: цена HP убрана.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[1] };
 API.attachChoices(G.battle.challenge);
 API.renderBattle();
-G.player.hp = API.skipCost();
-const poorHp = G.player.hp;
+G.player.hp = 5;
+const savedLowSkipRandom = Math.random;
+Math.random = () => 0.01;
 API.skipQuestion();
-log(G.player.hp === poorHp && G.battle.phase === "question",
-  "с малым здоровьем пропуск не срабатывает", G.player.hp + " HP");
+Math.random = savedLowSkipRandom;
+log(G.player.hp === 5 && G.battle.phase === "result",
+  "с малым здоровьем пропуск работает и не тратит HP", G.player.hp + " HP");
 G.battle = null;
 
 // В задачах на код тоже можно не запираться: есть подсказка и пропуск,
@@ -704,15 +702,20 @@ log(!/skip-question-btn/.test(copyFoot),
 G.player.hp = 500;
 const copyHintHp = G.player.hp;
 API.useCodeHint();
-log(G.player.hp === copyHintHp - 10 && G.battle.challenge.hintUsed === true,
-  "подсказка к коду стоит 10 HP и помечает попытку",
-  "HP " + copyHintHp + " → " + G.player.hp);
+log(G.player.hp === copyHintHp && !G.battle.challenge.hintUsed,
+  "без свитка подсказка к коду не работает и не тратит HP");
+const copyScroll = API.ITEM_POOL.find((i) => i.id === "hint_scroll");
+G.inventory.push(Object.assign({}, copyScroll));
+API.useCodeHint();
+log(G.player.hp === copyHintHp && G.battle.challenge.hintUsed === true &&
+    !G.inventory.some((i) => i.id === "hint_scroll"),
+  "свиток открывает подсказку к коду без потери HP");
 log(/Подсказка:/.test(G.battle.challenge.notice || ""),
   "подсказка к «повтори код» показывает пояснение к образцу",
   G.battle.challenge.notice);
 G.battle = null;
 
-// Пропуск задания с кодом: цена — HP, враг не бьёт, разбор показывается.
+// Пропуск задания с кодом: без цены HP, враг не бьёт, разбор показывается.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
@@ -725,7 +728,7 @@ Math.random = () => 0.01;
 API.skipCodeQuestion();
 Math.random = savedCodeSkipRandom;
 log(G.battle.phase === "result", "пропуск кода завершает ход", G.battle.phase);
-log(G.player.hp === 500 - API.skipCost(), "пропуск кода стоит здоровья",
+log(G.player.hp === 500, "пропуск кода не тратит здоровье",
   "стало " + G.player.hp);
 log(G.battle.enemy.hp === codeSkipEnemyHp, "за пропуск кода враг не бьёт");
 log(G.stats.wrong === codeSkipWrong + 1, "пропуск кода портит процент похода");
@@ -737,6 +740,7 @@ freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 G.battle.challenge = { type: "code", task: API.CODE_TASKS[0], code: API.CODE_TASKS[0].starter };
 API.renderBattle();
+G.inventory.push(Object.assign({}, API.ITEM_POOL.find((i) => i.id === "hint_scroll")));
 API.useCodeHint();
 const codeHint = G.battle.challenge.notice || "";
 log(/attack_power\(10, 5\)/.test(codeHint) && /15/.test(codeHint) &&
@@ -1242,37 +1246,6 @@ if (goldBonus) {
   API.addGold(100);
   log(G.player.gold === 100, "без бонуса золото капает как раньше", G.player.gold);
 } else log(false, "нет предмета с эффектом goldBonus");
-
-// бесплатные подсказки
-const hintFree = equipWithEffect("hintFree");
-if (hintFree) {
-  freshRun(2);
-  G.equipment.accessory = hintFree;
-  G.player.freeHints = 0;
-  G.player.hp = 200;
-  G.player.maxHp = 200;
-  const e = enemyOnPlayerCell("slime", 300);
-  let firstFree = false, secondPaid = false;
-  // Первый шаг учебного боя — всегда вопрос («вспомни»): подсказка
-  // работает именно на нём, второй шаг — уже практика.
-  for (let i = 0; i < 40 && !(firstFree && secondPaid); i++) {
-    API.openBattle(e);
-    const c = G.battle.challenge;
-    if (c.type === "mc") {
-      const hpB = G.player.hp;
-      API.useHint();
-      if (G.player.hp === hpB) firstFree = true;
-      else if (G.player.hp === hpB - 10) secondPaid = true;
-    }
-    G.battle = null;
-  }
-  log(firstFree, "подсказка в пределах лимита не тратит HP");
-  log(secondPaid, "после лимита подсказка стоит 10 HP");
-  log(G.player.freeHints === hintFree.effect.charges,
-    "счётчик бесплатных подсказок не переполняется",
-    G.player.freeHints + "/" + hintFree.effect.charges);
-  G.equipment.accessory = null;
-} else log(false, "нет предмета с эффектом hintFree");
 
 // казнь
 const execute = equipWithEffect("execute");
@@ -1869,7 +1842,7 @@ log(twoHtml.indexOf("effect-dot lifesteal") >= 0 &&
 // Все 12 видов эффектов должны иметь человеческое описание, иначе
 // игрок увидит сырой идентификатор вида effect-dot-что-то.
 const allKinds = [...new Set(ITEM_POOL.filter((i) => i.effect).map((i) => i.effect.kind))];
-log(allKinds.length === 13, "в пуле ровно 13 видов особых эффектов", allKinds.length);
+log(allKinds.length === 12, "в пуле ровно 12 видов особых эффектов", allKinds.length);
 log(!!API.EFFECT_HINTS, "таблица подсказок EFFECT_HINTS экспортируется");
 const rawKinds = allKinds.filter((k) => !API.EFFECT_HINTS || !API.EFFECT_HINTS[k]);
 log(rawKinds.length === 0, "у каждого вида эффекта есть русская подсказка", rawKinds.join(","));
@@ -4716,7 +4689,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(G.player.poison === 0 && G.inventory.length === 0,
     "на карте противоядие пьётся при полном здоровье, если есть яд");
 
-  // Подсказка убирает ДВА неверных варианта, в том числе бесплатная.
+  // Подсказка работает только за свиток и убирает два неверных варианта.
   const mcBattle = () => {
     freshRun(2);
     enemyOnPlayerCell("slime", 999);
@@ -4738,27 +4711,22 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   mcBattle();
   API.useHint();
   let c = G.battle.challenge;
+  log(!c.hintUsed && !Array.isArray(c.hidden), "без свитка подсказка не работает");
+  const scroll = API.ITEM_POOL.find((i) => i.id === "hint_scroll");
+  G.inventory.push(Object.assign({}, scroll));
+  API.useHint();
+  c = G.battle.challenge;
   const answerIdx = c.view ? c.view.answer : c.question.answer;
   log(Array.isArray(c.hidden) && c.hidden.length === 2 && c.hidden.indexOf(answerIdx) < 0 &&
     new Set(c.hidden).size === 2,
-    "платная подсказка прячет два разных неверных варианта", JSON.stringify(c.hidden));
-  log(G.player.hp === 140 && G.stats.streak === 0, "платная подсказка: −10 HP и серия сгорает");
+    "свиток прячет два разных неверных варианта", JSON.stringify(c.hidden));
+  log(G.player.hp === 150 && G.stats.streak === 0, "свиток не тратит HP, но сжигает серию");
+  log(!G.inventory.some((i) => i.id === "hint_scroll"), "свиток расходуется");
   log(shownOptions() === 2, "на экране остаются правильный и один неверный вариант", shownOptions());
   G.inventory = [potion("small_potion")];
   G.player.hp = 100;
   API.useBattlePotion();
   log(shownOptions() === 2, "после зелья скрытые подсказкой варианты не возвращаются");
-  G.battle = null;
-
-  const talisman = equipWithEffect("hintFree");
-  mcBattle();
-  G.equipment.accessory = talisman;
-  API.useHint();
-  c = G.battle.challenge;
-  log(G.player.hp === 150 && Array.isArray(c.hidden) && c.hidden.length === 2 && G.player.freeHints === 1,
-    "бесплатная подсказка талисмана тоже убирает два варианта и не стоит HP",
-    "HP " + G.player.hp + ", скрыто " + JSON.stringify(c.hidden));
-  G.equipment.accessory = null;
   G.battle = null;
 
   // Проклятие лича: подсказка не работает и ничего не стоит.
