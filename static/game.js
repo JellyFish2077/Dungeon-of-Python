@@ -10163,7 +10163,6 @@
       resultTurnNote: "",
       resultInfo: null,
       explainOpen: true,
-      lootLeft: false,
       // Первые секунды боя — заставка, пока камера подъезжает. Повторная
       // отрисовка боя не должна запускать её заново.
       showIntro: !restore,
@@ -10204,7 +10203,6 @@
         G.battle.resultTurnNote = restore.resultTurnNote || "";
         G.battle.resultInfo = restore.resultInfo || null;
         G.battle.explainOpen = restore.explainOpen !== false;
-        G.battle.lootLeft = !!restore.lootLeft;
         // Восстановленный итог не закрываем таймером: игрок сам нажмёт
         // «Забрать добычу» / «Следующий вопрос».
         G.battle.restored = true;
@@ -10301,7 +10299,6 @@
     b.resultTurnNote = "";
     b.resultInfo = null;
     b.explainOpen = true;
-    b.lootLeft = false;
     b.squad = squadMembersOf(e);
     const ab = abilityOf(e);
     if (ab === "curse" && Math.random() < (e.curseChance == null ? 0.35 : e.curseChance)) {
@@ -11386,7 +11383,6 @@
     }
     const bag = ensureLootBag(e.x, e.y, bagGold, bagItem);
     const bagOnPlayer = bag.x === G.playerPos.x && bag.y === G.playerPos.y;
-    if (G.battle) G.battle.lootLeft = !bagOnPlayer;
     if (bagItem) {
       log("На месте врага остался мешочек: " + bagItem.name + ".", "loot");
       toast("Добыча в мешочке: " + bagItem.name);
@@ -11395,10 +11391,7 @@
     }
     // Если бой закончился на клетке героя, мешочек подбирается сразу —
     // иначе он остался бы под ногами и требовал лишнего шага.
-    if (bagOnPlayer) {
-      if (G.battle) G.battle.lootLeft = false;
-      pickupLootBag(bag);
-    }
+    if (bagOnPlayer) pickupLootBag(bag);
 
     // Страж лестницы повержен — спуск открыт.
     if (e.guard && G.stairsDown && !G.stairsDown.active) {
@@ -11763,9 +11756,6 @@
       if (b.explanation && explainOpen) {
         html += "<div class='battle-explain' id='battle-explain'><b>Пояснение:</b> " +
           b.explanation + "</div>";
-      }
-      if (b.won && (b.lootLeft || b.restored)) {
-        html += "<div class='battle-note loot-note'>Добыча осталась на земле — подбери её на карте.</div>";
       }
       if (b.results) {
         html += "<div class='test-results'>";
@@ -14484,6 +14474,14 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.25.5",
+      date: "6 ноября 2026",
+      title: "Без плашки о добыче",
+      items: [
+        "Из карточки результата убрано сообщение «Добыча осталась на земле»."
+      ]
+    },
+    {
       version: "1.25.4",
       date: "6 ноября 2026",
       title: "Карточка результата",
@@ -16232,7 +16230,6 @@ function topicName(key) {
             resultTurnNote: G.battle.resultTurnNote || "",
             resultInfo: G.battle.resultInfo || null,
             explainOpen: G.battle.explainOpen !== false,
-            lootLeft: !!G.battle.lootLeft,
             squadNextUid: G.battle.squadNext ? G.battle.squadNext.uid : 0
           }
           : null,
