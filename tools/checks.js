@@ -411,12 +411,15 @@ const failedRunEnemy = enemyOnPlayerCell("orc", 500);
 G.enemies = [failedRunEnemy];
 API.openBattle(failedRunEnemy);
 G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+const failedRunChallenge = G.battle.challenge;
 G.player.hp = 500;
 const savedFailRandom = Math.random;
 Math.random = () => 0.99;
 API.fleeBattle();
 Math.random = savedFailRandom;
-log(!!G.battle && !!G.battle.enemyTurn, "неудачное отступление передаёт ход врагу");
+log(G.battle.phase === "question" && G.battle.challenge === failedRunChallenge &&
+    G.battle.fleeFailed, "неудачное отступление оставляет тот же вопрос");
+log(G.player.hp === 500, "неудачное отступление не тратит здоровье");
 G.battle = null;
 // После ответа игрока начинается отдельный ход врага: он получает свой
 // вопрос и отвечает на него сам.
@@ -657,20 +660,23 @@ API.continueBattle();
 log(G.battle.phase === "question" && !G.battle.enemyTurn,
   "пропуск вопроса не запускает ход врага");
 
-// Неудачный пропуск: вопрос сгорает, но здоровье не тратится.
+// Неудачный пропуск: вопрос остаётся тем же, здоровье не тратится.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 const failSkipQ = API.QUESTIONS[0];
 G.battle.challenge = { type: "mc", question: failSkipQ };
 API.attachChoices(G.battle.challenge);
+const failChallenge = G.battle.challenge;
+const wrongBeforeSkip = G.stats.wrong;
 G.player.hp = 500;
 const savedFailSkipRandom = Math.random;
 Math.random = () => 0.99;
 API.skipQuestion();
 Math.random = savedFailSkipRandom;
-log(G.battle.phase === "result" && !G.battle.skipEnemyTurn && G.battle.missStreak > 0,
-  "неудачный пропуск передаёт ход врагу");
-log(G.player.hp === 500, "неудачный пропуск тоже не тратит здоровье");
+log(G.battle.phase === "question" && G.battle.challenge === failChallenge &&
+    G.battle.skipFailed, "неудачный пропуск оставляет тот же вопрос");
+log(G.player.hp === 500, "неудачный пропуск не тратит здоровье");
+log(G.stats.wrong === wrongBeforeSkip, "неудачный пропуск не записывается как ошибка");
 G.battle = null;
 
 // Даже с малым здоровьем пропуск не убивает: цена HP убрана.
@@ -733,6 +739,23 @@ log(G.player.hp === 500, "пропуск кода не тратит здоров
 log(G.battle.enemy.hp === codeSkipEnemyHp, "за пропуск кода враг не бьёт");
 log(G.stats.wrong === codeSkipWrong + 1, "пропуск кода портит процент похода");
 log(/Пропущено/.test(el("battle-box").innerHTML), "пропуск кода показывает разбор");
+G.battle = null;
+
+// Неудачный пропуск кода оставляет то же задание.
+freshRun(3);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
+const codeFailChallenge = G.battle.challenge;
+G.player.hp = 500;
+const codeFailWrong = G.stats.wrong;
+const savedCodeFailRandom = Math.random;
+Math.random = () => 0.99;
+API.skipCodeQuestion();
+Math.random = savedCodeFailRandom;
+log(G.battle.phase === "question" && G.battle.challenge === codeFailChallenge &&
+    G.battle.skipFailed, "неудачный пропуск кода оставляет то же задание");
+log(G.player.hp === 500 && G.stats.wrong === codeFailWrong,
+  "неудачный пропуск кода не тратит HP и не пишет ошибку");
 G.battle = null;
 
 // Подсказка к «напиши функцию» берёт expected, а не undefined.
