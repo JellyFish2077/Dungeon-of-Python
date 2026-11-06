@@ -758,6 +758,16 @@
 
   // ================= Строки =================
 
+  fill("strings", 1, "first_letter", "Первая буква", () => {
+    const word = pick(["кот", "дом", "лес"]);
+    return {
+      code: L(`word = ${str(word)}`, "print(word[___])" + says(word[0])),
+      options: ["0", "1", "2", "-1"],
+      expect: word[0],
+      explanation: "Индексы начинаются с нуля: word[0] — первый символ, word[1] — второй."
+    };
+  });
+
   fill("strings", 2, "case", "Регистр букв", () => {
     const m = pick(MONSTERS);
     const mode = pick(["upper", "lower", "title"]);
@@ -1010,6 +1020,17 @@
   }));
 
   // ================= Условия и циклы =================
+
+  fill("control", 1, "if_word", "Если здоровье", () => {
+    const hp = rnd(1, 50);
+    const msg = pick(["жив", "цел", "держится"]);
+    return {
+      code: L(`hp = ${hp}`, "___ hp > 0:", `    print(${str(msg)})` + says(msg)),
+      options: ["if", "elif", "else", "def"],
+      expect: msg,
+      explanation: "Проверка условия начинается словом if: if hp > 0:. Тело условия пишут с отступом."
+    };
+  });
 
   fill("control", 2, "else", "Иначе", () => {
     const c = pick([
@@ -1295,6 +1316,16 @@
   }));
 
   // ================= Списки, словари, множества =================
+
+  fill("collections", 1, "first_item", "Первый предмет", () => {
+    const item = pick(["меч", "щит", "лук"]);
+    return {
+      code: L(`bag = [${str(item)}, "зелье"]`, "print(bag[___])" + says(item)),
+      options: ["0", "1", "2", "-1"],
+      expect: item,
+      explanation: "Первый элемент списка имеет индекс 0: bag[0] — это первый предмет."
+    };
+  });
 
   fill("collections", 2, "append", "Пополни сумку", () => {
     const items = sample(SHORT_ITEMS, 3);
@@ -1637,6 +1668,37 @@
 
   // ================= Функции =================
 
+  fill("functions", 1, "hello_call", "Позови функцию", () => {
+    const word = pick(["привет", "ура", "вперёд"]);
+    return {
+      code: L("def hello():", `    return ${str(word)}`, "", "print(___)" + says(word)),
+      options: ["hello()", "hello", str("hello"), "print(hello)"],
+      expect: word,
+      explanation: "Функцию вызывают по имени и со скобками: hello(). Без скобок print покажет саму функцию, а не её результат."
+    };
+  });
+
+  fill("functions", 2, "double_call", "Удвой урон", () => {
+    const n = rnd(2, 9);
+    return {
+      code: L("def double(x):", "    return x * 2", "", "print(double(___))" + says(n * 2)),
+      options: [String(n), String(n * 2), String(n + 2), "x"],
+      expect: String(n * 2),
+      explanation: `Аргумент ${n} попадает в x, функция возвращает ${n} * 2 = ${n * 2}.`
+    };
+  });
+
+  fill("functions", 2, "return_sum", "Сумма добычи", () => {
+    const a = rnd(2, 9);
+    const b = rnd(2, 9);
+    return {
+      code: L("def total(a, b):", "    return a + b", "", `print(total(___, ${b}))` + says(a + b)),
+      options: [String(a), String(b), String(a + b), "total"],
+      expect: String(a + b),
+      explanation: `Первый аргумент попадает в a, второй ${b} — в b. При a=${a} функция возвращает ${a} + ${b} = ${a + b}.`
+    };
+  });
+
   fill("functions", 3, "def", "Объяви функцию", () => {
     const hero = pick(HEROES);
     return {
@@ -1972,6 +2034,90 @@
       code: () => L(`health = ${rnd(10, 99)}`, "print(helth)") }
   ];
 
+  fill("errors", 1, "except_word", "Поймай ошибку", () => {
+    const msg = pick(["поймали", "спаслись", "не упали"]);
+    return {
+      code: L("try:", "    print(10 / 0)", "___ ZeroDivisionError:", `    print(${str(msg)})` + says(msg)),
+      options: ["except", "catch", "else", "finally"],
+      expect: msg,
+      explanation: "Ошибку ловят словом except: try содержит опасный код, except — что делать при ошибке."
+    };
+  });
+
+  fill("errors", 2, "which_value", "Какая ошибка", () => {
+    const text = pick(["12a", "3x", "7?"]);
+    return {
+      code: L("try:", `    number = int(${str(text)})`, "except ___:", '    print("не число")' + says("не число")),
+      options: ["ValueError", "ZeroDivisionError", "NameError", "TypeError"],
+      expect: "не число",
+      explanation: "int() не может превратить строку с буквой в число и выбрасывает ValueError. Его и ловит except ValueError."
+    };
+  });
+
+  bug("errors", 1, "missing_paren", "Забытая скобка", () => {
+    const word = pick(["привет", "ура", "вперёд"]);
+    return {
+      code: L(`print(${str(word)}`),
+      options: [
+        "Не закрыта скобка после строки",
+        "В Python нет функции print",
+        "Строку нельзя печатать",
+        "Нужно поставить точку с запятой"
+      ],
+      raises: "SyntaxError",
+      fix: L(`print(${str(word)})`),
+      explanation: "Скобки должны закрываться: print(\"привет\"). Без закрывающей скобки Python не может разобрать строку."
+    };
+  });
+
+  bug("errors", 1, "unknown_name", "Неизвестное имя", () => {
+    const name = pick(["hero", "player", "mage"]);
+    return {
+      code: L(`print(${name})`),
+      options: [
+        `Переменная ${name} не определена`,
+        `${name} — зарезервированное слово`,
+        "print не умеет печатать переменные",
+        `Нужно import ${name}`
+      ],
+      raises: "NameError",
+      fix: L(`${name} = "Аня"`, `print(${name})`),
+      explanation: `Python ищет ${name} среди переменных и не находит. Сначала переменную создают: ${name} = "Аня".`
+    };
+  });
+
+  bug("errors", 2, "zero", "Деление на ноль", () => {
+    const n = rnd(10, 90);
+    return {
+      code: L(`print(${n} / 0)`),
+      options: [
+        "ZeroDivisionError: на ноль делить нельзя",
+        "Напечатает 0",
+        "Напечатает делимое",
+        "SyntaxError: нужен import"
+      ],
+      raises: "ZeroDivisionError",
+      fix: L(`print(${n} / 2)`),
+      explanation: "Деление на ноль запрещено, поэтому Python выбрасывает ZeroDivisionError. Делитель стоит проверять условием."
+    };
+  });
+
+  bug("errors", 2, "bad_int", "Буква в числе", () => {
+    const text = pick(["12a", "3x", "7?"]);
+    return {
+      code: L(`number = int(${str(text)})`, "print(number)"),
+      options: [
+        `ValueError: «${text}» не является целым числом`,
+        "Напечатает первую цифру",
+        `Напечатает ${text}`,
+        "NameError: нет int"
+      ],
+      raises: "ValueError",
+      fix: L('number = int("12")', "print(number)"),
+      explanation: "int() принимает только целое число целиком. Если в строке есть буква или знак, возникает ValueError."
+    };
+  });
+
   fill("errors", 4, "except", "Поймай ошибку", () => {
     const e = pick([
       { body: `print(${rnd(10, 50)} / 0)`, exc: "ZeroDivisionError", msg: "На ноль делить нельзя" },
@@ -2062,6 +2208,36 @@
   }));
 
   // ================= Модули и импорт =================
+
+  fill("modules", 1, "import_short", "Подключи математику", () => {
+    const n = pick([16, 25, 36]);
+    return {
+      code: L("___ math", `print(math.sqrt(${n}))` + says(Math.sqrt(n).toFixed(1))),
+      options: ["import", "include", "using", "require"],
+      expect: Math.sqrt(n).toFixed(1),
+      explanation: "Модуль подключают словом import: import math. После этого функции модуля вызывают через точку."
+    };
+  });
+
+  fill("modules", 2, "from_short", "Возьми одну функцию", () => {
+    const n = pick([49, 64, 81]);
+    return {
+      code: L("from math import ___", `print(sqrt(${n}))` + says(Math.sqrt(n).toFixed(1))),
+      options: ["sqrt", "math.sqrt", "root", "square"],
+      expect: Math.sqrt(n).toFixed(1),
+      explanation: "from math import sqrt берёт из модуля только sqrt. Вызывать её нужно без math: sqrt(49)."
+    };
+  });
+
+  fill("modules", 3, "alias_short", "Короткое имя модуля", () => {
+    const n = pick([25, 36, 49]);
+    return {
+      code: L("import math as ___", `print(m.sqrt(${n}))` + says(Math.sqrt(n).toFixed(1))),
+      options: ["m", "math", "mod", "math as m"],
+      expect: Math.sqrt(n).toFixed(1),
+      explanation: "import math as m даёт модулю короткое имя m. Дальше пишут m.sqrt, а не math.sqrt."
+    };
+  });
 
   fill("modules", 4, "import", "Подключи модуль", () => {
     const n = rnd(2, 12);
