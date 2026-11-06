@@ -12585,3 +12585,104 @@ body.game-page .minimap-dock.off {
     max-height: 48px;
   }
 }
+
+/* Карточка результата: итог, модификаторы, пояснение и добыча.
+   Отдельные блоки не спорят за внимание: сверху одно число, под ним
+   короткие чипы, ниже — разбор. */
+body.battling .battle-panel .result-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body.battling .battle-panel .result-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+body.battling .battle-panel .result-icon {
+  flex: 0 0 auto;
+  color: #8cc07c;
+  font: 800 14px/1 var(--font-ui);
+}
+
+body.battling .battle-panel .result-card.bad .result-icon {
+  color: #e08a6f;
+}
+
+body.battling .battle-panel .result-title {
+  color: var(--quiet-text, #e9eff8);
+  font: 800 13px/1 var(--font-ui);
+  letter-spacing: 0.04em;
+}
+
+body.battling .battle-panel .result-damage {
+  margin-left: auto;
+  color: var(--quiet-text, #e9eff8);
+  font: 800 12px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.battling .battle-panel .result-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+body.battling .battle-panel .result-chip {
+  padding: 2px 7px;
+  border: 1px solid var(--quiet-line, #263242);
+  border-radius: 999px;
+  color: var(--quiet-muted, #a7b2c2);
+  font: 600 9.5px/1.4 var(--font-ui);
+  white-space: nowrap;
+}
+
+body.battling .battle-panel .result-card.good .result-chip {
+  border-color: rgba(140, 192, 124, 0.35);
+  color: #b7d6ad;
+}
+
+body.battling .battle-panel .result-card.bad .result-chip {
+  border-color: rgba(224, 138, 111, 0.35);
+  color: #e6b3a3;
+}
+
+body.battling .battle-panel .result-turn {
+  color: var(--quiet-accent, #9dc0ef);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+body.battling .battle-panel .result-card .battle-feedback,
+body.battling .battle-panel .result-card .battle-explain,
+body.battling .battle-panel .result-card .battle-note {
+  margin: 0;
+}
+
+body.battling .battle-panel .result-card .battle-feedback {
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+body.battling .battle-panel .result-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+body.battling .battle-panel .result-actions .btn {
+  width: auto;
+}
+
+body.battling .battle-panel .result-actions #continue-btn {
+  flex: 1 1 auto;
+}
+
+body.battling .battle-panel .result-actions .result-explain-btn {
+  flex: 0 0 auto;
+  font-size: 10px;
+}
