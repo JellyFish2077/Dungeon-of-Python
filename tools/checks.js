@@ -7270,14 +7270,14 @@ API.attachChoices(G.battle.challenge);
 G.stats.streak = 2;
 API.renderBattle();
 const uiBattleHtml = el("battle-box").innerHTML;
-log(/streak-chip/.test(uiBattleHtml) && /Серия 2/.test(uiBattleHtml),
-  "серия 2+ показана компактным чипом");
-log(uiBattleHtml.indexOf("battle-adaptive") > uiBattleHtml.indexOf("battle-options"),
-  "справка об уровне вопросов стоит под ответами");
+log(/battle-streak/.test(uiBattleHtml) && /Серия 2/.test(uiBattleHtml),
+  "серия 2+ показана компактной строкой");
+log(!/battle-adaptive/.test(uiBattleHtml), "адаптивная подпись убрана из боя");
 G.stats.streak = 1;
 API.renderBattle();
-log(!/streak-chip/.test(el("battle-box").innerHTML),
-  "на серии 1 чип не показывается");
+log(/battle-streak/.test(el("battle-box").innerHTML) &&
+    /Серия 1/.test(el("battle-box").innerHTML),
+  "серия 1 тоже показывается");
 G.battle = null;
 
 // Серверная копия профиля применяется на клиенте. Здесь раньше была

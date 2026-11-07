@@ -11571,12 +11571,7 @@
       if (b.playerDead || G.player.hp <= 0 || b.won) roundNote = "";
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
     }
-    // Серия — маленький чип в шапке, и только когда она уже влияет на удар.
-    const streakNow = Math.min(STREAK_CAP, (G.stats && G.stats.streak) || 0);
-    const streakChip = streakNow >= 2
-      ? "<span class='streak-chip'>Серия " + streakNow + " · удар ×" +
-        streakMul().toFixed(2).replace(".", ",") + "</span>"
-      : "";
+
     html += "<div class='battle-stage'>";
     html +=
       "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
@@ -11615,7 +11610,6 @@
       "<span class='num'>" + e.hp + " / " + e.maxHp + "</span>" +
       "</div>" +
       "</div>";
-    if (streakChip) html += "<div class='battle-meta'>" + streakChip + "</div>";
 
     // Вопрос и написанный код живут в прокручиваемой середине: длинное
     // задание больше не выдавливает кнопки за край окна. Туда же уходят
@@ -11626,7 +11620,13 @@
     // и разъехались бы по колонкам, как это и случилось при первой правке.
     html += "<div class='battle-mid" + (b.phase === "question" ? " split" : "") + "'>";
     if (b.phase === "question") html += "<div class='battle-ask'>";
+    const streakNow = Math.min(STREAK_CAP, (G.stats && G.stats.streak) || 0);
+    const streakLine = b.phase === "question" && streakNow > 0
+      ? "<div class='battle-streak'>Серия " + streakNow + " · ×" +
+        streakMul().toFixed(2).replace(".", ",") + "</div>"
+      : "";
     html +=
+      streakLine +
       (abilityText
         ? "<div class='enemy-ability'>" + abilityText + "</div>"
         : "") +
@@ -11802,15 +11802,6 @@
         : "Ход врага";
     }
 
-    // Адаптивная подпись — под ответами, а не над вопросом: это справка,
-    // а не срочный сигнал. Полный смысл остаётся на месте, но не отнимает
-    // верхнюю строку у самого задания.
-    if (b.phase === "question") {
-      const adaptNote = adaptiveNote();
-      if (adaptNote) {
-        html += "<div class='battle-adaptive'>" + escText(adaptNote) + "</div>";
-      }
-    }
     html += "</div>";
 
     // Футер: кнопки по четырём категориям, чтобы не приходилось искать
@@ -14570,6 +14561,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.32.0",
+      date: "7 ноября 2026",
+      title: "Серия снова наверху",
+      items: [
+        "Серия вернулась наверх — одной компактной строкой над вопросом.",
+        "Показывается и на серии 1: «Серия 1 · ×1,00».",
+        "Справка об уровне вопросов убрана из боя."
+      ]
+    },
     {
       version: "1.31.0",
       date: "7 ноября 2026",
