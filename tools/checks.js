@@ -7308,9 +7308,11 @@ API.attachChoices(G.battle.challenge);
 G.stats.streak = 0;
 API.renderBattle();
 const squadUiHtml = el("battle-box").innerHTML;
-log(/battle-status-chip squad/.test(squadUiHtml) && /Отряд 2/.test(squadUiHtml),
+log(/battle-status-chip squad/.test(squadUiHtml) &&
+    /Отряд: осталось монстров — 2/.test(squadUiHtml),
   "отряд показан общим чипом статуса");
-log(!/squad-note/.test(squadUiHtml), "отдельной красной плашки отряда больше нет");
+log(!/squad-note/.test(squadUiHtml) && !/Пока кто-то жив/.test(squadUiHtml),
+  "плашки и текста «Пока кто-то жив» больше нет");
 G.battle = null;
 
 // Серверная копия профиля применяется на клиенте. Здесь раньше была

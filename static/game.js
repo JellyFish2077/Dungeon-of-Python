@@ -11635,10 +11635,8 @@
       }
       if (squadAliveCount(b)) {
         const squadLeft = squadAliveCount(b) + 1;
-        statusChips.push("<span class='battle-status-chip squad' data-tip=\"" +
-          tipAttr("В отряде осталось монстров: " + squadLeft +
-            ". Пока кто-то жив, уйти нельзя.") +
-          "\">Отряд " + squadLeft + "</span>");
+        statusChips.push("<span class='battle-status-chip squad'>Отряд: осталось монстров — " +
+          squadLeft + "</span>");
       }
     }
     const taskStatusHtml = statusChips.length
@@ -14577,6 +14575,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.35.0",
+      date: "7 ноября 2026",
+      title: "Отряд — по центру",
+      items: [
+        "Поле отряда оформлено в общем стиле остальных статусов.",
+        "Текст «Отряд: осталось монстров — N» выровнен по центру поля.",
+        "Подпись «Пока кто-то жив, уйти нельзя» убрана."
+      ]
+    },
     {
       version: "1.34.0",
       date: "7 ноября 2026",
