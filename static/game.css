@@ -12745,9 +12745,9 @@ body.battling .battle-panel .battle-status-chip[data-tip] {
 }
 
 body.battling .battle-panel .battle-status-chip.squad {
-  border-color: rgba(224, 138, 111, 0.45);
-  background: rgba(224, 138, 111, 0.08);
-  color: #e6a08c;
+  justify-content: center;
+  min-width: 168px;
+  text-align: center;
 }
 
 @media (max-width: 560px) {
