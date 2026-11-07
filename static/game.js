@@ -10111,6 +10111,11 @@
 
   // ---------- Бой ----------
 
+  // Сцена боя переживает перерисовки панели. Номер боя нужен, чтобы отличить
+  // повторную отрисовку того же боя от нового боя с тем же монстром
+  // (например, если герой убежал и вернулся на ту же клетку).
+  let battleSeq = 0;
+
   function openBattle(enemy, restore) {
     // Новый бой не должен начинаться в полноэкранном редакторе от прошлого.
     document.body.classList.remove("code-focus");
@@ -10127,6 +10132,7 @@
     if (enemy.boss) enemy.phaseHold = false;
     G.battle = {
       enemy,
+      instance: ++battleSeq,
       phase: "question",
       bossPhase: enemy.bossPhase || 0,
       bossBreak: null,
@@ -11538,6 +11544,40 @@
     renderBattle();
   }
 
+  // Сцена не пересобирается на каждое нажатие кнопки: портреты остаются
+  // теми же узлами, поэтому CSS-анимация покачивания не начинается заново.
+  // Обновляем только то, что действительно изменилось: позы, баннеры,
+  // подпись входа и заставку.
+  function updateBattleStage(stage, b, e, heroHp) {
+    if (!stage) return;
+    const intro = stage.querySelector(".battle-intro");
+    if (intro) {
+      const title = intro.querySelector("b");
+      const next = e.name + " преграждает путь";
+      if (title && title.textContent !== next) title.textContent = next;
+      if (!b.showIntro) intro.classList.add("gone");
+    }
+    const heroFighter = stage.querySelector(".fighter-hero");
+    if (heroFighter) heroFighter.classList.toggle("down", heroHp <= 0);
+    const enemyFighter = stage.querySelector(".fighter-enemy");
+    if (enemyFighter) enemyFighter.classList.toggle("down", e.hp <= 0);
+    const scene = stage.querySelector(".battle-scene");
+    if (!scene) return;
+    const setBanner = (kind, label, show) => {
+      let node = scene.querySelector(".scene-banner." + kind);
+      if (show && !node) {
+        node = document.createElement("div");
+        node.className = "scene-banner " + kind;
+        node.textContent = label;
+        scene.appendChild(node);
+      } else if (!show && node) {
+        node.remove();
+      }
+    };
+    setBanner("win", "Победа", e.hp <= 0);
+    setBanner("lose", "Ты пал", heroHp <= 0);
+  }
+
   function renderBattle() {
     const b = G.battle;
     if (!b) return;
@@ -11557,7 +11597,7 @@
       (b.challenge.type === "copy" || b.challenge.type === "code");
     if (!isCodeTask) document.body.classList.remove("code-focus");
     let footLabel = "";
-    let html = "";
+    let stageHtml = "";
     // Бой — не карточка поверх карты, а сцена на самой карте: камера
     // подъезжает, крупные портреты стоят над клетками бойцов, снизу
     // выезжает панель с вопросом. Карточку по центру убрали: она закрывала
@@ -11572,13 +11612,14 @@
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
     }
 
-    html += "<div class='battle-stage'>";
-    html +=
+    stageHtml += "<div class='battle-stage' data-uid='" + String(e.uid) +
+      "' data-instance='" + String(b.instance) + "'>";
+    stageHtml +=
       "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
       "<b>" + escText(e.name) + " преграждает путь</b>" +
       "<i></i>" +
       "</div>";
-    html +=
+    stageHtml +=
       "<div class='battle-scene'>" +
       "<div class='scene-arena'>" +
       "<div class='fighter fighter-hero" + (heroHp <= 0 ? " down" : "") + "'>" +
@@ -11592,8 +11633,9 @@
       (e.hp <= 0 ? "<div class='scene-banner win'>Победа</div>" : "") +
       (heroHp <= 0 ? "<div class='scene-banner lose'>Ты пал</div>" : "") +
       "</div>";
-    html += "</div>";
+    stageHtml += "</div>";
 
+    let html = "";
     html += "<div class='battle-panel" + (isCodeTask ? " code-mode" : "") + "'>";
     html +=
       "<div class='battle-panel-top'>" +
@@ -11913,7 +11955,29 @@
     // Панель закрыта: выше неё только сцена с бойцами.
     html += "</div>";
 
-    box.innerHTML = html;
+    // Сцена боя живёт отдельно от панели: при каждом нажатии кнопки панель
+    // пересобирается, а портреты остаются теми же DOM-узлами. Иначе
+    // CSS-анимация покачивания (enemyIdle) стартует заново, и бойцы
+    // «дёргаются» на каждом клике.
+    const oldStage = box.querySelector(".battle-stage");
+    const sameBattle = b.instance != null && !!oldStage &&
+      oldStage.dataset.instance === String(b.instance) &&
+      oldStage.dataset.uid === String(e.uid);
+    if (sameBattle) {
+      updateBattleStage(oldStage, b, e, heroHp);
+      const oldPanel = box.querySelector(".battle-panel");
+      if (oldPanel) {
+        const holder = document.createElement("div");
+        holder.innerHTML = html;
+        const newPanel = holder.firstElementChild;
+        if (newPanel) oldPanel.replaceWith(newPanel);
+        else box.innerHTML = stageHtml + html;
+      } else {
+        box.innerHTML = stageHtml + html;
+      }
+    } else {
+      box.innerHTML = stageHtml + html;
+    }
     renderEffectList(el("battle-effects"));
     // Полосы прокрутки в окне боя нет, поэтому «ниже есть ещё» показывает
     // мягкая тень у нижнего края. Она есть ровно тогда, когда задание не
@@ -14575,6 +14639,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.36.1",
+      date: "7 ноября 2026",
+      title: "Бойцы не дёргаются",
+      items: [
+        "Сцена боя больше не пересобирается на каждое нажатие кнопки.",
+        "Портреты героя и врага остаются на месте, пока бой идёт с тем же монстром.",
+        "Панель с вопросом и кнопками обновляется отдельно от сцены."
+      ]
+    },
     {
       version: "1.36.0",
       date: "7 ноября 2026",

@@ -7315,6 +7315,24 @@ log(!/squad-note/.test(squadUiHtml) && !/Пока кто-то жив/.test(squad
   "плашки и текста «Пока кто-то жив» больше нет");
 G.battle = null;
 
+// Сцена боя не пересобирается на каждое нажатие: портреты остаются теми же
+// DOM-узлами, иначе CSS-анимация покачивания начинается заново и бойцы
+// «дёргаются» на каждом клике. В стенде querySelector — заглушка, поэтому
+// проверяем исходник: переиспользование сцены и замену только панели.
+{
+  const battleReuseSrc = fs.readFileSync(path.join(dir, "game.js"), "utf8");
+  log(/const oldStage = box\.querySelector\("\.battle-stage"\)/.test(battleReuseSrc) &&
+      /oldPanel\.replaceWith\(/.test(battleReuseSrc),
+    "renderBattle переиспользует сцену и меняет только панель боя");
+  log(/oldStage\.dataset\.instance === String\(b\.instance\)/.test(battleReuseSrc) &&
+      /oldStage\.dataset\.uid === String\(e\.uid\)/.test(battleReuseSrc),
+    "сцену пересобирают только для нового боя или нового врага");
+  log(/function updateBattleStage\(/.test(battleReuseSrc) &&
+      /setBanner\("win", "Победа"/.test(battleReuseSrc) &&
+      /setBanner\("lose", "Ты пал"/.test(battleReuseSrc),
+    "позы и баннеры обновляются на месте, без пересборки сцены");
+}
+
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
 // `const merged`, которую функция переприсваивала: вход и регистрация
 // падали после создания сессии, хотя аккаунт уже был создан.
