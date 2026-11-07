@@ -7270,14 +7270,28 @@ API.attachChoices(G.battle.challenge);
 G.stats.streak = 2;
 API.renderBattle();
 const uiBattleHtml = el("battle-box").innerHTML;
-log(/battle-streak/.test(uiBattleHtml) && /Серия 2/.test(uiBattleHtml),
-  "серия 2+ показана компактной строкой");
+log(/battle-task-status/.test(uiBattleHtml) && /Серия 2/.test(uiBattleHtml),
+  "серия 2+ показана статусом справа от заголовка");
 log(!/battle-adaptive/.test(uiBattleHtml), "адаптивная подпись убрана из боя");
 G.stats.streak = 1;
 API.renderBattle();
-log(/battle-streak/.test(el("battle-box").innerHTML) &&
+log(/battle-task-status/.test(el("battle-box").innerHTML) &&
     /Серия 1/.test(el("battle-box").innerHTML),
   "серия 1 тоже показывается");
+G.battle = null;
+
+// Дальнобойный враг: дистанция — таким же чипом справа, полный текст в подсказке.
+freshRun(3);
+const rangedUiEnemy = enemyOnPlayerCell("bat", 400);
+API.openBattle(rangedUiEnemy);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+G.stats.streak = 1;
+API.renderBattle();
+const rangedUiHtml = el("battle-box").innerHTML;
+log(/battle-task-head/.test(rangedUiHtml) && /battle-status-chip ranged/.test(rangedUiHtml) &&
+    /Дистанция 2/.test(rangedUiHtml),
+  "дистанция врага — чипом справа от заголовка");
 G.battle = null;
 
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
