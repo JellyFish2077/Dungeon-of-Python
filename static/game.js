@@ -11571,6 +11571,12 @@
       if (b.playerDead || G.player.hp <= 0 || b.won) roundNote = "";
       else roundNote = b.good ? "Точный ответ" : "Ошибка";
     }
+    // Серия — маленький чип в шапке, и только когда она уже влияет на удар.
+    const streakNow = Math.min(STREAK_CAP, (G.stats && G.stats.streak) || 0);
+    const streakChip = streakNow >= 2
+      ? "<span class='streak-chip'>Серия " + streakNow + " · удар ×" +
+        streakMul().toFixed(2).replace(".", ",") + "</span>"
+      : "";
     html += "<div class='battle-stage'>";
     html +=
       "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
@@ -11609,6 +11615,7 @@
       "<span class='num'>" + e.hp + " / " + e.maxHp + "</span>" +
       "</div>" +
       "</div>";
+    if (streakChip) html += "<div class='battle-meta'>" + streakChip + "</div>";
 
     // Вопрос и написанный код живут в прокручиваемой середине: длинное
     // задание больше не выдавливает кнопки за край окна. Туда же уходят
@@ -11641,11 +11648,6 @@
       (G.player.poison > 0
         ? "<div class='enemy-quip poison'>Тебя тошнит от яда. Осталось " + G.player.poison + " ходов.</div>"
         : "") +
-      ((G.stats && G.stats.streak) > 0
-        ? "<div class='streak-note'>Серия верных ответов: " +
-          Math.min(STREAK_CAP, G.stats.streak) +
-          " (удар ×" + streakMul().toFixed(2) + ")</div>"
-        : "") +
       "";
 
     // Строку «Тема боя» из окна убрали: тема и так видна в самом вопросе, а
@@ -11660,10 +11662,6 @@
       : "";
     if (missPart) {
       html += "<div class='battle-topic'>" + missPart + "</div>";
-    }
-    const adaptNote = b.phase === "question" ? adaptiveNote() : "";
-    if (adaptNote) {
-      html += "<div class='battle-note adaptive'>" + escText(adaptNote) + "</div>";
     }
 
     if (b.phase === "question") {
@@ -11804,6 +11802,15 @@
         : "Ход врага";
     }
 
+    // Адаптивная подпись — под ответами, а не над вопросом: это справка,
+    // а не срочный сигнал. Полный смысл остаётся на месте, но не отнимает
+    // верхнюю строку у самого задания.
+    if (b.phase === "question") {
+      const adaptNote = adaptiveNote();
+      if (adaptNote) {
+        html += "<div class='battle-adaptive'>" + escText(adaptNote) + "</div>";
+      }
+    }
     html += "</div>";
 
     // Футер: кнопки по четырём категориям, чтобы не приходилось искать
@@ -14563,6 +14570,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.31.0",
+      date: "7 ноября 2026",
+      title: "Серия и адаптив — по местам",
+      items: [
+        "Серия стала компактным чипом в шапке и показывается со 2-го верного ответа.",
+        "Справка об уровне вопросов ушла под ответы, мелким шрифтом.",
+        "Вопрос и варианты больше не сдвигаются двумя плашками."
+      ]
+    },
     {
       version: "1.30.0",
       date: "6 ноября 2026",
