@@ -12744,6 +12744,16 @@ body.battling .battle-panel .battle-status-chip[data-tip] {
   cursor: help;
 }
 
+/* Дистанция и отряд — не золотые акценты, а тихие служебные подписи. */
+body.battling .battle-panel .battle-status-chip.ranged,
+body.battling .battle-panel .battle-status-chip.squad {
+  border-color: var(--quiet-line-soft, rgba(233, 239, 248, 0.12));
+  border-radius: 3px;
+  background: transparent;
+  color: var(--quiet-muted, #a7b2c2);
+  font-weight: 600;
+}
+
 body.battling .battle-panel .battle-status-chip.squad {
   justify-content: center;
   min-width: 168px;
