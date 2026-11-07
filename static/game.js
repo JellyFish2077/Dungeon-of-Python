@@ -11633,6 +11633,13 @@
             " клеток. Урон слабее, но подойти вплотную не выйдет.") +
           "\">Дистанция " + e.range + "</span>");
       }
+      if (squadAliveCount(b)) {
+        const squadLeft = squadAliveCount(b) + 1;
+        statusChips.push("<span class='battle-status-chip squad' data-tip=\"" +
+          tipAttr("В отряде осталось монстров: " + squadLeft +
+            ". Пока кто-то жив, уйти нельзя.") +
+          "\">Отряд " + squadLeft + "</span>");
+      }
     }
     const taskStatusHtml = statusChips.length
       ? "<div class='battle-task-status'>" + statusChips.join("") + "</div>"
@@ -11647,10 +11654,6 @@
         : "") +
       (b.cursed
         ? "<div class='enemy-ability curse'>Проклятие лича: подсказка не работает</div>"
-        : "") +
-      (squadAliveCount(b)
-        ? "<div class='squad-note'>Отряд: осталось монстров — " +
-          (squadAliveCount(b) + 1) + ". Пока кто-то жив, уйти нельзя.</div>"
         : "") +
       (G.player.poison > 0
         ? "<div class='enemy-quip poison'>Тебя тошнит от яда. Осталось " + G.player.poison + " ходов.</div>"
@@ -14574,6 +14577,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.34.0",
+      date: "7 ноября 2026",
+      title: "Отряд в общем стиле",
+      items: [
+        "Отряд переехал вправо от заголовка задания.",
+        "Серия, дистанция и отряд — одна серия компактных чипов.",
+        "Полный текст про отряд показывается в подсказке."
+      ]
+    },
     {
       version: "1.33.0",
       date: "7 ноября 2026",
