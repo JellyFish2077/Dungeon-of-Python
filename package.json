@@ -1,7 +1,7 @@
 {
   "name": "pydungeon",
   "private": true,
-  "version": "1.33.0",
+  "version": "1.34.0",
   "description": "PyDungeon — браузерная игра-подземелье с вопросами по Python",
   "scripts": {
     "dev": "vite",

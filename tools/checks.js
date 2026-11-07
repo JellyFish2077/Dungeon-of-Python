@@ -7294,6 +7294,25 @@ log(/battle-task-head/.test(rangedUiHtml) && /battle-status-chip ranged/.test(ra
   "дистанция врага — чипом справа от заголовка");
 G.battle = null;
 
+// Отряд — таким же чипом, а не отдельной красной плашкой.
+freshRun(3);
+const squadA = enemyOnPlayerCell("orc", 400);
+const squadB = API.makeEnemy("orc", 3);
+squadB.x = squadA.x + 1;
+squadB.y = squadA.y;
+squadA.squadId = squadB.squadId = 77;
+G.enemies = [squadA, squadB];
+API.openBattle(squadA);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+G.stats.streak = 0;
+API.renderBattle();
+const squadUiHtml = el("battle-box").innerHTML;
+log(/battle-status-chip squad/.test(squadUiHtml) && /Отряд 2/.test(squadUiHtml),
+  "отряд показан общим чипом статуса");
+log(!/squad-note/.test(squadUiHtml), "отдельной красной плашки отряда больше нет");
+G.battle = null;
+
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
 // `const merged`, которую функция переприсваивала: вход и регистрация
 // падали после создания сессии, хотя аккаунт уже был создан.
