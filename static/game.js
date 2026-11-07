@@ -11621,12 +11621,23 @@
     html += "<div class='battle-mid" + (b.phase === "question" ? " split" : "") + "'>";
     if (b.phase === "question") html += "<div class='battle-ask'>";
     const streakNow = Math.min(STREAK_CAP, (G.stats && G.stats.streak) || 0);
-    const streakLine = b.phase === "question" && streakNow > 0
-      ? "<div class='battle-streak'>Серия " + streakNow + " · ×" +
-        streakMul().toFixed(2).replace(".", ",") + "</div>"
+    const statusChips = [];
+    if (b.phase === "question") {
+      if (streakNow > 0) {
+        statusChips.push("<span class='battle-status-chip streak'>Серия " + streakNow +
+          " · ×" + streakMul().toFixed(2).replace(".", ",") + "</span>");
+      }
+      if ((e.range || 1) > 1) {
+        statusChips.push("<span class='battle-status-chip ranged' data-tip=\"" +
+          tipAttr("Бьёт с расстояния " + e.range +
+            " клеток. Урон слабее, но подойти вплотную не выйдет.") +
+          "\">Дистанция " + e.range + "</span>");
+      }
+    }
+    const taskStatusHtml = statusChips.length
+      ? "<div class='battle-task-status'>" + statusChips.join("") + "</div>"
       : "";
     html +=
-      streakLine +
       (abilityText
         ? "<div class='enemy-ability'>" + abilityText + "</div>"
         : "") +
@@ -11640,10 +11651,6 @@
       (squadAliveCount(b)
         ? "<div class='squad-note'>Отряд: осталось монстров — " +
           (squadAliveCount(b) + 1) + ". Пока кто-то жив, уйти нельзя.</div>"
-        : "") +
-      ((e.range || 1) > 1
-        ? "<div class='enemy-ability ranged'>Бьёт с расстояния " + e.range +
-          " клеток. Урон слабее, но подойти вплотную не выйдет.</div>"
         : "") +
       (G.player.poison > 0
         ? "<div class='enemy-quip poison'>Тебя тошнит от яда. Осталось " + G.player.poison + " ходов.</div>"
@@ -11672,6 +11679,7 @@
       if (c.notice) html += "<div class='battle-note'>" + escText(c.notice) + "</div>";
       if (c.type === "mc" || c.type === "fill" || c.type === "error") {
         const item = c.question || c.task;
+        html += "<div class='battle-task-head'><div class='battle-task-main'>";
         if (c.type === "mc") {
           html += "<div class='challenge-tag'>Вопрос</div>";
           html += "<div class='challenge-q'>" + item.text + "</div>";
@@ -11684,6 +11692,7 @@
           html += "<div class='challenge-q'>" + item.title + "</div>";
           html += "<p class='lead' style='margin-bottom:10px'>Что не так в этом коде?</p>";
         }
+        html += "</div>" + taskStatusHtml + "</div>";
         if (item.code) {
           html += "<pre class='code'>" + escText(item.code) + "</pre>";
         }
@@ -11694,9 +11703,11 @@
         }
         html += "</div>";
       } else if (c.type === "copy") {
+        html += "<div class='battle-task-head'><div class='battle-task-main'>";
         html += "<div class='challenge-tag copy'>Повтори код</div>";
         html += "<div class='challenge-q'>" + c.task.title + "</div>";
         html += "<p class='lead' style='margin-bottom:10px'>" + c.task.task + "</p>";
+        html += "</div>" + taskStatusHtml + "</div>";
         html += "<pre class='code sample-code' id='copy-sample'>" + escText(c.task.code) + "</pre>";
         html += "</div><div class='battle-solve'>";
         html += "<div class='solve-label'>Решение</div>";
@@ -11706,9 +11717,11 @@
         html += "<div class='battle-feedback' id='copy-feedback'></div>";
         html += "</div>";
       } else {
+        html += "<div class='battle-task-head'><div class='battle-task-main'>";
         html += "<div class='challenge-tag code'>Напиши функцию</div>";
         html += "<div class='challenge-q'>" + c.task.title + "</div>";
         html += "<p class='lead' style='margin-bottom:12px'>" + c.task.task + "</p>";
+        html += "</div>" + taskStatusHtml + "</div>";
         html += "</div><div class='battle-solve'>";
         html += "<div class='solve-label'>Решение</div>";
         html += "<textarea class='code-editor' id='code-input' spellcheck='false' autocomplete='off' autocorrect='off' autocapitalize='off' wrap='soft' placeholder='Напиши код здесь...'></textarea>";
@@ -14561,6 +14574,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.33.0",
+      date: "7 ноября 2026",
+      title: "Статусы справа от задания",
+      items: [
+        "Серия и дистанция врага переехали вправо от заголовка задания.",
+        "Полный текст про дистанцию показывается в подсказке.",
+        "Задание и код больше не сдвигаются статусами сверху."
+      ]
+    },
     {
       version: "1.32.0",
       date: "7 ноября 2026",
