@@ -7260,6 +7260,26 @@ if (vault) {
   G.stats.recentAnswers = savedRecent;
 }
 
+// Серия — чип в шапке; справка об уровне вопросов — под ответами.
+freshRun(3);
+G.stats.recentAnswers = Array(9).fill(0);
+const streakUiEnemy = enemyOnPlayerCell("orc", 400);
+API.openBattle(streakUiEnemy);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+G.stats.streak = 2;
+API.renderBattle();
+const uiBattleHtml = el("battle-box").innerHTML;
+log(/streak-chip/.test(uiBattleHtml) && /Серия 2/.test(uiBattleHtml),
+  "серия 2+ показана компактным чипом");
+log(uiBattleHtml.indexOf("battle-adaptive") > uiBattleHtml.indexOf("battle-options"),
+  "справка об уровне вопросов стоит под ответами");
+G.stats.streak = 1;
+API.renderBattle();
+log(!/streak-chip/.test(el("battle-box").innerHTML),
+  "на серии 1 чип не показывается");
+G.battle = null;
+
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
 // `const merged`, которую функция переприсваивала: вход и регистрация
 // падали после создания сессии, хотя аккаунт уже был создан.
