@@ -1605,8 +1605,13 @@ log(/--app-vh: 100vh/.test(styleCss) &&
 log(/--safe-top: env\(safe-area-inset-top/.test(styleCss) &&
   /--safe-bottom: env\(safe-area-inset-bottom/.test(styleCss),
   "в стилях есть отступы под системные панели и уведомления");
-log(/\.overlay \{[^}]*height: var\(--app-vh\)/.test(gameCss),
+log(/\.overlay \{[^}]*height: var\(--vvh, var\(--app-vh\)\)/.test(gameCss) &&
+  /\.overlay \{[^}]*box-sizing: border-box/.test(gameCss),
   "окна не выходят за видимую высоту экрана");
+log(/\.overlay > \.battle \{[^}]*max-height: min\(100%, 900px\)/.test(gameCss),
+  "высокие окна ограничены высотой оверлея, а не долями vh");
+log(/#entrance-box \.setup-actions \{[^}]*position: sticky/.test(gameCss),
+  "кнопка «Спуститься» закреплена внизу окна");
 log(/body\.game-page \.hero-hud \{[^}]*bottom: calc\(54px \+ var\(--safe-bottom\)\)/
   .test(portraitCss),
   "HUD в портрете поднят над нижней панелью браузера");
@@ -6648,6 +6653,11 @@ log(afterNewGame.loot.keys.indexOf("seal") < 0 &&
   "печати сбрасываются вместе с сюжетом");
 log(afterNewGame.village.barn === 2,
   "постройки деревни при сбросе сюжета остаются");
+const menuSrc = fs.readFileSync(path.join(dir, "menu.js"), "utf8");
+log(/id="set-reset-campaign"/.test(gameHtml) &&
+  /resetCampaignProgress/.test(menuSrc) &&
+  /resetCampaign: function/.test(gameSrcMobile),
+  "из настроек можно сбросить прогресс кампании");
 resetProgress();
 
 // Повторяемое задание: прогресс считается в походе, награда — у старосты.

@@ -1014,6 +1014,8 @@
     if (fullscreen) fullscreen.addEventListener("click", toggleFullscreen);
     const hints = $("set-reset-hints");
     if (hints) hints.addEventListener("click", resetHints);
+    const resetCampaign = $("set-reset-campaign");
+    if (resetCampaign) resetCampaign.addEventListener("click", resetCampaignProgress);
     document.addEventListener("fullscreenchange", updateFullscreenLabel);
     document.addEventListener("keydown", onKey);
     window.addEventListener("storage", (e) => {
@@ -1053,6 +1055,40 @@
     } catch (e) {
       // Встроенные браузеры могут запрещать Fullscreen API — игра остаётся
       // в обычном окне.
+    }
+  }
+
+  function resetCampaignProgress() {
+    sound("click");
+    const api = window.PyGameMenuAPI;
+    if (!api || typeof api.resetCampaign !== "function") return;
+    const run = function () {
+      let ok = false;
+      try {
+        ok = api.resetCampaign();
+      } catch (e) {
+        ok = false;
+      }
+      if (ok) {
+        sound("correct");
+        if (window.PyMenu && typeof window.PyMenu.render === "function") {
+          window.PyMenu.render();
+        }
+      } else {
+        sound("wrong");
+      }
+    };
+    const opts = {
+      title: "Сбросить прогресс кампании?",
+      text: "Главы, журнал и печати начнутся заново. Деревня, материалы, постройки и текущий поход останутся.",
+      confirmLabel: "Сбросить",
+      cancelLabel: "Отмена",
+      danger: true
+    };
+    if (window.PyConfirm && typeof window.PyConfirm.run === "function") {
+      window.PyConfirm.run(opts, run);
+    } else {
+      run();
     }
   }
 
