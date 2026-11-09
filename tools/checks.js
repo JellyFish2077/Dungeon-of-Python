@@ -7331,6 +7331,34 @@ G.battle = null;
       /setBanner\("win", "Победа"/.test(battleReuseSrc) &&
       /setBanner\("lose", "Ты пал"/.test(battleReuseSrc),
     "позы и баннеры обновляются на месте, без пересборки сцены");
+  log(/function startEnemyTurn\(\)[\s\S]{0,2600}?if \(turn\.taken > 0\)[\s\S]{0,200}?strikeScene\(box, "hero"/
+      .test(battleReuseSrc),
+    "ход врага запускает анимацию удара по герою");
+}
+
+// Удар врага по герою: сцена получает класс выпада врага, на герое
+// вспыхивает урон и всплывает число. В стенде querySelector — заглушка,
+// поэтому подсовываем сцене свои узлы.
+{
+  const fakeScene = document.createElement("div");
+  const fakeArena = document.createElement("div");
+  const fakeHero = document.createElement("div");
+  const fakeBox = document.createElement("div");
+  fakeBox.querySelector = (sel) => {
+    if (sel === ".battle-scene") return fakeScene;
+    if (sel === ".scene-arena") return fakeArena;
+    if (sel === ".fighter-hero") return fakeHero;
+    return null;
+  };
+  API.strikeScene(fakeBox, "hero", "-7", "hurt");
+  const float = fakeHero.children.find((c) =>
+    /dmg-float/.test(c.className || "") && c.textContent === "-7");
+  log(fakeScene.classList.contains("strike-hero") &&
+      !fakeScene.classList.contains("strike-enemy"),
+    "удар врага запускает выпад врага, а не героя");
+  log(fakeHero.classList.contains("fighter-flash") && !!float &&
+      /hurt/.test(float.className),
+    "по герою проходит вспышка и всплывает урон");
 }
 
 // Серверная копия профиля применяется на клиенте. Здесь раньше была
