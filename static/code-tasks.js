@@ -131,6 +131,50 @@ const CODE_TASKS = [
       { call: "average([10, 20])", expected: "15.0" },
       { call: "average([4])", expected: "4.0" }
     ]
+  },
+  {
+    id: "player_name",
+    title: "Имя героя",
+    task: "Напиши функцию player_name(name), которая возвращает строку «Герой: » + name.",
+    explanation: "Строки складываются через +: return \"Герой: \" + name.",
+    starter: "def player_name(name):\n    pass",
+    tests: [
+      { call: "player_name(\"Ада\")", expected: "\"Герой: Ада\"" },
+      { call: "player_name(\"\")", expected: "\"Герой: \"" }
+    ]
+  },
+  {
+    id: "double",
+    title: "Удвоенный урон",
+    task: "Напиши функцию double(n), которая возвращает n * 2.",
+    explanation: "Умножение на 2: return n * 2.",
+    starter: "def double(n):\n    pass",
+    tests: [
+      { call: "double(7)", expected: "14" },
+      { call: "double(0)", expected: "0" }
+    ]
+  },
+  {
+    id: "safe_int",
+    title: "Безопасное число",
+    task: "Напиши функцию safe_int(text), которая возвращает int(text), а при ValueError — 0.",
+    explanation: "Ловим только ValueError: try: return int(text), except ValueError: return 0.",
+    starter: "def safe_int(text):\n    pass",
+    tests: [
+      { call: "safe_int(\"10\")", expected: "10" },
+      { call: "safe_int(\"два\")", expected: "0" }
+    ]
+  },
+  {
+    id: "circle_area",
+    title: "Площадь круга",
+    task: "Напиши функцию circle_area(r), которая возвращает площадь круга, округлённую до 2 знаков.",
+    explanation: "Площадь круга — math.pi * r * r; округление — round(value, 2).",
+    starter: "def circle_area(r):\n    pass",
+    tests: [
+      { call: "circle_area(1)", expected: "3.14" },
+      { call: "circle_area(2)", expected: "12.57" }
+    ]
   }
 ];
 
@@ -220,6 +264,27 @@ const COPY_TASKS = [
     task: "Перепиши код в точности так, как он написан.",
     explanation: "f-строка подставляет значение переменной в фигурных скобках.",
     code: 'name = "Герой"\nprint(f"Привет, {name}!")'
+  },
+  {
+    id: "copy_float",
+    title: "Дробное число",
+    task: "Перепиши код в точности так, как он написан.",
+    explanation: "int(price) отбрасывает дробную часть, поэтому выводится 9.",
+    code: "price = 9.5\nprint(int(price))"
+  },
+  {
+    id: "copy_try",
+    title: "Ловим ошибку",
+    task: "Перепиши код в точности так, как он написан. Соблюдай отступы!",
+    explanation: "try защищает преобразование, а except ValueError задаёт запасное значение.",
+    code: "try:\n    gold = int(\"10\")\nexcept ValueError:\n    gold = 0\nprint(gold)"
+  },
+  {
+    id: "copy_import",
+    title: "Квадратный корень",
+    task: "Перепиши код в точности так, как он написан.",
+    explanation: "math.sqrt(16) возвращает 4.0; после import math функция доступна через точку.",
+    code: "import math\nprint(math.sqrt(16))"
   }
 ];
 
@@ -354,6 +419,26 @@ const FILL_TASKS = [
     topic: "modules",
     level: 2,
     explanation: "math.sqrt(81) — квадратный корень, результат 9.0. Доступ к функции модуля пишется через точку: math.sqrt."
+  },
+  {
+    id: "fill_int",
+    title: "Строка в число",
+    code: 'age = ___(input("Возраст: "))',
+    options: ["int", "str", "float", "bool"],
+    answer: 0,
+    topic: "types",
+    level: 1,
+    explanation: "input() возвращает строку, а int() превращает её в целое число."
+  },
+  {
+    id: "fill_except",
+    title: "Ловим ошибку",
+    code: 'try:\n    gold = int("два")\n___ ValueError:\n    gold = 0',
+    options: ["except", "catch", "finally", "else"],
+    answer: 0,
+    topic: "errors",
+    level: 2,
+    explanation: "Ошибку ловит except ValueError: — только этот тип исключения."
   },
 ];
 
@@ -508,5 +593,50 @@ const ERROR_TASKS = [
     topic: "collections",
     level: 4,
     explanation: "return items отдаёт тот же список, поэтому b.append(3) меняет и a. Копию делает return items[:] или items.copy()."
+  },
+  {
+    id: "err_divzero",
+    title: "Найди ошибку",
+    code: "print(10 / 0)",
+    options: [
+      "Деление на ноль: будет ZeroDivisionError",
+      "Нет ошибки, выведется 0",
+      "Нужно // вместо /",
+      "print не умеет делить"
+    ],
+    answer: 0,
+    topic: "operators",
+    level: 2,
+    explanation: "На ноль делить нельзя: Python выбрасывает ZeroDivisionError. Для целой части есть //, но и она на ноль не делит."
+  },
+  {
+    id: "err_quote",
+    title: "Найди ошибку",
+    code: "print(\"меч')",
+    options: [
+      "Кавычки не закрыты: открыта двойная, закрыта одинарная",
+      "Нет ошибки",
+      "Нужно print(меч) без кавычек",
+      "Строка слишком длинная"
+    ],
+    answer: 0,
+    topic: "strings",
+    level: 1,
+    explanation: "Строка должна закрываться той же кавычкой, которой открыта: \"меч\" или 'меч'."
+  },
+  {
+    id: "err_import",
+    title: "Найди ошибку",
+    code: "import math\nprint(sqrt(9))",
+    options: [
+      "sqrt не импортирована: нужно math.sqrt(9)",
+      "Нет ошибки",
+      "Нужно import sqrt",
+      "math нет в Python"
+    ],
+    answer: 0,
+    topic: "modules",
+    level: 2,
+    explanation: "import math подключает модуль, а не отдельные функции. После него пишут math.sqrt, либо отдельно: from math import sqrt."
   },
 ];

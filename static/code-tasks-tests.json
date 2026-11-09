@@ -144,5 +144,45 @@
       "call": "average([4])",
       "expected": "4.0"
     }
+  ],
+  "player_name": [
+    {
+      "call": "player_name(\"Ада\")",
+      "expected": "\"Герой: Ада\""
+    },
+    {
+      "call": "player_name(\"\")",
+      "expected": "\"Герой: \""
+    }
+  ],
+  "double": [
+    {
+      "call": "double(7)",
+      "expected": "14"
+    },
+    {
+      "call": "double(0)",
+      "expected": "0"
+    }
+  ],
+  "safe_int": [
+    {
+      "call": "safe_int(\"10\")",
+      "expected": "10"
+    },
+    {
+      "call": "safe_int(\"два\")",
+      "expected": "0"
+    }
+  ],
+  "circle_area": [
+    {
+      "call": "circle_area(1)",
+      "expected": "3.14"
+    },
+    {
+      "call": "circle_area(2)",
+      "expected": "12.57"
+    }
   ]
 }

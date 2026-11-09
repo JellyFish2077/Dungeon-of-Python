@@ -2048,6 +2048,7 @@
     // Житель, чьё окно сейчас открыто: нужно, чтобы перерисовать его после
     // покупки, не закрывая окно.
     dialogNpc: null,
+    schoolOpen: false,
     // Материалы клеток деревни (крыша/фасад/окно) и вид крыши с её цветом.
     // У подземелья их нет — там рисуется тема этажа.
     mat: null,
@@ -4442,7 +4443,7 @@
     const blessing = G.blessings && G.blessings[G.floorIndex] === "curse"
       ? BLESS.curseGoldMul
       : 1;
-    return blessing * (currentOmen().goldMul || 1);
+    return blessing * (currentOmen().goldMul || 1) * (1 + (progOf("goldPct") || 0));
   }
 
   function blessingOnFloor() {
@@ -4749,6 +4750,7 @@
     // применялся к уже другому этажу.
     G.blessingOffer = null;
     G.altarOffer = null;
+    G.schoolOpen = false;
     const oldBlessing = el("blessing-overlay");
     if (oldBlessing) oldBlessing.classList.add("hidden");
     // Подземелье — это место "dungeon": деревня и дома живут в тех же
@@ -4867,7 +4869,8 @@
     descent: "Спуск в подземелье",
     table: "Стол", chair: "Стул", bed: "Кровать", shelf: "Полка",
     crate: "Ящик", anvil: "Наковальня", fireplace: "Очаг",
-    workbench: "Верстак", cauldron: "Котёл", counter: "Прилавок"
+    workbench: "Верстак", cauldron: "Котёл", counter: "Прилавок",
+    board: "Доска задач"
   };
   const PROP_ICONS = {
     tree: "tree", fence: "fence", well: "well", fire: "campfire",
@@ -4875,11 +4878,12 @@
     scaffold: "woodpile", sign: "sign", descent: "descent",
     table: "table", chair: "chair", bed: "bed", shelf: "shelf",
     crate: "crate", anvil: "anvil", fireplace: "fireplace",
-    workbench: "workbench", cauldron: "cauldron", counter: "counter"
+    workbench: "workbench", cauldron: "cauldron", counter: "counter",
+    board: "sign"
   };
   const INTERIOR_PROPS = new Set([
     "table", "chair", "bed", "shelf", "crate", "anvil",
-    "fireplace", "workbench", "cauldron", "counter"
+    "fireplace", "workbench", "cauldron", "counter", "board"
   ]);
 
   function placeName() {    if (G.place === "village") return "Деревня";
@@ -5131,7 +5135,9 @@
     G.battle = null;
     G.blessingOffer = null;
     G.altarOffer = null;
+    G.schoolOpen = false;
     G.walkTarget = null;
+    stopHeldMove();
     G.playerPos = at ? { x: at.x, y: at.y } : { ...VILLAGE_SPAWN };
     G.visible = new Set();
     // Деревня — хаб, а не подземелье: тумана войны здесь нет, и мини-карта
@@ -5222,8 +5228,98 @@
       "data-tip='Закрыть. Клавиша Escape.'>Закрыть</button></div>";
   }
 
+  // ---------- Диалоговая система ----------
+  // Короткая сцена с жителем: очередь реплик, «Далее» и завершение.
+  // Сцена ничего не знает о лавке или школе — после последней реплики
+  // вызывает переданное действие. Так приветствие можно повесить на
+  // любого жителя, не дублируя разметку окон. Состояние живёт в G, чтобы
+  // им же пользовалась проверка «открыто ли модальное окно».
+  function openTalk(npc, lines, onDone) {
+    const list = (lines || []).filter(Boolean);
+    if (!list.length) {
+      if (typeof onDone === "function") onDone();
+      return false;
+    }
+    G.talkState = {
+      npc: npc || null,
+      lines: list,
+      index: 0,
+      onDone: typeof onDone === "function" ? onDone : null
+    };
+    renderTalk();
+    const overlay = el("talk-overlay");
+    if (overlay) overlay.classList.remove("hidden");
+    const next = el("talk-next");
+    if (next) next.focus();
+    return true;
+  }
+
+  function renderTalk() {
+    if (!G.talkState) return;
+    const speaker = el("talk-speaker");
+    if (speaker) speaker.textContent = G.talkState.npc ? G.talkState.npc.name : "Житель";
+    const line = el("talk-line");
+    if (line) line.textContent = G.talkState.lines[G.talkState.index] || "";
+    const count = el("talk-count");
+    if (count) count.textContent = (G.talkState.index + 1) + " / " + G.talkState.lines.length;
+    const next = el("talk-next");
+    if (next) next.textContent = G.talkState.index + 1 >= G.talkState.lines.length
+      ? "Продолжить" : "Далее";
+  }
+
+  function nextTalkLine() {
+    if (!G.talkState) return;
+    if (G.talkState.index + 1 >= G.talkState.lines.length) {
+      finishTalk();
+      return;
+    }
+    G.talkState.index += 1;
+    renderTalk();
+  }
+
+  function closeTalk() {
+    G.talkState = null;
+    const overlay = el("talk-overlay");
+    if (overlay) overlay.classList.add("hidden");
+  }
+
+  function finishTalk() {
+    const done = G.talkState ? G.talkState.onDone : null;
+    closeTalk();
+    if (typeof done === "function") done();
+  }
+
+  // Что открывается после приветствия. Страж — окно спуска, учитель —
+  // школа, остальные — своё окно жителя.
+  function npcAction(npc) {
+    if (!npc) return;
+    if (npc.key === "guard") {
+      openEntrance();
+      return;
+    }
+    openDialog(npc);
+  }
+
+  // Первый разговор: отмечаем знакомство и показываем приветствие.
+  // Повторный — сразу дело жителя, без лишних «Далее».
+  function talkToNpc(npc) {
+    if (!npc) return;
+    const first = markNpcMet(npc.key);
+    const greeting = NPC_GREETINGS[npc.key];
+    if (first && greeting && greeting.length) {
+      openTalk(npc, greeting, () => npcAction(npc));
+      return;
+    }
+    npcAction(npc);
+  }
+
   function openDialog(npc) {
     if (!npc) return;
+    if (npc.key === "teacher") {
+      markCodex("npcs", "teacher");
+      openSchool();
+      return;
+    }
     const box = el("dialog-box");
     if (!box) return;
     markCodex("npcs", npc.key);
@@ -5405,6 +5501,827 @@
       "<li><b>Карта</b> — клавиша M, зум — колесо мыши.</li>" +
       "</ul>";
     return html;
+  }
+
+  // ---------- Школа: курс Python у учителя ----------
+  // Курс хранится в профиле: уроки и модули переживают смерть и походы.
+  // Учитель — это отдельный НПС в школе, а не Наставник с подсказками.
+  let schoolView = {
+    mode: "modules", moduleKey: null, lessonIndex: 0,
+    questions: [], answers: [], submitted: false, score: 0,
+    practiceTask: null, practiceChecked: false, practiceResult: "",
+    practiceBusy: false, practiceInput: ""
+  };
+
+  function courseData() {
+    return typeof PY_COURSE !== "undefined" && Array.isArray(PY_COURSE) ? PY_COURSE : [];
+  }
+
+  function courseRules() {
+    return typeof PY_COURSE_RULES !== "undefined" ? PY_COURSE_RULES : {
+      lessonPrice: 35, examPrice: 50, lessonReward: 10, moduleReward: 120,
+      modulePotion: "big_potion", bonusHp: 2, bonusDmgEvery: 3, bonusGoldPct: 0.01
+    };
+  }
+
+  function courseState(prof) {
+    const p = prof || hubProfile();
+    if (!p) return null;
+    if (!p.course || typeof p.course !== "object") {
+      p.course = { lessons: {}, paid: {}, modules: {}, quest: null };
+    }
+    if (!p.course.lessons) p.course.lessons = {};
+    if (!p.course.paid) p.course.paid = {};
+    if (!p.course.modules) p.course.modules = {};
+    if (!("quest" in p.course)) p.course.quest = null;
+    return p.course;
+  }
+
+  function courseModulesDone(prof) {
+    const c = courseState(prof);
+    if (!c) return 0;
+    return courseData().filter((m) => c.modules[m.key] && c.modules[m.key].passed).length;
+  }
+
+  function courseBonuses(prof) {
+    const done = courseModulesDone(prof);
+    const r = courseRules();
+    return {
+      hp: done * r.bonusHp,
+      dmg: Math.floor(done / r.bonusDmgEvery),
+      goldPct: done * r.bonusGoldPct
+    };
+  }
+
+  function courseModuleIndex(key) {
+    return courseData().findIndex((m) => m.key === key);
+  }
+
+  function courseModulePassed(key, prof) {
+    const c = courseState(prof);
+    return !!(c && c.modules[key] && c.modules[key].passed);
+  }
+
+  function courseModuleUnlocked(key, prof) {
+    const index = courseModuleIndex(key);
+    if (index <= 0) return true;
+    const prev = courseData()[index - 1];
+    return !prev || courseModulePassed(prev.key, prof);
+  }
+
+  function courseLessonDone(moduleKey, lessonIndex, prof) {
+    const module = courseData().find((m) => m.key === moduleKey);
+    if (!module || !module.lessons[lessonIndex]) return false;
+    const c = courseState(prof);
+    const row = c && c.lessons[module.lessons[lessonIndex].key];
+    return !!(row && row.done);
+  }
+
+  function courseLessonPaid(moduleKey, lessonIndex, prof) {
+    const module = courseData().find((m) => m.key === moduleKey);
+    if (!module || !module.lessons[lessonIndex]) return false;
+    const c = courseState(prof);
+    return !!(c && c.paid[module.lessons[lessonIndex].key]);
+  }
+
+  function courseLessonUnlocked(moduleKey, lessonIndex, prof) {
+    if (!courseModuleUnlocked(moduleKey, prof)) return false;
+    if (lessonIndex <= 0) return true;
+    return courseLessonDone(moduleKey, lessonIndex - 1, prof);
+  }
+
+  function courseLessonPrice(lesson) {
+    const r = courseRules();
+    return lesson && lesson.exam ? r.examPrice : r.lessonPrice;
+  }
+
+  function courseQuestions(module, lesson) {
+    const count = lesson.exam ? 7 : 5;
+    const topic = module.topic || module.key;
+    const pool = QUESTIONS.filter((q) => q.topic === topic);
+    const exact = pool.filter((q) => q.level === lesson.level);
+    const other = pool.filter((q) => q.level !== lesson.level)
+      .sort((a, b) => Math.abs(a.level - lesson.level) - Math.abs(b.level - lesson.level));
+    const list = exact.concat(other);
+    const out = [];
+    const seen = new Set();
+    const lessonNo = Math.max(0,
+      (Number((lesson.key.match(/-(\d+)$/) || [])[1]) || 1) - 1);
+    const offset = (courseModuleIndex(module.key) * 3 + lessonNo) % Math.max(1, list.length);
+    for (let i = 0; i < list.length && out.length < count; i += 1) {
+      const q = list[(i + offset) % list.length];
+      if (seen.has(q.id)) continue;
+      seen.add(q.id);
+      out.push(q);
+    }
+    return out;
+  }
+
+  function courseQuestOf(prof) {
+    const c = courseState(prof);
+    return c && c.quest ? c.quest : null;
+  }
+
+  // Домашнее задание учителя. События подземелья зовут эту функцию из боя,
+  // лута и ответов; квест живёт в профиле и не сбрасывается смертью.
+  function courseQuestEvent(kind, n) {
+    const prof = hubProfile();
+    if (!prof) return 0;
+    const c = courseState(prof);
+    const q = c.quest;
+    if (!q || q.done) return 0;
+    const match = q.kind === kind ||
+      (q.kind === "materials" && (kind === "ore" || kind === "wood" || kind === "shard"));
+    if (!match) return 0;
+    const add = Math.max(0, Math.floor(Number(n) || 0));
+    if (!add) return 0;
+    q.progress = Math.min(q.need, q.progress + add);
+    if (q.progress >= q.need) {
+      q.done = true;
+      const def = PY_COURSE_QUESTS[q.module];
+      toast("Домашнее задание выполнено: " + (def ? def.text : q.module));
+      log("Домашнее задание учителя выполнено. Вернись в школу за наградой.", "floor");
+    }
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    return add;
+  }
+
+  function assignCourseQuest(moduleKey) {
+    const prof = hubProfile();
+    const c = courseState(prof);
+    if (!c) return;
+    if (c.quest && (c.quest.module === moduleKey || !c.quest.done)) return;
+    const def = typeof PY_COURSE_QUESTS !== "undefined" ? PY_COURSE_QUESTS[moduleKey] : null;
+    if (!def) {
+      c.modules[moduleKey] = { passed: true };
+      putProfile(hubName(), prof);
+      syncProfile(hubName());
+      return;
+    }
+    c.quest = { module: moduleKey, kind: def.kind, need: def.need, progress: 0, done: false };
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    toast("Домашнее задание: " + def.text);
+    log("Учитель дал домашнее задание: " + def.text + ".", "floor");
+  }
+
+  function claimCourseModule() {
+    const prof = hubProfile();
+    const c = courseState(prof);
+    const q = c && c.quest;
+    if (!q || !q.done) {
+      toast("Сначала выполни домашнее задание");
+      return false;
+    }
+    const moduleKey = q.module;
+    const r = courseRules();
+    c.modules[moduleKey] = { passed: true };
+    c.quest = null;
+    prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+    prof.wallet.gold = (prof.wallet.gold || 0) + r.moduleReward;
+    prof.wallet[r.modulePotion] = (prof.wallet[r.modulePotion] || 0) + 1;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.prog = progressBonus();
+    updateWalletLine();
+    updateHud();
+    const module = courseData().find((m) => m.key === moduleKey);
+    toast("Модуль сдан: «" + (module ? module.title : moduleKey) + "» · +" +
+      r.moduleReward + " золота и зелье");
+    log("Курс: модуль «" + (module ? module.title : moduleKey) +
+      "» пройден. Награда: " + r.moduleReward + " золота и зелье.", "loot");
+    renderSchool();
+    return true;
+  }
+
+  function payCourseLesson(moduleKey, lessonIndex) {
+    const module = courseData().find((m) => m.key === moduleKey);
+    const lesson = module && module.lessons[lessonIndex];
+    if (!lesson) return false;
+    const prof = hubProfile();
+    const c = courseState(prof);
+    if (!prof || !c) return false;
+    if (c.paid[lesson.key] || (c.lessons[lesson.key] && c.lessons[lesson.key].done)) return true;
+    const price = courseLessonPrice(lesson);
+    const gold = prof.wallet ? prof.wallet.gold || 0 : 0;
+    if (gold < price) {
+      toast("Нужно " + price + " золота, а в банке " + gold + ".");
+      return false;
+    }
+    prof.wallet.gold = gold - price;
+    c.paid[lesson.key] = true;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateWalletLine();
+    log("Оплачен урок: «" + lesson.title + "» за " + price + " золота.", "loot");
+    return true;
+  }
+
+  function startCourseQuiz(moduleKey, lessonIndex) {
+    const module = courseData().find((m) => m.key === moduleKey);
+    const lesson = module && module.lessons[lessonIndex];
+    if (!module || !lesson) return;
+    if (!courseLessonUnlocked(moduleKey, lessonIndex, hubProfile())) {
+      toast("Сначала пройди предыдущий урок");
+      return;
+    }
+    if (!courseLessonPaid(moduleKey, lessonIndex, hubProfile()) &&
+        !courseLessonDone(moduleKey, lessonIndex, hubProfile())) {
+      if (!payCourseLesson(moduleKey, lessonIndex)) return;
+    }
+    schoolView.mode = "quiz";
+    schoolView.moduleKey = moduleKey;
+    schoolView.lessonIndex = lessonIndex;
+    schoolView.questions = courseQuestions(module, lesson);
+    schoolView.answers = schoolView.questions.map(() => -1);
+    schoolView.submitted = false;
+    schoolView.score = 0;
+    renderSchool();
+  }
+
+  function checkCourseQuiz() {
+    const module = courseData().find((m) => m.key === schoolView.moduleKey);
+    const lesson = module && module.lessons[schoolView.lessonIndex];
+    if (!module || !lesson) return;
+    const answers = schoolView.questions.map((q, i) => {
+      const input = document.querySelector('input[name="school-q-' + i + '"]:checked');
+      return input ? Number(input.value) : -1;
+    });
+    schoolView.answers = answers;
+    schoolView.submitted = true;
+    schoolView.score = schoolView.questions.reduce((n, q, i) => n + (answers[i] === q.answer ? 1 : 0), 0);
+    const need = Math.max(1, Math.ceil(schoolView.questions.length * 0.66));
+    if (schoolView.score < need) return;
+    const prof = hubProfile();
+    const c = courseState(prof);
+    if (!c) return;
+    const wasDone = !!(c.lessons[lesson.key] && c.lessons[lesson.key].done);
+    c.lessons[lesson.key] = { done: true, score: schoolView.score };
+    if (!wasDone) {
+      const reward = courseRules().lessonReward;
+      prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+      prof.wallet.gold = (prof.wallet.gold || 0) + reward;
+      log("Урок пройден: «" + lesson.title + "». +" + reward + " золота.", "loot");
+    }
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateWalletLine();
+    if (lesson.exam && !wasDone) assignCourseQuest(module.key);
+  }
+
+  function schoolModulesHtml() {
+    const prof = hubProfile();
+    const c = courseState(prof);
+    if (!c) return "<p class='lead'>Профиль не найден.</p>";
+    const bonus = courseBonuses(prof);
+    let html = "<p class='lead'>Курс Python: 9 модулей, по три урока. " +
+      "Первый урок в модуле — теория, второй — практика, третий — экзамен. " +
+      "После экзамена учитель даёт домашнее задание.</p>";
+    html += "<p class='mode-note'>Бонус к следующему походу: <b>+" + bonus.hp +
+      " HP</b>, <b>+" + bonus.dmg + " урона</b> и <b>+" +
+      Math.round(bonus.goldPct * 100) + "% золота</b>.</p>";
+    html += "<div class='school-actions'><button class='btn ghost' type='button' " +
+      "data-school-action='practice'>Доска задач: практика</button></div>";
+    const quest = c.quest;
+    if (quest) {
+      const def = PY_COURSE_QUESTS[quest.module];
+      html += "<div class='school-result'>Домашнее задание: <b>" +
+        (def ? def.text : quest.module) + "</b> · " + quest.progress + "/" + quest.need +
+        (quest.done ? " · готово, забери награду" : "") +
+        " <button class='btn' type='button' data-school-action='quest'>Открыть</button></div>";
+    }
+    html += "<div class='school-grid'>";
+    courseData().forEach((m) => {
+      const unlocked = courseModuleUnlocked(m.key, prof);
+      const passed = courseModulePassed(m.key, prof);
+      const doneCount = m.lessons.filter((l, i) => courseLessonDone(m.key, i, prof)).length;
+      const cls = "school-module" + (unlocked ? "" : " locked") +
+        (passed ? " done" : "") + (quest && quest.module === m.key ? " quest" : "");
+      html += "<button class='" + cls + "' type='button' data-school-action='module' data-module='" +
+        m.key + "'>" +
+        "<span class='school-module-icon'>" + m.icon + "</span>" +
+        "<b>" + m.title + "</b>" +
+        "<small>" + m.note + "</small>" +
+        "<span class='school-module-meta'>" + (passed ? "Пройден" :
+          (unlocked ? doneCount + "/3 уроков" : "Закрыт")) + "</span>" +
+        "</button>";
+    });
+    html += "</div>";
+    return html;
+  }
+
+  function schoolModuleHtml() {
+    const prof = hubProfile();
+    const module = courseData().find((m) => m.key === schoolView.moduleKey);
+    if (!module) return schoolModulesHtml();
+    const c = courseState(prof);
+    let html = "<button class='btn ghost' type='button' data-school-action='modules'>← К модулям</button>" +
+      "<h3>" + module.title + "</h3><p class='lead'>" + module.note + "</p>";
+    if (module.cheat && module.cheat.length) {
+      html += "<div class='school-theory'>" + module.cheat
+        .map((line) => "<p>• " + line + "</p>").join("") + "</div>";
+    }
+    const passed = courseModulePassed(module.key, prof);
+    module.lessons.forEach((lesson, i) => {
+      const done = courseLessonDone(module.key, i, prof);
+      const paid = courseLessonPaid(module.key, i, prof);
+      const unlocked = courseLessonUnlocked(module.key, i, prof);
+      const price = courseLessonPrice(lesson);
+      const status = done ? "Пройден" + (c.lessons[lesson.key] && c.lessons[lesson.key].score
+        ? " · " + c.lessons[lesson.key].score + " верных" : "")
+        : !unlocked ? "Сначала предыдущий урок"
+        : paid ? "Оплачен"
+        : (lesson.exam ? "Экзамен · " : "") + price + " золота";
+      html += "<button class='school-lesson" + (done ? " done" : "") +
+        (unlocked ? "" : " locked") + "' type='button' data-school-action='lesson' data-module='" +
+        module.key + "' data-lesson='" + i + "'" + (unlocked ? "" : " disabled") + ">" +
+        "<span class='school-num'>" + (done ? "✓" : (i + 1)) + "</span>" +
+        "<span class='school-lesson-main'><b>" + lesson.title + "</b>" +
+        "<small>" + lesson.goal + "</small></span>" +
+        "<span class='school-price'>" + status + "</span></button>";
+    });
+    if (passed) {
+      html += "<p class='school-result'>Модуль пройден. Следующий откроется сразу.</p>";
+    } else if (c.quest && c.quest.module === module.key) {
+      const def = PY_COURSE_QUESTS[module.key];
+      html += "<p class='school-result'>Домашнее задание: <b>" +
+        (def ? def.text : module.key) + "</b> · " + c.quest.progress + "/" + c.quest.need +
+        (c.quest.done ? " · готово" : "") +
+        " <button class='btn' type='button' data-school-action='quest'>Открыть</button></p>";
+    }
+    return html;
+  }
+
+  function schoolLessonHtml() {
+    const prof = hubProfile();
+    const module = courseData().find((m) => m.key === schoolView.moduleKey);
+    const lesson = module && module.lessons[schoolView.lessonIndex];
+    if (!module || !lesson) return schoolModulesHtml();
+    const done = courseLessonDone(module.key, schoolView.lessonIndex, prof);
+    const paid = courseLessonPaid(module.key, schoolView.lessonIndex, prof);
+    const price = courseLessonPrice(lesson);
+    let html = "<button class='btn ghost' type='button' data-school-action='module' " +
+      "data-module='" + module.key + "'>← К урокам</button>" +
+      "<h3>" + (lesson.exam ? "Экзамен: " : "Урок: ") + lesson.title + "</h3>" +
+      "<p class='mode-note'>" + lesson.goal + "</p>" +
+      "<div class='school-theory'>" +
+      lesson.theory.map((p) => "<p>" + p + "</p>").join("") +
+      "</div>" +
+      "<pre class='school-example'>" + escText(lesson.example) + "</pre>";
+    if (done) {
+      const row = courseState(prof).lessons[lesson.key];
+      html += "<p class='school-result'>Урок пройден" +
+        (row && row.score ? " · " + row.score + " верных" : "") + ".</p>" +
+        "<div class='school-actions'><button class='btn' type='button' data-school-action='quiz' " +
+        "data-module='" + module.key + "' data-lesson='" + schoolView.lessonIndex + "'>Повторить</button></div>";
+    } else {
+      html += "<div class='school-actions'><button class='btn' type='button' " +
+        "data-school-action='" + (paid ? "quiz" : "start-lesson") + "' " +
+        "data-module='" + module.key + "' data-lesson='" + schoolView.lessonIndex + "'>" +
+        (paid ? "Начать практику" : "Оплатить и начать · " + price + " золота") + "</button></div>";
+    }
+    return html;
+  }
+
+  function schoolQuizHtml() {
+    const module = courseData().find((m) => m.key === schoolView.moduleKey);
+    const lesson = module && module.lessons[schoolView.lessonIndex];
+    if (!module || !lesson) return schoolModulesHtml();
+    const submitted = schoolView.submitted;
+    let html = "<button class='btn ghost' type='button' data-school-action='lesson' " +
+      "data-module='" + module.key + "' data-lesson='" + schoolView.lessonIndex + "'>← К теории</button>" +
+      "<h3>" + (lesson.exam ? "Экзамен: " : "Практика: ") + lesson.title + "</h3>";
+    schoolView.questions.forEach((q, i) => {
+      const picked = schoolView.answers[i];
+      html += "<div class='school-question'><p class='school-q-title'>" + (i + 1) + ". " +
+        q.text + "</p>" +
+        (q.code ? "<pre class='school-example'>" + escText(q.code) + "</pre>" : "");
+      q.options.forEach((opt, j) => {
+        let cls = "school-option";
+        if (submitted && j === q.answer) cls += " correct";
+        else if (submitted && picked === j) cls += " wrong";
+        html += "<label class='" + cls + "'><input type='radio' name='school-q-" + i +
+          "' value='" + j + "'" + (picked === j ? " checked" : "") +
+          (submitted ? " disabled" : "") + "> " + opt + "</label>";
+      });
+      if (submitted && q.explanation) {
+        html += "<p class='school-explain'>" + q.explanation + "</p>";
+      }
+      html += "</div>";
+    });
+    if (submitted) {
+      const need = Math.max(1, Math.ceil(schoolView.questions.length * 0.66));
+      const passed = schoolView.score >= need;
+      html += "<p class='school-result'>Верно: <b>" + schoolView.score + " из " +
+        schoolView.questions.length + "</b>. " +
+        (passed ? "Зачёт." : "Нужно хотя бы " + need + ". Попробуй ещё.") + "</p>" +
+        "<div class='school-actions'>" +
+        (passed
+          ? "<button class='btn' type='button' data-school-action='lesson' data-module='" +
+            module.key + "' data-lesson='" + schoolView.lessonIndex + "'>К уроку</button>"
+          : "<button class='btn' type='button' data-school-action='quiz' data-module='" +
+            module.key + "' data-lesson='" + schoolView.lessonIndex + "'>Ещё раз</button>") +
+        "<button class='btn ghost' type='button' data-school-action='module' data-module='" +
+        module.key + "'>К модулю</button></div>";
+    } else {
+      html += "<div class='school-actions'><button class='btn' type='button' " +
+        "data-school-action='check'>Проверить</button></div>";
+    }
+    return html;
+  }
+
+  function schoolQuestHtml() {
+    const prof = hubProfile();
+    const c = courseState(prof);
+    const q = c && c.quest;
+    if (!q) {
+      return "<button class='btn ghost' type='button' data-school-action='modules'>← К модулям</button>" +
+        "<p class='lead'>Сейчас домашнего задания нет.</p>";
+    }
+    const def = PY_COURSE_QUESTS[q.module];
+    const module = courseData().find((m) => m.key === q.module);
+    let html = "<button class='btn ghost' type='button' data-school-action='modules'>← К модулям</button>" +
+      "<h3>Домашнее задание</h3>" +
+      "<p class='lead'>" + (def ? def.text : "Задание учителя") + "</p>" +
+      "<p class='mode-note'>Модуль: " + (module ? module.title : q.module) +
+      " · прогресс: " + q.progress + "/" + q.need + "</p>";
+    if (q.done) {
+      html += "<div class='school-actions'><button class='btn' type='button' " +
+        "data-school-action='claim'>Забрать награду и открыть следующий модуль</button></div>";
+    } else {
+      html += "<p class='school-result'>Выполняй задание в подземелье — прогресс придёт сам.</p>";
+    }
+    return html;
+  }
+
+  // ---------- Доска задач: практика ----------
+  function practiceTaskDone(id, prof) {
+    const c = courseState(prof);
+    return !!(c && c.practice && c.practice[id]);
+  }
+
+  function practiceTasksForModule(module) {
+    const topic = module.key;
+    const meta = typeof TASK_META !== "undefined" ? TASK_META : null;
+    const out = [];
+    (typeof FILL_TASKS !== "undefined" ? FILL_TASKS : [])
+      .filter((t) => t.topic === topic)
+      .forEach((t) => out.push({ kind: "fill", id: "fill:" + t.id, task: t }));
+    (typeof ERROR_TASKS !== "undefined" ? ERROR_TASKS : [])
+      .filter((t) => t.topic === topic)
+      .forEach((t) => out.push({ kind: "error", id: "error:" + t.id, task: t }));
+    if (meta) {
+      (typeof COPY_TASKS !== "undefined" ? COPY_TASKS : [])
+        .filter((t) => meta.taskTopic("copy", t.id) === topic)
+        .forEach((t) => out.push({ kind: "copy", id: "copy:" + t.id, task: t }));
+      (typeof CODE_TASKS !== "undefined" ? CODE_TASKS : [])
+        .filter((t) => meta.taskTopic("code", t.id) === topic)
+        .forEach((t) => out.push({ kind: "code", id: "code:" + t.id, task: t }));
+    }
+    return out;
+  }
+
+  function practiceTypeName(kind) {
+    if (kind === "fill") return "Вставь пропущенное";
+    if (kind === "error") return "Найди ошибку";
+    if (kind === "copy") return "Повтори код";
+    return "Напиши функцию";
+  }
+
+  function findPracticeTask(kind, id) {
+    for (const module of courseData()) {
+      const found = practiceTasksForModule(module).find((t) =>
+        t.kind === kind && t.id === id);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  function completePracticeTask(item) {
+    const prof = hubProfile();
+    const c = courseState(prof);
+    if (!c || !item) return false;
+    if (!c.practice) c.practice = {};
+    if (c.practice[item.id]) return false;
+    c.practice[item.id] = true;
+    const reward = 10;
+    prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+    prof.wallet.gold = (prof.wallet.gold || 0) + reward;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateWalletLine();
+    toast("Практика пройдена: +" + reward + " золота");
+    log("Практика: «" + item.task.title + "» пройдена. +" + reward + " золота.", "loot");
+    return true;
+  }
+
+  function schoolPracticeHtml() {
+    if (schoolView.practiceTask) return practiceTaskHtml();
+    const prof = hubProfile();
+    let html = "<button class='btn ghost' type='button' data-school-action='modules'>← К учителю</button>" +
+      "<h3>Доска задач</h3>" +
+      "<p class='lead'>Практика по темам курса. Каждое задание можно выполнять отдельно " +
+      "от урока; за первое прохождение — 10 золота.</p>";
+    let any = false;
+    courseData().forEach((module) => {
+      const tasks = practiceTasksForModule(module);
+      if (!tasks.length) return;
+      any = true;
+      const done = tasks.filter((t) => practiceTaskDone(t.id, prof)).length;
+      html += "<div class='practice-module'><div class='practice-module-head'><b>" +
+        module.title + "</b><span>" + done + "/" + tasks.length + "</span></div>";
+      tasks.forEach((item) => {
+        const isDone = practiceTaskDone(item.id, prof);
+        const icon = isDone ? "✓" : item.kind === "code" ? "{}" :
+          item.kind === "copy" ? "✎" : item.kind === "error" ? "⚠" : "…";
+        html += "<button class='school-lesson" + (isDone ? " done" : "") +
+          "' type='button' data-school-action='practice-task' data-kind='" +
+          item.kind + "' data-id='" + item.id + "'>" +
+          "<span class='school-num'>" + icon + "</span>" +
+          "<span class='school-lesson-main'><b>" + item.task.title + "</b>" +
+          "<small>" + practiceTypeName(item.kind) + "</small></span>" +
+          "<span class='school-price'>" + (isDone ? "Пройдено" : "10 золота") +
+          "</span></button>";
+      });
+      html += "</div>";
+    });
+    if (!any) html += "<p class='lead'>Пока нет практических заданий.</p>";
+    return html;
+  }
+
+  function practiceTaskHtml() {
+    const item = schoolView.practiceTask;
+    if (!item) return schoolPracticeHtml();
+    const task = item.task;
+    const checked = schoolView.practiceChecked;
+    let html = "<button class='btn ghost' type='button' data-school-action='practice'>← К доске</button>" +
+      "<h3>" + practiceTypeName(item.kind) + ": " + task.title + "</h3>";
+    if (task.task) html += "<p class='lead'>" + task.task + "</p>";
+    if (item.kind === "fill" || item.kind === "error") {
+      html += "<pre class='school-example'>" + escText(task.code) + "</pre>";
+      const options = task.options || [];
+      options.forEach((opt, i) => {
+        let cls = "school-option";
+        if (checked) {
+          if (i === task.answer) cls += " correct";
+          else if (i === schoolView.practicePick) cls += " wrong";
+        }
+        html += "<label class='" + cls + "'><input type='radio' name='practice-opt' value='" +
+          i + "'" + (schoolView.practicePick === i ? " checked" : "") +
+          (checked ? " disabled" : "") + "> " + opt + "</label>";
+      });
+      if (checked && task.explanation) {
+        html += "<p class='school-explain'>" + task.explanation + "</p>";
+      }
+      html += "<div class='school-actions'>" +
+        (checked
+          ? "<button class='btn' type='button' data-school-action='practice-retry'>Ещё раз</button>"
+          : "<button class='btn' type='button' data-school-action='practice-check'>Проверить</button>") +
+        "</div>";
+    } else if (item.kind === "copy") {
+      html += "<pre class='school-example'>" + escText(task.code) + "</pre>" +
+        "<p class='mode-note'>Перепиши код в точности, соблюдая отступы:</p>" +
+        "<textarea id='practice-input' class='practice-input' rows='7' spellcheck='false'>" +
+        escText(schoolView.practiceInput || "") + "</textarea>" +
+        "<div class='school-actions'>" +
+        (checked
+          ? "<button class='btn' type='button' data-school-action='practice-retry'>Ещё раз</button>"
+          : "<button class='btn' type='button' data-school-action='practice-check'>Проверить</button>") +
+        "</div>";
+    } else {
+      html += "<p class='mode-note'>Напиши функцию целиком. Проверка запускает Python " +
+        "и прогоняет тесты.</p>" +
+        "<textarea id='practice-input' class='practice-input' rows='8' spellcheck='false'>" +
+        escText(schoolView.practiceInput || task.starter || "") + "</textarea>" +
+        "<div class='school-actions'>" +
+        (checked
+          ? "<button class='btn' type='button' data-school-action='practice-retry'>Ещё раз</button>"
+          : "<button class='btn' type='button' data-school-action='practice-check'" +
+            (schoolView.practiceBusy ? " disabled" : "") + ">" +
+            (schoolView.practiceBusy ? "Проверяю..." : "Проверить") + "</button>") +
+        "</div>";
+    }
+    if (schoolView.practiceResult) {
+      html += "<p class='school-result'>" + schoolView.practiceResult + "</p>";
+    }
+    return html;
+  }
+
+  function checkPracticeTask() {
+    const item = schoolView.practiceTask;
+    if (!item || schoolView.practiceBusy) return;
+    if (item.kind === "fill" || item.kind === "error") {
+      const input = typeof document !== "undefined" && document.querySelector
+        ? document.querySelector('input[name="practice-opt"]:checked') : null;
+      const pick = input ? Number(input.value) : -1;
+      const ok = pick === item.task.answer;
+      schoolView.practicePick = pick;
+      schoolView.practiceChecked = true;
+      schoolView.practiceResult = ok
+        ? "Верно. " + (item.task.explanation || "")
+        : "Неверно. Правильный вариант подсвечен. " + (item.task.explanation || "");
+      if (ok) completePracticeTask(item);
+      renderSchool();
+      return;
+    }
+    const field = typeof document !== "undefined" && document.getElementById
+      ? document.getElementById("practice-input") : null;
+    const typed = field ? field.value : "";
+    schoolView.practiceInput = typed;
+    if (item.kind === "copy") {
+      const exact = normalizeExact(typed) === normalizeExact(item.task.code);
+      const loose = normalizeLoose(typed) === normalizeLoose(item.task.code);
+      schoolView.practiceChecked = true;
+      schoolView.practiceResult = exact
+        ? "Код совпал. " + (item.task.explanation || "")
+        : loose
+          ? "Почти: проверь отступы и лишние пробелы."
+          : "Пока не совпадает. Сравни с образцом и попробуй снова.";
+      if (exact) completePracticeTask(item);
+      renderSchool();
+      return;
+    }
+    if (item.kind === "code") {
+      schoolView.practiceBusy = true;
+      schoolView.practiceResult = "Проверяю код...";
+      renderSchool();
+      requestCodeCheck(typed, item.task.id).then((data) => {
+        schoolView.practiceBusy = false;
+        const total = data && data.total;
+        const passed = data && data.passed;
+        if (!data || data.unavailable || (data.ok &&
+            (typeof total !== "number" || typeof passed !== "number"))) {
+          schoolView.practiceResult = "Проверка кода недоступна. Попробуй ещё раз.";
+        } else if (!data.ok) {
+          schoolView.practiceResult = "Ошибка: " + escText(data.error || "код не выполнился");
+        } else {
+          schoolView.practiceResult = "Пройдено " + passed + " из " + total + " проверок. " +
+            (passed === total ? "Отлично!" : "Попробуй ещё.");
+          if (passed === total) completePracticeTask(item);
+        }
+        schoolView.practiceChecked = true;
+        renderSchool();
+      }, () => {
+        schoolView.practiceBusy = false;
+        schoolView.practiceChecked = true;
+        schoolView.practiceResult = "Проверка кода не отвечает. Попробуй ещё раз.";
+        renderSchool();
+      });
+    }
+  }
+
+  function schoolBodyHtml() {
+    if (schoolView.mode === "module") return schoolModuleHtml();
+    if (schoolView.mode === "lesson") return schoolLessonHtml();
+    if (schoolView.mode === "quiz") return schoolQuizHtml();
+    if (schoolView.mode === "quest") return schoolQuestHtml();
+    if (schoolView.mode === "practice") return schoolPracticeHtml();
+    if (schoolView.mode === "practice-task") return practiceTaskHtml();
+    return schoolModulesHtml();
+  }
+
+  function schoolClick(ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("[data-school-action]") : null;
+    if (!btn) return;
+    const action = btn.dataset.schoolAction;
+    if (action === "modules") {
+      schoolView.mode = "modules";
+      schoolView.moduleKey = null;
+      schoolView.questions = [];
+      schoolView.practiceTask = null;
+      schoolView.practiceChecked = false;
+      schoolView.practiceResult = "";
+      renderSchool();
+      return;
+    }
+    if (action === "practice") {
+      schoolView.mode = "practice";
+      schoolView.practiceTask = null;
+      schoolView.practiceChecked = false;
+      schoolView.practicePick = -1;
+      schoolView.practiceResult = "";
+      schoolView.practiceBusy = false;
+      renderSchool();
+      return;
+    }
+    if (action === "practice-task") {
+      const item = findPracticeTask(btn.dataset.kind, btn.dataset.id);
+      if (!item) { toast("Задание не найдено"); return; }
+      schoolView.mode = "practice-task";
+      schoolView.practiceTask = item;
+      schoolView.practiceChecked = false;
+      schoolView.practicePick = -1;
+      schoolView.practiceResult = "";
+      schoolView.practiceBusy = false;
+      schoolView.practiceInput = item.kind === "code" ? (item.task.starter || "") : "";
+      renderSchool();
+      return;
+    }
+    if (action === "practice-check") {
+      checkPracticeTask();
+      return;
+    }
+    if (action === "practice-retry") {
+      schoolView.practiceChecked = false;
+      schoolView.practicePick = -1;
+      schoolView.practiceResult = "";
+      schoolView.practiceBusy = false;
+      renderSchool();
+      return;
+    }
+    if (action === "module") {
+      if (!courseModuleUnlocked(btn.dataset.module, hubProfile())) {
+        toast("Сначала пройди предыдущий модуль");
+        return;
+      }
+      schoolView.mode = "module";
+      schoolView.moduleKey = btn.dataset.module;
+      renderSchool();
+      return;
+    }
+    if (action === "lesson") {
+      schoolView.mode = "lesson";
+      schoolView.moduleKey = btn.dataset.module;
+      schoolView.lessonIndex = Number(btn.dataset.lesson) || 0;
+      renderSchool();
+      return;
+    }
+    if (action === "start-lesson") {
+      if (!payCourseLesson(btn.dataset.module, Number(btn.dataset.lesson) || 0)) return;
+      startCourseQuiz(btn.dataset.module, Number(btn.dataset.lesson) || 0);
+      return;
+    }
+    if (action === "quiz") {
+      startCourseQuiz(btn.dataset.module, Number(btn.dataset.lesson) || 0);
+      return;
+    }
+    if (action === "check") {
+      checkCourseQuiz();
+      renderSchool();
+      return;
+    }
+    if (action === "quest") {
+      schoolView.mode = "quest";
+      renderSchool();
+      return;
+    }
+    if (action === "claim") {
+      claimCourseModule();
+      return;
+    }
+  }
+
+  function renderSchool() {
+    const box = el("school-box");
+    if (!box) return;
+    const prof = hubProfile();
+    const gold = prof && prof.wallet ? prof.wallet.gold || 0 : 0;
+    const head = "<div class='battle-head'><div><div class='enemy-name'>Учитель</div>" +
+      "<div class='hud-num'>Курс Python · банк: <b>" + gold + "</b> золота</div></div>" +
+      "<button class='exit-btn' id='school-close' type='button' " +
+      "data-tip='Закрыть. Клавиша Escape.'>Закрыть</button></div>";
+    box.innerHTML = head + "<div class='battle-mid school-body'>" + schoolBodyHtml() + "</div>" +
+      "<div class='battle-foot'><span class='foot-note'>Esc — закрыть · " +
+      "домашнее задание выполняется в подземелье</span></div>";
+    const close = el("school-close");
+    if (close) close.addEventListener("click", closeSchool);
+    box.onclick = schoolClick;
+  }
+
+  function openSchool() {
+    const overlay = el("school-overlay");
+    if (!overlay) return;
+    G.schoolOpen = true;
+    markCodex("npcs", "teacher");
+    schoolView = { mode: "modules", moduleKey: null, lessonIndex: 0,
+      questions: [], answers: [], submitted: false, score: 0,
+      practiceTask: null, practiceChecked: false, practiceResult: "",
+      practiceBusy: false, practiceInput: "" };
+    renderSchool();
+    overlay.classList.remove("hidden");
+  }
+
+  function openPracticeBoard() {
+    const overlay = el("school-overlay");
+    if (!overlay) return;
+    G.schoolOpen = true;
+    schoolView = { mode: "practice", moduleKey: null, lessonIndex: 0,
+      questions: [], answers: [], submitted: false, score: 0,
+      practiceTask: null, practiceChecked: false, practiceResult: "",
+      practiceBusy: false, practiceInput: "" };
+    renderSchool();
+    overlay.classList.remove("hidden");
+  }
+
+  function closeSchool() {
+    G.schoolOpen = false;
+    const overlay = el("school-overlay");
+    if (overlay) overlay.classList.add("hidden");
+    schoolView = { mode: "modules", moduleKey: null, lessonIndex: 0,
+      questions: [], answers: [], submitted: false, score: 0,
+      practiceTask: null, practiceChecked: false, practiceResult: "",
+      practiceBusy: false, practiceInput: "" };
   }
 
   // ---------- Развитие деревни: окна построек ----------
@@ -5920,6 +6837,15 @@
     } else {
       html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён — можно " +
         "спускаться в бездну.</p>";
+    }
+    const courseQuest = prof.course && prof.course.quest;
+    if (courseQuest) {
+      const def = typeof PY_COURSE_QUESTS !== "undefined"
+        ? PY_COURSE_QUESTS[courseQuest.module] : null;
+      html += "<p class='lead'><b>Учитель:</b> " +
+        escText(def ? def.text : "домашнее задание") + " · " +
+        courseQuest.progress + "/" + courseQuest.need +
+        (courseQuest.done ? " · готово, забери награду в школе" : "") + "</p>";
     }
     if (!prof.dungeonBest && !pausedRun()) {
       html += "<p class='lead'><b>Первый поход:</b> найди стража у входа, " +
@@ -6866,18 +7792,18 @@
     (G.npcs || []).forEach((n) => {
       if (G.discovered.has(key(n.x, n.y))) dot(n.x, n.y, "#fde68a", 0.8);
     });
-    // Первый спуск: страж виден на мини-карте, даже пока он вне поля зрения.
-    // Без этого игрок стартует в пустой деревне и не знает, куда идти.
-    if (!G.firstGoalDone && G.place === "village" && isFirstRun()) {
-      const guard = (G.npcs || []).find((n) => n.key === "guard");
-      if (guard) {
-        dot(guard.x, guard.y, "#38bdf8", 1.15);
-        const gx = ox + guard.x * cs + cs / 2;
-        const gy = oy + guard.y * cs + cs / 2;
+    // Первая глава: на мини-карте видны жители, с которыми ещё не знаком.
+    // Без этого герой стартует в деревне и не знает, куда идти.
+    if (isMeetStep()) {
+      (G.npcs || []).forEach((n) => {
+        if (MEET_NPC_KEYS.indexOf(n.key) < 0 || isNpcMet(n.key)) return;
+        dot(n.x, n.y, "#38bdf8", 1.15);
+        const nx = ox + n.x * cs + cs / 2;
+        const ny = oy + n.y * cs + cs / 2;
         ctx.strokeStyle = "#f6c453";
         ctx.lineWidth = 1;
-        ctx.strokeRect(gx - 6, gy - 6, 12, 12);
-      }
+        ctx.strokeRect(nx - 6, ny - 6, 12, 12);
+      });
     }
     (G.doors || []).forEach((d) => {
       if (G.discovered.has(key(d.x, d.y))) dot(d.x, d.y, doorLocked(d) ? "#64748b" : "#c084fc", 0.7);
@@ -7369,9 +8295,11 @@
       const vis = G.visible.has(key(n.x, n.y));
       const own = "npc_" + n.key;
       const sprite = (typeof SPRITES !== "undefined" && SPRITES[own]) ? own : "trader";
-      // Первому игроку подсвечиваем стража: именно с него начинается спуск,
-      // но в деревне его легко потерять среди жителей.
-      const cls = "ent-npc" + (n.key === "guard" && isFirstRun() ? " first-goal" : "");
+      // Первая глава: подсвечиваем жителей, с которыми ещё не знаком.
+      // После разговора подсветка снимается, и видно, к кому идти дальше.
+      const meetGoal = isMeetStep() && MEET_NPC_KEYS.indexOf(n.key) >= 0 &&
+        !isNpcMet(n.key);
+      const cls = "ent-npc" + (meetGoal ? " first-goal" : "");
       place("npc-" + n.uid, n.x, n.y, vis, sprite, cls, null, n.name, 4);
     });
 
@@ -8965,6 +9893,7 @@
     if (!el("shop-overlay").classList.contains("hidden")) return;
     if (!el("entrance-overlay").classList.contains("hidden")) return;
     if (!el("dialog-overlay").classList.contains("hidden")) return;
+    stopHeldMove();
     const tile = ev.target && ev.target.closest ? ev.target.closest(".tile") : null;
     if (!tile || tile.dataset.x === undefined) return;
     const tx = Number(tile.dataset.x);
@@ -9191,6 +10120,11 @@
           label: "Рычаг: открыть тайник (ударит током за ошибку)"
         };
       }
+      const board = (G.scenery || []).find((o) =>
+        o.x === x && o.y === y && o.kind === "board");
+      if (board) {
+        return { kind: "board", label: "Доска задач: практика", icon: "▤", obj: board };
+      }
       const sign = signAt(x, y);
       if (sign) return { kind: "sign", label: "Прочитать табличку", icon: "▤", obj: sign };
       // Костёр-привал: один раз за костёр и не больше, чем привалов на поход.
@@ -9297,6 +10231,8 @@
         typeof window.PyMenu.isOpen === "function" && window.PyMenu.isOpen()) {
       return true;
     }
+    if (G.schoolOpen) return true;
+    if (G.talkState) return true;
     return ["end-overlay", "shop-overlay", "battle-overlay", "forge-overlay",
       "level-loading", "entrance-overlay", "calibration-overlay", "dialog-overlay"].some((id) => {
       const node = el(id);
@@ -9341,14 +10277,17 @@
     const target = interactTarget();
     if (!target) return;
     if (target.kind === "npc") {
-      // У стража входа — не рассказ, а настройка спуска.
-      if (target.obj.key === "guard") openEntrance();
-      else openDialog(target.obj);
+      // Первый разговор начинается с приветствия, повторный — сразу с дела.
+      talkToNpc(target.obj);
       return;
     }
     if (target.kind === "door") {
       if (target.obj.exit) exitHouse();
       else enterHouse(target.obj.key);
+      return;
+    }
+    if (target.kind === "board") {
+      openPracticeBoard();
       return;
     }
     if (target.kind === "camp") {
@@ -9539,6 +10478,87 @@
     setMsg("Цепь разошлась — ты свободен.");
     log("Цепь ослабла и упала. Ты снова можешь идти.");
     render();
+  }
+
+  // Зажатая клавиша: первый шаг сразу, а автоповтор — только после паузы.
+  // Пауза в пару секунд не даёт случайно «уехать» через полэтажа и
+  // отсекает автоповтор браузера, который раньше слал keydown ~30 раз в
+  // секунду. Шаг автоповтора совпадает с шагом маршрута по клику.
+  const HOLD_MOVE_DELAY = 2000;
+  const HOLD_MOVE_STEP = 110;
+
+  function stopHeldMove() {
+    const held = G.heldMove;
+    if (!held) return;
+    if (held.timer) clearTimeout(held.timer);
+    if (held.interval) clearInterval(held.interval);
+    G.heldMove = null;
+  }
+
+  function stopHeldMoveIfDir(dir) {
+    if (G.heldMove && G.heldMove.dir === dir) stopHeldMove();
+  }
+
+  function holdMoveTick() {
+    const held = G.heldMove;
+    if (!held) return;
+    if (!G.running || G.battle || overlayOpen()) {
+      stopHeldMove();
+      return;
+    }
+    const d = DIRS[held.dir];
+    const before = G.playerPos ? { x: G.playerPos.x, y: G.playerPos.y } : null;
+    if (!d) {
+      stopHeldMove();
+      return;
+    }
+    move(d[0], d[1]);
+    // Стена, цепь или открывшийся бой останавливают автоповтор: иначе
+    // подсказка «Здесь стена» сыпалась бы каждые 110 мс.
+    if (!G.running || G.battle || overlayOpen() ||
+        !before || (G.playerPos.x === before.x && G.playerPos.y === before.y)) {
+      stopHeldMove();
+    }
+  }
+
+  // delay — только для проверок: в игре всегда HOLD_MOVE_DELAY.
+  function startHeldMove(dir, delay) {
+    if (!dir || !DIRS[dir]) return false;
+    stopHeldMove();
+    const held = { dir: dir, timer: null, interval: null };
+    G.heldMove = held;
+    const wait = typeof delay === "number" ? Math.max(0, delay) : HOLD_MOVE_DELAY;
+    held.timer = setTimeout(() => {
+      held.timer = null;
+      if (G.heldMove !== held) return;
+      if (!G.running || G.battle || overlayOpen()) {
+        stopHeldMove();
+        return;
+      }
+      holdMoveTick();
+      if (G.heldMove !== held) return;
+      held.interval = setInterval(holdMoveTick, HOLD_MOVE_STEP);
+    }, wait);
+    return true;
+  }
+
+  function moveDirFromKey(e) {
+    if (!e) return "";
+    const k = e.key && e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    const map = {
+      ArrowUp: "up",
+      ArrowDown: "down",
+      ArrowLeft: "left",
+      ArrowRight: "right",
+      w: "w",
+      a: "a",
+      s: "s",
+      d: "d"
+    };
+    // В русской раскладке e.key для W/A/S/D — «ц», «ф», «ы», «в»:
+    // физическую клавишу даёт e.code.
+    const byCode = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d" };
+    return map[k] || map[e.key] || map[byCode[e.code]] || "";
   }
 
   // keepPan — шаг по маршруту: камеру не дёргаем, игрок может осматривать этаж.
@@ -10526,6 +11546,7 @@
     // Учебный бой не должен с первого раза поднимать сложность: там игрок
     // ещё знакомится с управлением, а не показывает уровень знаний.
     if (G.tutorial && G.tutorial.active) return;
+    if (correct) courseQuestEvent("correct", 1);
     const list = recentAnswers();
     list.push(correct ? 1 : 0);
     if (list.length > ADAPTIVE.window) list.shift();
@@ -11379,6 +12400,8 @@
       }
     }
     G.stats.kills += 1;
+    courseQuestEvent("kills", 1);
+    if (e.boss) courseQuestEvent("boss", 1);
     if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
     // Стражи лестницы держат ключи от построек деревни: ключ от амбара лежит
     // с третьего этажа, ключ от дома мастера — с пятого. Так деревня растёт
@@ -13696,12 +14719,14 @@ function topicName(key) {
     const h = (prof && prof.hero) || {};
     const v = (prof && prof.village) || {};
     const lvl = (x) => Math.max(0, Math.floor(Number(x) || 0));
+    const course = courseBonuses(prof);
     return {
-      hp: Math.round(lvl(h.hp) * HERO_STEPS.hp + lvl(v.well) * VILLAGE_WELL_HP),
-      dmg: Math.round(lvl(h.dmg) * HERO_STEPS.dmg),
+      hp: Math.round(lvl(h.hp) * HERO_STEPS.hp + lvl(v.well) * VILLAGE_WELL_HP) + course.hp,
+      dmg: Math.round(lvl(h.dmg) * HERO_STEPS.dmg) + course.dmg,
       potions: lvl(h.potions) * HERO_STEPS.potions,
       loot: lvl(h.loot) * HERO_STEPS.loot,
-      armor: lvl(h.armor) * HERO_STEPS.armor
+      armor: lvl(h.armor) * HERO_STEPS.armor,
+      goldPct: course.goldPct
     };
   }
 
@@ -13739,6 +14764,8 @@ function topicName(key) {
     syncProfile(hubName());
     log("Найдено: " + LOOT_NAMES[kind] + " +" + amount + " (всего " + prof.loot[kind] + ").", "loot");
     if (kind === "ore") bumpQuest("ore", amount);
+    courseQuestEvent("materials", amount);
+    if (kind === "ore") courseQuestEvent("ore", amount);
     return amount;
   }
 
@@ -13932,6 +14959,20 @@ function topicName(key) {
 
   const STORY_QUESTS = [
     {
+      key: "meet", goal: "meet", title: "Знакомство",
+      place: "Деревня · дома и площадь",
+      brief: "Обойти деревню и поговорить с жителями.",
+      text: "Прежде чем спускаться в подземелье, староста просит обойти деревню. " +
+        "Страж входа, сам староста, торговец, казначей, наставник и учитель " +
+        "должны знать героя в лицо: без этого деревня не доверит ему свои опоры. " +
+        "Кузнец, мастер и кладовщик ждут за запертыми дверями — с ними герой " +
+        "познакомится, когда деревня откроет их постройки.",
+      objective: "Поговорить с шестью жителями, которые сейчас в деревне.",
+      doneText: "Деревня узнала героя. Теперь у каждого жителя найдётся для него " +
+        "слово, товар или совет. Староста кивает: «Пора браться за амбар».",
+      reward: { gold: 30 }
+    },
+    {
       key: "barn", goal: "barn", title: "Крыша для амбара",
       place: "Деревня · амбар",
       brief: "Вернуть деревне склад и найти первую печать.",
@@ -14078,13 +15119,68 @@ function topicName(key) {
     return q ? Math.max(0, Math.min(Number(q.story) || 0, STORY_QUESTS.length)) : 0;
   }
 
+  // Первая глава: знакомство. Ключи жителей копятся в профиле, поэтому
+  // прогресс переживает смерть и перезапуск, как и остальная кампания.
+  const MEET_NPC_KEYS = (typeof VILLAGE_MEET_NPCS !== "undefined")
+    ? VILLAGE_MEET_NPCS : ["guard", "elder", "trader", "banker", "mentor", "teacher"];
+
+  function isMeetStep() {
+    const step = storyStep();
+    return !!(step && step.key === "meet");
+  }
+
+  function metNpcList() {
+    const prof = hubProfile();
+    if (prof) {
+      return (prof.quests && Array.isArray(prof.quests.met)) ? prof.quests.met : [];
+    }
+    // Без профиля знакомства живут только до перезагрузки — как и весь
+    // остальной прогресс гостя.
+    return G.metNpcs || [];
+  }
+
+  function isNpcMet(key) {
+    return !!key && metNpcList().indexOf(key) >= 0;
+  }
+
+  function metNpcCount() {
+    const met = metNpcList();
+    return MEET_NPC_KEYS.filter((k) => met.indexOf(k) >= 0).length;
+  }
+
+  // Отметить знакомство. Возвращает true только в первый раз — по этому
+  // признаку решается, показывать ли приветствие.
+  function markNpcMet(key) {
+    if (!key || isNpcMet(key)) return false;
+    G.metNpcs = (G.metNpcs || []).concat([key]);
+    const prof = hubProfile();
+    if (prof) {
+      if (!Array.isArray(prof.quests.met)) prof.quests.met = [];
+      if (prof.quests.met.indexOf(key) < 0) prof.quests.met.push(key);
+      putProfile(hubName(), prof);
+      syncProfile(hubName());
+    }
+    if (MEET_NPC_KEYS.indexOf(key) >= 0) {
+      const count = metNpcCount();
+      const total = MEET_NPC_KEYS.length;
+      if (isMeetStep()) {
+        const npc = (VILLAGE_NPCS || []).find((n) => n.key === key);
+        toast("Знакомство: " + count + " из " + total);
+        log("Знакомство: " + (npc ? npc.name : key) + " — " + count + " из " + total + ".", "floor");
+        if (count >= total) {
+          log("Сюжет: все жители на виду. Вернись к старосте за наградой.", "floor");
+        }
+      }
+    }
+    if (G.place === "village") render();
+    updateHud();
+    return true;
+  }
+
   // Короткая строка для постоянного HUD: какая глава идёт сейчас.
   // Когда цель закрыта, игрок видит не новую подсказку, а состояние сюжета:
   // «вернись к старосте». Подробности остаются в журнале.
   function storyHudData() {
-    if (G.place === "village" && !G.firstGoalDone && isFirstRun()) {
-      return { kicker: "Первый спуск", title: "Страж входа →", ready: false, done: false };
-    }
     const done = storyDoneCount();
     const step = STORY_QUESTS[done];
     if (!step) {
@@ -14096,6 +15192,14 @@ function topicName(key) {
       };
     }
     const ready = goalDone(step.goal);
+    if (step.key === "meet" && !ready) {
+      return {
+        kicker: "Глава " + storyChapterNumber(done) + " · знакомство",
+        title: "Поговори с жителями →",
+        ready: false,
+        done: false
+      };
+    }
     return {
       kicker: ready
         ? "Глава " + storyChapterNumber(done) + " · к старосте"
@@ -14111,6 +15215,9 @@ function topicName(key) {
   // ученик идёт к постройке и половину пути уже прошёл.
   function goalProgressText(goal) {
     if (!goal || goal === "victory") return "";
+    if (goal === "meet") {
+      return "знакомства " + metNpcCount() + "/" + MEET_NPC_KEYS.length;
+    }
     const cost = buildCost(goal);
     const prof = hubProfile();
     if (!cost || !prof) return "";
@@ -14128,6 +15235,7 @@ function topicName(key) {
 
   // Выполнена ли цель шага. Постройки — по уровню в профиле, дракон — по рекорду.
   function goalDone(goal) {
+    if (goal === "meet") return metNpcCount() >= MEET_NPC_KEYS.length;
     if (goal === "victory") {
       const prof = hubProfile();
       return !!(prof && prof.dungeonBest && prof.dungeonBest.victory);
@@ -14318,6 +15426,26 @@ function topicName(key) {
     };
   }
 
+  // Домашнее задание учителя — такое же поручение, как задания старосты:
+  // оно должно быть видно в журнале, а не только в окне школы.
+  function courseQuestEntry() {
+    const prof = hubProfile();
+    const quest = prof && prof.course ? prof.course.quest : null;
+    if (!quest) return null;
+    const def = typeof PY_COURSE_QUESTS !== "undefined"
+      ? PY_COURSE_QUESTS[quest.module] : null;
+    const module = courseData().find((m) => m.key === quest.module);
+    return {
+      title: "Учитель: " + (module ? module.title : "курс Python"),
+      text: def ? def.text : "Домашнее задание учителя",
+      meta: "Прогресс: " + quest.progress + " / " + quest.need +
+        " · награда: " + courseRules().moduleReward + " золота и зелье",
+      status: quest.done ? "Готово к сдаче" : "В работе",
+      kind: "course",
+      done: !!quest.done
+    };
+  }
+
   function archiveEntries() {
     const out = [];
     const prof = hubProfile();
@@ -14365,7 +15493,8 @@ function topicName(key) {
     const cls = item.failed ? " is-failed" : (item.done || item.kind === "story") ? " is-done" : "";
     return "<article class='journal-card" + cls + "'>" +
       "<div class='journal-card-head'><span class='journal-kind'>" +
-      (item.kind === "story" ? "Сюжет" : "Поручение") + "</span>" +
+      (item.kind === "story" ? "Сюжет" :
+        item.kind === "course" ? "Учитель" : "Поручение") + "</span>" +
       "<span class='journal-status'>" + item.status + "</span></div>" +
       "<h3>" + item.title + "</h3>" +
       "<p>" + item.text + "</p>" +
@@ -14421,11 +15550,16 @@ function topicName(key) {
   }
 
   function tasksTabHtml() {
+    const entries = [];
     const entry = repeatActiveEntry();
-    if (!entry) {
-      return "<div class='journal-empty'>Поручений нет. Староста выдаёт их в деревне.</div>";
+    if (entry) entries.push(entry);
+    const course = courseQuestEntry();
+    if (course) entries.push(course);
+    if (!entries.length) {
+      return "<div class='journal-empty'>Поручений нет. Староста выдаёт их в деревне, " +
+        "учитель — домашние задания в школе.</div>";
     }
-    return "<div class='journal-list'>" + journalCard(entry) + "</div>";
+    return "<div class='journal-list'>" + entries.map(journalCard).join("") + "</div>";
   }
 
   function archiveTabHtml() {
@@ -14521,6 +15655,7 @@ function topicName(key) {
     trader: "Лавка и товары",
     elder: "Сюжетные задания",
     mentor: "Обучение",
+    teacher: "Курс Python",
     blacksmith: "Кузница",
     master: "Улучшения снаряжения",
     storekeeper: "Амбар и припасы"
@@ -14669,6 +15804,36 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.41.0",
+      date: "9 ноября 2026",
+      title: "Ходьба удержанием",
+      items: [
+        "Зажмите WASD или стрелку — после паузы герой пойдёт сам.",
+        "Один шаг по-прежнему делается сразу, без задержки.",
+        "Автоповтор останавливается у стены, при бое и когда клавиша отпущена."
+      ]
+    },
+    {
+      version: "1.40.0",
+      date: "9 ноября 2026",
+      title: "Знакомство и диалоги",
+      items: [
+        "Первая глава кампании — обойти деревню и познакомиться с жителями.",
+        "У каждого жителя есть приветствие: короткая сцена перед лавкой или делом.",
+        "Знакомства хранятся в профиле, а HUD и мини-карта подсказывают, к кому идти."
+      ]
+    },
+    {
+      version: "1.39.0",
+      date: "9 ноября 2026",
+      title: "Школа и курс Python",
+      items: [
+        "В деревне открылась школа: учитель ведёт курс по Python.",
+        "Девять модулей по три урока; в уроке пять вопросов, в экзамене семь.",
+        "На доске задач — практика: код, поиск ошибок и написание функций."
+      ]
+    },
     {
       version: "1.38.1",
       date: "9 ноября 2026",
@@ -16103,6 +17268,7 @@ function topicName(key) {
     G.shopTrader = false;
     G.traderFloor = null;
     G.blessingOffer = null;
+    G.schoolOpen = false;
     const bless = el("blessing-overlay");
     if (bless) bless.classList.add("hidden");
     const forgeOverlay = el("forge-overlay");
@@ -17206,6 +18372,10 @@ function topicName(key) {
       if (upg && !upg.disabled) { buyHeroUpgrade(upg.dataset.upg); return; }
       const build = t.closest(".build-go");
       if (build && !build.disabled) { restoreBuilding(build.dataset.build); return; }
+      // Диалоговая сцена: «Далее» листает реплики, последняя открывает
+      // дело жителя.
+      const talkNext = t.closest("#talk-next");
+      if (talkNext) { nextTalkLine(); return; }
       // Квесты старосты: взять, сдать, отказаться. После каждого действия окно
       // перерисовывается — иначе староста остался бы с прежним списком.
       const take = t.closest(".quest-take");
@@ -17480,6 +18650,27 @@ function topicName(key) {
           typeof window.PyMenu.isOpen === "function" && window.PyMenu.isOpen()) {
         return;
       }
+      // Диалог с жителем: Enter и пробел листают реплики, Escape закрывает
+      // сцену, не открывая дело жителя.
+      if (!el("talk-overlay").classList.contains("hidden")) {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          closeTalk();
+          return;
+        }
+        if (e.key === "Tab") {
+          e.preventDefault();
+          const next = el("talk-next");
+          if (next) next.focus();
+          return;
+        }
+        const onButton = e.target && e.target.id === "talk-next";
+        if (!onButton && (e.key === "Enter" || e.key === " " || e.key === "Spacebar")) {
+          e.preventDefault();
+          if (!e.repeat) nextTalkLine();
+        }
+        return;
+      }
       // Окно стража — модальное: Tab не должен уходить в шапку и на карту.
       // Если поверх него открыта калибровка, фокусом управляет она.
       if (el("calibration-overlay").classList.contains("hidden") &&
@@ -17537,6 +18728,10 @@ function topicName(key) {
         closeEntrance();
         return;
       }
+      if (e.key === "Escape" && G.schoolOpen) {
+        closeSchool();
+        return;
+      }
       if (e.key === "Escape" && !el("dialog-overlay").classList.contains("hidden")) {
         closeDialog();
         return;
@@ -17577,36 +18772,39 @@ function topicName(key) {
         // Автоповтор браузера превратил бы одно нажатие в десяток ходов.
         if (e.repeat) return;
         cancelWalk();
+        stopHeldMove();
         skipTurn();
         return;
       }
-      const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      const map = {
-        ArrowUp: "up",
-        ArrowDown: "down",
-        ArrowLeft: "left",
-        ArrowRight: "right",
-        w: "w",
-        a: "a",
-        s: "s",
-        d: "d"
-      };
-      // В русской раскладке e.key для W/A/S/D — «ц», «ф», «ы», «в»: ходить
-      // по клавишам ученик не мог. Физическую клавишу даёт e.code.
-      const byCode = { KeyW: "w", KeyA: "a", KeyS: "s", KeyD: "d" };
-      const dir = map[k] || map[e.key] || map[byCode[e.code]];
+      const dir = moveDirFromKey(e);
       if (dir) {
         e.preventDefault();
-        // Один шаг за одно нажатие. Раньше автоповтор браузера слал
-        // keydown ~30 раз в секунду, и зажатая стрелка уносила героя
-        // через полэтажа, пока он не успевал прочитать вопросы.
+        // Один шаг на нажатие; автоповтор браузера игнорируем — его
+        // заменяет собственный таймер после паузы.
         if (e.repeat) return;
+        // Некоторые оболочки присылают повтор без флага repeat. Если эта
+        // же клавиша уже держится, не сбрасываем её таймер: иначе пауза
+        // начинается заново на каждом повторе и автоповтор не включится.
+        if (G.heldMove && G.heldMove.dir === dir) return;
         // Ручной шаг отменяет маршрут, набранный кликом.
         cancelWalk();
+        stopHeldMove();
         const d = DIRS[dir];
         move(d[0], d[1]);
+        startHeldMove(dir);
       }
     });
+
+    // Отпустили клавишу — автоповтор сразу останавливается. Сверяем
+    // направление: если игрок уже зажал другую клавишу, чужой keyup
+    // не должен обрывать движение.
+    document.addEventListener("keyup", (e) => {
+      const dir = moveDirFromKey(e);
+      if (dir) stopHeldMoveIfDir(dir);
+    });
+    // Потеря фокуса окна не присылает keyup: без этого герой шёл бы
+    // до первой стены, пока игрок вернулся в игру.
+    window.addEventListener("blur", stopHeldMove);
 
     // Клик по плите: герой идёт туда сам, по клетке за ход.
     // Каждый шаг — полноценный ход: враги в это время ходят,
@@ -17641,6 +18839,10 @@ function topicName(key) {
     if (window.PyMenu && typeof window.PyMenu.boot === "function") {
       window.PyMenu.boot({ resumed: false });
     }
+    // В node-проверках DOM создаётся заглушками и не читает класс hidden
+    // из HTML. Явно прячем окно школы, иначе оно считается открытым.
+    const schoolOverlay = el("school-overlay");
+    if (schoolOverlay) schoolOverlay.classList.add("hidden");
     devInit();
   });
 
@@ -17714,6 +18916,7 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='kill'>Убить всех</button>" +
       "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
       "<button type='button' class='dev-btn' data-dev='altar'>К алтарю</button>" +
+      "<button type='button' class='dev-btn' data-dev='school'>В школу</button>" +
       "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал</button>" +
@@ -17932,12 +19135,15 @@ function topicName(key) {
     prof.quests.repeat = {};
     prof.quests.failed = [];
     prof.quests.progress = {};
+    prof.quests.met = [];
     if (prof.loot && Array.isArray(prof.loot.keys)) {
       prof.loot.keys = prof.loot.keys.filter((k) => k !== "seal" && k !== "seal2");
     }
     putProfile(hubName(), prof);
     syncProfile(hubName());
+    closeTalk();
     G.firstGoalDone = false;
+    G.metNpcs = [];
     G.questProgress = { n: 0 };
     return true;
   }
@@ -18003,6 +19209,16 @@ function topicName(key) {
       render();
       updateActionButton();
       toast("Алтарь: " + altar.x + "," + altar.y);
+      return;
+    }
+    if (action === "school") {
+      if (G.place !== "village") { toast("Сначала вернись в деревню"); return; }
+      enterHouse("school");
+      G.playerPos = { x: 3, y: 3 };
+      G.walkTarget = null;
+      render();
+      updateActionButton();
+      toast("Школа: учитель рядом");
       return;
     }
     if (action === "gen-v2") {
@@ -18767,7 +19983,7 @@ function topicName(key) {
         renderVillageInfo();
         updateHud();
         updateResumeButton();
-        setMsg("Новая игра: сюжет начат заново. Поговори со стражем у входа.");
+        setMsg("Новая игра: сюжет начат заново. Обойди деревню и познакомься с жителями.");
         return true;
       },
       resetCampaign: function () {
