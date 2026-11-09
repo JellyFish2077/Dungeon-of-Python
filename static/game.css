@@ -1328,9 +1328,12 @@ body.game-page.battling .game-wrap > .panel {
 .overlay {
   position: fixed;
   inset: 0;
-  /* Окно живёт в видимой области: если снизу панель браузера, dvh уже
-     меньше layout viewport, и низ карточек не уезжает под неё. */
-  height: var(--app-vh);
+  /* Окно живёт в видимой области: visualViewport уже учитывает панель
+     браузера и клавиатуру. box-sizing обязателен — иначе padding
+     прибавлялся к 100dvh, и окно уезжало за край на низких экранах. */
+  top: var(--vv-top, 0);
+  height: var(--vvh, var(--app-vh));
+  box-sizing: border-box;
   bottom: auto;
   /* Вместо прежнего backdrop-filter: blur(4px): браузер размывал всю карту
      (до 2960x2176) на каждом кадре, и любой экран поверх неё шёл ровно
@@ -1340,7 +1343,7 @@ body.game-page.battling .game-wrap > .panel {
     rgba(2, 6, 23, 0.86);
   display: grid;
   place-items: center;
-  padding: 16px;
+  padding: 12px;
   z-index: 60;
   overflow-y: auto;
 }
@@ -3774,6 +3777,17 @@ h2 {
   padding-top: 2px;
 }
 
+/* На низком экране настройки спуска прокручиваются, но кнопка «Спуститься»
+   остаётся на виду: шапка и подвал окна закреплены. */
+#entrance-box .setup-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-top: 4px;
+  padding: 10px 0 4px;
+  background: linear-gradient(180deg, rgba(11, 17, 26, 0) 0%, rgba(11, 17, 26, 0.97) 30%);
+}
+
 #begin-btn,
 #resume-btn,
 #retreat-btn {
@@ -6057,7 +6071,10 @@ body.game-page .side-panel .equip-value {
 
 .overlay > .battle {
   width: min(760px, 94vw);
-  max-height: min(calc(var(--app-vh) * 0.88), 900px);
+  /* 100% — это content-box оверлея: окно всегда влезает в видимую
+     область с полями, а длинное содержимое прокручивается внутри. */
+  max-height: min(100%, 900px);
+  min-height: 0;
   padding: 0 20px 16px;
   display: flex;
   flex-direction: column;
@@ -6074,13 +6091,13 @@ body.game-page .side-panel .equip-value {
 
 #battle-box {
   width: min(980px, 94vw);
-  max-height: min(calc(var(--app-vh) * 0.92), 900px);
+  max-height: min(100%, 900px);
 }
 
 #end-box,
 #blessing-box {
   width: min(520px, 94vw);
-  max-height: min(calc(var(--app-vh) * 0.88), 760px);
+  max-height: min(100%, 760px);
   overflow-y: auto;
 }
 
@@ -6267,7 +6284,7 @@ body.game-page .side-panel .equip-value {
 @media (max-width: 700px) {
   .overlay > .battle {
     width: 100%;
-    max-height: calc(var(--app-vh) * 0.92);
+    max-height: 100%;
     padding-left: 14px;
     padding-right: 14px;
   }
