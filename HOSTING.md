@@ -21,6 +21,15 @@ python tools/fetch_pyodide.py
 `fetch_pyodide.py` кладёт Pyodide в сборку. Без него игра работает, но тянет
 runtime с CDN.
 
+Для локальной проверки с панелью разработчика:
+
+```bash
+python tools/build_web.py --dev
+```
+
+Такая сборка не для публикации: кнопка DEV включается прямо в `web-boot.js`.
+Перед деплоем пересоберите без `--dev`.
+
 ## GitHub Pages
 
 Источник Pages: **Deploy from a branch** → `gh-pages` → `/ (root)`.

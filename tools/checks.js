@@ -161,9 +161,8 @@ if ((G.vaults || []).length) {
       clearAt(x + dx, y + dy);
     });
   };
-  // Дверь — проход: раньше она оставалась монолитом, и комната была
-  // запечатана навсегда, хотя ключ и рычаг «открывали» её.
-  log(grid[vault.door.y][vault.door.x] === 1, "дверь тайника — проход, а не стена");
+  // Проход в стене запечатан: пока рычаг не опущен, это обычная стена.
+  log(grid[vault.door.y][vault.door.x] === 0, "проход к тайнику запечатан стеной");
   // Комната внутри: девять клеток пола за дверью.
   let inner = 0;
   for (let y = 0; y < G.map.h; y += 1) {
@@ -173,57 +172,20 @@ if ((G.vaults || []).length) {
   }
   log(inner >= 9, "за дверью вырублена комната", "клеток рядом: " + inner);
   log(G.treasures.length >= 2, "в тайнике лежит добыча", "сундуков на этаже: " + G.treasures.length);
-  // Без ключа не открыть.
-  G.vaultKeys = 0;
+  // Проход запечатан: нажатие E у стены ничего не открывает.
   G.playerPos = { x: vault.from.x, y: vault.from.y };
-  // На клетке перед дверью мог оказаться сундук: тогда первой целью будет он.
+  // На клетке перед проходом мог оказаться сундук: тогда первой целью будет он.
   // Убираем все объекты — в игре игрок просто нажмёт «Е» ещё раз, а проверка
   // одноразовая.
   clearAround(vault.from.x, vault.from.y);
   const lockedTarget = API.interactTarget();
-  log(!!lockedTarget && lockedTarget.kind === "vault" && /заперт/i.test(lockedTarget.label),
-    "тайник заперт", lockedTarget && lockedTarget.label);
+  log(!!lockedTarget && lockedTarget.kind === "vault" && /рычаг/i.test(lockedTarget.label),
+    "в подписи запечатанного прохода сказано про рычаг", lockedTarget && lockedTarget.label);
   API.doInteract();
-  log(vault.locked === true, "и без ключа не открывается");
-  // Ключ со стража этажа.
-  quietFloor(4);
-  if ((G.vaults || []).length) {
-    const v2 = G.vaults[0];
-    const guard = API.makeEnemy("skeleton", 4);
-    guard.guard = true;
-    guard.x = 1; guard.y = 1;
-    G.enemies = [guard];
-    API.defeatEnemy(guard);
-    log(G.vaultKeys > 0, "ключ от тайника снимают со стража этажа", "ключей: " + G.vaultKeys);
-    G.playerPos = { x: v2.from.x, y: v2.from.y };
-    // На клетке перед дверью мог оказаться другой интерактивный объект.
-    clearAround(v2.from.x, v2.from.y);
-    const openTarget = API.interactTarget();
-    API.doInteract();
-    log(!!openTarget && openTarget.kind === "vault" && v2.locked === false,
-      "с ключом тайник открывается", openTarget && openTarget.kind);
-    log(G.vaultKeys === 0, "и ключ тратится", String(G.vaultKeys));
-  }
-
-  // Дверь тайника — проход, но закрытый: шагом не пройти, пока нет ключа.
-  // Раньше клетка двери была стеной, и комната оставалась запечатанной
-  // даже после ключа и рычага.
-  quietFloor(4);
-  if ((G.vaults || []).length) {
-    const v3 = G.vaults[0];
-    const dir = { x: v3.door.x - v3.from.x, y: v3.door.y - v3.from.y };
-    const inside = { x: v3.door.x + dir.x, y: v3.door.y + dir.y };
-    log(G.map.grid[v3.door.y][v3.door.x] === 1, "клетка двери тайника проходима");
-    log(API.cellBlocked(v3.door.x, v3.door.y) === true,
-      "запертая дверь тайника не пропускает шагом");
-    G.vaultKeys = 1;
-    API.openVault(v3);
-    log(API.cellBlocked(v3.door.x, v3.door.y) === false,
-      "открытая дверь тайника пропускает шагом");
-    const pathToInside = API.findPath(G.playerPos, inside);
-    log(!!pathToInside && pathToInside.length > 0, "после открытия путь внутрь есть",
-      pathToInside ? pathToInside.length + " шагов" : "пути нет");
-  }
+  log(vault.locked === true && grid[vault.door.y][vault.door.x] === 0,
+    "без рычага проход не открывается");
+  log(API.cellBlocked(vault.door.x, vault.door.y) === true,
+    "запечатанный проход не пропускает шагом");
 }
 
 // Рычаг: верный ответ открывает тайник, неверный бьёт героя.
@@ -237,17 +199,27 @@ const vaultLever = (G.levers || []).find((l) => API.vaultByUid(l.vault));
 if (vaultLever) {
   const lever = vaultLever;
   const vaultOfLever = API.vaultByUid(lever.vault);
-  G.playerPos = { x: lever.x, y: lever.y - 1 };
+  const door = vaultOfLever.door;
+  G.playerPos = { x: lever.x, y: lever.y };
   API.openLever(lever);
   log(!!lever.view && lever.view.options.length === 4, "рычаг задаёт вопрос с четырьмя вариантами");
   const wrongIdx = lever.view.answer === 0 ? 1 : 0;
   const hpBefore = G.player.hp;
   API.answerLever(lever, wrongIdx);
   log(G.player.hp < hpBefore, "неверный ответ бьёт героя", hpBefore + " -> " + G.player.hp);
-  log(lever.used === false && vaultOfLever.locked === true, "но рычаг остаётся — можно попробовать снова");
+  log(lever.used === false && vaultOfLever.locked === true &&
+    G.map.grid[door.y][door.x] === 0,
+    "но рычаг остаётся, а проход закрыт");
   API.openLever(lever);
   API.answerLever(lever, lever.view.answer);
   log(lever.used === true && vaultOfLever.locked === false, "верный ответ открывает тайник");
+  log(G.map.grid[door.y][door.x] === 1, "в стене появляется проход");
+  log(API.cellBlocked(door.x, door.y) === false, "открытый проход пропускает шагом");
+  const dir = { x: door.x - vaultOfLever.from.x, y: door.y - vaultOfLever.from.y };
+  const inside = { x: door.x + dir.x, y: door.y + dir.y };
+  const path = API.findPath(G.playerPos, inside);
+  log(!!path && path.length > 0, "после открытия путь внутрь есть",
+    path ? path.length + " шагов" : "пути нет");
 }
 
 // Сбой в слое объектов не оставляет на карте чужие спрайты: раньше падение
@@ -262,16 +234,16 @@ if (vaultLever) {
     "после сбоя узлы убираются и отрисовка повторяется");
 }
 
-// Тайник тоже объясняет себя: в подписи кнопки сказано, где ключ.
+// Тайник тоже объясняет себя: в подписи запечатанного прохода сказано про
+// рычаг.
 quietFloor(4);
 if ((G.vaults || []).length) {
   const vv = G.vaults[0];
-  G.vaultKeys = 0;
   G.playerPos = { x: vv.from.x, y: vv.from.y };
   G.treasures = [];
   const vt = API.interactTarget();
-  log(/ключ/i.test(vt.label) && /страж/i.test(vt.label),
-    "в подписи запертого тайника сказано, где ключ", vt.label);
+  log(/рычаг/i.test(vt.label) && /запечат/i.test(vt.label),
+    "в подписи запечатанного прохода сказано про рычаг", vt.label);
 }
 
 // Рычаг понятен и не смертелен: в подписи кнопки сказано, что он открывает
@@ -282,16 +254,12 @@ const leverFloor2 = tries(30, () => {
   return (G.levers || []).length > 0;
 });
 quietFloor(4);
-const shockLever = (G.levers || []).find((l) => {
-  if (!l.shortcut) return !!API.vaultByUid(l.vault);
-  const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
-  return sc && sc.kind === "collapse";
-});
+const shockLever = (G.levers || []).find((l) => !!API.vaultByUid(l.vault));
 if (shockLever) {
   const lv = shockLever;
   G.playerPos = { x: lv.x, y: lv.y };
   const lvTarget = API.interactTarget();
-  log(/рычаг|обвал|тайник/i.test(lvTarget.label), "в подписи рычага сказано, что он делает", lvTarget.label);
+  log(/рычаг|проход|тайник/i.test(lvTarget.label), "в подписи рычага сказано, что он делает", lvTarget.label);
   API.openLever(lv);
   const lvHtml = el("dialog-box").innerHTML;
   log(/не убьёт/i.test(lvHtml) && /током/i.test(lvHtml),
@@ -2965,6 +2933,9 @@ log(!API.blessOffered(0, null) && !API.blessOffered(2, null),
 log(API.blessOffered(3, null) && !API.blessOffered(3, "curse") &&
   !API.blessOffered(3, "blessing") && !API.blessOffered(3, "pass"),
   "на четвёртом этаже выбор есть, но только один раз");
+log(!API.blessOffered(4, null) && !API.blessOffered(5, null) &&
+  API.blessOffered(6, null) && API.blessOffered(9, null),
+  "алтарь стоит на 4, 7, 10 и 13 этажах, а не на каждом");
 log(API.BLESSINGS.curse.good && API.BLESSINGS.curse.extra &&
   API.BLESSINGS.blessing.good && API.BLESSINGS.blessing.extra &&
   API.BLESSINGS.pass.good,
@@ -2973,13 +2944,50 @@ log(API.blessingFor(3, "curse").key === "curse" &&
   API.blessingFor(3, "blessing").key === "blessing" &&
   API.blessingFor(3, "pass").key === "pass",
   "все три варианта развилки описаны");
+// Третья карточка не должна висеть слева под двумя: она занимает всю
+// ширину сетки и стоит по центру.
+log(/\.bless-card\.pass\s*\{[^}]*grid-column:\s*1\s*\/\s*-1[^}]*justify-self:\s*center/s.test(gameCss),
+  "«Пройти мимо» стоит по центру под двумя карточками");
+
+// Алтарь сделки: комната на карте, а не окно на входе.
+freshRun(6);
+const altar = (G.altars || [])[0] || null;
+log(!!altar, "на этаже с алтарём он есть",
+  altar ? ("клетка " + altar.x + "," + altar.y) : "нет");
+if (altar) {
+  log(G.map.grid[altar.y][altar.x] === 1, "алтарь стоит на проходимой клетке");
+  log(!!API.findPath(G.playerPos, altar), "к алтарю есть путь");
+  G.playerPos = { x: altar.x, y: altar.y };
+  const sameCell = (o) => o && o.x === altar.x && o.y === altar.y;
+  G.treasures = (G.treasures || []).filter((o) => !sameCell(o));
+  G.levers = (G.levers || []).filter((o) => !sameCell(o));
+  G.signs = (G.signs || []).filter((o) => !sameCell(o));
+  G.nodes = (G.nodes || []).filter((o) => !sameCell(o));
+  const altarTarget = API.interactTarget();
+  log(!!altarTarget && altarTarget.kind === "altar",
+    "у алтаря есть действие", altarTarget && altarTarget.label);
+  API.openAltar(altar);
+  log(G.blessingOffer === 6 && !el("blessing-overlay").classList.contains("hidden"),
+    "алтарь открывает выбор сделки");
+  API.closeBlessing();
+  log(altar.used === false && el("blessing-overlay").classList.contains("hidden"),
+    "окно можно закрыть без выбора");
+  API.openAltar(altar);
+  API.chooseBlessing("pass");
+  log(altar.used === true && G.blessings[6] === "pass",
+    "выбор помечает алтарь использованным");
+}
+
+// На обычном этаже алтаря нет.
+freshRun(4);
+log((G.altars || []).length === 0, "на этаже без сделки алтаря нет");
 
 // Тёмная сделка: монстры бьют сильнее, но золото удваивается.
-freshRun(4);
+freshRun(6);
 G.player.gold = 0;
-G.blessingOffer = 4;
+G.blessingOffer = 6;
 API.chooseBlessing("curse");
-log(G.blessings[4] === "curse" && G.blessingOffer === null,
+log(G.blessings[6] === "curse" && G.blessingOffer === null,
   "выбор записан и окно предложения закрыто", JSON.stringify(G.blessings));
 log(G.player.gold === API.BLESS.curseGold,
   "за сделку сразу заплатили золотом", G.player.gold);
@@ -2989,12 +2997,12 @@ log(API.goldMulForFloor() === API.BLESS.curseGoldMul,
   "золото с монстров удвоено", API.goldMulForFloor());
 
 // «Пройти мимо» — третий вариант развилки: ничего не даёт и ничего не стоит.
-freshRun(4);
+freshRun(6);
 G.player.gold = 0;
 const passHp = G.player.maxHp;
-G.blessingOffer = 4;
+G.blessingOffer = 6;
 API.chooseBlessing("pass");
-log(G.blessings[4] === "pass" && G.player.gold === 0 && G.player.maxHp === passHp,
+log(G.blessings[6] === "pass" && G.player.gold === 0 && G.player.maxHp === passHp,
   "третий вариант ничего не меняет", JSON.stringify(G.blessings));
 log(API.blessingOnFloor() && API.blessingOnFloor().key === "pass",
   "этаж остаётся обычным", API.blessingOnFloor() && API.blessingOnFloor().key);
@@ -3023,7 +3031,7 @@ log(API.eliteChanceFor(8, false) === steadyChance && API.goldMulForFloor() === 1
   "Ровный спуск возвращает обычные правила");
 
 // Средний урон по двумстам ударам: со сделкой он выше.
-freshRun(4);
+freshRun(6);
 function averageHit() {
   const foe = API.makeEnemy("slime", 4);
   foe.x = G.playerPos.x + 1;
@@ -3042,22 +3050,34 @@ function averageHit() {
 }
 G.blessings = {};
 const plainHit = averageHit();
-G.blessings = { 4: "curse" };
+G.blessings = { 6: "curse" };
 const cursedHit = averageHit();
 log(cursedHit > plainHit * 1.15, "со сделкой монстр бьёт заметно сильнее",
   "обычно " + plainHit.toFixed(1) + ", со сделкой " + cursedHit.toFixed(1));
 
 // Каменный дар: здоровья больше, но монстры затягивают раны.
-freshRun(4);
+freshRun(6);
 G.player.hp = 50;
 const giftBefore = G.player.baseMaxHp;
-G.blessingOffer = 4;
+const giftMaxBefore = G.player.maxHp;
+G.blessingOffer = 6;
 API.chooseBlessing("blessing");
-log(G.player.baseMaxHp === giftBefore + 30, "дар поднял предел здоровья",
-  giftBefore + " -> " + G.player.baseMaxHp);
+log(G.player.baseMaxHp === giftBefore &&
+  G.player.maxHp === giftMaxBefore + API.BLESS.blessingHp,
+  "дар поднял предел здоровья на этаже",
+  giftBefore + " -> " + G.player.maxHp);
 log(G.player.hp === G.player.maxHp, "дар полностью исцелил", G.player.hp);
 log(API.blessingOnFloor() && API.blessingOnFloor().key === "blessing",
   "дар действует на текущем этаже");
+
+// Смена этажа снимает временный бонус.
+G.floorIndex = 5;
+API.recalcStats();
+log(G.player.maxHp === giftMaxBefore,
+  "при переходе на другой этаж дар снимается", G.player.maxHp);
+G.floorIndex = 6;
+API.recalcStats();
+G.player.hp = G.player.maxHp;
 
 const giftFoe = API.makeEnemy("slime", 4);
 giftFoe.x = G.playerPos.x + 1;
@@ -3092,6 +3112,19 @@ const roundHaz = API.deserializeFloor(API.serializeFloor({
 log(roundHaz.hazard && roundHaz.hazard[0][1] === "lava" && roundHaz.hazard[1][2] === "frost",
   "клетки среды переживают сохранение");
 
+const roundAltar = API.deserializeFloor(API.serializeFloor({
+  index: 6,
+  map: { w: 3, h: 3, grid: [[1, 1, 1], [1, 1, 1], [1, 1, 1]], decor: [[0, 0, 0], [0, 0, 0], [0, 0, 0]] },
+  playerPos: { x: 1, y: 1 },
+  stairsDown: { x: 2, y: 2, active: true },
+  stairsUp: null,
+  enemies: [], treasures: [], traders: [], traps: [],
+  altars: [{ uid: 1, x: 1, y: 1, used: true }],
+  discovered: []
+}));
+log((roundAltar.altars || []).length === 1 && roundAltar.altars[0].used === true,
+  "алтари переживают сохранение");
+
 const oldHaz = API.deserializeFloor({
   index: 0,
   map: { w: 2, h: 2, grid: [[1, 1], [1, 1]], decor: [[0, 0], [0, 0]] },
@@ -3105,42 +3138,51 @@ log(oldHaz.hazard === null || oldHaz.hazard === undefined ||
   "старое сохранение без среды грузится");
 
 // Сделки живут в сохранении целиком.
-freshRun(4);
-G.blessings = { 4: "blessing" };
+freshRun(6);
+G.blessings = { 6: "blessing" };
 API.saveGame();
 G.blessings = {};
 API.loadGame();
-log(G.blessings && G.blessings[4] === "blessing",
+log(G.blessings && G.blessings[6] === "blessing",
   "сделка восстанавливается из сохранения", JSON.stringify(G.blessings || {}));
 
-// Окно предложения появляется при входе на этаж и ждёт ответа.
-freshRun(4);
-G.visited = new Set([0, 1, 2, 3]);
+// Окно сделки открывается только у алтаря, а не при входе на этаж.
+freshRun(6);
+G.visited = new Set([0, 1, 2, 3, 4, 5]);
 G.blessings = {};
 G.blessingOffer = null;
-API.activateFloor(4);
-log(G.blessingOffer === 4, "на четвёртом этаже предложена сделка", G.blessingOffer);
-log(!el("blessing-overlay").classList.contains("hidden"),
-  "окно сделки показано игроку");
-API.chooseBlessing("blessing");
-log(el("blessing-overlay").classList.contains("hidden"),
-  "после выбора окно закрывается");
-API.activateFloor(4);
-log(G.blessingOffer === null, "повторно сделка не предлагается");
-
-// Развилка принадлежит этажу: при спуске старый оверлей закрывается, а дар
-// не переносится на другой этаж. freshRun(4) уже открыл развилку на этаже 4.
-freshRun(4);
-log(G.blessingOffer === 4 && !el("blessing-overlay").classList.contains("hidden"),
-  "развилка открыта на своём этаже", G.blessingOffer);
-G.visited = new Set([0, 1, 2, 3, 4, 5]);
-API.activateFloor(5);
+API.activateFloor(6);
 log(G.blessingOffer === null && el("blessing-overlay").classList.contains("hidden"),
-  "смена этажа закрывает старую развилку");
-API.chooseBlessing("blessing");
-log(G.blessings[4] === undefined && G.blessings[5] === undefined,
-  "выбор после смены этажа не применяет дар к чужому этажу",
-  JSON.stringify(G.blessings));
+  "при входе на этаж окно не открывается само");
+const testAltar = (G.altars || [])[0] || null;
+log(!!testAltar, "на этаже с алтарём он стоит на карте");
+if (testAltar) {
+  API.openAltar(testAltar);
+  log(G.blessingOffer === 6, "алтарь открывает выбор сделки", G.blessingOffer);
+  API.chooseBlessing("blessing");
+  log(el("blessing-overlay").classList.contains("hidden"),
+    "после выбора окно закрывается");
+  API.openAltar(testAltar);
+  log(G.blessingOffer === null, "повторно алтарь сделку не предлагает");
+}
+
+// Алтарь принадлежит этажу: при спуске старое окно закрывается, а выбор
+// не применяется к чужому этажу.
+freshRun(6);
+const oldAltar = (G.altars || [])[0] || null;
+if (oldAltar) {
+  API.openAltar(oldAltar);
+  G.visited = new Set([0, 1, 2, 3, 4, 5, 6]);
+  API.activateFloor(7);
+  log(G.blessingOffer === null && el("blessing-overlay").classList.contains("hidden"),
+    "смена этажа закрывает окно алтаря");
+  API.chooseBlessing("blessing");
+  log(G.blessings[6] === undefined && G.blessings[7] === undefined,
+    "выбор после смены этажа не применяется к чужому этажу",
+    JSON.stringify(G.blessings));
+} else {
+  log(false, "для проверки смены этажа нужен алтарь");
+}
 
 // ================= 19. Пункт 1: кнопка действия у объекта ===========
 // Замысел: сундук, торговец и лестница перестали срабатывать сами от
@@ -4733,14 +4775,21 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(!!attacker, "отряд в коридоре: до героя доходит ведомый, а не никто",
     attacker ? attacker.name + " на " + attacker.x + "," + attacker.y : "никто не напал за 5 ходов");
 
-  // --- «Каменный дар» переживает смерть ---
-  freshRun(0);
-  API.activateFloor(4);
-  API.chooseBlessing("blessing");
+  // --- «Каменный дар» переживает смерть на своём этаже ---
+  freshRun(6);
+  const deathAltar = (G.altars || [])[0] || null;
+  if (deathAltar) {
+    API.openAltar(deathAltar);
+    API.chooseBlessing("blessing");
+  } else {
+    G.blessingOffer = 6;
+    API.chooseBlessing("blessing");
+  }
   const withGift = G.player.maxHp;
   const baseWithGift = G.player.baseMaxHp;
   API.restartFloor();
-  log(G.player.maxHp === withGift && G.player.baseMaxHp === baseWithGift && G.blessings[4] === "blessing",
+  log(G.player.maxHp === withGift && G.player.baseMaxHp === baseWithGift &&
+    G.blessings[6] === "blessing",
     "после смерти максимум здоровья от «Каменного дара» остаётся",
     "было " + withGift + ", стало " + G.player.maxHp);
 
@@ -6990,9 +7039,8 @@ log(overlaySrc.indexOf("G.entityEls = new Map()") < 0,
   "слой объектов чистится, а не пересоздаётся (нет G.entityEls = new Map())");
 
 // ==== Тайники, комнаты и рычаги ====
-// Дверь тайника обязана быть проходом. Раньше комната 3×3 вырубалась в
-// монолите, а дверь оставалась стеной: ключ и рычаг открывали несуществующий
-// проход, и девять клеток с добычей были недостижимы навсегда.
+// Тайник — отдельная комната, вырубленная в монолите. Пока рычаг не опущен,
+// входа нет: в стене нет прохода. Ключа нет, рычаг — единственный способ.
 let vaultFloor = -1;
 let vault = null;
 for (let f = 3; f < 12 && !vault; f++) {
@@ -7008,41 +7056,39 @@ if (vault) {
   const from = vault.from;
   const dir = { x: door.x - from.x, y: door.y - from.y };
   const insideCell = G.map.grid[door.y + dir.y] && G.map.grid[door.y + dir.y][door.x + dir.x];
-  log(G.map.grid[door.y][door.x] === 1, "дверь тайника — проход, а не стена",
+  log(G.map.grid[door.y][door.x] === 0, "проход к тайнику запечатан стеной",
     "grid[" + door.y + "][" + door.x + "] = " + G.map.grid[door.y][door.x]);
-  log(insideCell === 1, "за дверью есть проходимая комната");
+  log(insideCell === 1, "за стеной есть проходимая комната");
 
   log(API.cellBlocked(door.x, door.y) === true,
-    "запертая дверь тайника не пропускает героя");
-
-  G.vaultKeys = 1;
-  API.openVault(vault);
-  log(vault.locked === false, "ключ открывает тайник");
-  log(API.cellBlocked(door.x, door.y) === false,
-    "открытая дверь тайника пропускает героя");
-
-  const target = { x: door.x + dir.x, y: door.y + dir.y };
-  const path = API.findPath(G.playerPos, target);
-  log(!!path && path.length > 0, "после открытия к комнате есть путь",
-    path ? path.length + " шагов" : "пути нет");
-
-  // На клетке перед дверью ничего не должно стоять: иначе E открывает жилу
-  // или табличку вместо тайника, и кажется, что ключ не работает.
-  const busy = (G.nodes || []).some((n) => n.x === from.x && n.y === from.y && !n.taken) ||
-    (G.signs || []).some((s2) => s2.x === from.x && s2.y === from.y) ||
-    (G.camps || []).some((c) => c.x === from.x && c.y === from.y) ||
-    (G.levers || []).some((l) => l.x === from.x && l.y === from.y) ||
-    (G.treasures || []).some((t) => t.x === from.x && t.y === from.y);
-  log(!busy, "перед дверью тайника ничего не мешает нажать E",
-    "клетка " + from.x + "," + from.y);
+    "запечатанный проход не пропускает героя");
 
   const lever = (G.levers || []).find((l) => l.vault === vault.uid);
   log(!!lever && !!API.findPath(G.playerPos, lever),
     "рычаг тайника достижим и связан с комнатой");
   if (lever) {
-    log(lever.vault === vault.uid, "рычаг ссылается на тайник этажа",
-      lever.vault + " / " + vault.uid);
+    API.openLever(lever);
+    API.answerLever(lever, lever.view.answer);
+    log(vault.locked === false, "рычаг открывает тайник");
+    log(G.map.grid[door.y][door.x] === 1, "в стене появляется проход");
+    log(API.cellBlocked(door.x, door.y) === false,
+      "открытый проход пропускает героя");
+
+    const target = { x: door.x + dir.x, y: door.y + dir.y };
+    const path = API.findPath(G.playerPos, target);
+    log(!!path && path.length > 0, "после открытия к комнате есть путь",
+      path ? path.length + " шагов" : "пути нет");
   }
+
+  // На клетке перед проходом ничего не должно стоять: иначе E открывает жилу
+  // или табличку вместо тайника.
+  const busy = (G.nodes || []).some((n) => n.x === from.x && n.y === from.y && !n.taken) ||
+    (G.signs || []).some((s2) => s2.x === from.x && s2.y === from.y) ||
+    (G.camps || []).some((c) => c.x === from.x && c.y === from.y) ||
+    (G.levers || []).some((l) => l.x === from.x && l.y === from.y) ||
+    (G.treasures || []).some((t) => t.x === from.x && t.y === from.y);
+  log(!busy, "перед проходом тайника ничего не мешает нажать E",
+    "клетка " + from.x + "," + from.y);
 }
 
 // Автосейв (и спуск) идут через snapshotCurrent(): интерактив этажа обязан
@@ -7899,7 +7945,6 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
             !(role === "junction" && sign.title === "Развилка")) bad += 1;
       });
       state.levers.forEach((lever) => {
-        if (lever.shortcut) return;
         const role = roleAt[lever.x + "," + lever.y];
         if (role && ["lore", "junction"].indexOf(role) < 0) bad += 1;
       });
@@ -8003,51 +8048,41 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   API.setCampaign(1);
 }
 
-// Этап 3.2: короткие пути — обвал и хрупкий мост.
+// Этап 3.2: у рычага одна задача — открыть проход к тайнику.
 {
   freshRun(0);
   API.setCampaign(2);
   API.setGenV2(true);
-
-  freshRun(0);
-  const caveLever = (G.levers || []).find((l) => {
-    const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
-    return sc && sc.kind === "collapse";
-  });
-  const caveSc = caveLever && (G.shortcuts || []).find((s) =>
-    s.uid === caveLever.shortcut);
-  let caveOk = false;
-  if (caveLever && caveSc) {
-    API.openLever(caveLever);
-    API.answerLever(caveLever, caveLever.view.answer);
-    const cell = caveSc.cells[0];
-    caveOk = caveSc.open && G.map.grid[cell.y][cell.x] === 1;
+  let wrongLevers = 0;
+  let checkedLevers = 0;
+  for (let f = 0; f < 10; f += 1) {
+    freshRun(f);
+    (G.levers || []).forEach((l) => {
+      checkedLevers += 1;
+      if (!l.vault || !API.vaultByUid(l.vault)) wrongLevers += 1;
+      if (l.shortcut) wrongLevers += 1;
+    });
   }
-  log(caveOk, "пещеры: верный ответ расчищает обвал");
+  log(checkedLevers > 0 && wrongLevers === 0,
+    "у рычага одна задача — открыть тайник",
+    checkedLevers + " рычагов, " + wrongLevers + " лишних");
 
-  freshRun(7);
-  const bridgeLever = (G.levers || []).find((l) => {
-    const sc = (G.shortcuts || []).find((s) => s.uid === l.shortcut);
-    return sc && sc.kind === "bridge";
-  });
-  const bridgeSc = bridgeLever && (G.shortcuts || []).find((s) =>
-    s.uid === bridgeLever.shortcut);
-  let bridgeOk = false;
-  if (bridgeLever && bridgeSc) {
-    API.openLever(bridgeLever);
-    const wrong = (bridgeLever.view.answer + 1) % bridgeLever.view.options.length;
-    API.answerLever(bridgeLever, wrong);
-    const cell = bridgeSc.cells[0];
-    const safe = API.findPath(G.playerPos, G.stairsDown);
-    bridgeOk = !bridgeSc.open && G.map.grid[cell.y][cell.x] === 0 && !!safe;
+  // Открытый проход переживает сохранение этажа.
+  let savedPassage = false;
+  for (let f = 3; f < 12 && !savedPassage; f += 1) {
+    freshRun(f);
+    const vault = (G.vaults || [])[0];
+    const lever = vault && (G.levers || []).find((l) => l.vault === vault.uid);
+    if (!lever) continue;
+    API.openLever(lever);
+    API.answerLever(lever, lever.view.answer);
+    const ser = API.serializeFloor(G.cache[G.floorIndex]);
+    const restored = API.deserializeFloor(JSON.parse(JSON.stringify(ser)));
+    const rv = (restored.vaults || [])[0];
+    savedPassage = !!rv && !rv.locked &&
+      restored.map.grid[rv.door.y][rv.door.x] === 1;
   }
-  log(bridgeOk, "лёд: неверный ответ рушит мост, но обход остаётся");
-
-  const saved = API.serializeFloor(G.cache[G.floorIndex]);
-  const restored = API.deserializeFloor(JSON.parse(JSON.stringify(saved)));
-  log((restored.shortcuts || []).length === (G.shortcuts || []).length &&
-    restored.levers.some((l) => l.shortcut),
-    "короткие пути переживают сохранение");
+  log(savedPassage, "открытый проход переживает сохранение");
 
   API.setGenV2(true);
   API.setCampaign(1);

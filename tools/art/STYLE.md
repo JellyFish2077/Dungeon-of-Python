@@ -74,6 +74,7 @@ tools/art/aseprite/items.aseprite        short_sword, small_potion, … (6 пр�
 tools/art/aseprite/items2.aseprite       остальные 23 предмета
 tools/art/aseprite/items3.aseprite       ash_blade, ash_mantle, ash_eye, dawn_blade, warden_plate, heart_abyss
 tools/art/aseprite/items4.aseprite       деревянный, круглый, стальной, зеркальный щиты и щит хранителя
+tools/art/aseprite/objects4.aseprite     алтарь сделки
 tools/art/aseprite/equipment.aseprite    надетые вещи: по кадру на каждый предмет, слой поверх player_base
 tools/art/aseprite/objects.aseprite      chest
 tools/art/aseprite/objects2.aseprite     portal

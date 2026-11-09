@@ -48,6 +48,7 @@ bootstrap/make_objects3.py  одноразовый генератор жилы, 
 bootstrap/make_furniture.py  одноразовый генератор мебели домов
 bootstrap/make_actions.py  одноразовый генератор значков действий в бою
 bootstrap/make_shields.py  одноразовый генератор новых щитов
+bootstrap/make_altar.py    одноразовый генератор алтаря сделки
 export_aseprite.py       Aseprite CLI → src_custom
 build_art.py             src + src_custom → static/sprites.js, static/terrain.js
 ```

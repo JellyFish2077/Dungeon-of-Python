@@ -10,9 +10,17 @@
     python tools/build_web.py
     python -m http.server 8080 --directory standalone/build
 
+Локальная сборка с панелью разработчика:
+    python tools/build_web.py --dev
+
+Сборка с --dev предназначена только для проверки на своём компьютере:
+кнопка DEV включается в web-boot.js, а на публичный сайт её выкладывать
+нельзя. Перед публикацией соберите заново без --dev.
+
 Для Itch.io загружается содержимое standalone/build/ (zip или HTML-игра).
 Pyodide берётся с CDN, пока не запущен tools/fetch_pyodide.py.
 """
+import argparse
 import pathlib
 import re
 import shutil
@@ -58,6 +66,10 @@ def rewrite_worker_loader(text, stamp):
 
 
 def main():
+    ap = argparse.ArgumentParser(description="Собрать standalone-версию игры.")
+    ap.add_argument("--dev", action="store_true",
+                    help="включить кнопку DEV (только для локальной проверки)")
+    args = ap.parse_args()
     stamp = time.strftime("%Y%m%d%H%M%S", time.gmtime())
     if not STATIC.is_dir():
         print("нет папки static/", file=sys.stderr)
@@ -103,6 +115,26 @@ def main():
             )
         else:
             shutil.copy2(src, PUBLIC / "static" / name)
+
+    # Локальная сборка: включаем панель разработчика. Публичная сборка
+    # (без --dev) остаётся с dev: false, поэтому кнопка DEV на сайт не уедет.
+    if args.dev:
+        boot = PUBLIC / "static" / "web-boot.js"
+        text = boot.read_text(encoding="utf-8")
+        patched = text.replace(
+            "dev: false, generatedCode: false",
+            "dev: true, generatedCode: false",
+        )
+        if patched == text:
+            print("не удалось включить DEV: строка фич не найдена", file=sys.stderr)
+            return 1
+        patched = patched.replace(
+            "window.__PYQUIZ_FEATURES = { code: true, dev: true, generatedCode: false };",
+            "window.__PYQUIZ_FEATURES = { code: true, dev: true, generatedCode: false };\n"
+            "  window.__PYQUIZ_DEV_BUILD = true;",
+        )
+        boot.write_text(patched, encoding="utf-8")
+        print("DEV включён: локальная сборка, не для публикации.")
 
     # Шрифты игры. Отдельного лендинга больше нет: корень — сама игра.
     fonts_assets = STATIC / "fonts"

@@ -3020,6 +3020,21 @@
           "status": "in-game review"
         }
       ]
+    },
+    "objects4": {
+      "source": "tools/art/aseprite/objects4.aseprite",
+      "destination": "tools/art/src_custom/objects",
+      "assets": [
+        {
+          "tag": "altar",
+          "file": "altar.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
     }
   }
 }

@@ -581,8 +581,15 @@ def run_checks(browser, base):
     check(not page.locator("#menu-overlay").is_visible(), "«Новая игра» закрывает меню")
     check(not page.locator("#entrance-overlay").is_visible(),
           "«Новая игра» не открывает стража автоматически")
-    check(page.locator("#dev-toggle").count() == 0,
-          "в публичной сборке нет кнопки DEV")
+    dev_build = page.evaluate("() => window.__PYQUIZ_DEV_BUILD === true")
+    dev_enabled = page.evaluate(
+        "() => !!(window.__PYQUIZ_FEATURES && window.__PYQUIZ_FEATURES.dev)")
+    if dev_build:
+        check(dev_enabled and page.locator("#dev-toggle").count() == 1,
+              "в локальной dev-сборке есть кнопка DEV")
+    else:
+        check(not dev_enabled and page.locator("#dev-toggle").count() == 0,
+              "в публичной сборке нет кнопки DEV")
     check(page.locator("#minimap").is_visible() and
           page.locator("#minimap-controls").is_visible() and
           page.locator("#minimap-zoom-in").is_visible() and

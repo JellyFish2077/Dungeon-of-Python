@@ -2955,18 +2955,43 @@ pre.code {
   }
 }
 
-/* ---------- Развилка на входе: сделка ---------- */
-/* Развилка на входе — окно уровня карты, а не модальное: в разметке она стоит
-   последней среди .overlay, и при общем z-index: 60 перекрывала бой, лавку и
-   экран победы. Ученик, не ответивший на развилку, видел её карточки поверх
-   всего и не мог ни драться, ни нажать «В деревню» после дракона. Ниже 60 —
-   значит выше карты и панели (их z-index максимум 20), но ниже любого окна. */
+/* ---------- Алтарь сделки: выбор на карте ---------- */
+/* Окно алтаря — уровень карты, а не модальное: в разметке оно стоит
+   последней среди .overlay, и при общем z-index: 60 перекрывало бой, лавку и
+   экран победы. Ниже 60 — значит выше карты и панели (их z-index максимум 20),
+   но ниже любого окна. */
 #blessing-overlay {
   z-index: 55;
 }
 
 .bless-box {
   max-width: 640px;
+  position: relative;
+}
+
+/* Закрыть алтарь без выбора: он остаётся доступным до первого ответа. */
+.bless-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #cbd5f5;
+  font: 700 18px/1 var(--font-ui, system-ui, sans-serif);
+  cursor: pointer;
+}
+
+.bless-close:hover {
+  border-color: rgba(148, 163, 184, 0.75);
+  color: #fff;
+}
+
+/* Алтарь на карте: камень без свечения; после сделки он просто тускнеет. */
+.ent-altar.spent .sprite-img {
+  filter: grayscale(0.85) brightness(0.55);
 }
 
 .bless-lead {
@@ -2988,6 +3013,7 @@ pre.code {
   align-items: center;
   text-align: center;
   padding: 18px 14px;
+  min-width: 0;
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.35);
   background: rgba(24, 33, 51, 0.95);
@@ -3014,6 +3040,15 @@ pre.code {
 .bless-card.pass:hover {
   box-shadow: 0 0 22px rgba(148, 163, 184, 0.28);
   border-color: rgba(148, 163, 184, 0.7);
+}
+
+/* Третий вариант — «Пройти мимо» — не должен висеть слева под двумя
+   карточками. Он занимает всю ширину сетки, но остаётся карточкой того же
+   размера и стоит по центру. */
+.bless-card.pass {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(260px, 100%);
 }
 
 .bless-icon {

@@ -582,6 +582,16 @@
         }
       ]
     },
+    "objects4": {
+      "destination": "objects",
+      "assets": [
+        {
+          "tag": "altar",
+          "file": "altar.png",
+          "sha256": "21945a9edc9764d207bd5597bc4003da32003e37cd1c8ae51334445775820373"
+        }
+      ]
+    },
     "furniture": {
       "destination": "objects",
       "assets": [
@@ -2023,6 +2033,7 @@
     "objects/ore.png": "913d471d7549d568ade180091fd41751c63670a9363f6198cacede387aafcda3",
     "objects/rubble.png": "28ddd19e1f03c463310204506d540a4122a57fd6608eb8a798e4604745f34ca9",
     "objects/sign.png": "cb22deb6b298d4c65e9c7646d5b8b6977f6c76e474ca2eeb66b8eac2830b125c",
+    "objects/altar.png": "21945a9edc9764d207bd5597bc4003da32003e37cd1c8ae51334445775820373",
     "objects/anvil.png": "d00d9a18ce012f778ab7f60a835d6a56a029a34bcf2188376eb3b803d8b6d0ac",
     "objects/bed.png": "cd48000749c7d58af1f41e3c1d87eb947ce5ad4bee0a81da19ff1006b770a8c1",
     "objects/cauldron.png": "4cb8927346afc2a093b508a9c1e5d45ab8514d03683f3431041c5584d635bd8c",

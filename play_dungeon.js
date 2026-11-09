@@ -389,11 +389,20 @@ function playStep(skill, rng, state) {
     return "chest";
   }
 
-  // Тайник под боком: ключ есть и дверь заперта — открываем. Уже открытый
-  // тайник не трогаем: иначе бот «открывал» бы его каждый ход и вставал.
-  if (near && near.kind === "vault" && near.obj.locked && (G.vaultKeys || 0) > 0) {
-    if (API.openVault(near.obj)) state.vaultsOpened = (state.vaultsOpened || 0) + 1;
-    return "vault";
+  // Рычаг под боком: бот решает вопрос и открывает проход к тайнику.
+  // Ошибка не смертельна, поэтому бот пробует снова на следующем ходу.
+  if (near && near.kind === "lever" && !near.obj.used) {
+    API.openLever(near.obj);
+    if (near.obj.view) {
+      const right = near.obj.view.answer;
+      const pick = rng() < skill ? right : (right + 1) % near.obj.view.options.length;
+      API.answerLever(near.obj, pick);
+      if (near.obj.used) {
+        state.vaultsOpened = (state.vaultsOpened || 0) + 1;
+        return "vault";
+      }
+      return "lever";
+    }
   }
 
   // Жилы: материалы нужны деревне, а бот копит именно их.

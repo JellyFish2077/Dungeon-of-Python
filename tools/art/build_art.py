@@ -525,7 +525,7 @@ def build(manifest):
     objects = {"chest": png_uri(load("objects/chest.png"))}
     if has_custom("objects/portal.png"):
         objects["portal"] = png_uri(load("objects/portal.png"))
-    for key in ("ore", "rubble", "lever", "sign", "lootBag",
+    for key in ("ore", "rubble", "lever", "sign", "lootBag", "altar",
                 "table", "chair", "bed", "shelf", "crate", "anvil",
                 "fireplace", "workbench", "cauldron", "counter"):
         if has_custom("objects/%s.png" % key):
