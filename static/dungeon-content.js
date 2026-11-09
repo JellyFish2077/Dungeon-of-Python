@@ -315,15 +315,15 @@ const BLESSINGS = {
     key: "curse",
     name: "Тёмная сделка",
     icon: "☠",
-    good: "Все монстры этажа бьют на 25% сильнее.",
-    extra: "Сразу +40 золота, а золото с монстров удваивается."
+    good: "Все монстры этажа бьют на 35% сильнее.",
+    extra: "Сразу +60 золота, а золото с монстров удваивается."
   },
   blessing: {
     key: "blessing",
     name: "Каменный дар",
     icon: "✦",
-    good: "+30 к максимуму здоровья и полное исцеление.",
-    extra: "Монстры этажа восстанавливают 8% от нанесённого тобой урона."
+    good: "+40 к максимуму здоровья на этот этаж и полное исцеление.",
+    extra: "Монстры этажа восстанавливают 10% от нанесённого тобой урона."
   },
   pass: {
     key: "pass",
@@ -335,13 +335,19 @@ const BLESSINGS = {
 };
 
 const BLESS = {
-  from: 3, // выбор появляется с четвёртого этажа
-  curseEnemyDmg: 1.25,
-  curseGold: 40,
+  from: 3, // первый алтарь — с четвёртого этажа
+  every: 3, // и дальше на 7, 10, 13…
+  curseEnemyDmg: 1.35,
+  curseGold: 60,
   curseGoldMul: 2,
-  blessingHp: 30,
-  blessingEnemyRegen: 0.08
+  blessingHp: 40,
+  blessingEnemyRegen: 0.10
 };
+
+// Алтарь стоит не на каждом этаже: только на первом этаже нового биома.
+function blessingFloor(index) {
+  return index >= BLESS.from && (index - BLESS.from) % BLESS.every === 0;
+}
 
 function hazardByKey(key) {
   return HAZARD_TYPES[key] || null;
@@ -371,9 +377,9 @@ function hazardDensity(key) {
   return HAZARD_DENSITY[key] || 0;
 }
 
-// Выбор показывается только с BLESS.from и только один раз на этаж.
+// Выбор доступен только на этажах с алтарём и только один раз на этаж.
 function blessOffered(index, chosen) {
-  if (index < BLESS.from) return false;
+  if (!blessingFloor(index)) return false;
   return !chosen || !BLESSINGS[chosen];
 }
 
@@ -381,7 +387,7 @@ function blessOffered(index, chosen) {
 // отсекала ровно тот случай, ради которого функция нужна: выбранную сделку.
 // Из-за этого цена «Каменного дара» (регенерация врагов) не работала вовсе.
 function blessingFor(index, chosen) {
-  if (index < BLESS.from) return null;
+  if (!blessingFloor(index)) return null;
   return BLESSINGS[chosen] || null;
 }
 

@@ -1604,6 +1604,9 @@
         problems.push("комната без геометрии");
         return;
       }
+      // Запечатанный тайник намеренно недостижим: проход в стене откроет
+      // рычаг. Остальные комнаты обязаны быть связаны с входом.
+      if (room.meta && room.meta.sealed) return;
       if (!reach.has(room.center.x + "," + room.center.y)) {
         problems.push("комната недостижима: " + room.role);
       }
@@ -1965,8 +1968,6 @@
     ability: { key: "", left: 0 },
     // Знамение похода: steady / blood / quiet. Меняет этаж, а не масштаб.
     omen: "steady",
-    // Ключи от тайников: походные, а не профильные — тайник на каждом этаже свой.
-    vaultKeys: 0,
     // Сколько привалов ещё осталось в этом походе.
     restsLeft: 0,
     visible: new Set(),
@@ -1980,8 +1981,9 @@
     arenaHazardKey: "",
     // Выбранная сделка на каждый этаж: { 3: "curse", 5: "blessing" }.
     blessings: {},
-    // Этаж, на котором сейчас ждём выбор (показывается один раз).
+    // Этаж и алтарь, у которого сейчас открыт выбор сделки.
     blessingOffer: null,
+    altarOffer: null,
     walkTarget: null,
     battle: null,
     lastQId: null,
@@ -3095,13 +3097,12 @@
       vaults: [],
       nodes: [],
       levers: [],
-      shortcuts: [],
+      altars: [],
       crypts: [],
       signs: [],
       portal: null,
       // Двери комнат: только для этажей с планом, у арен и legacy их нет.
       doors: [],
-      vaultNeedsKey: false,
       discovered: new Set()
     };
 
@@ -3239,14 +3240,10 @@
     // Тайник ставится первым: он carve-ит комнату в монолите, и делать это
     // надо до того, как по свободным клеткам разложены жилы и таблички.
     const vault = placeVault(state, index, gen, used);
-    if (vault) {
-      state.vaults.push(vault);
-      // Ключ от тайника лежит на страже этажа: спуск за тайником — это
-      // отдельная маленькая цель, а не подарок.
-      state.vaultNeedsKey = true;
-    }
+    if (vault) state.vaults.push(vault);
     state.nodes = (state.nodes || []).concat(placeNodes(index, free, used));
     state.levers = placeLevers(index, free, used, state.vaults);
+    state.altars = placeAltars(state, index, free, used);
     state.signs = placeSigns(index, free, used, gen.spots.length);
     state.portal = placePortal(index, free, used, gen.end);
     placeHazards(state, index);
@@ -3447,16 +3444,23 @@
     // лучше обычная комната, чем «всегда открытый» тайник.
     const inside = (room.cells || []).filter((c) =>
       grid[c.y] && grid[c.y][c.x] === 1);
+    // Дверь тайника — не проход, а стена: рычаг вырубает её позже. Пока
+    // проверяем, что комната и правда запечатана со всех сторон, кроме
+    // этого места.
+    grid[door.y][door.x] = 0;
     if (inside.length) {
-      const doorWas = grid[door.y][door.x];
-      grid[door.y][door.x] = 0;
       const reach = genGridReach(grid, state.map.w, state.map.h, state.playerPos);
-      grid[door.y][door.x] = doorWas;
       if (inside.some((c) => reach.has(key(c.x, c.y)))) {
+        grid[door.y][door.x] = 1;
         restoreSealed();
         return null;
       }
     }
+    room.meta = room.meta || {};
+    room.meta.door = { x: door.x, y: door.y };
+    // Валидатор плана не должен ругаться на «недостижимую» комнату: она
+    // запечатана намеренно, пока герой не опустит рычаг.
+    room.meta.sealed = true;
     used.add(key(door.x, door.y));
     used.add(key(from.x, from.y));
     const loot = [];
@@ -3556,90 +3560,6 @@
       }
     }
     return out;
-  }
-
-  function placePlanShortcuts(state, index, used) {
-    const plan = state.plan;
-    if (!plan) return;
-    const byId = {};
-    plan.rooms.forEach((room) => { byId[room.id] = room; });
-    const gate = byId[plan.gateId];
-    if (!gate) return;
-
-    if (plan.biome === "caves") {
-      const candidates = plan.rooms.filter((room) =>
-        room.kind === "branch" &&
-        ["lore", "combat", "treasure"].indexOf(room.role) >= 0 &&
-        room.center);
-      if (!candidates.length) return;
-      candidates.sort((a, b) => genCellDist(b.cell, gate.cell) - genCellDist(a.cell, gate.cell));
-      const room = candidates[0];
-      const cells = genLineCells(room.center, gate.center);
-      if (cells.length < 3) return;
-      const leverSpot = planTake(room, used);
-      if (!leverSpot) return;
-      const shortcut = {
-        uid: ++G.uid,
-        kind: "collapse",
-        cells,
-        open: false
-      };
-      state.shortcuts.push(shortcut);
-      state.levers.push({
-        uid: ++G.uid,
-        x: leverSpot.x,
-        y: leverSpot.y,
-        shortcut: shortcut.uid,
-        used: false
-      });
-    }
-
-    if (plan.biome === "ice") {
-      const loop = (plan.edges || []).find((edge) =>
-        edge.kind === "loop" && edge.cells && edge.cells.length);
-      if (!loop) return;
-      const roomCells = new Set();
-      plan.rooms.forEach((room) => {
-        (room.cells || []).forEach((cell) => roomCells.add(key(cell.x, cell.y)));
-      });
-      const otherCells = new Set();
-      (plan.edges || []).forEach((edge) => {
-        if (edge === loop) return;
-        (edge.cells || []).forEach((cell) => otherCells.add(key(cell.x, cell.y)));
-      });
-      const cells = (loop.cells || []).filter((cell) =>
-        !roomCells.has(key(cell.x, cell.y)) &&
-        !otherCells.has(key(cell.x, cell.y)));
-      if (!cells.length) return;
-      let leverSpot = null;
-      for (const cell of cells) {
-        for (const [dx, dy] of GEN_DIRS) {
-          const x = cell.x + dx;
-          const y = cell.y + dy;
-          if (x < 1 || y < 1 || x >= state.map.w - 1 || y >= state.map.h - 1) continue;
-          if (state.map.grid[y][x] !== 1 || used.has(key(x, y))) continue;
-          leverSpot = { x, y };
-          break;
-        }
-        if (leverSpot) break;
-      }
-      if (!leverSpot) return;
-      used.add(key(leverSpot.x, leverSpot.y));
-      const shortcut = {
-        uid: ++G.uid,
-        kind: "bridge",
-        cells,
-        open: true
-      };
-      state.shortcuts.push(shortcut);
-      state.levers.push({
-        uid: ++G.uid,
-        x: leverSpot.x,
-        y: leverSpot.y,
-        shortcut: shortcut.uid,
-        used: false
-      });
-    }
   }
 
   function placePlanLever(state, used) {
@@ -3859,17 +3779,17 @@
   function placePlanContent(state, f, index, free, gen) {
     const used = new Set([key(gen.start.x, gen.start.y), key(gen.end.x, gen.end.y)]);
     state.crypts = planCryptCells(state.plan);
+    // Алтарь резервирует клетку до врагов и лута: иначе комната ветки
+    // заполняется первой, и алтарь уезжает на главный путь.
+    state.altars = placePlanAltars(state, index, used);
+    if (!state.altars.length) state.altars = placeAltars(state, index, free, used);
     placePlanEnemies(state, f, index, used);
     if (!f.boss) state.stairsDown.active = !placeGuard(state, f, index, used, gen.end);
     applyMissedPayloads(state);
     placePlanChests(state, f, index, used, free);
     const vault = placePlanVault(state, index, used) ||
       placeVault(state, index, gen, used);
-    if (vault) {
-      state.vaults.push(vault);
-      state.vaultNeedsKey = true;
-    }
-    placePlanShortcuts(state, index, used);
+    if (vault) state.vaults.push(vault);
     placePlanTrader(state, f, index, used);
     state.traps = placePlanTraps(state, f, index, used, free);
     placePlanCamps(state, used);
@@ -3995,9 +3915,9 @@
           if (!sealedByRock) break;
         }
         if (!sealedByRock) continue;
-        // Дверь тоже проход: раньше она оставалась стеной, и комната была
-        // запечатана навсегда — ключ и рычаг открывали несуществующий проход.
-        grid[door.y][door.x] = 1;
+        // Дверь остаётся стеной: проход в стене вырубит рычаг этажа.
+        // Комната вырезана в монолите и не связана с другими комнатами,
+        // поэтому её появление не ломает существующие проходы.
         room.forEach((c) => { grid[c.y][c.x] = 1; });
         const fill = room.filter((c) => !(c.x === door.x && c.y === door.y));
         // Сокровища и материалы внутри: два предмета и пара жил.
@@ -4102,23 +4022,13 @@
     return { x: s.x, y: s.y };
   }
 
-  // Тайник: открыть можно ключом или рычагом. Ключ тратится, а сам тайник
-  // остаётся открытым до конца похода.
+  // Тайник: попасть внутрь можно только через проход, который открывает
+  // рычаг этажа. Пока проход запечатан, кнопка действия объясняет, что делать.
   function openVault(vault) {
     if (!vault) return false;
     if (!vault.locked) { setMsg("Тайник уже открыт — заходи."); return true; }
-    if ((G.vaultKeys || 0) <= 0) {
-      setMsg("Тайник заперт. Ключ держит страж лестницы — победи его. " +
-        "Ещё дверь открывает рычаг этажа: он спросит вопрос и за ошибку ударит током, но не насмерть.");
-      return false;
-    }
-    G.vaultKeys -= 1;
-    vault.locked = false;
-    vault.opened = true;
-    log("Ключ от тайника повернулся: комната открыта. Ключей осталось: " + G.vaultKeys + ".", "loot");
-    toast("Тайник открыт!");
-    render();
-    return true;
+    setMsg("Проход запечатан. Рычаг на этом этаже откроет его.");
+    return false;
   }
 
   // Жила: материал в профиль (как и находки из сундуков).
@@ -4148,10 +4058,15 @@
     return true;
   }
 
-  // Рычаг: короткий вопрос. Верный ответ открывает тайник этажа, неверный
-  // бьёт героя, но рычаг остаётся — попробовать можно снова.
+  // Рычаг: короткий вопрос. Единственная задача — вырубить проход в стене
+  // к запечатанному тайнику. Верный ответ открывает комнату, неверный бьёт
+  // героя, но рычаг остаётся — попробовать можно снова.
   function openLever(lever) {
     if (!lever || lever.used) { setMsg("Этот рычаг уже опущен."); return false; }
+    if (!lever.vault || !vaultByUid(lever.vault)) {
+      setMsg("Рычаг не поддаётся.");
+      return false;
+    }
     const q = pickQuestion();
     if (!q) { setMsg("Рычаг не поддаётся."); return false; }
     const options = q.options.map((o, i) => ({ text: o, idx: i }));
@@ -4162,22 +4077,11 @@
     if (!box) return false;
     G.dialogNpc = { key: "lever", name: "Рычаг" };
     const shock = Math.max(3, Math.round(G.player.maxHp * 0.08));
-    const shortcut = shortcutByUid(lever.shortcut);
-    let subtitle = "Открывает тайник этажа";
-    let lead = "За рычагом — запертая комната с добычей. Ответишь на вопрос " +
-      "верно — дверь откроется; ошибёшься — ударит током на " + shock +
-      " здоровья, но <b>не убьёт</b>: рычаг оставляет герою одно здоровье. " +
-      "Дёргать его не обязательно.";
-    if (shortcut && shortcut.kind === "bridge") {
-      subtitle = "Хрупкий мост";
-      lead = "Короткий путь через лёд. Верный ответ — мост выдержит; " +
-        "ошибка — мост рухнет, и останется длинный обход.";
-    } else if (shortcut && shortcut.kind === "collapse") {
-      subtitle = "Обвал";
-      lead = "За обвалом короткий путь к лестнице. Верный ответ расчистит " +
-        "проход; ошибка ударит током на " + shock + ", но обход останется.";
-    }
-    box.innerHTML = dialogHead("Рычаг", subtitle) +
+    const lead = "За рычагом — запечатанная комната с добычей. Другой дороги " +
+      "внутрь нет. Верный ответ вырубит проход в стене; ошибка ударит током на " +
+      shock + " здоровья, но <b>не убьёт</b>: рычаг оставляет герою одно " +
+      "здоровье. Дёргать его не обязательно.";
+    box.innerHTML = dialogHead("Рычаг", "Проход к тайнику") +
       "<p class='lead'>" + lead + "</p>" +
       "<p class='lead'>" + (q.text || "") + "</p>" +
       (q.code ? "<pre class='code lever-code'>" + escText(q.code) + "</pre>" : "") +
@@ -4196,43 +4100,21 @@
     if (!lever || !lever.view) return false;
     const right = idx === lever.view.answer;
     const vault = vaultByUid(lever.vault);
-    const shortcut = shortcutByUid(lever.shortcut);
     if (right) {
       lever.used = true;
       if (vault) {
         vault.locked = false;
         vault.opened = true;
-        log("Рычаг опущен: тайник этажа открыт.", "loot");
-        toast("Тайник открыт рычагом!");
-      } else if (shortcut) {
-        if (shortcut.kind === "collapse") {
-          shortcut.cells.forEach((cell) => {
-            if (G.map.grid[cell.y] && G.map.grid[cell.y][cell.x] !== undefined) {
-              G.map.grid[cell.y][cell.x] = 1;
-            }
-          });
-          log("Обвал расчищен: короткий путь к лестнице открыт.", "floor");
-          toast("Проход расчищен!");
-        } else {
-          log("Мост выдержал: короткий путь через лёд открыт.", "floor");
-          toast("Мост выдержал!");
+        // Проход появляется в стене: клетка двери становится полом.
+        const door = vault.door;
+        if (door && G.map.grid[door.y] && G.map.grid[door.y][door.x] !== undefined) {
+          G.map.grid[door.y][door.x] = 1;
         }
-        shortcut.open = true;
+        log("Рычаг опущен: в стене открылся проход к тайнику.", "loot");
+        toast("Проход к тайнику открыт!");
       } else {
         log("Рычаг опущен, но открывать было нечего.", "loot");
       }
-    } else if (shortcut && shortcut.kind === "bridge") {
-      // Хрупкий мост: ошибка не бьёт током, а ломает короткий путь.
-      shortcut.open = false;
-      shortcut.cells.forEach((cell) => {
-        if (G.map.grid[cell.y] && G.map.grid[cell.y][cell.x] !== undefined) {
-          G.map.grid[cell.y][cell.x] = 0;
-        }
-      });
-      lever.used = true;
-      log("Мост рухнул: остался только длинный обход.", "floor");
-      toast("Мост рухнул!");
-      G.stats.leverWrong = (G.stats.leverWrong || 0) + 1;
     } else {
       // Ток не убивает: он оставляет герою одно здоровье. Раньше удар мог
       // добить, и на вопросе у рычага погиб ученик — это не тот риск, который
@@ -4252,6 +4134,68 @@
     render();
     // Смерти от рычага быть не может: удар оставляет одно здоровье.
     return right;
+  }
+
+  // Алтарь сделки: одна комната на первом этаже биома. Он стоит на
+  // ответвлении, поэтому его можно найти или пройти мимо.
+  function altarUsedOnFloor(index) {
+    return !!(G.blessings && G.blessings[index]);
+  }
+
+  function placePlanAltars(state, index, used) {
+    if (typeof blessingFloor !== "function" || !blessingFloor(index)) return [];
+    const rooms = ((state.plan && state.plan.rooms) || [])
+      .filter((r) => r.role !== "vault" && r.role !== "secret");
+    // Алтарь — гость ответвления, а не главного пути. Сначала ищем
+    // безопасный тупик (архив/сокровищницу), потом любой лист ветки,
+    // и только в крайнем случае — промежуточную комнату ветки.
+    const branch = rooms.filter((r) => r.kind === "branch");
+    // Порядок групп важен: сначала безопасные тупики, потом любые листья,
+    // и только в крайнем случае — главный путь. Внутри группы порядок
+    // случайный, чтобы алтарь не стоял в одной и той же комнате.
+    const groups = [
+      branch.filter((r) => r.leaf &&
+        ["lore", "treasure", "rest"].indexOf(r.role) >= 0),
+      branch.filter((r) => r.leaf &&
+        ["ambush", "combat"].indexOf(r.role) >= 0),
+      branch.filter((r) => r.leaf),
+      branch.filter((r) => !r.leaf),
+      rooms
+    ];
+    for (const group of groups) {
+      for (const room of shuffle(group.slice())) {
+        const spot = planTake(room, used);
+        if (!spot) continue;
+        return [{
+          uid: ++G.uid,
+          x: spot.x,
+          y: spot.y,
+          used: altarUsedOnFloor(index)
+        }];
+      }
+    }
+    return [];
+  }
+
+  function placeAltars(state, index, free, used) {
+    if (typeof blessingFloor !== "function" || !blessingFloor(index)) return [];
+    const grid = state.map.grid;
+    const start = state.playerPos || { x: 1, y: 1 };
+    const candidates = (free || []).filter((s) =>
+      !used.has(key(s.x, s.y)) && grid[s.y] && grid[s.y][s.x] === 1);
+    if (!candidates.length) return [];
+    // Подальше от входа: алтарь не должен попадаться в первом коридоре.
+    candidates.sort((a, b) =>
+      (Math.abs(b.x - start.x) + Math.abs(b.y - start.y)) -
+      (Math.abs(a.x - start.x) + Math.abs(a.y - start.y)));
+    const s = candidates[0];
+    used.add(key(s.x, s.y));
+    return [{
+      uid: ++G.uid,
+      x: s.x,
+      y: s.y,
+      used: altarUsedOnFloor(index)
+    }];
   }
 
   function inside(x, y, w, h) {
@@ -4282,16 +4226,16 @@
     return !!door && !door.open;
   }
 
-  function shortcutByUid(uid) {
-    return (G.shortcuts || []).find((s) => s.uid === uid) || null;
-  }
-
   function nodeAt(x, y) {
     return (G.nodes || []).find((n) => n.x === x && n.y === y && !n.taken) || null;
   }
 
   function leverAt(x, y) {
     return (G.levers || []).find((l) => l.x === x && l.y === y && !l.used) || null;
+  }
+
+  function altarAt(x, y) {
+    return (G.altars || []).find((a) => a.x === x && a.y === y) || null;
   }
 
   function portalActive() {
@@ -4506,6 +4450,14 @@
     return typeof blessingFor === "function" ? blessingFor(G.floorIndex, chosen) : null;
   }
 
+  // «Каменный дар» добавляет здоровье только на текущем этаже и только пока
+  // герой в подземелье. В деревне бонус снимается вместе с этажом.
+  function floorHpBonus() {
+    if (G.place && G.place !== "dungeon") return 0;
+    const b = blessingOnFloor();
+    return b && b.key === "blessing" ? BLESS.blessingHp : 0;
+  }
+
   function snapshotCurrent() {
     const prev = G.cache[G.floorIndex];
     G.cache[G.floorIndex] = {
@@ -4532,10 +4484,9 @@
       doors: G.roomDoors || [],
       nodes: G.nodes || [],
       levers: G.levers || [],
-      shortcuts: G.shortcuts || [],
+      altars: G.altars || [],
       crypts: G.crypts || [],
       signs: G.signs || [],
-      vaultNeedsKey: !!G.vaultNeedsKey,
       // Итог проверки генерации: сколько попыток понадобилось и что чинили.
       // Нужен только для диагностики, на игру не влияет.
       checked: prev && prev.checked || null
@@ -4641,12 +4592,13 @@
       if (!keeper) problems.push("спуск закрыт, но стража на этаже нет");
       else if (!reach(keeper)) problems.push("страж спуска недостижим");
     }
-    // Тайник: дверь должна быть проходом, а площадка перед ней — достижима.
-    // Иначе комната вырублена, но попасть в неё нельзя (именно так дверь
-    // раньше оставалась стеной).
+    // Тайник: комната запечатана, а площадка перед будущим проходом
+    // достижима. Открытый тайник обязан иметь проход в стене.
     (state.vaults || []).forEach((v) => {
       if (!v || !v.door) return;
-      if (!walkable(v.door.x, v.door.y)) problems.push("дверь тайника в стене");
+      if (!v.locked && !walkable(v.door.x, v.door.y)) {
+        problems.push("открытый тайник перекрыт");
+      }
       if (!reach(v.from)) problems.push("к тайнику нет подхода");
     });
     // Рычаг открывает тайник: до него обязан быть путь.
@@ -4796,6 +4748,7 @@
     // этажа старый оверлей закрывается: иначе он перехватывал мышь, а дар
     // применялся к уже другому этажу.
     G.blessingOffer = null;
+    G.altarOffer = null;
     const oldBlessing = el("blessing-overlay");
     if (oldBlessing) oldBlessing.classList.add("hidden");
     // Подземелье — это место "dungeon": деревня и дома живут в тех же
@@ -4846,11 +4799,10 @@
     G.vaults = state.vaults || [];
     G.nodes = state.nodes || [];
     G.levers = state.levers || [];
-    G.shortcuts = state.shortcuts || [];
+    G.altars = state.altars || [];
     G.crypts = state.crypts || [];
     G.signs = state.signs || [];
     G.portal = state.portal || null;
-    G.vaultNeedsKey = !!state.vaultNeedsKey;
     G.hazard = state.hazard || null;
     G.arena = state.arena || null;
     G.arenaDark = state.arenaDark || 0;
@@ -4872,13 +4824,15 @@
     // в центре экрана, и темнота должна сгущаться вокруг него.
     el("map-scroll").classList.toggle("hazard-dark", !!hz && hz.key === "dark");
     el("map").classList.add("no-cam-anim");
+    // Бонус «Каменного дара» живёт только на своём этаже: при входе на
+    // новый этаж максимум здоровья пересчитывается без него.
+    recalcStats();
     render();
     flashFloorArrival();
     requestAnimationFrame(() => el("map").classList.remove("no-cam-anim"));
 
     if (!G.visited.has(index)) {
       showFloorArrival(index);
-      offerBlessing(index);
     } else {
       showFloorTitle(index);
     }
@@ -4895,8 +4849,9 @@
   // проверяются отдельно по grid — они ещё и тень отбрасывают, а объекты нет.
   function cellBlocked(x, y) {
     if (x < 0 || y < 0 || !G.map || x >= G.map.w || y >= G.map.h) return true;
-    // Запертая дверь тайника не пропускает: клетка проходима, но комната
-    // должна быть закрыта, пока нет ключа или рычаг не опущен.
+    // Запечатанный тайник не пропускает: клетка станет полом только после
+    // того, как рычаг вырубит проход в стене. Проверка нужна и старым сейвам,
+    // где дверь уже была проходимой, но оставалась запертой.
     const vault = vaultAt(x, y);
     if (vault && vault.locked) return true;
     return !!(G.blocked && G.blocked[y] && G.blocked[y][x]);
@@ -5166,16 +5121,16 @@
     G.vaults = [];
     G.nodes = [];
     G.levers = [];
-    G.shortcuts = [];
+    G.altars = [];
     G.crypts = [];
     G.camps = [];
     G.signs = [];
-    G.vaultNeedsKey = false;
     G.stairsDown = null;
     G.stairsUp = null;
     G.portal = null;
     G.battle = null;
     G.blessingOffer = null;
+    G.altarOffer = null;
     G.walkTarget = null;
     G.playerPos = at ? { x: at.x, y: at.y } : { ...VILLAGE_SPAWN };
     G.visible = new Set();
@@ -5217,6 +5172,7 @@
     // Сначала собираем сумку, потом рисуем панель: renderVillageInfo читает
     // G.inventory, и раньше он показывал пустую сумку вперёд неё.
     villageKitFromProfile();
+    recalcStats();
     render();
     renderVillageInfo();
     renderInventory();
@@ -6019,21 +5975,10 @@
     box.innerHTML = html;
   }
 
-  // Выбор на входе: «Тёмная сделка» или «Каменный дар». Показывается
-  // один раз на этаж, начиная с четвёртого. Игра при этом не встаёт:
-  // окно висит поверх карты, а ходы можно делать и до ответа.
-  function offerBlessing(index) {
-    const chosen = G.blessings ? G.blessings[index] : null;
-    if (typeof blessOffered !== "function" || !blessOffered(index, chosen)) return;
-    const box = el("blessing-box");
-    const overlay = el("blessing-overlay");
-    if (!box || !overlay) return;
-    G.blessingOffer = index;
-    box.innerHTML =
-      "<h2>Развилка на входе</h2>" +
-      "<p class='bless-lead'>" + floorNameAt(index) + ": руны предлагают сделку. " +
-      "Выбирай — обратно пути нет.</p>" +
-      "<div class='bless-grid'>" +
+  // Алтарь сделки: окно открывается по действию у алтаря, а не на входе.
+  // Его можно закрыть и вернуться позже; выбор делается один раз на этаж.
+  function blessingCardsHtml() {
+    return "<div class='bless-grid'>" +
       Object.keys(BLESSINGS).map((k) => {
         const b = BLESSINGS[k];
         return "<button class='bless-card " + k + "' type='button' data-bless='" + k + "'>" +
@@ -6044,10 +5989,45 @@
           "</button>";
       }).join("") +
       "</div>";
+  }
+
+  function openAltar(altar) {
+    if (!altar || altar.used) { setMsg("Алтарь погас."); return false; }
+    const index = G.floorIndex;
+    if (typeof blessingFloor !== "function" || !blessingFloor(index)) {
+      setMsg("Алтарь молчит.");
+      return false;
+    }
+    if (G.blessings && G.blessings[index]) {
+      setMsg("Сделка на этом этаже уже заключена.");
+      return false;
+    }
+    const box = el("blessing-box");
+    const overlay = el("blessing-overlay");
+    if (!box || !overlay) return false;
+    G.blessingOffer = index;
+    G.altarOffer = altar.uid;
+    box.innerHTML =
+      "<button type='button' class='bless-close' id='bless-close' " +
+      "aria-label='Закрыть'>×</button>" +
+      "<h2>Алтарь сделки</h2>" +
+      "<p class='bless-lead'>" + floorNameAt(index) +
+      ": алтарь предлагает сделку. Можно уйти без выбора и вернуться позже.</p>" +
+      blessingCardsHtml();
     overlay.classList.remove("hidden");
     box.querySelectorAll("[data-bless]").forEach((btn) => {
       btn.addEventListener("click", () => chooseBlessing(btn.dataset.bless));
     });
+    const close = el("bless-close");
+    if (close) close.addEventListener("click", closeBlessing);
+    return true;
+  }
+
+  function closeBlessing() {
+    G.blessingOffer = null;
+    G.altarOffer = null;
+    const overlay = el("blessing-overlay");
+    if (overlay) overlay.classList.add("hidden");
   }
 
   function chooseBlessing(kind) {
@@ -6056,25 +6036,24 @@
     const b = typeof BLESSINGS !== "undefined" ? BLESSINGS[kind] : null;
     if (!b) return;
     G.blessings[index] = kind;
+    const altar = (G.altars || []).find((a) => a.uid === G.altarOffer);
+    if (altar) altar.used = true;
     G.blessingOffer = null;
-    el("blessing-overlay").classList.add("hidden");
+    G.altarOffer = null;
+    const overlay = el("blessing-overlay");
+    if (overlay) overlay.classList.add("hidden");
     if (kind === "curse") {
       addGold(BLESS.curseGold);
-      log("Тёмная сделка: монстры этого этажа бьют на 25% сильнее, " +
+      log("Тёмная сделка: монстры этого этажа бьют на 35% сильнее, " +
         "но золото с них удваивается. Получено " + BLESS.curseGold + " золота.", "hurt");
       effectFlash("Тёмная сделка · +" + BLESS.curseGold + " золота");
     } else if (kind === "blessing") {
-      G.player.baseMaxHp += BLESS.blessingHp;
-      // Снимок входа на этаж сделан до выбора. Без этой строки смерть
-      // откатывала базовое здоровье, и дар пропадал, а плата за него —
-      // живучие монстры — оставалась.
-      if (G.floorCheckpoint && G.floorCheckpoint.index === index) {
-        G.floorCheckpoint.baseMaxHp += BLESS.blessingHp;
-      }
+      // +HP — временный бонус этажа: его даёт floorHpBonus() в recalcStats.
+      // При переходе на другой этаж он исчезает вместе с blessingOnFloor().
       recalcStats();
       G.player.hp = G.player.maxHp;
-      log("Каменный дар: +" + BLESS.blessingHp + " к максимуму здоровья, " +
-        "здоровье восстановлено полностью. Монстры этажа стали живучее.", "loot");
+      log("Каменный дар: +" + BLESS.blessingHp + " к максимуму здоровья на этом " +
+        "этаже, здоровье восстановлено полностью. Монстры этажа стали живучее.", "loot");
       effectFlash("Каменный дар · +" + BLESS.blessingHp + " HP");
     } else {
       log("Ты проходишь мимо сделки: этаж остаётся обычным.", "floor");
@@ -7128,10 +7107,8 @@
           const lava = isFloor && hazardAt(x, y) === "lava";
           // Предмет декора живёт отдельным слоем и приглушён (.tile.has-obj).
           let obj = isFloor && d && !lava ? terrainObjectUri(theme, x, y, d) : "";
-          // Дверь комнаты и дверь тайника рисуются поверх пола. Запертый
-          // тайник — закрытая дверь, открытый — обычная: раньше на их месте
-          // был только значок, и вход читался как открытый проём.
-          // Закрытая дверь рисуется дверью, открытая — пустым проёмом.
+          // Дверь комнаты и вход в тайник рисуются поверх пола. Запертый
+          // тайник — печать в стене, открытый — обычный проём.
           if (isFloor && !lava && G.place === "dungeon" &&
               typeof TERRAIN_ICONS !== "undefined") {
             const vault = vaultAt(x, y);
@@ -7410,7 +7387,7 @@
       const vis = G.visible.has(key(v.door.x, v.door.y));
       place("vault-" + v.uid, v.door.x, v.door.y, vis,
         v.locked ? "doorLocked" : "door", "ent-vault" + (v.locked ? " locked" : ""), null,
-        v.locked ? "Запертый тайник — ключ у стража лестницы" : "Открытый тайник", 2);
+        v.locked ? "Запечатанный проход в тайник" : "Открытый тайник", 2);
     });
     (G.nodes || []).forEach((n) => {
       if (n.taken) return;
@@ -7423,6 +7400,12 @@
       const vis = G.visible.has(key(l.x, l.y));
       place("lever-" + l.uid, l.x, l.y, vis, "lever",
         "ent-lever" + (l.used ? " spent" : ""), null, "Рычаг", 2);
+    });
+    (G.altars || []).forEach((a) => {
+      const vis = G.visible.has(key(a.x, a.y));
+      place("altar-" + a.uid, a.x, a.y, vis, "altar",
+        "ent-altar" + (a.used ? " spent" : ""), null,
+        a.used ? "Погасший алтарь" : "Алтарь сделки", 2);
     });
     (G.signs || []).forEach((sgn) => {
       const vis = G.visible.has(key(sgn.x, sgn.y));
@@ -8495,7 +8478,7 @@
     const bonusHp = (eq.armor && eq.armor.hp ? eq.armor.hp : 0) +
       (eq.shield && eq.shield.hp ? eq.shield.hp : 0) +
       (eq.accessory && eq.accessory.hp ? eq.accessory.hp : 0) +
-      sets.total.hp + forgeBonus("vitality");
+      sets.total.hp + forgeBonus("vitality") + floorHpBonus();
     p.atkBonus = atk;
     p.defBonus = def;
     // Особые бонусы семей храним отдельно: их читают крит, вампиризм и золото.
@@ -9169,18 +9152,15 @@
           icon: "▯", obj: door
         };
       }
-      // Тайник: запертая дверь в монолит. Ключ лежит на страже этажа,
-      // а рычаг где-то рядом открывает её без ключа.
+      // Тайник: запечатанный проход в монолите. Открыть его может только
+      // рычаг этажа — другого входа в комнату нет.
       const vault = vaultAt(x, y);
       if (vault) {
         return {
           kind: "vault",
           icon: "▮", obj: vault,
-          // В подписи сказано, где взять ключ: ученики видели «Запертый тайник»
-          // и не понимали, что делать, а страж этажа с ключом оставался без
-          // внимания.
           label: vault.locked
-            ? "Тайник заперт: ключ у стража лестницы"
+            ? "Запечатанный проход: рычаг этажа"
             : "Тайник открыт"
         };
       }
@@ -9190,6 +9170,15 @@
           kind: "node",
           label: LOOT_NAMES[node.kind] ? "Добыть: " + LOOT_NAMES[node.kind] : "Добыча",
           icon: "⛏", obj: node
+        };
+      }
+      const altar = altarAt(x, y);
+      if (altar) {
+        const done = altar.used ||
+          !!(G.blessings && G.blessings[G.floorIndex]);
+        return {
+          kind: "altar", icon: "✦", obj: altar,
+          label: done ? "Алтарь погас" : "Алтарь: заключить сделку"
         };
       }
       const lever = leverAt(x, y);
@@ -9380,6 +9369,10 @@
     }
     if (target.kind === "node") {
       mineNode(target.obj);
+      return;
+    }
+    if (target.kind === "altar") {
+      openAltar(target.obj);
       return;
     }
     if (target.kind === "lever") {
@@ -9704,7 +9697,7 @@
   function tileBlockedForEnemy(x, y, mover) {
     if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) return true;
     if (G.map.grid[y][x] !== 1) return true;
-    // Запертая дверь тайника держит и монстров: иначе они забредали бы
+    // Запечатанный тайник держит и монстров: иначе они забредали бы
     // в комнату, которую герой ещё не открыл.
     const vault = vaultAt(x, y);
     if (vault && vault.locked) return true;
@@ -11061,17 +11054,6 @@
   // Ключ со стража лестницы. Первый ключ — от амбара (с третьего этажа),
   // второй — от дома мастера (с пятого): без спуска деревню не поднять.
   // Ключ уходит в профиль и переживает смерть, как материалы.
-  // Ключ от тайника: лежит на страже этажа, где есть тайник. Ключ походный,
-  // а не профильный: тайник есть на каждом этаже свой.
-  function dropVaultKey(floorIdx) {
-    if (!G.vaultNeedsKey && !(G.vaults || []).length) return false;
-    if (!(G.vaults || []).some((v) => v.locked)) return false;
-    G.vaultKeys = (G.vaultKeys || 0) + 1;
-    log("Со стража снят ключ от тайника. Ключей: " + G.vaultKeys + ".", "loot");
-    toast("Ключ от тайника!");
-    return true;
-  }
-
   function dropGuardKey(floorIdx) {
     const want = [];
     if (floorIdx >= 2) want.push("barn");
@@ -11403,7 +11385,6 @@
     // не только за материалы, но и за спуск: ключ нельзя выпросить в деревне.
     if (e.guard) {
       dropGuardKey(G.floorIndex);
-      dropVaultKey(G.floorIndex);
       bumpQuest("guard", 1);
     }
     if (e.elite) {
@@ -14689,6 +14670,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.38.0",
+      date: "9 ноября 2026",
+      title: "Рычаг и тайник",
+      items: [
+        "Рычаг теперь делает одно: вырубает проход в стене к тайнику.",
+        "Сделки этажа переехали на алтарь в ответвлении: выбор по желанию.",
+        "Награды и цена сделок стали заметнее, а тайник — отдельной комнатой."
+      ]
+    },
+    {
       version: "1.37.0",
       date: "9 ноября 2026",
       title: "Щиты и новая дуэль",
@@ -15880,7 +15871,6 @@ function topicName(key) {
     G.inventory = [{ ...itemById("small_potion") }];
     // Ключи от тайников — ресурс похода: новый поход не наследует их
     // от предыдущего.
-    G.vaultKeys = 0;
     G.shopStock = null;
     G.shopTrader = false;
     G.traderFloor = null;
@@ -16221,13 +16211,12 @@ function topicName(key) {
       vaults: (st.vaults || []).map((v) => ({ uid: v.uid, key: v.key, door: v.door,
         from: v.from, locked: !!v.locked, opened: !!v.opened, planned: !!v.planned })),
       nodes: (st.nodes || []).map((n) => ({ uid: n.uid, x: n.x, y: n.y, kind: n.kind, taken: !!n.taken })),
-      levers: (st.levers || []).map((l) => ({ uid: l.uid, x: l.x, y: l.y, vault: l.vault || 0, shortcut: l.shortcut || 0, used: !!l.used })),
-      shortcuts: (st.shortcuts || []).map((s) => ({ uid: s.uid, kind: s.kind, cells: s.cells, open: !!s.open })),
+      levers: (st.levers || []).map((l) => ({ uid: l.uid, x: l.x, y: l.y, vault: l.vault || 0, used: !!l.used })),
+      altars: (st.altars || []).map((a) => ({ uid: a.uid, x: a.x, y: a.y, used: !!a.used })),
       crypts: (st.crypts || []).map((c) => ({ x: c.x, y: c.y })),
       signs: (st.signs || []).map((s2) => ({ uid: s2.uid, x: s2.x, y: s2.y,
         title: s2.title || "", subtitle: s2.subtitle || "", text: s2.text })),
       portal: st.portal ? { x: st.portal.x, y: st.portal.y } : null,
-      vaultNeedsKey: !!st.vaultNeedsKey,
       // Опасная среда: без неё после перезагрузки этаж «выздоравливал» —
       // лава и лёд исчезали, а тьма переставала сужать обзор.
       hazard: st.hazard || null,
@@ -16284,11 +16273,10 @@ function topicName(key) {
       doors: doors,
       nodes: (o.nodes || []).map((n) => ({ taken: false, ...n })),
       levers: (o.levers || []).map((l) => ({ used: false, ...l })),
-      shortcuts: (o.shortcuts || []).map((s) => ({ open: true, ...s })),
+      altars: (o.altars || []).map((a) => ({ used: false, ...a })),
       crypts: (o.crypts || []).map((c) => ({ x: c.x, y: c.y })),
       signs: (o.signs || []).map((s2) => Object.assign({}, s2)),
       portal: o.portal ? { x: o.portal.x, y: o.portal.y } : null,
-      vaultNeedsKey: !!o.vaultNeedsKey,
       hazard: o.hazard || null,
       arena: o.arena || null,
       arenaDark: o.arenaDark || 0,
@@ -16557,7 +16545,6 @@ function topicName(key) {
         prog: G.prog || null,
         ability: G.ability || null,
         restsLeft: G.restsLeft || 0,
-        vaultKeys: G.vaultKeys || 0,
         traderFloor: G.traderFloor == null ? null : G.traderFloor,
         inventory: G.inventory,
         stats: G.stats,
@@ -16818,7 +16805,6 @@ function topicName(key) {
     G.restsLeft = typeof data.restsLeft === "number"
       ? data.restsLeft
       : REST_PER_RUN + (villageLevel("barn") >= 2 ? 1 : 0) + omenRestBonus();
-    G.vaultKeys = data.vaultKeys || 0;
     G.shopStock = null;
     G.shopTrader = false;
     G.traderFloor = typeof data.traderFloor === "number" ? data.traderFloor : null;
@@ -17717,6 +17703,7 @@ function topicName(key) {
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='kill'>Убить всех</button>" +
       "<button type='button' class='dev-btn' data-dev='stairs'>К лестнице</button>" +
+      "<button type='button' class='dev-btn' data-dev='altar'>К алтарю</button>" +
       "<button type='button' class='dev-btn' data-dev='skip'>Пропустить этаж</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал</button>" +
@@ -17996,6 +17983,16 @@ function topicName(key) {
     if (action === "regen") {
       delete G.cache[G.floorIndex];
       activateFloorLoaded(G.floorIndex);
+      return;
+    }
+    if (action === "altar") {
+      const altar = (G.altars || [])[0];
+      if (!altar) { toast("На этом этаже нет алтаря"); return; }
+      G.playerPos = { x: altar.x, y: altar.y };
+      G.walkTarget = null;
+      render();
+      updateActionButton();
+      toast("Алтарь: " + altar.x + "," + altar.y);
       return;
     }
     if (action === "gen-v2") {
