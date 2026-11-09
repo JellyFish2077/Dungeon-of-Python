@@ -76,6 +76,7 @@
       "items/scout_lens",
       "items/ash_blade, ash_mantle, ash_eye, dawn_blade, warden_plate, heart_abyss",
       "items/aegis, antidote, big_potion, bone_dagger, chainmail, cloth_robe, crown, dragon_blade, dragon_scale, elixir, frost_blade, greater_elixir, guard_amulet, hero_medal, ledger_amulet, mirror_plate, purifying_draught, ring_power, serpent_ward, spiked_shield, steel_sword, trident_precise, vampiric_blade",
+      "items/wooden_shield, round_shield, steel_shield, mirror_shield, warden_shield",
       "equipment/rusty_sword, bone_dagger, short_sword, vampiric_blade, steel_sword, trident_precise, dragon_blade, ash_blade, frost_blade, dawn_blade",
       "equipment/cloth_robe, leather_armor, chainmail, dragon_scale, mirror_plate, ash_mantle, spiked_shield, aegis, warden_plate",
       "equipment/ring_power, guard_amulet, ledger_amulet, lucky_charm, scout_lens, serpent_ward, hero_medal, ash_eye, heart_abyss, crown",
@@ -96,7 +97,8 @@
       "village/wall, window, npc_base, tree, ground_0 … 3",
       "village/wall_0 … 1, floor_0 … 3 (интерьер)",
       "village/roof_{red,blue,green,brown}_{ridge,slope,eave}",
-      "village/barrel, woodpile, chimney, fence"
+      "village/barrel, woodpile, chimney, fence",
+      "actions/attack, defend, potion, ability, flee, poison, fire, curse, summon, heal, charge, ranged, hint, crit, execute, drain, thorns, armor, phasing, bossrage, miss, fail, block, no_effect, flee_fail"
     ]
   },
   "village": {
@@ -395,6 +397,12 @@
     "items/greater_elixir.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/potion/magenta_new.png",
     "items/guard_amulet.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/amulet/celtic_blue.png",
     "items/hero_medal.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/amulet/penta_orange.png",
+    "items/hint_scroll.png": "оригинальная графика проекта (MIT): свиток подсказки",
+    "items/wooden_shield.png": "оригинальная графика проекта (MIT): деревянный щит",
+    "items/round_shield.png": "оригинальная графика проекта (MIT): круглый щит",
+    "items/steel_shield.png": "оригинальная графика проекта (MIT): стальной щит",
+    "items/mirror_shield.png": "оригинальная графика проекта (MIT): зеркальный щит",
+    "items/warden_shield.png": "оригинальная графика проекта (MIT): щит хранителя",
     "items/leather_armor.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/armor/torso/leather_armor_1.png",
     "items/ledger_amulet.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/amulet/face_1_gold.png",
     "items/lucky_charm.png": "DCSS (opengameart.org/content/dungeon-crawl-32x32-tiles, CC0): item/amulet/stone_1_green.png",

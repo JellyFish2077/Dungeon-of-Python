@@ -223,6 +223,7 @@
        "villageParseMap", "villageHouseAtDoor", "villageBuildingList", "villageMaterials",
        "villageTileUri", "TERRAIN_VILLAGE",
        "SLOT_NAMES", "ICONS", "SPRITES", "spriteImg", "mapIcon", "QUESTIONS", "FILL_TASKS",
+       "ACTION_ICONS",
        "TERRAIN_FLOORS", "TERRAIN_WATER", "TERRAIN_LAVA", "TERRAIN_DECOR", "TERRAIN_STAIRS",
        "TERRAIN_TRAPS", "TERRAIN_DOORS", "TERRAIN_ICONS", "TERRAIN_DECOR_NAMES",
        "terrainPick", "terrainBg", "terrainDecorUri", "terrainAnimFrames", "terrainAnimBg",
@@ -297,7 +298,7 @@
         dmgBase: 40, atkBonus: 0, defBonus: 0, gold: 0,
         poison: 0, freeHints: 0, snared: false, cursedNext: false, _lastHp: null
       };
-      G.equipment = { weapon: null, armor: null, accessory: null };
+      G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
       G.inventory = [];
       G.stats = {
         correct: 0, wrong: 0, codePassed: 0, codeTried: 0, copyPassed: 0, copyTried: 0,

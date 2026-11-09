@@ -73,6 +73,7 @@ tools/art/aseprite/creatures2.aseprite   spider, orc, troll, ghost, wolf, zombie
 tools/art/aseprite/items.aseprite        short_sword, small_potion, … (6 предметов)
 tools/art/aseprite/items2.aseprite       остальные 23 предмета
 tools/art/aseprite/items3.aseprite       ash_blade, ash_mantle, ash_eye, dawn_blade, warden_plate, heart_abyss
+tools/art/aseprite/items4.aseprite       деревянный, круглый, стальной, зеркальный щиты и щит хранителя
 tools/art/aseprite/equipment.aseprite    надетые вещи: по кадру на каждый предмет, слой поверх player_base
 tools/art/aseprite/objects.aseprite      chest
 tools/art/aseprite/objects2.aseprite     portal
@@ -85,6 +86,7 @@ tools/art/aseprite/lava.aseprite         0…5
 tools/art/aseprite/stairs.aseprite       down_0…1, up_0…1
 tools/art/aseprite/traps.aseprite        spikes, pit, net, gas, blade, magical
 tools/art/aseprite/doors.aseprite        0 — обычная, 1 — запертая
+tools/art/aseprite/actions.aseprite      боевые значки: attack, defend, potion, ability, flee, poison, fire, curse, summon, heal, charge, ranged, hint, crit, execute, drain, thorns, armor, phasing, bossrage, miss, fail, block, no_effect, flee_fail
 tools/art/aseprite/decor.aseprite        трава, мох, кости, кристаллы, обломки, колодец, колья, костёр
 tools/art/aseprite/village.aseprite      стена, окно, 12 крыш, двор, NPC-база, дерево, земля
 tools/art/aseprite/interior.aseprite     деревянные стены и дощатый пол домов
@@ -200,7 +202,7 @@ Aseprite ищется в `ASEPRITE`, `C:\tools\aseprite\aseprite.exe`,
 - 22 существа: герой, слизь, крыса, нетопырь, скелет, гоблин, паук, орк,
   тролль, призрак, волк, зомби, голем, демон, минотавр, вампир, лич,
   дракон, торговец, жрец, некромант, щитоносец;
-- 29 предметов: все мечи и кинжалы, трезубец, зелья, броня, щиты,
+- 34 предмета: все мечи и кинжалы, трезубец, зелья, броня, семь щитов,
   амулеты, кольцо и корона;
 - сундук;
 - 10 тем подземелья: по 6 вариантов стен и 6 вариантов пола;
@@ -219,6 +221,21 @@ Aseprite ищется в `ASEPRITE`, `C:\tools\aseprite\aseprite.exe`,
 Остальные существа, предметы, этажи, деревня и декор пока из набора
 DCSS (CC0). Они остаются в `tools/art/src/` и постепенно заменяются
 файлами с теми же именами в `src_custom/`.
+
+## Значки действий в бою
+
+- 25 значков 32×32 в `tools/art/aseprite/actions.aseprite`: меч, щит,
+  зелье, искра, сапог, капля яда, пламя, глаз, руна, крест, молния, стрела,
+  свиток, вспышка крита, череп добивания, клыки вампира, шипы, броня, призрак,
+  ярость босса, красный крест ошибки, сломанная шестерня провала, блок щитом,
+  перечёркнутая колба «без эффекта», сапог с крестом «побег не удался».
+- Каждый — тёмный круглый бейдж с контуром; символ нарисован в палитре
+  проекта. Значок читается на портрете 96–142 px.
+- В бою значок всплывает над портретом действующего бойца на 1,1 с:
+  у героя — удар (обычный, крит или добивание), защита, зелье, подсказка,
+  умение, побег, а также промах, блок и «не сработало»; у врага — его
+  действие или особый приём (яд, огонь, проклятие, призыв, натиск, лечение,
+  выстрел, вампиризм, броня, шипы, призрак, ярость, ошибка, провал).
 
 ## Проверка перед «готово»
 

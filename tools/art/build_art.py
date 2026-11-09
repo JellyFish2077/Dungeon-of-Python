@@ -476,6 +476,11 @@ def build(manifest):
     for name in source_files("equipment"):
         worn[name[:-4]] = png_uri(load("equipment/" + name))
 
+    # Значки действий в бою: меч, щит, зелье, искра и т.д.
+    actions = {}
+    for name in source_files("actions"):
+        actions[name[:-4]] = png_uri(load("actions/" + name))
+
     # Этажи: стены и пол каждого этажа — к своим целевым тонам.
     floors = []
     dirs = set()
@@ -532,7 +537,8 @@ def build(manifest):
     # Деревня: материалы зданий и двор (генерируются) плюс спрайты жителей.
     village, npc_sprites, village_meta = build_village(manifest, report)
     sprites.update(npc_sprites)
-    return {"sprites": sprites, "items": items, "worn": worn, "floors": floors, "water": water, "lava": lava,
+    return {"sprites": sprites, "items": items, "worn": worn, "actions": actions,
+            "floors": floors, "water": water, "lava": lava,
             "decor": decor, "stairs": stairs, "traps": traps, "doors": doors, "objects": objects,
             "village": village, "village_meta": village_meta}, report
 
@@ -586,7 +592,9 @@ def sprites_block(art):
             "// Предметы: у каждой вещи своя картинка, ключ — id из items.js.\n"
             "const ITEM_SPRITES = " + js_map(art["items"]) + ";\n\n"
             "// Надетые вещи: слой на герое поверх player_base, ключ — id предмета.\n"
-            "const WORN_SPRITES = " + js_map(art["worn"]) + ";\n")
+            "const WORN_SPRITES = " + js_map(art["worn"]) + ";\n\n"
+            "// Значки действий в бою: меч, щит, зелье, искра и т.д.\n"
+            "const ACTION_ICONS = " + js_map(art["actions"]) + ";\n")
 
 
 def terrain_block(art):
@@ -656,7 +664,7 @@ def check_rules(art, report):
         errors.append("нет картинок предметов: " + ", ".join(missing))
     # Надеваемые вещи обязаны иметь слой на герое: слот potion не считается.
     wearable = re.findall(
-        r'\{\s*id:\s*"([a-z0-9_]+)",[^\n]*slot:\s*"(weapon|armor|accessory)"',
+        r'\{\s*id:\s*"([a-z0-9_]+)",[^\n]*slot:\s*"(weapon|shield|armor|accessory)"',
         items_js)
     lost_worn = [i for i, _slot in wearable if i not in art["worn"]]
     if lost_worn:

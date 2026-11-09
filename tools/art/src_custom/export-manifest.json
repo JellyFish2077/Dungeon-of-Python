@@ -322,6 +322,36 @@
         }
       ]
     },
+    "items4": {
+      "destination": "items",
+      "assets": [
+        {
+          "tag": "mirror_shield",
+          "file": "mirror_shield.png",
+          "sha256": "38282e3d22fc4c3e20b53e67c24c3757ab0135f683f2683f1cb6e32df7123d24"
+        },
+        {
+          "tag": "round_shield",
+          "file": "round_shield.png",
+          "sha256": "e5be74cdf50686c27f5d53ab74774d4fd5aa417417be4d4ef8653075e14f9647"
+        },
+        {
+          "tag": "steel_shield",
+          "file": "steel_shield.png",
+          "sha256": "6d59fa3671691b1156fb22708fea0754c0e18cd787360192147534598b52dd1a"
+        },
+        {
+          "tag": "warden_shield",
+          "file": "warden_shield.png",
+          "sha256": "b4a4648c8cf2b3e85565d16217a32e4c481be8f22e632ce6271cf70276289060"
+        },
+        {
+          "tag": "wooden_shield",
+          "file": "wooden_shield.png",
+          "sha256": "7d660d63ab46d7d6b59ff20fdf0e71ee905e9606feba5e893884fbf8a9f3d874"
+        }
+      ]
+    },
     "equipment": {
       "destination": "equipment",
       "assets": [
@@ -472,6 +502,36 @@
         }
       ]
     },
+    "equipment2": {
+      "destination": "equipment",
+      "assets": [
+        {
+          "tag": "mirror_shield",
+          "file": "mirror_shield.png",
+          "sha256": "074ff09b74537fa66a6d3f8fc7ad4b3e37a07cd1b20576025fbb70064a7def1f"
+        },
+        {
+          "tag": "round_shield",
+          "file": "round_shield.png",
+          "sha256": "6c56975129ed0662523ac2a7f45e2d88084aae3ad50c78a59bda6ff4823d2491"
+        },
+        {
+          "tag": "steel_shield",
+          "file": "steel_shield.png",
+          "sha256": "9a085cd157b4b25628256fbd9c4ec85a5b1c245fea2b139f72984fdfddf92dd0"
+        },
+        {
+          "tag": "warden_shield",
+          "file": "warden_shield.png",
+          "sha256": "56c10ef4e950dbfedaf810f61b22932a1aca6186a6c7442ce384bcd201663844"
+        },
+        {
+          "tag": "wooden_shield",
+          "file": "wooden_shield.png",
+          "sha256": "142892a6819edb40c8e126a13b61b961032e84b542e05b737c1b1613df3f6c2e"
+        }
+      ]
+    },
     "objects": {
       "destination": "objects",
       "assets": [
@@ -574,6 +634,136 @@
           "tag": "workbench",
           "file": "workbench.png",
           "sha256": "d46093889e4b88d50a4b6dc90005182dfe02523c52dec316b68257b55fb1aa4a"
+        }
+      ]
+    },
+    "actions": {
+      "destination": "actions",
+      "assets": [
+        {
+          "tag": "ability",
+          "file": "ability.png",
+          "sha256": "3682ff4476ed33598d8f7d61d76bef1e8790a890f3e5aa0f94fff777b5a90b36"
+        },
+        {
+          "tag": "armor",
+          "file": "armor.png",
+          "sha256": "79330a912a5d546a5ca2c564a9b1181aef7183bccdfc2b424e2063be70748f8e"
+        },
+        {
+          "tag": "attack",
+          "file": "attack.png",
+          "sha256": "8ef1bcb0cbfe71fa960a063ccfef5e3a39dbb395585a0eed8241ea79a6bde8ff"
+        },
+        {
+          "tag": "block",
+          "file": "block.png",
+          "sha256": "6fb9ea39ccde0891b3eec0e5da76201c39268c90e2ef57d1aa897137487c7982"
+        },
+        {
+          "tag": "bossrage",
+          "file": "bossrage.png",
+          "sha256": "229b6fd9e45a3eface3b77156a126b224598916c32a7fc91367147013294409a"
+        },
+        {
+          "tag": "charge",
+          "file": "charge.png",
+          "sha256": "7f0e7a289b77f4aa7286c7ba6c733fe14d5db2033fa609a87fe271800e5efb87"
+        },
+        {
+          "tag": "crit",
+          "file": "crit.png",
+          "sha256": "e9c6b62875f8adc0ae46ed4ec917aefd60552f2ebeeb3378f52711744392d6fd"
+        },
+        {
+          "tag": "curse",
+          "file": "curse.png",
+          "sha256": "76f7cbf5b55f5f51d2752b6478de936968a36e27762c9cb6e31b0fc1169cd8c1"
+        },
+        {
+          "tag": "defend",
+          "file": "defend.png",
+          "sha256": "9a522017a3242c4260826426d079e492d1210d9a3d981f82be7844d8ee21dd4d"
+        },
+        {
+          "tag": "drain",
+          "file": "drain.png",
+          "sha256": "e3b6d075f3f5310ecb54a767b0d5a462e43c175493f0ee94431df87028fac63a"
+        },
+        {
+          "tag": "execute",
+          "file": "execute.png",
+          "sha256": "2f58475e141617ff9ab50023298498fbdc59dc3a83023467c355624a097d91d5"
+        },
+        {
+          "tag": "fail",
+          "file": "fail.png",
+          "sha256": "04c6c60309fbb9e7cc25cc892d5179c48da5b3309e3074a1a24cf10c1d13568c"
+        },
+        {
+          "tag": "fire",
+          "file": "fire.png",
+          "sha256": "6ede4a129ec55749cfada0ab2248288084e41fd5fa65d0b32215aaf27eaae4db"
+        },
+        {
+          "tag": "flee",
+          "file": "flee.png",
+          "sha256": "4d3936013e887f57c9d46ce6d4fba01cfedd7dcd14f9f9f54e790176540dde5b"
+        },
+        {
+          "tag": "flee_fail",
+          "file": "flee_fail.png",
+          "sha256": "d34c415ef7c3be2f3c044b4bc133a49258f463b57d776d8d3861f5b21bfcfc43"
+        },
+        {
+          "tag": "heal",
+          "file": "heal.png",
+          "sha256": "b3e666075c4f89c3b68fc9db7c8b0ec29c5ecdd5b08d59400cfbbd7313b772e2"
+        },
+        {
+          "tag": "hint",
+          "file": "hint.png",
+          "sha256": "0a4dfd3e9efeb15e233a897013791dcfb243c0d50114e12c525ab9d385d688fb"
+        },
+        {
+          "tag": "miss",
+          "file": "miss.png",
+          "sha256": "7ae50adf6a02f9b1ea34a8857a365ef02f67dea40f82b45d26a2c0353b52f927"
+        },
+        {
+          "tag": "no_effect",
+          "file": "no_effect.png",
+          "sha256": "87b138c4a92905cea0e8aa9d19142afadb907b9212a80f92da6a46384d352eff"
+        },
+        {
+          "tag": "phasing",
+          "file": "phasing.png",
+          "sha256": "a9df7cba73d997ee0aacc846eb3231ab59e907dc9157ca3a4771c566e826e466"
+        },
+        {
+          "tag": "poison",
+          "file": "poison.png",
+          "sha256": "511d9b4103117bd7bab9364a46a15c2cad1892de7c14f944d56bce44a5106c33"
+        },
+        {
+          "tag": "potion",
+          "file": "potion.png",
+          "sha256": "ce3549d0cdb9baa10e90d71d4a1c0bceba3844ce4c14f8527c5aeb2c8861141e"
+        },
+        {
+          "tag": "ranged",
+          "file": "ranged.png",
+          "sha256": "ba83a2402450c718e501ba243dbd99c273f391434cb9db2e1702fa74cde33a2c"
+        },
+        {
+          "tag": "summon",
+          "file": "summon.png",
+          "sha256": "01c734356a6a1cc955b46ba5c77ae5f240100fd30f6fb516d35ea236ac5feb3a"
+        },
+        {
+          "tag": "thorns",
+          "file": "thorns.png",
+          "sha256": "3fc80c52e3e12d6de890572b36b907ec396fcf7c059ce106b81f2d96206c0d30"
         }
       ]
     },
@@ -1787,6 +1977,11 @@
     "items/dawn_blade.png": "19825f30ccb1c36fbb8ff8eb77a0a9e525361388f784adaed21a0345bb797d74",
     "items/heart_abyss.png": "6613b9b94991fa267eed6d8c101892e07473ef12885d0430103fdcc35034f21e",
     "items/warden_plate.png": "75be50f392e314b5f1b37104f5f9d8c69189b3e852e0b073876eb2229d0e2ace",
+    "items/mirror_shield.png": "38282e3d22fc4c3e20b53e67c24c3757ab0135f683f2683f1cb6e32df7123d24",
+    "items/round_shield.png": "e5be74cdf50686c27f5d53ab74774d4fd5aa417417be4d4ef8653075e14f9647",
+    "items/steel_shield.png": "6d59fa3671691b1156fb22708fea0754c0e18cd787360192147534598b52dd1a",
+    "items/warden_shield.png": "b4a4648c8cf2b3e85565d16217a32e4c481be8f22e632ce6271cf70276289060",
+    "items/wooden_shield.png": "7d660d63ab46d7d6b59ff20fdf0e71ee905e9606feba5e893884fbf8a9f3d874",
     "equipment/aegis.png": "d2e3152c5d928ffc63e99168ac37ce937046fc1597f4b98c10e0af15d79096cc",
     "equipment/ash_blade.png": "65327292077a1334b9ef9d7c41eb2be6787716b10397ab01dd2e0ad01a03bb75",
     "equipment/ash_eye.png": "4c131b26a077fd3e38eb8593a10e15c0b8a30d972e50d7751d0891b683b08a01",
@@ -1816,6 +2011,11 @@
     "equipment/trident_precise.png": "b37c3b42bdc58c0acbd0e23e84c4828f35adb15b2631744a45b386e98354b25b",
     "equipment/vampiric_blade.png": "88ee49fa9103e9f9a6d9a206bdb021ad31122f96f194c88a0412479b91c60fec",
     "equipment/warden_plate.png": "1dd9d3939d74648e646d33a79819ef4911fbf4f60976f61abe60814728e1daf6",
+    "equipment/mirror_shield.png": "074ff09b74537fa66a6d3f8fc7ad4b3e37a07cd1b20576025fbb70064a7def1f",
+    "equipment/round_shield.png": "6c56975129ed0662523ac2a7f45e2d88084aae3ad50c78a59bda6ff4823d2491",
+    "equipment/steel_shield.png": "9a085cd157b4b25628256fbd9c4ec85a5b1c245fea2b139f72984fdfddf92dd0",
+    "equipment/warden_shield.png": "56c10ef4e950dbfedaf810f61b22932a1aca6186a6c7442ce384bcd201663844",
+    "equipment/wooden_shield.png": "142892a6819edb40c8e126a13b61b961032e84b542e05b737c1b1613df3f6c2e",
     "objects/chest.png": "68d88849fc875c3ae1eea3ddf2afa6e5c92ac5a6a3ceccee1b177fe7d8ed3d23",
     "objects/portal.png": "7f8dcd4372743e394d2b775357cd9d67101824b13236556134becb7c594bf6d6",
     "objects/lever.png": "ec23814b887741f29c708fb57963676864ec11c4f6b387d390cf4234988983a5",
@@ -1833,6 +2033,31 @@
     "objects/shelf.png": "fdac1df79c4e28ebcde2464082f5903d78c484401ff430fc42313324cf6809ac",
     "objects/table.png": "dfe619278c9ba3c2ec75ce0d36215a075804aebd31afa031d842fb14d1844a04",
     "objects/workbench.png": "d46093889e4b88d50a4b6dc90005182dfe02523c52dec316b68257b55fb1aa4a",
+    "actions/ability.png": "3682ff4476ed33598d8f7d61d76bef1e8790a890f3e5aa0f94fff777b5a90b36",
+    "actions/armor.png": "79330a912a5d546a5ca2c564a9b1181aef7183bccdfc2b424e2063be70748f8e",
+    "actions/attack.png": "8ef1bcb0cbfe71fa960a063ccfef5e3a39dbb395585a0eed8241ea79a6bde8ff",
+    "actions/block.png": "6fb9ea39ccde0891b3eec0e5da76201c39268c90e2ef57d1aa897137487c7982",
+    "actions/bossrage.png": "229b6fd9e45a3eface3b77156a126b224598916c32a7fc91367147013294409a",
+    "actions/charge.png": "7f0e7a289b77f4aa7286c7ba6c733fe14d5db2033fa609a87fe271800e5efb87",
+    "actions/crit.png": "e9c6b62875f8adc0ae46ed4ec917aefd60552f2ebeeb3378f52711744392d6fd",
+    "actions/curse.png": "76f7cbf5b55f5f51d2752b6478de936968a36e27762c9cb6e31b0fc1169cd8c1",
+    "actions/defend.png": "9a522017a3242c4260826426d079e492d1210d9a3d981f82be7844d8ee21dd4d",
+    "actions/drain.png": "e3b6d075f3f5310ecb54a767b0d5a462e43c175493f0ee94431df87028fac63a",
+    "actions/execute.png": "2f58475e141617ff9ab50023298498fbdc59dc3a83023467c355624a097d91d5",
+    "actions/fail.png": "04c6c60309fbb9e7cc25cc892d5179c48da5b3309e3074a1a24cf10c1d13568c",
+    "actions/fire.png": "6ede4a129ec55749cfada0ab2248288084e41fd5fa65d0b32215aaf27eaae4db",
+    "actions/flee.png": "4d3936013e887f57c9d46ce6d4fba01cfedd7dcd14f9f9f54e790176540dde5b",
+    "actions/flee_fail.png": "d34c415ef7c3be2f3c044b4bc133a49258f463b57d776d8d3861f5b21bfcfc43",
+    "actions/heal.png": "b3e666075c4f89c3b68fc9db7c8b0ec29c5ecdd5b08d59400cfbbd7313b772e2",
+    "actions/hint.png": "0a4dfd3e9efeb15e233a897013791dcfb243c0d50114e12c525ab9d385d688fb",
+    "actions/miss.png": "7ae50adf6a02f9b1ea34a8857a365ef02f67dea40f82b45d26a2c0353b52f927",
+    "actions/no_effect.png": "87b138c4a92905cea0e8aa9d19142afadb907b9212a80f92da6a46384d352eff",
+    "actions/phasing.png": "a9df7cba73d997ee0aacc846eb3231ab59e907dc9157ca3a4771c566e826e466",
+    "actions/poison.png": "511d9b4103117bd7bab9364a46a15c2cad1892de7c14f944d56bce44a5106c33",
+    "actions/potion.png": "ce3549d0cdb9baa10e90d71d4a1c0bceba3844ce4c14f8527c5aeb2c8861141e",
+    "actions/ranged.png": "ba83a2402450c718e501ba243dbd99c273f391434cb9db2e1702fa74cde33a2c",
+    "actions/summon.png": "01c734356a6a1cc955b46ba5c77ae5f240100fd30f6fb516d35ea236ac5feb3a",
+    "actions/thorns.png": "3fc80c52e3e12d6de890572b36b907ec396fcf7c059ce106b81f2d96206c0d30",
     "floors/01/floor_0.png": "cfeedf35a2bc486684adb43dfd8eb217ab523032137eb78452de6b369ab95e2c",
     "floors/01/floor_1.png": "4b5a124e0fa76608fa6b3a7686dcb31b67ccb836280b4e0f8ce5ba5ab191f92e",
     "floors/01/floor_2.png": "8821c1c4a66ee65da8d8186f0c5265c8cf764bf480d8fdac97470f001eb79e72",

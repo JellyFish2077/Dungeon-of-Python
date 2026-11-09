@@ -371,6 +371,36 @@ log(Math.abs(bareBrace - 0.15) < 0.001, "без снаряжения оборо�
   Math.round(bareBrace * 100) + "%");
 log(gearedBrace > bareBrace, "снаряжение усиливает оборону",
   Math.round(bareBrace * 100) + "% -> " + Math.round(gearedBrace * 100) + "%");
+
+// Щит — основной источник бонуса обороны.
+G.player.defBonus = 0;
+G.equipment.shield = null;
+const noShieldBrace = API.braceCutForPlayer();
+const woodenShield = API.ITEM_POOL.find((i) => i.id === "wooden_shield");
+const aegisShield = API.ITEM_POOL.find((i) => i.id === "aegis");
+G.equipment.shield = Object.assign({}, woodenShield);
+const woodenBrace = API.braceCutForPlayer();
+G.equipment.shield = Object.assign({}, aegisShield);
+const aegisBrace = API.braceCutForPlayer();
+log(noShieldBrace === 0.15 && woodenBrace > noShieldBrace &&
+    aegisBrace > woodenBrace && aegisBrace <= 0.5,
+  "щит усиливает оборону: без щита 15%, деревянный и эгида сильнее",
+  Math.round(noShieldBrace * 100) + "% -> " +
+  Math.round(woodenBrace * 100) + "% -> " + Math.round(aegisBrace * 100) + "%");
+log(woodenShield.slot === "shield" && aegisShield.slot === "shield" &&
+    API.ITEM_POOL.filter((i) => i.slot === "shield").length >= 6,
+  "щиты вынесены в отдельный слот",
+  API.ITEM_POOL.filter((i) => i.slot === "shield").length);
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
+API.recalcStats();
+const shieldBaseHp = G.player.maxHp;
+const shieldBaseDef = G.player.defBonus;
+G.equipment.shield = Object.assign({}, woodenShield);
+API.recalcStats();
+log(G.player.defBonus === shieldBaseDef + (woodenShield.def || 0) &&
+    G.player.maxHp === shieldBaseHp + (woodenShield.hp || 0),
+  "щит учитывается в защите и запасе HP");
+G.equipment.shield = null;
 G.battle = null;
 
 // Стойка ослабляет удар врага в его ход.
@@ -576,7 +606,7 @@ G.battle = null;
 freshRun(5);
 const shield = enemyOnPlayerCell("shieldman", 400);
 API.openBattle(shield);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 const shieldBefore = shield.hp;
 API.applyAttack(100, "тест", false, "");
 const shieldLoss = shieldBefore - shield.hp;
@@ -600,7 +630,7 @@ log(trollLoss > 0 && trollLoss < 100, "тролль затягивает час�
 freshRun(5);
 let golem = enemyOnPlayerCell("golem", 400);
 API.openBattle(golem);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 const beforeHp = golem.hp;
 API.applyAttack(100, "тест", false, "");
 const golemLoss = beforeHp - golem.hp;
@@ -620,91 +650,35 @@ API.playerTakeHit();
 log(vamp.hp > 200, "вампир лечится от удара по герою", vamp.hp);
 G.battle = null;
 
-// ================= Пропуск вопроса =================
-// Замысел: вопрос можно пропустить, заплатив здоровьем — и ощутимо. Враг при
-// этом не бьёт: цена уже уплачена. Но вопрос идёт в пробелы по теме, в процент
-// похода и возвращается призраком ошибки — иначе пропускать было бы выгоднее,
-// чем учить.
-freshRun(3);
-const skipEnemy = enemyOnPlayerCell("orc", 400);
-API.openBattle(skipEnemy);
-// Ставим заведомо вопрос с вариантами: тип задания в бою случаен.
-const skipQ = API.QUESTIONS[0];
-G.battle.challenge = { type: "mc", question: skipQ };
-API.attachChoices(G.battle.challenge);
-API.renderBattle();
-const skipLabel = el("battle-box").innerHTML;
-log(/skip-question-btn/.test(skipLabel), "в бою есть кнопка «Пропустить вопрос»");
-log(/Пропустить вопрос \(шанс \d+%\)/.test(skipLabel),
-  "на кнопке написан шанс без цены HP");
-log(!/Пропустить вопрос[^<]*HP/.test(skipLabel), "цена HP у пропуска убрана");
-
-const skipHp = G.player.hp;
-const skipEnemyHp = G.battle.enemy.hp;
-const skipTotal = (G.stats.topicStats[skipQ.topic] || { total: 0 }).total;
-G.player.hp = Math.max(G.player.hp, 500);
-const savedSkipRandom = Math.random;
-Math.random = () => 0.01;
-API.skipQuestion();
-Math.random = savedSkipRandom;
-log(G.battle.phase === "result", "после пропуска бой идёт дальше", G.battle.phase);
-log(G.player.hp === 500, "успешный пропуск не тратит здоровье",
-  "было 500, стало " + G.player.hp);
-log(G.battle.enemy.hp === skipEnemyHp, "враг за пропуск урона не получил");
-log(G.missed.some((m) => m.id === skipQ.id), "пропущенный вопрос вернётся призраком");
-log((G.stats.topicStats[skipQ.topic] || { total: 0 }).total === skipTotal + 1,
-  "пропуск засчитан как пробел по теме");
-log(/Пропущено/.test(el("battle-box").innerHTML), "в бою сказано, что вопрос пропущен");
-log(G.stats.wrong > 0, "пропуск честно портит процент похода", G.stats.wrong);
-API.continueBattle();
-log(G.battle.phase === "question" && !G.battle.enemyTurn,
-  "пропуск вопроса не запускает ход врага");
-
-// Неудачный пропуск: вопрос остаётся тем же, здоровье не тратится.
+// ================= Пропуск задания убран =================
+// Раньше вопрос и задание с кодом можно было пропустить за шанс. Теперь
+// пропуска нет: на задание отвечают или берут подсказку.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
-const failSkipQ = API.QUESTIONS[0];
-G.battle.challenge = { type: "mc", question: failSkipQ };
-API.attachChoices(G.battle.challenge);
-const failChallenge = G.battle.challenge;
-const wrongBeforeSkip = G.stats.wrong;
-G.player.hp = 500;
-const savedFailSkipRandom = Math.random;
-Math.random = () => 0.99;
-API.skipQuestion();
-Math.random = savedFailSkipRandom;
-log(G.battle.phase === "question" && G.battle.challenge === failChallenge &&
-    G.battle.skipFailed, "неудачный пропуск оставляет тот же вопрос");
-log(G.player.hp === 500, "неудачный пропуск не тратит здоровье");
-log(G.stats.wrong === wrongBeforeSkip, "неудачный пропуск не записывается как ошибка");
-G.battle = null;
-
-// Даже с малым здоровьем пропуск не убивает: цена HP убрана.
-freshRun(3);
-API.openBattle(enemyOnPlayerCell("orc", 400));
-G.battle.challenge = { type: "mc", question: API.QUESTIONS[1] };
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
 API.attachChoices(G.battle.challenge);
 API.renderBattle();
-G.player.hp = 5;
-const savedLowSkipRandom = Math.random;
-Math.random = () => 0.01;
-API.skipQuestion();
-Math.random = savedLowSkipRandom;
-log(G.player.hp === 5 && G.battle.phase === "result",
-  "с малым здоровьем пропуск работает и не тратит HP", G.player.hp + " HP");
+const noSkipMc = el("battle-box").innerHTML;
+log(!/id='skip-question-btn'/.test(noSkipMc) &&
+    !/Пропустить вопрос \(шанс/.test(noSkipMc),
+  "в вопросе больше нет кнопки пропуска");
+G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
+API.renderBattle();
+const noSkipCopy = el("battle-box").innerHTML;
+log(!/id='skip-code-btn'/.test(noSkipCopy) &&
+    !/Пропустить вопрос \(шанс/.test(noSkipCopy),
+  "в задании с кодом больше нет кнопки пропуска");
 G.battle = null;
 
-// В задачах на код тоже можно не запираться: есть подсказка и пропуск,
-// но это отдельные кнопки — «Пропустить вопрос» из MC-вопроса сюда не течёт.
+// В задачах на код остаётся подсказка: пропуска задания больше нет.
 freshRun(3);
 API.openBattle(enemyOnPlayerCell("orc", 400));
 G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
 API.renderBattle();
 const copyFoot = el("battle-box").innerHTML;
-log(/skip-code-btn/.test(copyFoot), "в «повтори код» есть кнопка пропуска");
 log(/code-hint-btn/.test(copyFoot), "в «повтори код» есть подсказка");
-log(!/skip-question-btn/.test(copyFoot),
-  "в «повтори код» нет MC-кнопки пропуска — только своя");
+log(!/challenge-tag/.test(copyFoot),
+  "у «повтори код» нет подписи типа задания");
 G.player.hp = 500;
 const copyHintHp = G.player.hp;
 API.useCodeHint();
@@ -719,43 +693,6 @@ log(G.player.hp === copyHintHp && G.battle.challenge.hintUsed === true &&
 log(/Подсказка:/.test(G.battle.challenge.notice || ""),
   "подсказка к «повтори код» показывает пояснение к образцу",
   G.battle.challenge.notice);
-G.battle = null;
-
-// Пропуск задания с кодом: без цены HP, враг не бьёт, разбор показывается.
-freshRun(3);
-API.openBattle(enemyOnPlayerCell("orc", 400));
-G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
-API.renderBattle();
-G.player.hp = 500;
-const codeSkipEnemyHp = G.battle.enemy.hp;
-const codeSkipWrong = G.stats.wrong;
-const savedCodeSkipRandom = Math.random;
-Math.random = () => 0.01;
-API.skipCodeQuestion();
-Math.random = savedCodeSkipRandom;
-log(G.battle.phase === "result", "пропуск кода завершает ход", G.battle.phase);
-log(G.player.hp === 500, "пропуск кода не тратит здоровье",
-  "стало " + G.player.hp);
-log(G.battle.enemy.hp === codeSkipEnemyHp, "за пропуск кода враг не бьёт");
-log(G.stats.wrong === codeSkipWrong + 1, "пропуск кода портит процент похода");
-log(/Пропущено/.test(el("battle-box").innerHTML), "пропуск кода показывает разбор");
-G.battle = null;
-
-// Неудачный пропуск кода оставляет то же задание.
-freshRun(3);
-API.openBattle(enemyOnPlayerCell("orc", 400));
-G.battle.challenge = { type: "copy", task: API.COPY_TASKS[0], code: API.COPY_TASKS[0].code };
-const codeFailChallenge = G.battle.challenge;
-G.player.hp = 500;
-const codeFailWrong = G.stats.wrong;
-const savedCodeFailRandom = Math.random;
-Math.random = () => 0.99;
-API.skipCodeQuestion();
-Math.random = savedCodeFailRandom;
-log(G.battle.phase === "question" && G.battle.challenge === codeFailChallenge &&
-    G.battle.skipFailed, "неудачный пропуск кода оставляет то же задание");
-log(G.player.hp === 500 && G.stats.wrong === codeFailWrong,
-  "неудачный пропуск кода не тратит HP и не пишет ошибку");
 G.battle = null;
 
 // Подсказка к «напиши функцию» берёт expected, а не undefined.
@@ -794,21 +731,19 @@ log(G.battle.challenge.hintUsed === true && Array.isArray(G.battle.challenge.hid
   "свиток даёт обычную подсказку");
 G.battle = null;
 
-// Шанс пропуска и отступления зависит от здоровья героя и врага.
+// Шанс побега зависит от здоровья врага.
 const chanceEnemy = API.makeEnemy("orc", 3);
-chanceEnemy.hp = chanceEnemy.maxHp;
 G.player.hp = G.player.maxHp;
 G.stats.streak = 0;
-const fullSkipChance = API.skipChance(chanceEnemy);
-G.player.hp = Math.max(1, Math.round(G.player.maxHp * 0.2));
-const lowSkipChance = API.skipChance(chanceEnemy);
-log(lowSkipChance < fullSkipChance, "низкое здоровье героя снижает шанс пропуска",
-  Math.round(lowSkipChance * 100) + "% < " + Math.round(fullSkipChance * 100) + "%");
+// Побег: полное здоровье врага — около 10%, раненый враг выпускает легче.
+chanceEnemy.hp = chanceEnemy.maxHp;
 G.player.hp = G.player.maxHp;
+const fullFlee = API.fleeChance(chanceEnemy);
 chanceEnemy.hp = Math.max(1, Math.round(chanceEnemy.maxHp * 0.2));
-const hurtEnemyChance = API.skipChance(chanceEnemy);
-log(hurtEnemyChance > fullSkipChance, "раненый враг повышает шанс пропуска",
-  Math.round(hurtEnemyChance * 100) + "% > " + Math.round(fullSkipChance * 100) + "%");
+const hurtFlee = API.fleeChance(chanceEnemy);
+log(fullFlee <= 0.13 && hurtFlee >= 0.45 && hurtFlee > fullFlee,
+  "побег зависит от здоровья врага: полный HP — около 10%, раненый — заметно выше",
+  Math.round(fullFlee * 100) + "% -> " + Math.round(hurtFlee * 100) + "%");
 const bossChance = API.makeEnemy("dragon", 3);
 G.player.hp = G.player.maxHp;
 G.stats.streak = 0;
@@ -1291,7 +1226,7 @@ if (execute) {
 
 // без экипировки боевая математика не меняется
 freshRun(2);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 log(API.playerAttackPower() === G.player.dmgBase + G.player.level * 4,
   "без экипировки урон не меняется", API.playerAttackPower());
 
@@ -1621,7 +1556,14 @@ log(!/\.battle-col \.battle \{/.test(gameCss),
 // Раньше на телефоне оставалась заглушка «поверни телефон». Теперь оба
 // положения — настоящая игра: проверяем, что правила раскладки на месте.
 const portraitAt = gameCss.indexOf("@media (orientation: portrait) and (max-width: 900px)");
-const landscapeAt = gameCss.lastIndexOf("@media (orientation: landscape)");
+// В стилях теперь два одинаковых по условию ландшафтных блока: основной и
+// поздний слой поверх дуэльной шапки. Проверяем основной — в нём живут
+// правила панели, HUD и мини-карты.
+const landscapeKey =
+  "@media (orientation: landscape) and (max-height: 560px) and (max-width: 1100px)";
+const landscapeAt = gameCss.indexOf(landscapeKey) !== -1
+  ? gameCss.indexOf(landscapeKey)
+  : gameCss.lastIndexOf("@media (orientation: landscape)");
 const portraitCss = portraitAt === -1 ? "" : gameCss.slice(portraitAt, landscapeAt);
 const landscapeCss = landscapeAt === -1 ? "" : gameCss.slice(landscapeAt);
 log(portraitAt !== -1 && landscapeAt > portraitAt,
@@ -1634,7 +1576,7 @@ log(/\.game-dock \{[^}]*width: calc\(100vw - 8px - var\(--safe-left\) - var\(--s
 log(/\.hero-hud \{[^}]*display: grid/.test(portraitCss) &&
   /\.hero-hud-bar\.hp \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
   "в портрете HUD ужат в две строки, здоровье на всю ширину");
-log(/\.battle-panel \{[^}]*max-height: calc\(var\(--app-vh\) \* 0\.64\)/.test(portraitCss) &&
+log(/\.battle-panel \{[^}]*max-height: calc\(var\(--app-vh\) \* 0\.67\)/.test(portraitCss) &&
   /\.battle-panel \.battle-panel-top \{[^}]*display: grid/.test(portraitCss) &&
   /\.battle-panel \.round-note \{[^}]*grid-column: 1 \/ -1/.test(portraitCss),
   "в портретном бою HP и «ход героя» не схлопываются");
@@ -1825,7 +1767,7 @@ log(tileShorthands.length === 0,
 
 // ================= 14. Ломбарь бонусов =================
 freshRun(1);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 log(typeof API.equippedEffect === "function", "equippedEffect доступна");
 log(API.equippedEffect("crit") === null, "equippedEffect возвращает null без предмета");
 
@@ -1838,7 +1780,7 @@ log(typeof API.renderEffectList === "function", "renderEffectList доступн
 log(typeof API.effectFlash === "function", "effectFlash доступна");
 
 freshRun(1);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 API.updateEquipBar();
 log(effectListBox().innerHTML === "", "без надетых эффектов список пуст",
   JSON.stringify(effectListBox().innerHTML.slice(0, 40)));
@@ -1877,7 +1819,7 @@ const echoRows = [];
 allKinds.forEach((k) => {
   const it = ITEM_POOL.find((i) => i.effect && i.effect.kind === k && i.slot !== "potion");
   if (!it) return;
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   G.equipment[it.slot] = it;
   API.renderEffectList(effectListBox());
   const row = (effectListBox().innerHTML.split('data-effect="' + k + '"')[1] || "").split("</div>")[0];
@@ -1889,7 +1831,7 @@ allKinds.forEach((k) => {
   }
 });
 log(echoRows.length === 0, "строка эффекта не повторяет свою фразу, а показывает числа", echoRows.join("; "));
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 
 // Закреплённая сводка колонки — только здоровье, этаж и золото. Со списком
 // эффектов она при трёх вещах с эффектами вырастала выше колонки (606px при
@@ -1929,7 +1871,7 @@ log(flashBox().classList.contains("show"), "класс show включает а�
 
 // Крит обязан оставить след для интерфейса
 freshRun(1);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 const critItem = ITEM_POOL.filter((i) => i.effect && i.effect.kind === "crit")[0];
 G.equipment.weapon = critItem;
 G.battle = {};
@@ -1948,7 +1890,7 @@ log(G.battle.critHit === 0, "без крита метка не ставится"
 
 // Добивание: урон растёт, и это видно интерфейсу
 freshRun(1);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 const execItem = ITEM_POOL.filter((i) => i.effect && i.effect.kind === "execute")[0];
 G.equipment.weapon = execItem;
 API.openBattle(API.makeEnemy("slime", 1));
@@ -1965,7 +1907,7 @@ G.battle = null;
 
 // Флаги обязаны сбрасываться между ударами, иначе подсказка залипнет.
 freshRun(1);
-G.equipment = { weapon: null, armor: null, accessory: null };
+G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 const foe = API.makeEnemy("slime", 1);
 API.openBattle(foe);
 G.battle.critHit = 2;
@@ -3990,10 +3932,12 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   log(setKeys.length >= 3, "семей предметов не меньше трёх", setKeys.length + " шт.");
   const badShape = setKeys.filter((key) => {
     const items = API.ITEM_POOL.filter((i) => i.set === key);
-    return !(items.length === 3 && items.map((i) => i.slot).sort().join(",") === "accessory,armor,weapon");
+    const slots = items.map((i) => i.slot).sort().join(",");
+    return !(items.length === 3 &&
+      (slots === "accessory,armor,weapon" || slots === "accessory,shield,weapon"));
   });
   log(badShape.length === 0,
-    "в каждой семье по три вещи — оружие, броня и амулет", badShape.join(",") || "все семьи");
+    "в каждой семье по три вещи — оружие, броня или щит и амулет", badShape.join(",") || "все семьи");
   const unknown = API.ITEM_POOL.filter((i) => i.set && !API.ITEM_SETS[i.set]).map((i) => i.id);
   log(unknown.length === 0, "у каждого предмета семья из списка, а не выдуманная",
     unknown.join(",") || "ок");
@@ -4015,7 +3959,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const fw = forge.find((i) => i.slot === "weapon");
   const fa = forge.find((i) => i.slot === "armor");
   const fc = forge.find((i) => i.slot === "accessory");
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   API.recalcStats();
   const bareMax = G.player.maxHp;
   G.equipment.weapon = Object.assign({}, fw);
@@ -4040,7 +3984,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
 
   // Крит от семьи доходит до удара.
   freshRun(3);
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   API.ITEM_POOL.filter((i) => i.set === "shadow").forEach((i) => {
     G.equipment[i.slot] = Object.assign({}, i);
   });
@@ -4055,7 +3999,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
 
   // Вампиризм семьи складывается с вампиризмом клинка и лечит в бою.
   freshRun(3);
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   API.ITEM_POOL.filter((i) => i.set === "blood").forEach((i) => {
     G.equipment[i.slot] = Object.assign({}, i);
   });
@@ -4075,7 +4019,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
 
   // Золото от семьи складывается с амулетом-бухгалтерией.
   freshRun(3);
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   API.ITEM_POOL.filter((i) => i.set === "luck").forEach((i) => {
     G.equipment[i.slot] = Object.assign({}, i);
   });
@@ -4089,7 +4033,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
 
   // Надеть две вещи семьи через инвентарь — тот же бонус.
   freshRun(3);
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   G.inventory = [Object.assign({}, fw), Object.assign({}, fa)];
   API.equipItem(0);
   API.equipItem(0);
@@ -4191,7 +4135,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
 
   // Сумка сравнивает предмет с надетым.
   freshRun(3);
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
   const weakBlade = API.ITEM_POOL.filter((i) => i.slot === "weapon")[0];
   const strongBlade = API.ITEM_POOL.filter((i) => i.slot === "weapon")
     .sort((a, b) => (b.atk || 0) - (a.atk || 0))[0];
@@ -4471,7 +4415,7 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   G.equipment = { weapon: copyItem("frost_blade"), armor: copyItem("chainmail"), accessory: copyItem("guard_amulet") };
   API.renderEffectList(el("effect-list"));
   log(titleCount() === 2, "эффект и комплект: два разных заголовка", titleCount());
-  G.equipment = { weapon: null, armor: null, accessory: null };
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
 }
 
 // ================= 29. Карта встык и целый масштаб =================
@@ -5544,8 +5488,9 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   // Предупреждение висит над следующим вопросом.
   G.battle.phase = "question";
   API.renderBattle();
-  log(/miss-tag/.test(el("battle-box").innerHTML) && /следующая ×2,5/.test(el("battle-box").innerHTML),
-    "бой предупреждает, что следующая ошибка ударит сильнее");
+  log(/battle-status-chip miss/.test(el("battle-box").innerHTML) &&
+      /Ошибки 3 · ×2,5/.test(el("battle-box").innerHTML),
+    "бой показывает счётчик ошибок подряд");
   API.applyAttack(10, "верно", false, "", true);
   log(G.battle.missStreak === 0, "верный ответ сбрасывает счёт ошибок");
   const hit4 = takeMiss();
@@ -5647,13 +5592,13 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   const card = el("battle-box").innerHTML;
   // Темы боя в окне больше нет (она видна в самом вопросе), зато об ошибках
   // подряд окно предупреждает: следующая бьёт сильнее.
-  log(!/Тема боя|Повторение:/.test(card) && !/battle-topic/.test(card),
+  log(!/Тема боя|Повторение:/.test(card) && !/battle-status-chip miss/.test(card),
     "строки «Тема боя» в окне нет");
   G.battle.missStreak = 2;
   API.renderBattle();
   const cardMiss = el("battle-box").innerHTML;
-  log(/battle-topic/.test(cardMiss) && /Ошибок подряд: 2/.test(cardMiss),
-    "зато про ошибки подряд окно предупреждает");
+  log(/battle-status-chip miss/.test(cardMiss) && /Ошибки 2 · ×2,0/.test(cardMiss),
+    "зато про ошибки подряд говорит счётчик");
   G.battle = null;
   Math.random = realRandom;
   freshRun(0);
@@ -7315,6 +7260,101 @@ log(!/squad-note/.test(squadUiHtml) && !/Пока кто-то жив/.test(squad
   "плашки и текста «Пока кто-то жив» больше нет");
 G.battle = null;
 
+// Дуэльная шапка и карточка итога хода врага.
+freshRun(3);
+const duelEnemy = enemyOnPlayerCell("skeleton", 400);
+API.openBattle(duelEnemy);
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+API.renderBattle();
+const duelHtml = el("battle-box").innerHTML;
+log(/data-phase='question'/.test(duelHtml) && /battle-panel-top/.test(duelHtml) &&
+    /round-note/.test(duelHtml) && !/combatant-mark/.test(duelHtml),
+  "шапка боя собрана как дуэль без иконок");
+G.battle.phase = "result";
+G.battle.enemyTurn = {
+  actionName: "Атака",
+  feedback: "Скелет бьёт тебя на 12 урона.",
+  taken: 12,
+  correct: true
+};
+API.renderBattle();
+const turnHtml = el("battle-box").innerHTML;
+log(/enemy-turn-box/.test(turnHtml) && /enemy-turn-damage/.test(turnHtml) &&
+    /−12/.test(turnHtml),
+  "итог хода врага показывает карточку и крупный урон");
+G.battle = null;
+
+// В задании явно сказано, что делать: у вопроса — что выбрать, у поиска
+// ошибки — что выбрать, у функции — примеры вызовов.
+freshRun(3);
+API.openBattle(enemyOnPlayerCell("orc", 400));
+G.battle.challenge = { type: "mc", question: API.QUESTIONS[0] };
+API.attachChoices(G.battle.challenge);
+API.renderBattle();
+const mcHelp = el("battle-box").innerHTML;
+log(/Выбери один правильный вариант/.test(mcHelp) &&
+    !/challenge-tag/.test(mcHelp),
+  "у вопроса написано, что выбрать, и нет подписи типа");
+G.battle.challenge = { type: "error", task: API.ERROR_TASKS[0] };
+API.attachChoices(G.battle.challenge);
+API.renderBattle();
+const errHelp = el("battle-box").innerHTML;
+log(/Выбери, что не так в коде/.test(errHelp),
+  "у поиска ошибки сказано, что выбрать");
+G.battle.challenge = {
+  type: "code",
+  task: API.CODE_TASKS[0],
+  code: API.CODE_TASKS[0].starter
+};
+API.renderBattle();
+const codeHelp = el("battle-box").innerHTML;
+log(/task-examples/.test(codeHelp) && /attack_power\(10, 5\)/.test(codeHelp) &&
+    /15/.test(codeHelp),
+  "у функции показаны примеры вызовов");
+G.battle = null;
+
+// Значки действий: набор собран из Aseprite и привязан к действиям.
+log(!!API.ACTION_ICONS &&
+    ["attack", "defend", "potion", "ability", "flee", "poison", "fire",
+     "curse", "summon", "heal", "charge", "ranged", "hint", "crit",
+     "execute", "drain", "thorns", "armor", "phasing", "bossrage",
+     "miss", "fail", "block", "no_effect", "flee_fail"]
+      .every((k) => typeof API.ACTION_ICONS[k] === "string" &&
+        API.ACTION_ICONS[k].startsWith("data:image/png")),
+  "набор значков действий собран из Aseprite");
+log(API.playerAttackIcon(false, false) === "attack" &&
+    API.playerAttackIcon(true, false) === "crit" &&
+    API.playerAttackIcon(false, true) === "execute" &&
+    API.playerResultIcon(true, false, false) === "attack" &&
+    API.playerResultIcon(false, false, false) === "miss" &&
+    API.playerResultIcon(null, false, false) === "",
+  "удар героя различает обычный, критический, добивающий и промах");
+log(API.enemyActionIcon(API.makeEnemy("spider", 0), {}, { action: "special" }) === "poison" &&
+    API.enemyActionIcon(API.makeEnemy("demon", 0), {}, { action: "special" }) === "fire" &&
+    API.enemyActionIcon(API.makeEnemy("lich", 0), {}, { action: "special" }) === "curse" &&
+    API.enemyActionIcon(API.makeEnemy("minotaur", 0), {}, { action: "special" }) === "charge" &&
+    API.enemyActionIcon(API.makeEnemy("vampire", 0), {}, { action: "special" }) === "drain" &&
+    API.enemyActionIcon(API.makeEnemy("golem", 0), {}, { action: "special" }) === "armor" &&
+    API.enemyActionIcon(API.makeEnemy("ghost", 0), {}, { action: "special" }) === "phasing" &&
+    API.enemyActionIcon(API.makeEnemy("dragon", 0), {}, { action: "special" }) === "bossrage",
+  "особые приёмы врагов получают свой значок");
+log(API.enemyActionIcon(API.makeEnemy("orc", 0), { rangedShot: true }, { action: "attack" }) === "ranged" &&
+    API.enemyActionIcon(API.makeEnemy("orc", 0), {}, { action: "attack" }) === "attack" &&
+    API.enemyActionIcon(API.makeEnemy("orc", 0), {}, { action: "defend" }) === "defend" &&
+    API.enemyActionIcon(API.makeEnemy("priest", 0), {}, { action: "heal" }) === "heal",
+  "атака, защита и лечение получают свои значки");
+const orcIcon = API.makeEnemy("orc", 0);
+const missBadge = API.enemyTurnBadge(orcIcon, {}, { correct: false, action: "attack", taken: 0 });
+const blockBadge = API.enemyTurnBadge(orcIcon, { blocked: true }, { correct: true, action: "attack", taken: 0 });
+const failBadge = API.enemyTurnBadge(orcIcon, {}, { correct: true, action: "attack", taken: 0 });
+const attackBadge = API.enemyTurnBadge(orcIcon, {}, { correct: true, action: "attack", taken: 7 });
+log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
+    blockBadge.side === "hero" && blockBadge.icon === "block" &&
+    failBadge.side === "enemy" && failBadge.icon === "fail" &&
+    attackBadge.side === "enemy" && attackBadge.icon === "attack",
+  "ошибка, блок и провал действия получают свои значки");
+
 // Сцена боя не пересобирается на каждое нажатие: портреты остаются теми же
 // DOM-узлами, иначе CSS-анимация покачивания начинается заново и бойцы
 // «дёргаются» на каждом клике. В стенде querySelector — заглушка, поэтому
@@ -7334,6 +7374,15 @@ G.battle = null;
   log(/function startEnemyTurn\(\)[\s\S]{0,2600}?if \(turn\.taken > 0\)[\s\S]{0,200}?strikeScene\(box, "hero"/
       .test(battleReuseSrc),
     "ход врага запускает анимацию удара по герою");
+  log(/body\.battling \.battle-panel \.battle-cat-wrap:first-child \.battle-cat/.test(gameCss) &&
+      /body\.battling \.battle-panel:not\(\.code-mode\) \.battle-mid\.split[\s\S]{0,140}?flex-direction: column/
+        .test(gameCss),
+    "карточка вопроса и сегменты действий заданы в стилях");
+  log(/mapEl\.classList\.add\("cam-zoom"\)/.test(battleReuseSrc) &&
+      /#map\.cam-zoom/.test(gameCss),
+    "смена масштаба отключает плавные переходы камеры и персонажей");
+  log(!/challenge-tag/.test(battleReuseSrc),
+    "подписи типов заданий убраны из боя");
 }
 
 // Удар врага по герою: сцена получает класс выпада врага, на герое
@@ -8301,20 +8350,33 @@ if (testDoor) {
   G.playerPos = { ...testAxis.a };
   log(!API.hasLineOfSight(testAxis.a.x, testAxis.a.y, testAxis.b.x, testAxis.b.y),
     "закрытая дверь не пропускает взгляд");
-  log(API.tileBlockedForEnemy(testDoor.x, testDoor.y),
-    "закрытая дверь не пускает врагов");
+  log(!API.tileBlockedForEnemy(testDoor.x, testDoor.y),
+    "закрытая дверь не блокирует моба — он открывает её сам");
   API.move(-testAxis.dx, -testAxis.dy);
   log(testDoor.open === true, "игрок открывает дверь шагом");
   log(G.playerPos.x === testDoor.x && G.playerPos.y === testDoor.y,
     "игрок входит в открытую дверь", G.playerPos.x + "," + G.playerPos.y);
   log(API.hasLineOfSight(testDoor.x, testDoor.y, testAxis.b.x, testAxis.b.y),
     "открытая дверь пропускает взгляд");
-  log(!API.tileBlockedForEnemy(testAxis.b.x, testAxis.b.y),
-    "открытая дверь пускает врагов");
-  // Шаг дальше: дверь обязана закрыться за спиной.
+  // Шаг дальше: дверь закрывается за игроком.
   API.move(-testAxis.dx, -testAxis.dy);
   log(!testDoor.open, "дверь закрывается за игроком",
     "открыта: " + testDoor.open);
+  // Моб сам открывает закрытую дверь, проходит и закрывает её за собой.
+  const savedDoorEnemies = G.enemies;
+  const doorGuard = API.makeEnemy("orc", 0);
+  doorGuard.x = testAxis.a.x;
+  doorGuard.y = testAxis.a.y;
+  G.enemies = [doorGuard];
+  const doorAttacker = API.enemyTurn();
+  log(!doorAttacker && testDoor.open &&
+      doorGuard.x === testDoor.x && doorGuard.y === testDoor.y,
+    "моб открывает дверь и входит в неё",
+    doorGuard.x + "," + doorGuard.y + ", открыта: " + testDoor.open);
+  API.moveEnemyTo(doorGuard, testAxis.a.x, testAxis.a.y);
+  log(!testDoor.open, "дверь закрывается за мобом",
+    "открыта: " + testDoor.open);
+  G.enemies = savedDoorEnemies;
 } else {
   log(false, "не нашлось двери с проходом для проверки");
 }

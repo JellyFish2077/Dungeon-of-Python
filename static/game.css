@@ -973,6 +973,10 @@ body.game-page:has(.stage.village) .tile.unseen {
   z-index: 2;
 }
 
+.player-shield {
+  z-index: 3;
+}
+
 .player-amulet,
 .player-crown,
 .player-ring {
@@ -10292,7 +10296,7 @@ body.battling .battle-panel {
   bottom: 0;
   width: 100%;
   max-width: none;
-  max-height: min(calc(var(--app-vh) * 0.62), 640px);
+  max-height: min(calc(var(--app-vh) * 0.65), 660px);
   padding: 14px 26px 18px;
   border: 0 !important;
   border-top: 1px solid var(--quiet-line) !important;
@@ -11881,7 +11885,7 @@ body.game-page .minimap-dock.off {
     bottom: var(--safe-bottom);
     width: 100%;
     max-width: none;
-    max-height: calc(var(--app-vh) * 0.64);
+    max-height: calc(var(--app-vh) * 0.67);
     padding: 9px 11px 11px;
   }
 
@@ -12473,10 +12477,10 @@ body.game-page .minimap-dock.off {
   body.battling .battle-panel {
     left: 50%;
     right: auto;
-    top: calc(var(--app-vh) * 0.46);
+    top: calc(var(--app-vh) * 0.43);
     bottom: auto;
     width: min(clamp(560px, 46vw, 820px), calc(100vw - 24px));
-    max-height: min(calc(var(--app-vh) * 0.54 - 12px), 560px);
+    max-height: min(calc(var(--app-vh) * 0.57 - 12px), 580px);
     padding: 10px 12px 11px;
     transform: translate(-50%, calc(100% + 40px));
   }
@@ -12770,5 +12774,431 @@ body.battling .battle-panel .battle-status-chip.squad {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
+  }
+}
+
+/* ============================================================
+   Окно боя: макет «Дуэль».
+   Два бойца с монограммами, по центру — чей ход. Вопрос живёт
+   в карточке, ответы идут сеткой 2×2, действия — сегментами.
+   ============================================================ */
+
+body.battling .battle-panel .battle-panel-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--quiet-line-soft);
+}
+
+body.battling .battle-panel .combatant.hero {
+  justify-self: start;
+}
+
+body.battling .battle-panel .combatant.enemy {
+  justify-self: end;
+}
+
+body.battling .battle-panel .combatant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+body.battling .battle-panel .combatant.enemy {
+  flex-direction: row;
+  margin-left: 0;
+  text-align: right;
+}
+
+body.battling .battle-panel .combatant-info {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+body.battling .battle-panel .combatant.enemy .combatant-info {
+  align-items: flex-end;
+}
+
+body.battling .battle-panel .combatant .name {
+  display: block;
+  max-width: 34vw;
+  color: var(--quiet-text);
+  font: 700 12px/1 var(--font-ui);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body.battling .battle-panel .combatant .hp-line {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+body.battling .battle-panel .combatant.enemy .hp-line {
+  flex-direction: row-reverse;
+}
+
+body.game-page .battle-panel .combatant .hp-bar {
+  width: clamp(76px, 10vw, 118px);
+  height: 4px;
+  border: 0;
+  border-radius: 2px;
+  background: rgba(233, 239, 248, 0.1);
+  box-shadow: none;
+}
+
+body.game-page .battle-panel .combatant .hp-bar > i {
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--quiet-hp-soft), var(--quiet-hp));
+}
+
+body.game-page .battle-panel .combatant.enemy .hp-bar > i {
+  background: linear-gradient(90deg, #8f4a3a, var(--quiet-enemy));
+}
+
+body.battling .battle-panel .combatant .num {
+  color: var(--quiet-muted);
+  font: 500 10.5px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+body.battling .battle-panel .round-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0;
+  border: 0;
+  color: var(--quiet-accent);
+  font: 700 8.5px/1 var(--font-ui);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+body.battling .battle-panel .round-note::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px rgba(157, 192, 239, 0.8);
+}
+
+/* Карточка вопроса: рамка вокруг задания и ответов. */
+body.battling .battle-panel[data-phase="question"] .battle-mid {
+  margin-top: 12px;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 5px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+/* Обычные вопросы — одна колонка; код по-прежнему делится на две. */
+body.battling .battle-panel:not(.code-mode) .battle-mid.split {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+body.battling .battle-panel:not(.code-mode) .battle-solve {
+  width: 100%;
+}
+
+body.battling .battle-panel:not(.code-mode) .battle-solve .options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+/* Счётчик ошибок подряд — маленькая плашка в углу карточки вопроса. */
+body.battling .battle-panel .battle-status-chip.miss {
+  border-color: rgba(224, 138, 111, 0.38);
+  background: rgba(224, 138, 111, 0.06);
+  color: #e6a08c;
+}
+
+body.battling .battle-panel .battle-task-head {
+  align-items: flex-start;
+  gap: 12px;
+}
+
+body.battling .battle-panel .battle-task-status {
+  padding-top: 1px;
+}
+
+/* Действия — сегментированная полоса, а не четыре отдельных кнопки. */
+body.battling .battle-panel .battle-foot {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0;
+  margin-top: 12px;
+  padding-top: 0;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 4px;
+  border-top: 1px solid var(--quiet-line-soft);
+}
+
+body.battling .battle-panel .battle-cat-wrap {
+  min-width: 0;
+  border-right: 1px solid var(--quiet-line-soft);
+}
+
+body.battling .battle-panel .battle-cat-wrap:last-child {
+  border-right: 0;
+}
+
+body.battling .battle-panel .battle-cat {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 6px;
+  border: 0 !important;
+  border-radius: 0;
+  background: transparent !important;
+  color: var(--quiet-muted);
+  font: 700 9.5px/1 var(--font-ui);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: none;
+}
+
+body.battling .battle-panel .battle-cat-wrap:first-child .battle-cat {
+  border-radius: 3px 0 0 3px;
+}
+
+body.battling .battle-panel .battle-cat-wrap:last-child .battle-cat {
+  border-radius: 0 3px 3px 0;
+}
+
+body.battling .battle-panel .battle-cat:hover,
+body.battling .battle-panel .battle-cat:focus-visible {
+  border: 0 !important;
+  background: rgba(233, 239, 248, 0.04) !important;
+  color: var(--quiet-text);
+  outline: none;
+}
+
+body.battling .battle-panel .battle-cat.open {
+  border: 0 !important;
+  background: rgba(157, 192, 239, 0.1) !important;
+  color: var(--quiet-text);
+}
+
+/* Итог хода врага: карточка с крупным числом урона. */
+body.battling .battle-panel .enemy-turn-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 5px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.battling .battle-panel .enemy-turn-main {
+  min-width: 0;
+}
+
+body.battling .battle-panel .enemy-turn-tag {
+  margin: 0 0 8px;
+}
+
+body.battling .battle-panel .enemy-turn-box .battle-feedback {
+  margin: 0;
+}
+
+body.battling .battle-panel .enemy-turn-damage {
+  flex: 0 0 auto;
+  color: var(--quiet-enemy);
+  font: 700 34px/1 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(224, 138, 111, 0.28);
+}
+
+/* Итог игрока: та же карточка, число урона крупнее. */
+body.battling .battle-panel[data-phase="result"] .result-card {
+  padding: 14px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 5px;
+  background: rgba(233, 239, 248, 0.015);
+}
+
+body.battling .battle-panel .result-damage {
+  color: var(--quiet-text);
+  font: 800 22px/1 var(--font-ui);
+}
+
+body.battling .battle-panel[data-phase="result"] .battle-foot {
+  display: block;
+  margin-top: 10px;
+  padding-top: 0;
+  border: 0;
+}
+
+body.battling .battle-panel[data-phase="result"] #continue-btn {
+  min-height: 44px;
+  padding: 12px;
+  font-size: 12px;
+}
+
+@media (max-width: 620px) {
+  body.battling .battle-panel .combatant .hp-bar {
+    width: 60px;
+  }
+
+  body.battling .battle-panel .combatant .name {
+    max-width: 22vw;
+  }
+
+  body.battling .battle-panel .round-note {
+    font-size: 7.5px;
+    letter-spacing: 0.12em;
+  }
+
+  body.battling .battle-panel:not(.code-mode) .battle-solve .options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* На телефоне дуэльная шапка снова складывается в две колонки:
+   имена и монограммы убираем, «чей ход» уходит второй строкой. */
+@media (orientation: portrait) and (max-width: 900px) {
+  body.battling .battle-panel .battle-panel-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px 8px;
+    align-items: center;
+  }
+
+  body.battling .battle-panel .combatant {
+    gap: 5px;
+  }
+
+  body.battling .battle-panel .combatant .name {
+    display: none;
+  }
+
+  body.battling .battle-panel .combatant .num {
+    font-size: 10px;
+  }
+
+  body.game-page .battle-panel .combatant .hp-bar {
+    width: clamp(58px, 21vw, 108px);
+    height: 3px;
+  }
+
+  body.battling .battle-panel .round-note {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: center;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+  }
+
+  body.battling .battle-panel[data-phase="question"] .battle-mid {
+    padding: 8px 10px 10px;
+  }
+
+  body.battling .battle-panel:not(.code-mode) .battle-solve .options {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Низкий ландшафт: шапка-сетка без имён, панель ниже. */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 1100px) {
+  body.battling .battle-panel .battle-panel-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 6px;
+    padding-bottom: 6px;
+  }
+
+  body.battling .battle-panel .combatant .name,
+  body.battling .battle-panel .round-note {
+    display: none;
+  }
+
+  body.battling .battle-panel[data-phase="question"] .battle-mid {
+    margin-top: 8px;
+    padding: 6px 8px 8px;
+  }
+
+  body.battling .battle-panel .battle-foot {
+    margin-top: 8px;
+  }
+}
+
+/* Смена масштаба: плитки перестраиваются мгновенно, поэтому на этот кадр
+   отключаем плавные переходы камеры и сущностей. Иначе карта уже нового
+   размера, а герой и камера ещё доезжают — мир и персонажи дёргаются. */
+#map.cam-zoom,
+#map.cam-zoom * {
+  transition: none !important;
+}
+
+/* Примеры вызовов в задании «напиши функцию»: что подаём и что ждём. */
+body.battling .battle-panel .task-examples {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+body.battling .battle-panel .task-examples-label {
+  color: var(--quiet-faint);
+  font: 700 9px/1 var(--font-ui);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+body.battling .battle-panel .task-examples code {
+  padding: 3px 7px;
+  border: 1px solid var(--quiet-line-soft);
+  border-radius: 3px;
+  color: var(--quiet-muted);
+  font: 500 10.5px/1.3 var(--font-mono, Consolas, monospace);
+  white-space: nowrap;
+}
+
+/* Значок действия над портретом бойца: меч, щит, зелье, искра и т.д. */
+body.battling .battle-stage .battle-portrait .action-badge {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 44px;
+  height: 44px;
+  background: center / contain no-repeat;
+  image-rendering: pixelated;
+  opacity: 0;
+  transform: scale(0.7) translateY(4px);
+  transition: opacity 0.12s ease, transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: none;
+  z-index: 6;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.55));
+}
+
+body.battling .battle-stage .battle-portrait .action-badge.show {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+@media (max-width: 760px) {
+  body.battling .battle-stage .battle-portrait .action-badge {
+    top: -7px;
+    right: -7px;
+    width: 34px;
+    height: 34px;
   }
 }

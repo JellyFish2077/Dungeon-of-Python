@@ -6,7 +6,7 @@
 //
 // Запуск: node play_dungeon.js [--games 3] [--skill 0.8] [--seed 1] [--mode endless]
 //                               [--difficulty easy|normal|hard]
-//                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge] [--skip 0.2]
+//                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge]
 //                               [--omen steady|blood|quiet]
 //
 // --balance принимает числа в том же виде, что и админ-панель /admin: так
@@ -74,7 +74,7 @@ function flushTimers() {
 
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
-    difficulty: "normal", forge: true, amulets: 1, bank: 600, skip: 0, campaign: false,
+    difficulty: "normal", forge: true, amulets: 1, bank: 600, campaign: false,
     omen: "steady", maxed: false };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
@@ -91,9 +91,6 @@ function parseArgs(argv) {
     // Амулеты возврата и банк деревни: с ними бот проверяет второй шанс и
     // смерть с потерей похода. --amulets 0 возвращает поведение без амулетов.
     else if (a === "--amulets") out.amulets = Number(argv[++i]);
-    // Доля вопросов, которые бот пропускает вместо ответа: так проверяется
-    // цена пропуска на длинной дистанции, а не в одной партии.
-    else if (a === "--skip") out.skip = Number(argv[++i]);
     // Кампания: серия походов ОДНИМ героем. Профиль между походами не
     // сбрасывается, и бот сам тратит найденное — восстанавливает деревню и
     // покупает улучшения. Так проверяется главное обещание игры: первый поход
@@ -108,7 +105,6 @@ function parseArgs(argv) {
   if (!Number.isFinite(out.games) || out.games < 1) throw new Error("--games должен быть >= 1");
   if (!Number.isFinite(out.amulets) || out.amulets < 0) throw new Error("--amulets должен быть >= 0");
   if (!Number.isFinite(out.bank) || out.bank < 0) throw new Error("--bank должен быть >= 0");
-  if (!(out.skip >= 0 && out.skip <= 1)) throw new Error("--skip должен быть 0..1");
   if (!(out.skill >= 0 && out.skill <= 1)) throw new Error("--skill должен быть 0..1");
   if (out.mode !== "dungeon" && out.mode !== "endless") throw new Error("--mode: dungeon или endless");
   if (["easy", "normal", "hard"].indexOf(out.difficulty) < 0) {
@@ -214,15 +210,6 @@ function playBattleStep(skill, rng, state) {
   if (c.type !== "mc" && c.task && state) {
     const key = c.type + ":" + (c.task.code || c.task.task + "|" + c.task.starter);
     state.practiceSeen.set(key, (state.practiceSeen.get(key) || 0) + 1);
-  }
-  // Иногда бот не знает ответа и пропускает вопрос — платит здоровьем.
-  // Пропуск не отвечает за него: вопрос уходит в пробелы, как у ученика.
-  if (state && (state.skipShare || 0) > 0 && rng() < state.skipShare &&
-      c.type !== "copy" && c.type !== "code" &&
-      G.player.hp > API.skipCost()) {
-    API.skipQuestion();
-    if (state.skips != null) state.skips += 1;
-    return "skip";
   }
   if (c.type === "copy") {
     b.challenge.code = codeAnswer(skill, rng);
@@ -703,9 +690,7 @@ function playOne(opts, rng, trace) {
     waits: 0, drinks: 0, fights: 0, wanders: 0, stuck: 0, chestStuck: 0, snared: 0, equips: 0,
     // Второй шанс: сколько раз бот возродился амулетом и сколько раз поход
     // закончился возвратом в деревню.
-    revives: 0, toHub: 0, skips: 0,
-    // Доля вопросов, которые бот пропускает вместо ответа (--skip).
-    skipShare: opts.skip || 0,
+    revives: 0, toHub: 0,
     // lastFloorSeen — этаж, на который бот спустился в прошлый раз;
     // descentsLost — вызовы descend(), которые ничего не изменили.
     lastFloorSeen: G.floorIndex, descentsLost: 0,
@@ -809,9 +794,9 @@ function playOne(opts, rng, trace) {
       }
     }
     if (what === "blessing") seen.blessings += 1;
-    // Каждое задание в бою — один ход: ответ, переписывание, код или
-    // пропуск. Длину боя считаем по ним, а не по шагам ходьбы.
-    if (hadBattle && (what === "answer" || what === "copy" || what === "code" || what === "skip")) {
+    // Каждое задание в бою — один ход: ответ, переписывание или код.
+    // Длину боя считаем по ним, а не по шагам ходьбы.
+    if (hadBattle && (what === "answer" || what === "copy" || what === "code")) {
       seen.battleQs += 1;
       seen.battleBoss = battleBoss;
     }
@@ -877,7 +862,6 @@ function playOne(opts, rng, trace) {
     deaths: seen.deaths,
     revives: seen.revives,
     toHub: seen.toHub,
-    skips: seen.skips,
     // Что удалось в деревне: не дошёл до торговца или до стража — значит
     // сломался уровень, а не баланс.
     village: village,
@@ -1078,11 +1062,6 @@ function printSummary(opts, rows) {
     share((r) => r.village && r.village.house) + "% партий, в лавку — " +
     share((r) => r.village && r.village.trader) + "%, к стражу входа — " +
     share((r) => r.village && r.village.guard) + "%");
-  if (opts.skip > 0) {
-    console.log("  пропуски: " + avg((r) => r.skips).toFixed(1) + " вопросов за партию (--skip " +
-      opts.skip + "), из них оплачено здоровьем; процент похода: " +
-      Math.round(avg((r) => r.correct / Math.max(1, r.correct + r.wrong) * 100)) + "%");
-  }
   console.log("  второй шанс: амулетов куплено " + opts.amulets + " на партию, возрождений " +
     avg((r) => r.revives).toFixed(2) + ", возвратов в деревню " + avg((r) => r.toHub).toFixed(2));
   console.log("  самое низкое здоровье за партию: в среднем " + Math.round(avg((r) => r.lowestPct) * 100) +

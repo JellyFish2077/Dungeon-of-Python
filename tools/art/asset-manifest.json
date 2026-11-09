@@ -2687,6 +2687,339 @@
           "status": "in-game review"
         }
       ]
+    },
+    "actions": {
+      "source": "tools/art/aseprite/actions.aseprite",
+      "destination": "tools/art/src_custom/actions",
+      "assets": [
+        {
+          "tag": "attack",
+          "file": "attack.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "defend",
+          "file": "defend.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "potion",
+          "file": "potion.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ability",
+          "file": "ability.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "flee",
+          "file": "flee.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "poison",
+          "file": "poison.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "fire",
+          "file": "fire.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "curse",
+          "file": "curse.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "summon",
+          "file": "summon.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "heal",
+          "file": "heal.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "charge",
+          "file": "charge.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "ranged",
+          "file": "ranged.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "hint",
+          "file": "hint.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "crit",
+          "file": "crit.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "execute",
+          "file": "execute.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "drain",
+          "file": "drain.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "thorns",
+          "file": "thorns.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "armor",
+          "file": "armor.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "phasing",
+          "file": "phasing.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "bossrage",
+          "file": "bossrage.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "miss",
+          "file": "miss.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "fail",
+          "file": "fail.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "block",
+          "file": "block.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "no_effect",
+          "file": "no_effect.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "flee_fail",
+          "file": "flee_fail.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "items4": {
+      "source": "tools/art/aseprite/items4.aseprite",
+      "destination": "tools/art/src_custom/items",
+      "assets": [
+        {
+          "tag": "wooden_shield",
+          "file": "wooden_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "round_shield",
+          "file": "round_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "steel_shield",
+          "file": "steel_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "mirror_shield",
+          "file": "mirror_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "warden_shield",
+          "file": "warden_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
+    },
+    "equipment2": {
+      "source": "tools/art/aseprite/equipment2.aseprite",
+      "destination": "tools/art/src_custom/equipment",
+      "assets": [
+        {
+          "tag": "wooden_shield",
+          "file": "wooden_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "round_shield",
+          "file": "round_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "steel_shield",
+          "file": "steel_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "mirror_shield",
+          "file": "mirror_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "warden_shield",
+          "file": "warden_shield.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
     }
   }
 }
