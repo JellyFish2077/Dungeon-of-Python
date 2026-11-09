@@ -72,8 +72,11 @@ function progressEmpty() {
     hero: { hp: 0, dmg: 0, potions: 0, loot: 0, armor: 0 },
     village: { well: 0, barn: 0, forge: 0, smith: 0 },
     loot: { ore: 0, wood: 0, shard: 0, keys: [] },
-    quests: { story: 0, done: [], repeat: {}, progress: {}, active: "", failed: [] },
-    ability: { pick: "", used: 0 }
+    quests: { story: 0, done: [], repeat: {}, progress: {}, active: "", failed: [], met: [] },
+    ability: { pick: "", used: 0 },
+    // Курс Python: оплаченные и пройденные уроки, модули, домашнее задание
+    // и отдельная практика у доски задач.
+    course: { lessons: {}, paid: {}, modules: {}, quest: null, practice: {} }
   };
 }
 
@@ -103,6 +106,11 @@ function normalizeProgress(p) {
   p.quests.done = p.quests.done.filter((k) => typeof k === "string" && k).slice(0, 60);
   if (!Array.isArray(p.quests.failed)) p.quests.failed = [];
   p.quests.failed = p.quests.failed.filter((k) => typeof k === "string" && k).slice(-60);
+  // Знакомство: ключи жителей, с которыми герой уже поговорил. Список
+  // нужен первой главе и переживает смерть вместе с остальным профилем.
+  if (!Array.isArray(p.quests.met)) p.quests.met = [];
+  p.quests.met = p.quests.met.filter((k, i, arr) =>
+    typeof k === "string" && k && arr.indexOf(k) === i).slice(0, 40);
   if (!p.quests.repeat || typeof p.quests.repeat !== "object") p.quests.repeat = {};
   if (!p.quests.progress || typeof p.quests.progress !== "object") p.quests.progress = {};
   // Взятое повторяемое задание: оно живёт между походами, потому что цель
@@ -114,6 +122,49 @@ function normalizeProgress(p) {
   p.ability.pick = typeof p.ability.pick === "string" ? p.ability.pick.slice(0, 20) : "";
   const used = Math.floor(Number(p.ability.used) || 0);
   p.ability.used = isFinite(used) && used > 0 ? Math.min(99, used) : 0;
+  if (!p.course || typeof p.course !== "object") p.course = blank.course;
+  if (!p.course.lessons || typeof p.course.lessons !== "object") p.course.lessons = {};
+  if (!p.course.paid || typeof p.course.paid !== "object") p.course.paid = {};
+  if (!p.course.modules || typeof p.course.modules !== "object") p.course.modules = {};
+  if (!p.course.practice || typeof p.course.practice !== "object") p.course.practice = {};
+  const paid = {};
+  Object.keys(p.course.paid).forEach((key) => {
+    if (p.course.paid[key]) paid[key] = true;
+  });
+  p.course.paid = paid;
+  const practice = {};
+  Object.keys(p.course.practice).forEach((key) => {
+    if (p.course.practice[key]) practice[key] = true;
+  });
+  p.course.practice = practice;
+  const lessons = {};
+  Object.keys(p.course.lessons).forEach((key) => {
+    const value = p.course.lessons[key];
+    if (!value) return;
+    const done = typeof value === "object" ? !!value.done : value === true;
+    if (!done) return;
+    const score = typeof value === "object" ? Math.max(0, Math.min(10, Math.floor(Number(value.score) || 0))) : 0;
+    lessons[key] = { done: true, score: score };
+  });
+  p.course.lessons = lessons;
+  const modules = {};
+  Object.keys(p.course.modules).forEach((key) => {
+    const value = p.course.modules[key];
+    if (value === true || (value && value.passed)) modules[key] = { passed: true };
+  });
+  p.course.modules = modules;
+  const quest = p.course.quest;
+  if (quest && typeof quest === "object" && typeof quest.module === "string") {
+    p.course.quest = {
+      module: quest.module.slice(0, 20),
+      kind: typeof quest.kind === "string" ? quest.kind.slice(0, 20) : "",
+      need: Math.max(1, Math.min(99, Math.floor(Number(quest.need) || 1))),
+      progress: Math.max(0, Math.min(99, Math.floor(Number(quest.progress) || 0))),
+      done: !!quest.done
+    };
+  } else {
+    p.course.quest = null;
+  }
   return p;
 }
 
@@ -138,8 +189,17 @@ function progressMerge(local, remote) {
   const failed = (l.quests.failed || []).concat((r.quests.failed || [])
     .filter((k) => (l.quests.failed || []).indexOf(k) < 0));
   out.quests.failed = failed.slice(-60);
+  out.quests.met = (l.quests.met || []).concat((r.quests.met || [])
+    .filter((k) => (l.quests.met || []).indexOf(k) < 0)).slice(0, 40);
   out.ability.pick = l.ability.pick || r.ability.pick;
   out.ability.used = Math.max(l.ability.used, r.ability.used);
+  // Курс только растёт: уроки и модули объединяем, домашнее задание берём
+  // из более свежей копии (локальная важнее удалённой).
+  out.course.lessons = Object.assign({}, r.course.lessons, l.course.lessons);
+  out.course.paid = Object.assign({}, r.course.paid, l.course.paid);
+  out.course.modules = Object.assign({}, r.course.modules, l.course.modules);
+  out.course.practice = Object.assign({}, r.course.practice, l.course.practice);
+  out.course.quest = l.course.quest || r.course.quest;
   return out;
 }
 

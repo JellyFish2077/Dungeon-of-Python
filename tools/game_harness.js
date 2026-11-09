@@ -199,7 +199,8 @@
     // ---------------- склейка контента ----------------
     const FILES = [
       "questions.js", "variants.js", "code-tasks.js", "task-meta.js", "practice-variants.js", "items.js",
-      "icons.js", "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js", "profile.js",
+      "icons.js", "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
+      "python-course.js", "profile.js",
       "auth.js", "game.js"
     ];
     const bundle = FILES.map((f) => {
@@ -219,7 +220,8 @@
        "bossDrop",
        "VILLAGE_MAP", "VILLAGE_SPAWN", "VILLAGE_HOUSES", "HOUSE_MAPS", "VILLAGE_NPCS",
        "VILLAGE_TILES", "VILLAGE_GROUND", "VILLAGE_SEALED", "VILLAGE_ROOF_COLORS",
-       "VILLAGE_SIGNS",
+       "VILLAGE_SIGNS", "VILLAGE_MEET_NPCS", "NPC_GREETINGS",
+       "HOLD_MOVE_DELAY", "HOLD_MOVE_STEP",
        "villageParseMap", "villageHouseAtDoor", "villageBuildingList", "villageMaterials",
        "villageTileUri", "TERRAIN_VILLAGE",
        "SLOT_NAMES", "ICONS", "SPRITES", "spriteImg", "mapIcon", "QUESTIONS", "FILL_TASKS",
@@ -244,6 +246,7 @@
        "STREAK_CAP", "HINT_CAP", "TASK_POWER", "SQUAD", "RANGED", "squadMembersOf",
        "squadAliveCount", "nextSquadEnemy", "squadLeaderOf", "moveEnemyTo",
        "squadSizeFor", "startSquadMember", "stepAwayFrom",
+       "PY_COURSE", "PY_COURSE_RULES", "PY_COURSE_QUESTS", "getProfile", "putProfile",
        "HAZARD_TYPES", "FLOOR_HAZARD_V1", "FLOOR_HAZARD_V2",
        "HAZARD_CYCLE_V1", "HAZARD_CYCLE_V2", "HAZARD_DENSITY", "BLESSINGS", "BLESS",
        "hazardByKey", "floorHazard", "hazardDensity", "blessOffered", "blessingFor",

@@ -131,7 +131,8 @@
       "banker": 0.58,
       "blacksmith": 0.1,
       "master": 0.62,
-      "storekeeper": 0.9
+      "storekeeper": 0.9,
+      "teacher": 0.32
     },
     "palette": {
       "wall": {

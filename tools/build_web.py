@@ -100,6 +100,7 @@ def main():
         "questions.js", "variants.js", "code-tasks.js", "code-tasks-tests.json",
         "task-meta.js", "practice-variants.js", "items.js", "icons.js",
         "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
+        "python-course.js",
         "profile.js", "auth.js", "web-boot.js", "pyodide-check.js",
         "pyodide-worker.js", "audio.js", "menu-bg.js", "confirm.js", "menu.js",
         "saves.js", "game.js", "fullscreen.js",

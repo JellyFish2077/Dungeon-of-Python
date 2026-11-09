@@ -344,6 +344,24 @@
     <div class="battle inventory" id="dialog-box"></div>
   </div>
 
+  <!-- Диалоговая сцена: короткое приветствие жителя. Реплики листаются
+       кнопкой «Далее», после последней открывается дело жителя. -->
+  <div class="overlay hidden" id="talk-overlay">
+    <div class="battle talk-box" id="talk-box">
+      <div class="talk-speaker" id="talk-speaker"></div>
+      <p class="talk-line" id="talk-line"></p>
+      <div class="talk-foot">
+        <span class="talk-count" id="talk-count"></span>
+        <button class="btn primary" id="talk-next" type="button">Далее</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Школа: отдельное окно учителя. Курс — 9 модулей по три урока. -->
+  <div class="overlay hidden" id="school-overlay">
+    <div class="battle inventory" id="school-box"></div>
+  </div>
+
   <div class="overlay hidden" id="shop-overlay">
     <div class="battle inventory" id="shop-box"></div>
   </div>
@@ -612,6 +630,7 @@
 <script src="/static/terrain.js"></script>
   <script src="/static/dungeon-content.js"></script>
   <script src="/static/village-content.js"></script>
+  <script src="/static/python-course.js"></script>
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/audio.js"></script>

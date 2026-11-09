@@ -621,8 +621,8 @@ def run_checks(browser, base):
         "() => { const h = document.getElementById('hero-hud');"
         " return !!h && h.offsetParent !== null; }", timeout=10000)
     story = page.locator("#hud-story").inner_text().lower()
-    check("первый спуск" in story and "страж" in story,
-          "первый экран подсказывает цель — стража", story)
+    check("знакомств" in story and "жител" in story,
+          "первый экран подсказывает цель — познакомиться с жителями", story)
     toast_text = page.locator("#toast").inner_text()
     toast_layer = page.evaluate(
         "() => getComputedStyle(document.getElementById('toast')).zIndex")
@@ -652,10 +652,10 @@ def run_checks(browser, base):
     journal_text = page.locator("#journal-box").inner_text()
     check(page.locator(".journal-tab.is-active").get_attribute("data-jtab") == "story",
           "HUD открывает журнал на вкладке сюжета")
-    check("Печати глубины" in journal_text and "Крыша для амбара" in journal_text,
+    check("Печати глубины" in journal_text and "Знакомство" in journal_text,
           "журнал показывает кампанию и текущую главу")
-    check(page.locator(".story-path-step").count() == 5,
-          "в журнале виден весь путь из пяти глав")
+    check(page.locator(".story-path-step").count() == 6,
+          "в журнале виден весь путь из шести глав")
     page.click("#journal-close")
     page.wait_for_timeout(200)
 
@@ -670,7 +670,7 @@ def run_checks(browser, base):
           "в публичном входе нет проверки знаний")
     page.click("#entrance-close")
     page.wait_for_timeout(200)
-    check(page.locator("#hud-story-title").inner_text() == "Крыша для амбара",
+    check("Поговори с жителями" in page.locator("#hud-story-title").inner_text(),
           "после стража в HUD снова глава кампании")
 
     page.wait_for_function(

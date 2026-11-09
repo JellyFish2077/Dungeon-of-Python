@@ -3094,6 +3094,286 @@ pre.code {
   font-size: 13px;
 }
 
+/* ---------- Школа и курс Python ---------- */
+#school-box {
+  width: min(980px, 94vw);
+}
+
+.school-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 0 4px;
+  scrollbar-width: none;
+}
+
+.school-body::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.school-wallet {
+  margin-left: auto;
+  color: var(--gold-bright);
+  font: 700 11px/1 var(--font-data);
+  white-space: nowrap;
+}
+
+.school-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.school-module {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 13px 14px;
+  border: 1px solid rgba(125, 162, 217, 0.25);
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.6);
+  color: var(--parchment);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.school-module:hover {
+  border-color: rgba(246, 196, 83, 0.7);
+  background: rgba(24, 36, 56, 0.85);
+}
+
+.school-module.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.school-module.done {
+  border-color: rgba(111, 174, 90, 0.65);
+}
+
+.school-module.quest {
+  border-color: rgba(246, 196, 83, 0.7);
+}
+
+.school-module-icon {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--gold);
+}
+
+.school-module b {
+  font: 700 15px/1.25 var(--font-ui);
+  color: var(--parchment);
+}
+
+.school-module small {
+  color: var(--parchment-dim);
+  font: 11px/1.4 var(--font-ui);
+}
+
+.school-module-meta {
+  margin-top: 2px;
+  color: var(--quiet-muted, #93a8c8);
+  font: 10px/1.3 var(--font-data);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.school-lesson {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 10px;
+  border: 0;
+  border-top: 1px solid rgba(125, 162, 217, 0.18);
+  background: none;
+  color: var(--parchment);
+  text-align: left;
+  cursor: pointer;
+}
+
+.school-lesson:hover {
+  background: rgba(125, 162, 217, 0.07);
+}
+
+.school-lesson.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.school-lesson.done {
+  color: #bbf7d0;
+}
+
+.school-num {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid rgba(125, 162, 217, 0.3);
+  border-radius: 50%;
+  font: 700 11px/1 var(--font-data);
+  color: var(--gold-bright);
+}
+
+.school-lesson-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.school-lesson-main b {
+  display: block;
+  font: 700 14px/1.25 var(--font-ui);
+}
+
+.school-lesson-main small {
+  display: block;
+  margin-top: 3px;
+  color: var(--parchment-dim);
+  font: 11px/1.35 var(--font-ui);
+}
+
+.school-price {
+  margin-left: auto;
+  color: var(--gold-bright);
+  font: 700 11px/1 var(--font-data);
+  white-space: nowrap;
+}
+
+.school-theory p {
+  margin: 0 0 10px;
+  color: var(--parchment);
+  font: 13px/1.55 var(--font-ui);
+}
+
+.school-theory code {
+  color: #ffe1a0;
+  font-family: var(--font-data);
+}
+
+.school-example {
+  margin: 10px 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(125, 162, 217, 0.25);
+  border-radius: 6px;
+  background: rgba(5, 9, 16, 0.75);
+  color: #d8e6fb;
+  font: 12px/1.55 var(--font-data);
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.school-question {
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid rgba(125, 162, 217, 0.25);
+  border-radius: 6px;
+  background: rgba(12, 19, 32, 0.55);
+}
+
+.school-q-title {
+  margin: 0 0 9px;
+  color: var(--parchment);
+  font: 700 13px/1.45 var(--font-ui);
+}
+
+.school-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 5px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(125, 162, 217, 0.18);
+  border-radius: 4px;
+  color: var(--parchment);
+  font: 12px/1.4 var(--font-ui);
+  cursor: pointer;
+}
+
+.school-option:hover {
+  border-color: rgba(246, 196, 83, 0.5);
+}
+
+.school-option.correct {
+  border-color: rgba(111, 174, 90, 0.8);
+  background: rgba(47, 107, 63, 0.2);
+}
+
+.school-option.wrong {
+  border-color: rgba(217, 74, 80, 0.8);
+  background: rgba(142, 34, 51, 0.18);
+}
+
+.school-explain {
+  margin: 8px 0 0;
+  color: var(--quiet-muted, #93a8c8);
+  font: 11px/1.45 var(--font-ui);
+}
+
+.school-result {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(246, 196, 83, 0.35);
+  border-radius: 6px;
+  color: var(--parchment);
+  font: 12px/1.45 var(--font-ui);
+}
+
+.school-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.school-actions .btn {
+  min-width: 160px;
+}
+
+.practice-module {
+  margin: 0 0 16px;
+}
+
+.practice-module-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 4px;
+  color: var(--parchment);
+  font: 700 12px/1.3 var(--font-ui);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.practice-module-head span {
+  color: var(--quiet-muted, #93a8c8);
+  font: 10px/1 var(--font-data);
+}
+
+.practice-input {
+  width: 100%;
+  min-height: 130px;
+  box-sizing: border-box;
+  margin: 8px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(125, 162, 217, 0.35);
+  border-radius: 6px;
+  background: rgba(5, 9, 16, 0.8);
+  color: #e8f0fa;
+  font: 12px/1.5 var(--font-data);
+  resize: vertical;
+}
+
+.practice-input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
 /* ---------- Калибровка уровня ---------- */
 .calibration-box {
   text-align: left;
@@ -13253,4 +13533,45 @@ body.battling .battle-stage .battle-portrait .action-badge.show {
     width: 34px;
     height: 34px;
   }
+}
+
+/* Диалоговая сцена жителя: одно окно на всех, реплики листаются. */
+#talk-box {
+  width: min(560px, 94vw);
+  min-height: 220px;
+  padding: 24px 26px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.talk-speaker {
+  color: var(--gold-bright);
+  font: 700 20px/1.15 var(--font-display);
+  letter-spacing: 0.02em;
+}
+
+.talk-line {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--parchment);
+  font: 15px/1.65 var(--font-ui);
+}
+
+.talk-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--gold-dim);
+}
+
+.talk-count {
+  color: var(--quiet-muted, #93a8c8);
+  font: 11px/1 var(--font-data);
+}
+
+.talk-foot .btn {
+  min-width: 130px;
 }

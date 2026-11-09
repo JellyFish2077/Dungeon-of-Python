@@ -10,14 +10,16 @@
     copy_hello: "strings", copy_hp: "syntax", copy_damage: "operators",
     copy_name: "strings", copy_if: "control", copy_for: "control",
     copy_list: "collections", copy_upper: "strings", copy_def: "functions",
-    copy_sum: "operators", copy_while: "control", copy_fstring: "strings"
+    copy_sum: "operators", copy_while: "control", copy_fstring: "strings",
+    copy_float: "types", copy_try: "errors", copy_import: "modules"
   };
 
   const CODE_TOPICS = {
     attack_power: "operators", health_after_hit: "operators", is_alive: "control",
     heal: "functions", double_gold: "operators", total_hp: "collections",
     max_damage: "collections", count_monsters: "collections", greet: "strings",
-    count_even: "control", average: "collections"
+    count_even: "control", average: "collections", player_name: "syntax",
+    double: "types", safe_int: "errors", circle_area: "modules"
   };
 
   // Уровень «повтори код» растёт вместе с образцом (первые три — простые,

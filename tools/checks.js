@@ -7,8 +7,11 @@ log(API.ITEM_POOL.length >= 29, "ITEM_POOL >= 29 предметов", API.ITEM_P
 // проверка ловит несобранный банк, а не добавленное задание.
 log(API.FILL_TASKS.length >= 13, "FILL_TASKS >= 13", API.FILL_TASKS.length);
 log(API.ERROR_TASKS.length >= 10, "ERROR_TASKS >= 10", API.ERROR_TASKS.length);
-log(API.CODE_TASKS.length === 11, "CODE_TASKS = 11", API.CODE_TASKS.length);
-log(API.COPY_TASKS.length === 12, "COPY_TASKS = 12", API.COPY_TASKS.length);
+log(API.CODE_TASKS.length === 15, "CODE_TASKS = 15", API.CODE_TASKS.length);
+log(API.COPY_TASKS.length === 15, "COPY_TASKS = 15", API.COPY_TASKS.length);
+const codeTestsBank = JSON.parse(fs.readFileSync(path.join(dir, "code-tasks-tests.json"), "utf8"));
+log(API.CODE_TASKS.every((t) => Array.isArray(codeTestsBank[t.id]) && codeTestsBank[t.id].length > 0),
+  "у всех задач на код есть тесты в code-tasks-tests.json");
 log(API.QUESTIONS.length >= 85, "QUESTIONS >= 85", API.QUESTIONS.length);
 // Пустая клетка «тема × уровень» ломает адаптив: на поднятом уровне тема
 // исчезает из выбора. Проверка держит матрицу заполненной.
@@ -5974,10 +5977,10 @@ log(G.map && G.map.w === API.VILLAGE_MAP[0].length && G.map.h === API.VILLAGE_MA
   "карта деревни собрана из раскладки", G.map && (G.map.w + "x" + G.map.h));
 log(G.map && G.map.w === 30 && G.map.h === 18,
   "карта деревни 30×18 — под площадь и широкие дорожки", G.map && (G.map.w + "x" + G.map.h));
-log(API.villageBuildingList().length === 6,
-  "в деревне шесть зданий", String(API.villageBuildingList().length));
-log(API.VILLAGE_NPCS.length === 8,
-  "в деревне восемь жителей", String(API.VILLAGE_NPCS.length));
+log(API.villageBuildingList().length === 7,
+  "в деревне семь зданий", String(API.villageBuildingList().length));
+log(API.VILLAGE_NPCS.length === 9,
+  "в деревне девять жителей", String(API.VILLAGE_NPCS.length));
 const facadeBad = API.villageBuildingList().filter((b) => b.door.y !== b.box.y1);
 log(facadeBad.length === 0,
   "у всех домов фасад снизу — дома не перевёрнуты",
@@ -6359,6 +6362,15 @@ log(globalThis.localStorage.getItem(API.SAVE_KEY) === null,
 
 // Окна жителей: у стража — вход в подземелье, у торговца — лавка,
 // у казначея — банк и рекорд, у старосты — сюжет и поручения.
+// Первый разговор начинается с приветствия: проверки пролистывают сцену,
+// как это сделал бы игрок, и только потом смотрят дело жителя.
+function finishGreeting() {
+  let guard = 0;
+  while (!el("talk-overlay").classList.contains("hidden") && guard < 10) {
+    API.nextTalkLine();
+    guard += 1;
+  }
+}
 API.enterVillage(null);
 const guardNpc = (G.npcs || []).find((n) => n.key === "guard");
 const guardFront = [[0, 1], [0, -1], [-1, 0], [1, 0]]
@@ -6370,6 +6382,7 @@ log(!!guardTarget && guardTarget.kind === "npc" && guardTarget.obj.key === "guar
   "у стража входа есть кнопка разговора",
   guardTarget && guardTarget.obj && guardTarget.obj.key);
 API.doInteract();
+finishGreeting();
 log(!el("entrance-overlay").classList.contains("hidden"), "страж открывает окно входа");
 log(/id="entrance-overlay"/.test(gameHtml) && /id="game-mode"/.test(gameHtml) &&
   /id="difficulty"/.test(gameHtml) && /id="begin-btn"/.test(gameHtml),
@@ -6391,6 +6404,7 @@ const tNpc = G.npcs.find((n) => n.key === "trader");
 G.playerPos = { x: tNpc.x, y: tNpc.y + 1 };
 log(API.interactTarget().kind === "npc", "у торговца есть кнопка разговора");
 API.doInteract();
+finishGreeting();
 log(!el("dialog-overlay").classList.contains("hidden"), "торговец открывает окно");
 log(/hub-buy/.test(el("dialog-box").innerHTML), "в окне торговца есть товары");
 const bankBefore = getProfile(G.name).wallet.gold;
@@ -6419,6 +6433,7 @@ API.enterHouse("bank");
 const bNpc = G.npcs.find((n) => n.key === "banker");
 G.playerPos = { x: bNpc.x, y: bNpc.y + 1 };
 API.doInteract();
+finishGreeting();
 log(/Банк деревни/.test(el("dialog-box").innerHTML), "казначей показывает банк");
 log(/Рекорд/.test(el("dialog-box").innerHTML), "и рекорд");
 API.closeDialog();
@@ -6428,6 +6443,7 @@ API.enterHouse("elder");
 const eNpc = G.npcs.find((n) => n.key === "elder");
 G.playerPos = { x: eNpc.x, y: eNpc.y + 1 };
 API.doInteract();
+finishGreeting();
 log(/Глава|Поручени|Следующий шаг/.test(el("dialog-box").innerHTML),
   "староста открывает сюжет и поручения");
 API.closeDialog();
@@ -6438,6 +6454,87 @@ const mNpc = G.npcs.find((n) => n.key === "mentor");
 API.openDialog(mNpc);
 log(/Как играть/.test(el("dialog-box").innerHTML), "наставник показывает памятку");
 API.closeDialog();
+API.enterVillage(null);
+
+// Школа и курс Python: отдельное здание, учитель и девять модулей.
+const schoolHome = API.villageBuildingList().find((b) => b.key === "school");
+log(!!schoolHome && schoolHome.name === "Школа", "в деревне есть школа");
+const teacherNpc = API.VILLAGE_NPCS.find((n) => n.key === "teacher");
+log(!!API.HOUSE_MAPS.school && !!teacherNpc && teacherNpc.place === "school",
+  "в школе стоит учитель");
+log(API.PY_COURSE.length === 9 && API.PY_COURSE.every((m) => m.lessons.length === 3),
+  "курс — 9 модулей по три урока");
+log(API.PY_COURSE.every((m) => m.lessons.every((l) =>
+  l.theory && l.theory.length && l.example && l.goal)) &&
+  API.PY_COURSE.every((m) => !!API.TOPICS[m.key]),
+  "у каждого урока есть теория, пример и тема из банка");
+const examModule = API.PY_COURSE[0];
+log(API.courseQuestions(examModule, examModule.lessons[0]).length === 5 &&
+  API.courseQuestions(examModule, examModule.lessons[2]).length === 7,
+  "в уроке пять вопросов, в экзамене — семь");
+{
+  const p = API.hubProfile();
+  p.wallet.gold = 1000;
+  p.course = { lessons: {}, paid: {}, modules: {}, quest: null };
+  API.putProfile(API.hubName(), p);
+  const startGold = API.hubProfile().wallet.gold;
+  log(API.payCourseLesson("syntax", 0) && API.courseState().paid["syntax-1"] &&
+    API.hubProfile().wallet.gold === startGold - API.PY_COURSE_RULES.lessonPrice,
+    "урок оплачивается из банка деревни");
+  API.assignCourseQuest("syntax");
+  log(API.courseState().quest && API.courseState().quest.kind === "kills",
+    "после экзамена учитель даёт домашнее задание");
+  API.openJournal("tasks");
+  log(/Учитель/.test(el("journal-box").innerHTML) &&
+    /Победи 3 монстров/.test(el("journal-box").innerHTML),
+    "домашнее задание учителя видно в журнале");
+  API.closeJournal();
+  API.courseQuestEvent("kills", 3);
+  log(API.courseState().quest.done, "домашнее задание считается по событиям подземелья");
+  const beforeClaim = API.hubProfile().wallet.gold;
+  log(API.claimCourseModule() && API.courseModulePassed("syntax") &&
+    API.hubProfile().wallet.gold === beforeClaim + API.PY_COURSE_RULES.moduleReward,
+    "награда за модуль уходит в банк");
+  log(API.courseBonuses().hp === 2 && API.courseBonuses().dmg === 0,
+    "модуль даёт постоянный бонус к следующему походу");
+  const practice = API.practiceTasksForModule(API.PY_COURSE[0]);
+  log(practice.length >= 3, "у модуля есть практические задания", practice.length);
+  const fillPractice = practice.find((t) => t.kind === "fill");
+  const beforePracticeGold = API.hubProfile().wallet.gold;
+  log(!!fillPractice && API.completePracticeTask(fillPractice) &&
+    API.courseState().practice[fillPractice.id] &&
+    API.hubProfile().wallet.gold === beforePracticeGold + 10,
+    "практика отмечается и даёт золото");
+  API.openSchool();
+  log(/Учитель/.test(el("school-box").innerHTML) &&
+    /Синтаксис/.test(el("school-box").innerHTML),
+    "учитель открывает окно курса");
+  API.closeSchool();
+  const clean = API.hubProfile();
+  clean.wallet.gold = 0;
+  clean.course = { lessons: {}, paid: {}, modules: {}, quest: null, practice: {} };
+  API.putProfile(API.hubName(), clean);
+}
+
+// Вход в школу и учитель внутри.
+API.enterVillage(null);
+const schoolDoor = API.VILLAGE_HOUSES.school.door;
+G.playerPos = { x: schoolDoor.x, y: schoolDoor.y + 1 };
+const schoolTarget = API.interactTarget();
+log(!!schoolTarget && schoolTarget.kind === "door", "дверь школы открывается");
+API.doInteract();
+log(G.place === "house" && G.houseKey === "school" &&
+  G.npcs.some((n) => n.key === "teacher"),
+  "в школе ждёт учитель", G.place + "/" + G.houseKey);
+API.openSchool();
+log(/Курс Python/.test(el("school-box").innerHTML), "учитель открывает курс");
+API.closeSchool();
+G.playerPos = { x: 6, y: 4 };
+const schoolBoardTarget = API.interactTarget();
+log(!!schoolBoardTarget && schoolBoardTarget.kind === "board", "в школе есть доска задач");
+API.doInteract();
+log(/Доска задач/.test(el("school-box").innerHTML), "доска открывает практику");
+API.closeSchool();
 API.enterVillage(null);
 
 // ============ Развитие деревни и постоянная прогрессия ============
@@ -6454,8 +6551,10 @@ function resetProgress() {
   p.ability = blank.ability;
   p.wallet = { gold: 0, small_potion: 0, big_potion: 0 };
   p.hub = { revive: 0, gear: [] };
+  p.course = { lessons: {}, paid: {}, modules: {}, quest: null, practice: {} };
   p.dungeonBest = null;
   putProfile(G.name, p);
+  G.metNpcs = [];
   return p;
 }
 function give(j, gold) {
@@ -6618,20 +6717,99 @@ log(deepEnemy.maxHp > shallow.maxHp * 1.5,
 resetProgress();
 API.enterVillage(null);
 give({ gold: 0 });
-log(API.storyStep() && API.storyStep().key === "barn" && API.goalDone("barn") === false,
-  "первый шаг старосты — амбар, и цель пока не выполнена");
+log(API.storyStep() && API.storyStep().key === "meet" && API.goalDone("meet") === false,
+  "первый шаг старосты — знакомство, и цель пока не выполнена");
+log(/знакомства 0\//.test(API.goalProgressText(API.storyStep().goal)),
+  "прогресс знакомства начинается с нуля", API.goalProgressText(API.storyStep().goal));
 const claimTooEarly = API.claimStory();
 log(claimTooEarly === false && getProfile(G.name).quests.story === 0,
   "невыполненный шаг не сдать");
+API.VILLAGE_MEET_NPCS.forEach((k) => API.markNpcMet(k));
+log(API.goalDone("meet") && /знакомства 6\/6/.test(API.goalProgressText("meet")),
+  "разговоры со всеми жителями закрывают знакомство",
+  API.goalProgressText("meet"));
+const walletBeforeMeet = getProfile(G.name).wallet.gold;
+log(API.claimStory() && getProfile(G.name).quests.story === 1 &&
+  API.storyStep() && API.storyStep().key === "barn",
+  "знакомство сдаётся и открывает главу об амбаре");
+log(getProfile(G.name).wallet.gold > walletBeforeMeet,
+  "и приносит золото в банк деревни",
+  walletBeforeMeet + " -> " + getProfile(G.name).wallet.gold);
 const p2 = getProfile(G.name);
 p2.village.barn = 1;
 putProfile(G.name, p2);
 const walletBeforeQuest = getProfile(G.name).wallet.gold;
-log(API.claimStory() && getProfile(G.name).quests.story === 1,
-  "выполненный шаг сдаётся и двигает цепочку");
+log(API.claimStory() && getProfile(G.name).quests.story === 2,
+  "выполненный шаг об амбаре сдаётся и двигает цепочку");
 log(getProfile(G.name).wallet.gold > walletBeforeQuest,
   "и приносит золото в банк деревни",
   walletBeforeQuest + " -> " + getProfile(G.name).wallet.gold);
+
+// Удержание клавиши: первый шаг сразу, автоповтор — после паузы.
+// Проверка зовёт тик вручную, чтобы не ждать две секунды в общем прогоне.
+resetProgress();
+API.enterVillage(null);
+log(API.HOLD_MOVE_DELAY === 2000,
+  "автоповтор движения ждёт пару секунд", String(API.HOLD_MOVE_DELAY));
+const holdDirs = [["right", 1, 0], ["left", -1, 0], ["down", 0, 1], ["up", 0, -1]];
+const holdStep = holdDirs.find((step) => {
+  const x = G.playerPos.x + step[1];
+  const y = G.playerPos.y + step[2];
+  return G.map.grid[y] && G.map.grid[y][x] === 1 && !API.cellBlocked(x, y);
+});
+const holdStart = { ...G.playerPos };
+log(!!holdStep && API.startHeldMove(holdStep[0], 0) && !!G.heldMove &&
+  G.heldMove.dir === holdStep[0],
+  "зажатая клавиша запускает автоповтор", holdStep && holdStep[0]);
+API.holdMoveTick();
+log(!!holdStep && G.playerPos.x === holdStart.x + holdStep[1] &&
+  G.playerPos.y === holdStart.y + holdStep[2],
+  "автоповтор делает шаг в выбранную сторону");
+API.stopHeldMove();
+log(!G.heldMove, "отпускание клавиши останавливает автоповтор");
+
+// Диалоговая система: первый разговор — приветствие, повторный — сразу дело.
+resetProgress();
+API.enterVillage(null);
+const elderNpc = API.VILLAGE_NPCS.find((n) => n.key === "elder");
+log(!!elderNpc, "староста есть в списке жителей");
+API.talkToNpc(elderNpc);
+log(!el("talk-overlay").classList.contains("hidden") &&
+  /Староста/.test(el("talk-speaker").textContent) &&
+  /староста/i.test(el("talk-line").textContent),
+  "первый разговор начинается с приветствия жителя",
+  el("talk-line").textContent);
+log(API.metNpcCount() === 1 && getProfile(G.name).quests.met.indexOf("elder") >= 0,
+  "знакомство со старостой записано в профиль");
+API.nextTalkLine();
+API.nextTalkLine();
+log(el("talk-overlay").classList.contains("hidden") &&
+  !el("dialog-overlay").classList.contains("hidden") &&
+  /Кампания/.test(el("dialog-box").innerHTML),
+  "после приветствия открывается обычное дело жителя");
+API.closeDialog();
+API.talkToNpc(elderNpc);
+log(el("talk-overlay").classList.contains("hidden") &&
+  !el("dialog-overlay").classList.contains("hidden"),
+  "повторный разговор идёт без сцены приветствия");
+API.closeDialog();
+const talkGuardNpc = API.VILLAGE_NPCS.find((n) => n.key === "guard");
+API.talkToNpc(talkGuardNpc);
+log(!el("talk-overlay").classList.contains("hidden"), "страж входа тоже здоровается");
+API.nextTalkLine();
+API.nextTalkLine();
+log(!el("entrance-overlay").classList.contains("hidden"),
+  "после приветствия страж открывает окно спуска");
+API.closeEntrance();
+const talkTeacherNpc = API.VILLAGE_NPCS.find((n) => n.key === "teacher");
+API.talkToNpc(talkTeacherNpc);
+API.nextTalkLine();
+API.nextTalkLine();
+log(G.schoolOpen && /Курс Python/.test(el("school-box").innerHTML),
+  "после приветствия учитель открывает курс");
+API.closeSchool();
+log(API.metNpcCount() === 3, "знакомства считаются по всем разговорам",
+  String(API.metNpcCount()));
 
 // Новая игра начинает кампанию заново, но не стирает деревню.
 const beforeNewGame = getProfile(G.name);
@@ -6639,6 +6817,7 @@ beforeNewGame.quests.story = API.STORY_QUESTS.length;
 beforeNewGame.quests.done = ["barn", "well", "forge"];
 beforeNewGame.quests.active = "ore";
 beforeNewGame.quests.repeat = { ore: 2 };
+beforeNewGame.quests.met = ["guard", "elder"];
 beforeNewGame.loot.keys = ["seal", "seal2", "barn"];
 beforeNewGame.village.barn = 2;
 putProfile(G.name, beforeNewGame);
@@ -6647,6 +6826,8 @@ log(API.resetStoryCampaign() === true &&
   getProfile(G.name).quests.done.length === 0 &&
   getProfile(G.name).quests.active === "",
   "новая игра сбрасывает сюжетную кампанию");
+log(getProfile(G.name).quests.met.length === 0 && API.metNpcCount() === 0,
+  "новая игра сбрасывает и знакомства");
 const afterNewGame = getProfile(G.name);
 log(afterNewGame.loot.keys.indexOf("seal") < 0 &&
   afterNewGame.loot.keys.indexOf("seal2") < 0,
@@ -6751,6 +6932,10 @@ log(API.stackedInventory().filter((x) => x.item.id === "small_potion")[0].count 
 // а собирает материалы. Цель шага — постройка, значит нужна строка с числом.
 resetProgress();
 API.enterVillage(null);
+// Материалы относятся ко второй главе: знакомство уже позади.
+const pGoal = getProfile(G.name);
+pGoal.quests.story = 1;
+putProfile(G.name, pGoal);
 const goalText = API.goalProgressText(API.storyStep().goal);
 log(/руда \d+\/\d+/.test(goalText) || /древесина \d+\/\d+/.test(goalText),
   "к цели шага видно, сколько материалов собрано", goalText);
