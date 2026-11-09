@@ -1923,7 +1923,7 @@
     tributes: [],
     lootBags: [],
     traders: [],
-    equipment: { weapon: null, armor: null, accessory: null },
+    equipment: { weapon: null, shield: null, armor: null, accessory: null },
     // Уровни кузницы: вложенное золото навсегда усиливает героя.
     forge: { weapon: 0, armor: 0, vitality: 0 },
     inventory: [],
@@ -4947,12 +4947,14 @@
     const paused = pausedRun();
     if (paused) {
       G.inventory = (paused.inventory || []).slice();
-      G.equipment = paused.equipment
-        || { weapon: null, armor: null, accessory: null };
+      G.equipment = Object.assign(
+        { weapon: null, shield: null, armor: null, accessory: null },
+        paused.equipment || {}
+      );
       return;
     }
     G.inventory = [];
-    G.equipment = { weapon: null, armor: null, accessory: null };
+    G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
     const prof = hubProfile();
     if (!prof) return;
     const w = prof.wallet || {};
@@ -5104,7 +5106,7 @@
     // либо пропали. Между походами у героя есть зелья из кошелька и то
     // снаряжение, что куплено у торговца и ждёт спуска.
     G.inventory = [];
-    G.equipment = { weapon: null, armor: null, accessory: null };
+    G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
     const villageProf = hubProfile();
     if (villageProf) {
       const w = villageProf.wallet || {};
@@ -6597,14 +6599,26 @@
   }
 
   // Смена ступени масштаба карты: колесо мыши и щипок двумя пальцами.
+  let zoomSettleFrame = 0;
   function zoomCamera(step) {
     const base = G.camera.zoomIndex == null ? defaultZoomIndex() : G.camera.zoomIndex;
     const next = clamp(base + step, 0, CAM_LEVELS.length - 1);
     if (next === base) return;
     resetCameraPan();
     G.camera.zoomIndex = next;
+    // Масштаб меняет размер клетки: плитки перестраиваются сразу. На этот
+    // кадр выключаем плавные переходы камеры и сущностей, иначе карта уже
+    // нового размера, а герой и камера ещё доезжают — получается рывок.
+    const mapEl = el("map");
+    if (mapEl) mapEl.classList.add("cam-zoom");
     updateCamera();
     renderEntities();
+    const settle = ++zoomSettleFrame;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        if (settle === zoomSettleFrame && mapEl) mapEl.classList.remove("cam-zoom");
+      });
+    });
   }
 
   function isTouchUi() {
@@ -7203,6 +7217,14 @@
       if (src) out.push({ src: src, cls: "player-layer " + cls });
     };
     add(eq.weapon, "player-weapon");
+    if (eq.shield) {
+      // У новых щитов может не быть отдельного «надетого» слоя: берём
+      // шипастый щит как общий силуэт, а иконка предмета остаётся в сумке.
+      const src = (typeof WORN_SPRITES !== "undefined" &&
+        (WORN_SPRITES[eq.shield.id] || WORN_SPRITES.spiked_shield))
+        || (typeof ITEM_SPRITES !== "undefined" && ITEM_SPRITES[eq.shield.id]);
+      if (src) out.push({ src: src, cls: "player-layer player-shield" });
+    }
     add(eq.armor, "player-armor");
     if (eq.accessory) {
       const cls = eq.accessory.id === "crown" ? "player-crown"
@@ -7757,7 +7779,7 @@
     const box = node || el("effect-list");
     if (!box) return;
     const active = [];
-    for (const slot of ["weapon", "armor", "accessory"]) {
+    for (const slot of ["weapon", "shield", "armor", "accessory"]) {
       const it = G.equipment && G.equipment[slot];
       if (it && it.effect) active.push({ item: it, effect: it.effect });
     }
@@ -7819,7 +7841,7 @@
   // Во сколько раз покупка дороже ценности вещи. Выкуп — ECON.sellRate (0.5),
   // поэтому цена не может быть ниже 1 / sellRate: иначе лавка печатает золото.
   const GEAR_BUY_RATE = 1.6;
-  const SHOP_SLOTS = ["weapon", "armor", "accessory"];
+  const SHOP_SLOTS = ["weapon", "shield", "armor", "accessory"];
 
   // Наценка и выкуп в процентах — для подписей в лавке. Числа берутся из тех же
   // настроек, что правит учитель в админке, поэтому подпись не врёт.
@@ -8355,6 +8377,7 @@
     if (item.atk) parts.push("атака +" + item.atk);
     if (item.hp) parts.push("HP +" + item.hp);
     if (item.def) parts.push("защита +" + item.def);
+    if (item.brace) parts.push("оборона +" + Math.round(item.brace * 100) + "%");
     if (item.heal) parts.push("лечение +" + (item.heal > 999 ? "всё" : item.heal));
     return parts.join(", ");
   }
@@ -8363,12 +8386,14 @@
     const eq = G.equipment;
     // Снаряжение и бонусы меняются редко — на каждом шаге панель не трогаем.
     const sig = (eq.weapon ? eq.weapon.id + eq.weapon.name : "-") + "|" +
+      (eq.shield ? eq.shield.id + eq.shield.name : "-") + "|" +
       (eq.armor ? eq.armor.id + eq.armor.name : "-") + "|" +
       (eq.accessory ? eq.accessory.id + eq.accessory.name : "-") + "|" +
       G.player.atkBonus + "|" + G.player.defBonus + "|" + G.player.maxHp + "|" + G.floorIndex;
     if (G.equipSig === sig) return;
     G.equipSig = sig;
     el("equip-weapon").textContent = eq.weapon ? eq.weapon.name : "пусто";
+    el("equip-shield").textContent = eq.shield ? eq.shield.name : "пусто";
     el("equip-armor").textContent = eq.armor ? eq.armor.name : "пусто";
     el("equip-accessory").textContent = eq.accessory ? eq.accessory.name : "пусто";
     // Игрок должен видеть, что даёт собранная защита: число без процента
@@ -8399,6 +8424,7 @@
       chip.setAttribute("data-tip", tipAttr(parts.join("<br>")));
     };
     chipTip("equip-weapon", "weapon");
+    chipTip("equip-shield", "shield");
     chipTip("equip-armor", "armor");
     chipTip("equip-accessory", "accessory");
     const statsNode = el("equip-stats");
@@ -8416,7 +8442,7 @@
   function setCounts() {
     const counts = {};
     if (!G.equipment) return counts;
-    for (const slot of ["weapon", "armor", "accessory"]) {
+    for (const slot of ["weapon", "shield", "armor", "accessory"]) {
       const key = itemSetKey(G.equipment[slot]);
       if (key) counts[key] = (counts[key] || 0) + 1;
     }
@@ -8463,9 +8489,11 @@
       (eq.accessory && eq.accessory.atk ? eq.accessory.atk : 0) +
       sets.total.atk + forgeBonus("weapon");
     const def = (eq.armor && eq.armor.def ? eq.armor.def : 0) +
+      (eq.shield && eq.shield.def ? eq.shield.def : 0) +
       (eq.accessory && eq.accessory.def ? eq.accessory.def : 0) +
       sets.total.def + forgeBonus("armor");
     const bonusHp = (eq.armor && eq.armor.hp ? eq.armor.hp : 0) +
+      (eq.shield && eq.shield.hp ? eq.shield.hp : 0) +
       (eq.accessory && eq.accessory.hp ? eq.accessory.hp : 0) +
       sets.total.hp + forgeBonus("vitality");
     p.atkBonus = atk;
@@ -9558,8 +9586,8 @@
     const prevPos = { ...G.playerPos };
     G.playerPos = { x: nx, y: ny };
     maybeSealArena();
-    // Дверь закрывается за спиной: она открыта ровно на один шаг. Иначе
-    // проём оставался пустым навсегда, и враги шли следом.
+    // Дверь закрывается за спиной: она открыта ровно на один шаг, как и у
+    // монстров. Так проём не остаётся пустым навсегда и снова держит взгляд.
     const prevDoor = roomDoorAt(prevPos.x, prevPos.y);
     if (prevDoor) prevDoor.open = false;
     if (!keepPan) resetCameraPan();
@@ -9637,9 +9665,11 @@
     return G.map.grid[y][x] !== 1;
   }
 
-  function hasLineOfSight(x0, y0, x1, y1) {
+  function hasLineOfSight(x0, y0, x1, y1, ignoreDoors) {
     // Взгляд останавливают стены и закрытые двери. Открытая дверь — проём.
-    const blocked = (x, y) => wallAt(x, y) || doorClosedAt(x, y);
+    // Для преследования (ignoreDoors) дверь считается тонкой: монстр чует
+    // героя за ней и идёт открывать, иначе он топтался бы перед дверью.
+    const blocked = (x, y) => wallAt(x, y) || (!ignoreDoors && doorClosedAt(x, y));
     let x = x0;
     let y = y0;
     const dx = Math.abs(x1 - x0);
@@ -9678,9 +9708,7 @@
     // в комнату, которую герой ещё не открыл.
     const vault = vaultAt(x, y);
     if (vault && vault.locked) return true;
-    // Закрытая дверь комнаты держит и монстров: открыть её может только
-    // игрок. Иначе двери были декорацией, сквозь которую все ходят.
-    if (doorClosedAt(x, y)) return true;
+    // Двери комнат монстров не держат: подойдя, моб открывает дверь сам.
     if (x === G.playerPos.x && y === G.playerPos.y) return false;
     if (G.stairsDown && G.stairsDown.x === x && G.stairsDown.y === y) return true;
     if (G.stairsUp && G.stairsUp.x === x && G.stairsUp.y === y) return true;
@@ -9710,8 +9738,7 @@
   // Первый шаг настоящего пути в обход стены. Нужен там, где жадный шаг
   // упирается в стену: иначе монстр топчется на месте и никогда не доходит.
   function detourStep(e, px, py) {
-    const path = findPath({ x: e.x, y: e.y }, { x: px, y: py },
-      (x, y) => doorClosedAt(x, y));
+    const path = findPath({ x: e.x, y: e.y }, { x: px, y: py });
     if (!path || !path.length) return null;
     const first = path[0];
     // Клетка героя — это атака, а не шаг.
@@ -9940,9 +9967,10 @@
         return e;
       }
       // Без прямой видимости монстр не начинает преследование: стена
-      // действительно скрывает героя, а не только блокирует выстрел.
+      // действительно скрывает героя. Закрытую дверь он чует и идёт
+      // открывать — для преследования она не считается стеной.
       if (dist > AGGRO_RADIUS + range - 1 ||
-          !hasLineOfSight(e.x, e.y, px, py)) {
+          !hasLineOfSight(e.x, e.y, px, py, true)) {
         if (abilityOf(e) === "phasing" && Math.random() < (e.phaseChance == null ? 0.25 : e.phaseChance)) {
           if (phaseTeleport(e)) continue;
         }
@@ -10018,8 +10046,21 @@
   }
 
   function moveEnemyTo(e, x, y) {
+    const fromX = e.x;
+    const fromY = e.y;
     e.x = x;
     e.y = y;
+    // Моб открывает дверь шагом и закрывает её за собой, если в проёме
+    // больше никого нет. Так двери не становятся для монстров стеной,
+    // но и не остаются открытыми навсегда.
+    const toDoor = roomDoorAt(x, y);
+    if (toDoor) toDoor.open = true;
+    const fromDoor = roomDoorAt(fromX, fromY);
+    if (fromDoor && fromDoor !== toDoor &&
+        !(G.playerPos.x === fromX && G.playerPos.y === fromY) &&
+        !G.enemies.some((o) => o !== e && o.hp > 0 && o.x === fromX && o.y === fromY)) {
+      fromDoor.open = false;
+    }
     triggerEnemyTrap(e, x, y);
   }
 
@@ -10165,8 +10206,6 @@
       blockLeft: null,
       enemyTurn: null,
       enemyGuard: 0,
-      skipEnemyTurn: false,
-      skipFailed: false,
       fleeFailed: false,
       braced: false,
       // Короткий итог последнего удара для карточки результата: текст без
@@ -10209,8 +10248,6 @@
           G.battle.enemyTurn.feedback = "Враг ошибся. Действие не сработало.";
         }
         G.battle.enemyGuard = restore.enemyGuard || 0;
-        G.battle.skipEnemyTurn = !!restore.skipEnemyTurn;
-        G.battle.skipFailed = !!restore.skipFailed;
         G.battle.fleeFailed = !!restore.fleeFailed;
         G.battle.braced = !!restore.braced;
         G.battle.resultText = restore.resultText || "";
@@ -10314,7 +10351,6 @@
     b.resultTurnNote = "";
     b.resultInfo = null;
     b.explainOpen = true;
-    b.skipFailed = false;
     b.fleeFailed = false;
     b.squad = squadMembersOf(e);
     const ab = abilityOf(e);
@@ -10771,7 +10807,6 @@
     const b = G.battle;
     const step = b.step || 0;
     b.step = step + 1;
-    b.skipFailed = false;
     b.fleeFailed = false;
     let c = null;
 
@@ -11100,11 +11135,8 @@
 
   function applyAttack(damage, message, counter, explanation, correct) {
     const b = G.battle;
-    // Пропуск (correct: false, counter: false) уже стоит здоровья и не
-    // должен запускать отдельный ход врага.
-    if (correct === false && !counter) b.skipEnemyTurn = true;
     // Точность для адаптивных вопросов считаем здесь, а не в answerMC:
-    // так в окно попадают и вопросы, и код, и «повтори», и пропуски.
+    // так в окно попадают и вопросы, и код, и «повтори», и задания.
     if (correct != null) noteAnswer(!!correct);
     if (correct) sfx("correct");
     else if (counter) sfx("wrong");
@@ -11332,11 +11364,16 @@
     updateHud();
 
     const box = el("battle-box");
+    const resultIcon = playerResultIcon(correct, wasCrit, wasExecute);
+    if (resultIcon) showActionIcon("hero", resultIcon);
     if (dealt) strikeScene(box, "enemy", "-" + dealt, "hit");
     if (taken) {
       strikeScene(box, "hero", "-" + taken, "hurt");
+      showActionIcon("enemy", b.rangedShot ? "ranged" : "attack");
       // Трясём сцену, а не всю панель: вопрос не должен прыгать под руками.
       shakeEl(box.querySelector(".battle-stage") || box);
+    } else if (b.blocked) {
+      showActionIcon("hero", "block");
     }
     const result = box.querySelector(".battle-feedback");
     if (result) result.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -11578,6 +11615,81 @@
     setBanner("lose", "Ты пал", heroHp <= 0);
   }
 
+  // Значок действия над портретом: меч, щит, зелье, искра и т.д.
+  // Сцена боя переиспользуется, поэтому значок живёт в её DOM и просто
+  // включается на время действия.
+  function showActionIcon(side, key) {
+    const box = el("battle-box");
+    if (!box) return;
+    const sel = side === "enemy"
+      ? ".battle-stage .fighter-enemy .action-badge"
+      : ".battle-stage .fighter-hero .action-badge";
+    const badge = box.querySelector(sel);
+    const uri = typeof ACTION_ICONS !== "undefined" ? ACTION_ICONS[key] : "";
+    if (!badge || !uri) return;
+    badge.style.backgroundImage = "url('" + uri + "')";
+    badge.classList.remove("show");
+    void badge.offsetWidth;
+    badge.classList.add("show");
+    const seq = (badge.__actionSeq || 0) + 1;
+    badge.__actionSeq = seq;
+    clearTimeout(badge.__actionTimer);
+    badge.__actionTimer = setTimeout(() => {
+      if (badge.__actionSeq === seq) badge.classList.remove("show");
+    }, 1100);
+  }
+
+  // Значок удара героя: обычный, критический или добивающий.
+  function playerAttackIcon(crit, execute) {
+    return execute ? "execute" : crit ? "crit" : "attack";
+  }
+
+  // Итог ответа героя: удар, крит, добивание или промах.
+  function playerResultIcon(correct, crit, execute) {
+    if (correct === true) return playerAttackIcon(crit, execute);
+    if (correct === false) return "miss";
+    return "";
+  }
+
+  // Какой значок показать над врагом в его ход.
+  function enemyActionIcon(e, b, turn) {
+    if (turn.action === "defend") return "defend";
+    if (turn.action === "heal") return "heal";
+    if (turn.action === "attack") return b.rangedShot ? "ranged" : "attack";
+    if (turn.action === "special") {
+      const ab = abilityOf(e);
+      const icons = {
+        poison: "poison",
+        fire: "fire",
+        curse: "curse",
+        summon: "summon",
+        charge: "charge",
+        regen: "heal",
+        heal: "heal",
+        drain: "drain",
+        armor: "armor",
+        thorns: "thorns",
+        bulwark: "defend",
+        phasing: "phasing",
+        ranged: "ranged",
+        bossrage: "bossrage"
+      };
+      return icons[ab] || "ability";
+    }
+    return "ability";
+  }
+
+  // Ошибка или провал действия важнее значка самого действия: враг ошибся,
+  // удар ушёл в блок или не достал — показываем причину.
+  function enemyTurnBadge(e, b, turn) {
+    if (turn.correct === false) return { side: "enemy", icon: "miss" };
+    if (b.blocked) return { side: "hero", icon: "block" };
+    if (turn.action === "attack" && turn.taken === 0) {
+      return { side: "enemy", icon: "fail" };
+    }
+    return { side: "enemy", icon: enemyActionIcon(e, b, turn) };
+  }
+
   function renderBattle() {
     const b = G.battle;
     if (!b) return;
@@ -11623,11 +11735,13 @@
       "<div class='battle-scene'>" +
       "<div class='scene-arena'>" +
       "<div class='fighter fighter-hero" + (heroHp <= 0 ? " down" : "") + "'>" +
-      "<div class='battle-portrait hero'>" + playerBodyHtml() + "</div>" +
+      "<div class='battle-portrait hero'>" + playerBodyHtml() +
+      "<span class='action-badge' aria-hidden='true'></span></div>" +
       "</div>" +
       "<div class='fighter fighter-enemy" + (e.hp <= 0 ? " down" : "") + "'>" +
       "<div class='battle-portrait" + (e.boss ? " boss" : "") + "'>" +
-      spriteImg(e.key) + "</div>" +
+      spriteImg(e.key) +
+      "<span class='action-badge' aria-hidden='true'></span></div>" +
       "</div>" +
       "</div>" +
       (e.hp <= 0 ? "<div class='scene-banner win'>Победа</div>" : "") +
@@ -11636,20 +11750,27 @@
     stageHtml += "</div>";
 
     let html = "";
-    html += "<div class='battle-panel" + (isCodeTask ? " code-mode" : "") + "'>";
+    html += "<div class='battle-panel" + (isCodeTask ? " code-mode" : "") +
+      "' data-phase='" + b.phase + "'>";
     html +=
       "<div class='battle-panel-top'>" +
       "<div class='combatant hero'>" +
+      "<span class='combatant-info'>" +
       "<span class='name'>" + escText(heroName) + "</span>" +
+      "<span class='hp-line'>" +
       "<span class='hp-bar" + (heroPct <= 30 ? " low" : "") + "'>" +
       "<i style='width:" + heroPct + "%'></i></span>" +
       "<span class='num'>" + heroHp + " / " + heroMax + "</span>" +
+      "</span></span>" +
       "</div>" +
       (roundNote ? "<span class='round-note'>" + roundNote + "</span>" : "") +
       "<div class='combatant enemy'>" +
+      "<span class='combatant-info'>" +
       "<span class='name' style='color:" + e.color + "'>" + escText(e.name) + "</span>" +
+      "<span class='hp-line'>" +
       "<span class='hp-bar enemy'><i style='width:" + hpPct + "%'></i></span>" +
       "<span class='num'>" + e.hp + " / " + e.maxHp + "</span>" +
+      "</span></span>" +
       "</div>" +
       "</div>";
 
@@ -11668,6 +11789,15 @@
       if (streakNow > 0) {
         statusChips.push("<span class='battle-status-chip streak'>Серия " + streakNow +
           " · ×" + streakMul().toFixed(2).replace(".", ",") + "</span>");
+      }
+      if ((b.missStreak || 0) > 0) {
+        const missCount = b.missStreak;
+        const nextMul = missMul(missCount + 1).toFixed(1).replace(".", ",");
+        statusChips.push("<span class='battle-status-chip miss' data-tip=\"" +
+          tipAttr("Ошибок подряд: " + missCount +
+            ". Следующая ошибка ударит сильнее — ×" + nextMul +
+            ". Верный ответ сбросит счёт.") +
+          "\">Ошибки " + missCount + " · ×" + nextMul + "</span>");
       }
       if ((e.range || 1) > 1) {
         statusChips.push("<span class='battle-status-chip ranged' data-tip=\"" +
@@ -11700,19 +11830,8 @@
         : "") +
       "";
 
-    // Строку «Тема боя» из окна убрали: тема и так видна в самом вопросе, а
-    // плашка занимала место над вариантами — длинное задание уходило под
-    // прокрутку. Остался только счёт ошибок подряд: это игровой сигнал,
-    // следующая ошибка ударит сильнее, и о нём надо предупредить.
-    const missPart = b.phase === "question" && (b.missStreak || 0) > 0
-      ? "<span class='miss-tag' data-tip=\"" +
-        tipAttr("Каждая ошибка подряд в этом бою бьёт сильнее. Верный ответ сбросит счёт.") + "\">" +
-        "Ошибок подряд: " + b.missStreak + " · следующая ×" +
-        missMul(b.missStreak + 1).toFixed(1).replace(".", ",") + "</span>"
-      : "";
-    if (missPart) {
-      html += "<div class='battle-topic'>" + missPart + "</div>";
-    }
+    // Счётчик ошибок подряд живёт среди статусов справа от заголовка:
+    // это компактная плашка, а не полоса на всю ширину вопроса.
 
     if (b.phase === "question") {
       const c = b.challenge;
@@ -11724,16 +11843,14 @@
         const item = c.question || c.task;
         html += "<div class='battle-task-head'><div class='battle-task-main'>";
         if (c.type === "mc") {
-          html += "<div class='challenge-tag'>Вопрос</div>";
           html += "<div class='challenge-q'>" + item.text + "</div>";
+          html += "<p class='lead' style='margin-bottom:10px'>Выбери один правильный вариант.</p>";
         } else if (c.type === "fill") {
-          html += "<div class='challenge-tag copy'>Вставь пропущенное</div>";
           html += "<div class='challenge-q'>" + item.title + "</div>";
           html += "<p class='lead' style='margin-bottom:10px'>Выбери, что вставить вместо ___</p>";
         } else {
-          html += "<div class='challenge-tag code'>Найди ошибку</div>";
           html += "<div class='challenge-q'>" + item.title + "</div>";
-          html += "<p class='lead' style='margin-bottom:10px'>Что не так в этом коде?</p>";
+          html += "<p class='lead' style='margin-bottom:10px'>Выбери, что не так в коде.</p>";
         }
         html += "</div>" + taskStatusHtml + "</div>";
         if (item.code) {
@@ -11747,7 +11864,6 @@
         html += "</div>";
       } else if (c.type === "copy") {
         html += "<div class='battle-task-head'><div class='battle-task-main'>";
-        html += "<div class='challenge-tag copy'>Повтори код</div>";
         html += "<div class='challenge-q'>" + c.task.title + "</div>";
         html += "<p class='lead' style='margin-bottom:10px'>" + c.task.task + "</p>";
         html += "</div>" + taskStatusHtml + "</div>";
@@ -11761,9 +11877,17 @@
         html += "</div>";
       } else {
         html += "<div class='battle-task-head'><div class='battle-task-main'>";
-        html += "<div class='challenge-tag code'>Напиши функцию</div>";
         html += "<div class='challenge-q'>" + c.task.title + "</div>";
         html += "<p class='lead' style='margin-bottom:12px'>" + c.task.task + "</p>";
+        // Примеры вызовов показывают, что именно должна вернуть функция:
+        // по одному описанию «суммарная сила удара» не всегда ясно, что
+        // имеется в виду, а пара вызовов снимает вопросы.
+        if (Array.isArray(c.task.tests) && c.task.tests.length) {
+          html += "<div class='task-examples'><span class='task-examples-label'>Примеры</span>" +
+            c.task.tests.slice(0, 3).map((t) =>
+              "<code>" + escText(t.call) + " → " + escText(t.expected) + "</code>").join("") +
+            "</div>";
+        }
         html += "</div>" + taskStatusHtml + "</div>";
         html += "</div><div class='battle-solve'>";
         html += "<div class='solve-label'>Решение</div>";
@@ -11775,12 +11899,20 @@
       }
     } else if (b.enemyTurn) {
       const turn = b.enemyTurn;
-      html += "<div class='enemy-turn-tag'>Ход врага · " +
-        escText(turn.actionName || "Действие") + "</div>";
-      // Вопрос врага и его варианты не показываем: игрок видит только
-      // итог хода — какое действие выбрал враг и чем оно закончилось.
-      html += "<div class='battle-feedback " + (turn.correct ? "bad" : "good") + "'>" +
-        escText(turn.feedback) + "</div>";
+      const turnDamage = Math.max(0, Number(turn.taken) || 0);
+      html += "<div class='enemy-turn-box'>" +
+        "<div class='enemy-turn-main'>" +
+        "<div class='enemy-turn-tag'>Ход врага · " +
+        escText(turn.actionName || "Действие") + "</div>" +
+        // Вопрос врага и его варианты не показываем: игрок видит только
+        // итог хода — какое действие выбрал враг и чем оно закончилось.
+        "<div class='battle-feedback " + (turn.correct ? "bad" : "good") + "'>" +
+        escText(turn.feedback) + "</div>" +
+        "</div>" +
+        (turnDamage > 0
+          ? "<div class='enemy-turn-damage'>−" + turnDamage + "</div>"
+          : "") +
+        "</div>";
       footLabel = b.playerDead || G.player.hp <= 0
         ? "Продолжить"
         : b.won
@@ -11791,13 +11923,10 @@
       const info = b.resultInfo || {};
       const dealt = Math.max(0, Number(info.dealt) || 0);
       const isDead = !!b.playerDead || (G.player && G.player.hp <= 0);
-      const isSkip = !!b.skipEnemyTurn && !b.won && !isDead;
       const headline = isDead
         ? "Поражение"
         : b.won
         ? "Попадание"
-        : isSkip
-        ? "Пропуск"
         : good
         ? "Попадание"
         : "Промах";
@@ -11853,8 +11982,6 @@
         ? "В бой с " + b.squadNext.name
         : b.won
         ? "Продолжить"
-        : b.skipEnemyTurn
-        ? "Следующий вопрос"
         : "Ход врага";
     }
 
@@ -11890,23 +12017,8 @@
               : "Нужен свиток подсказки — его покупают у торговца или находят в подземелье.") +
             "\">" + hintLabel + "</button>");
         }
-        const codeSkipChance = Math.round(skipChance(b.enemy) * 100);
-        const codeSkipBlocked = !!b.skipFailed;
-        atkBtns.push(
-          "<button class='btn ghost" + (codeSkipBlocked ? " idle" : "") +
-          "' id='skip-code-btn' type='button' data-tip=\"" +
-          tipAttr(codeSkipBlocked
-            ? "Пропуск уже не удался. Ответь на задание — повторной попытки нет."
-            : "Шанс " + codeSkipChance + "% зависит от здоровья героя и врага. " +
-              "При успехе задание пропускается, враг не бьёт. " +
-              "При неудаче задание остаётся, здоровье не тратится.") +
-          "\">" + (codeSkipBlocked ? "Пропуск не удался" :
-            "Пропустить вопрос (шанс " + codeSkipChance + "%)") + "</button>");
       } else {
-        // «Вспомни»: подсказка (если её ещё не брали) и пропуск вопроса.
-        // Пропуск не тратит здоровье: только бросает шанс и уводит вопрос
-        // в пробелы, откуда он вернётся призраком.
-        const btns = [];
+        // «Вспомни»: подсказка, если её ещё не брали.
         if (!b.challenge.hintUsed) {
           const hintSrc = hintSources();
           const hintLabel = b.cursed ? "Подсказка не работает" : hintButtonLabel(hintSrc);
@@ -11922,18 +12034,6 @@
             ) +
             "\">" + hintLabel + "</button>");
         }
-        const skipChancePct = Math.round(skipChance(b.enemy) * 100);
-        const skipBlocked = !!b.skipFailed;
-        atkBtns.push(
-          "<button class='btn ghost" + (skipBlocked ? " idle" : "") +
-          "' id='skip-question-btn' type='button' data-tip=\"" +
-          tipAttr(skipBlocked
-            ? "Пропуск уже не удался. Ответь на вопрос — повторной попытки нет."
-            : "Шанс " + skipChancePct + "% зависит от здоровья героя и врага. " +
-              "При успехе вопрос пропускается, враг не бьёт. " +
-              "При неудаче вопрос остаётся, здоровье не тратится.") +
-          "\">" + (skipBlocked ? "Пропуск не удался" :
-            "Пропустить вопрос (шанс " + skipChancePct + "%)") + "</button>");
       }
       const hero = heroActionBtns(b);
       html += battleGroupHtml("Атака", atkBtns, "attack");
@@ -12031,8 +12131,6 @@
       });
       const hb = el("hint-btn");
       if (hb) hb.addEventListener("click", useHint);
-      const sq = el("skip-question-btn");
-      if (sq) sq.addEventListener("click", skipQuestion);
     } else if (b.phase === "question" && b.challenge.type === "copy") {
       const input = el("copy-input");
       input.value = b.challenge.code;
@@ -12080,8 +12178,6 @@
         (b.challenge.type === "code" || b.challenge.type === "copy")) {
       const ch = el("code-hint-btn");
       if (ch) ch.addEventListener("click", useCodeHint);
-      const sc = el("skip-code-btn");
-      if (sc) sc.addEventListener("click", skipCodeQuestion);
     }
 
     // Итог боя больше не закрывается сам: игрок читает пояснение и
@@ -12181,39 +12277,31 @@
     }
     updateHud();
     renderBattle();
+    showActionIcon("hero", out.heal > 0 || out.cleanse ? "potion" : "no_effect");
   }
 
-  // Шанс «срезать» бой зависит от того, кто сейчас сильнее: доля здоровья
-  // героя против доли здоровья врага, яда, серии и ранга монстра.
-  function combatChance(e, base) {
+  // Побег зависит в первую очередь от здоровья врага: пока монстр свеж,
+  // уйти почти нельзя. Полное здоровье — около 10%, к нулю HP шанс растёт
+  // примерно до 65%. Раненый герой, яд и элита шанс снижают.
+  function fleeChance(e) {
     const p = G.player || {};
     const pShare = Math.max(0, Math.min(1, (p.hp || 0) / Math.max(1, p.maxHp || 1)));
-    const eShare = e ? Math.max(0, Math.min(1, (e.hp || 0) / Math.max(1, e.maxHp || 1))) : 1;
-    let chance = base + (pShare - eShare) * 0.35;
-    chance -= Math.min(0.2, Math.max(0, p.poison || 0) * 0.05);
+    const eShare = e
+      ? Math.max(0, Math.min(1, (e.hp || 0) / Math.max(1, e.maxHp || 1)))
+      : 1;
+    // Босс, страж и щитоносец держат героя: уйти нельзя.
+    if (e && (e.boss || e.guard || abilityOf(e) === "bulwark")) return 0;
+    let chance = 0.1 + (1 - eShare) * 0.55;
+    // Полное здоровье героя — без штрафа, пустое — −4%.
+    chance -= (1 - pShare) * 0.04;
+    chance -= Math.min(0.12, Math.max(0, p.poison || 0) * 0.04);
     if (e) {
-      if (e.boss) chance -= 0.2;
-      else if (e.guard) chance -= 0.15;
-      else if (e.elite) chance -= 0.1;
-      if ((e.dmgBoost || 0) > 0 || (e.nextDmgMul || 1) > 1) chance -= 0.05;
-      if (e.hp <= e.maxHp * 0.25) chance += 0.1;
+      if (e.elite) chance -= 0.08;
+      if ((e.dmgBoost || 0) > 0 || (e.nextDmgMul || 1) > 1) chance -= 0.04;
     }
-    chance += Math.min(0.1, ((G.stats && G.stats.streak) || 0) * 0.02);
-    return Math.max(0.2, Math.min(0.9, chance));
+    return Math.max(0.05, Math.min(0.8, chance));
   }
 
-  function skipChance(e) {
-    return combatChance(e, 0.7);
-  }
-
-  function fleeChance(e) {
-    return combatChance(e, 0.55);
-  }
-
-  // Пропуск вопроса. Враг при этом НЕ бьёт: вся цена — здоровье, и оно уходит
-  // сразу. Но вопрос засчитывается как пробел: он идёт в разбор по темам, в
-  // процент похода и возвращается призраком ошибки — иначе пропускать было бы
-  // выгоднее, чем отвечать.
   // Текст правильного варианта вместо буквы A–D: клавишами больше не
   // отвечают, а буквы на кнопках убраны, поэтому «ответ B» ничего не значит.
   function correctAnswerText(c, item) {
@@ -12225,87 +12313,6 @@
       ? item.answer
       : -1;
     return opts && idx >= 0 && opts[idx] !== undefined ? String(opts[idx]) : "";
-  }
-
-  function skipQuestion() {
-    const b = G.battle;
-    if (!b || b.phase !== "question" || b.busy) return;
-    const c = b.challenge;
-    if (!c || c.type === "copy" || c.type === "code") return;
-    if (b.skipFailed) {
-      toast("Пропуск уже не удался — ответь на вопрос");
-      return;
-    }
-    const chance = skipChance(b.enemy);
-    const pct = Math.round(chance * 100);
-    const success = Math.random() < chance;
-    const item = c.question || c.task;
-    const topic = item.topic || "syntax";
-    if (!success) {
-      // Неудача не сжигает вопрос и не передаёт ход: игрок остаётся на том
-      // же задании. Повторять попытку нельзя — иначе шанс ничего не решает.
-      b.skipFailed = true;
-      log("Пропуск не удался (шанс " + pct + "%). Вопрос остаётся.", "fight");
-      toast("Пропуск не удался: шанс " + pct + "%. Ответь на вопрос");
-      renderBattle();
-      return;
-    }
-    G.stats.wrong += 1;
-    G.stats.streak = 0;
-    G.stats.topicStats[topic] = G.stats.topicStats[topic] || { correct: 0, total: 0 };
-    G.stats.topicStats[topic].total += 1;
-    pushMissed(c.type, item);
-    setQuality("partial");
-    log("Вопрос пропущен (шанс " + pct + "%). Он вернётся призраком.", "fight");
-    toast("Пропуск удался: шанс " + pct + "%");
-    applyAttack(
-      0,
-      "Пропущено (шанс " + pct + "%). Правильный ответ: " +
-        (correctAnswerText(c, item) ? "«" + escText(correctAnswerText(c, item)) + "»." : "см. разбор."),
-      false,
-      item.explanation,
-      false
-    );
-    updateHud();
-  }
-
-  // Пропуск задания с кодом. В отличие от вопроса с вариантами, правильного
-  // ответа-буквы здесь нет: показываем разбор после хода. Здоровье не
-  // тратится, попытка уходит в статистику темы.
-  function skipCodeQuestion() {
-    const b = G.battle;
-    if (!b || b.phase !== "question" || b.busy) return;
-    const c = b.challenge;
-    if (!c || (c.type !== "code" && c.type !== "copy")) return;
-    if (b.skipFailed) {
-      toast("Пропуск уже не удался — ответь на задание");
-      return;
-    }
-    const chance = skipChance(b.enemy);
-    const pct = Math.round(chance * 100);
-    const success = Math.random() < chance;
-    if (!success) {
-      // Неудача оставляет то же задание и не запускает ход врага.
-      b.skipFailed = true;
-      log("Пропуск задания не удался (шанс " + pct + "%). Задание остаётся.", "fight");
-      toast("Пропуск не удался: шанс " + pct + "%. Ответь на задание");
-      renderBattle();
-      return;
-    }
-    G.stats.wrong += 1;
-    G.stats.streak = 0;
-    countTaskTopic(c.type, c.task, false);
-    setQuality("partial");
-    log("Задание пропущено (шанс " + pct + "%). Разбор — ниже.", "fight");
-    toast("Пропуск удался: шанс " + pct + "%");
-    applyAttack(
-      0,
-      "Пропущено (шанс " + pct + "%). Разбор — ниже.",
-      false,
-      c.task.explanation,
-      false
-    );
-    updateHud();
   }
 
   // ---------- Действия героя в бою ----------
@@ -12419,8 +12426,8 @@
     const bracePct = Math.round(braceCutForPlayer() * 100);
     defense.push(
       "<button class='btn ghost' id='defend-btn' type='button' data-tip=\"" +
-      tipAttr("Пропустить вопрос: ход перейдёт врагу, а его следующий удар станет слабее на " +
-        bracePct + "%. Без снаряжения блок всего 15%, броня и амулеты его усиливают. " +
+      tipAttr("Оборона пропускает вопрос: ход перейдёт врагу, а его следующий удар станет слабее на " +
+        bracePct + "%. Без щита блок 15%, щит даёт основной бонус, броня и амулеты немного усиливают. " +
         "Ждать выгодно не всегда: враг всё равно действует, яд тикает, а «огонь» и " +
         "«натиск» за время обороны крепнут.") +
       "\">Оборона</button>");
@@ -12431,9 +12438,10 @@
         ? "Отступление уже не удалось. Ответь на вопрос — повторной попытки нет."
         : !canRun
         ? "Отсюда не уйти: дракон, страж лестницы, отряд и щитоносец держат героя."
-        : "Шанс " + fleePct + "% зависит от здоровья героя и врага. При успехе бой " +
-          "прекращается, герой отходит на клетку. При неудаче вопрос остаётся. " +
-          "Здоровье не тратится.") +
+        : "Шанс " + fleePct + "% зависит от здоровья врага: чем меньше у него HP, " +
+          "тем проще уйти. Полное здоровье — около 10%, раненый герой и яд шанс снижают. " +
+          "При успехе бой прекращается, герой отходит на клетку. При неудаче вопрос " +
+          "остаётся. Здоровье не тратится.") +
       "\">" + (fleeFailed
         ? "Отступление не удалось"
         : canRun
@@ -12477,12 +12485,19 @@
     return null;
   }
 
-  // Оборона: ход уходит на защиту. Враг бьёт, но ослабленно. Насколько —
-  // зависит от снаряжения: без брони блок падает до 15%, с бронёй растёт
-  // до BRACE_CUT. Полный блок дают только предметы с эффектом block.
+  function equippedShield() {
+    return G.equipment && G.equipment.shield ? G.equipment.shield : null;
+  }
+
+  // Оборона: основной вклад даёт надетый щит, броня и амулеты добавляют
+  // немного. Без щита базовый блок остаётся 15%; сильные щиты доводят его
+  // почти до BRACE_CUT.
   function braceCutForPlayer() {
+    const shield = equippedShield();
+    const shieldBrace = shield ? Math.max(0, Number(shield.brace) || 0) : 0;
     const def = Math.max(0, (G.player && G.player.defBonus) || 0);
-    return Math.max(0.15, Math.min(BRACE_CUT, 0.15 + def * 0.015));
+    const armorDef = Math.max(0, def - (shield && shield.def ? shield.def : 0));
+    return Math.max(0.15, Math.min(BRACE_CUT, 0.15 + shieldBrace + armorDef * 0.008));
   }
 
   function defendTurn() {
@@ -12500,6 +12515,7 @@
     log("Оборона: вопрос пропущен, блок " + pct + "%, ход переходит врагу.", "fight");
     effectFlash("Оборона · −" + pct + "% урона");
     renderBattle();
+    showActionIcon("hero", "defend");
     continueBattle();
   }
 
@@ -12509,8 +12525,13 @@
     const b = G.battle;
     if (!b || b.phase !== "question" || b.busy) return;
     const e = b.enemy;
-    if (!canFlee(e)) { toast("Отсюда не уйти: враг держит героя"); return; }
+    if (!canFlee(e)) {
+      showActionIcon("hero", "no_effect");
+      toast("Отсюда не уйти: враг держит героя");
+      return;
+    }
     if (b.fleeFailed) {
+      showActionIcon("hero", "flee_fail");
       toast("Отступление уже не удалось — ответь на вопрос");
       return;
     }
@@ -12523,6 +12544,7 @@
       log("Отступление не удалось (шанс " + pct + "%). Вопрос остаётся.", "fight");
       toast("Отступление не удалось: шанс " + pct + "%. Ответь на вопрос");
       renderBattle();
+      showActionIcon("hero", "flee_fail");
       return;
     }
     b.phase = "result";
@@ -12542,8 +12564,16 @@
     const b = G.battle;
     const st = abilityState();
     if (!b || b.phase !== "question" || b.busy) return;
-    if (!st.key) { toast("Умение не выбрано: его выбирают перед спуском"); return; }
-    if (st.left <= 0) { toast("Заряды кончились — пополни у костра"); return; }
+    if (!st.key) {
+      showActionIcon("hero", "no_effect");
+      toast("Умение не выбрано: его выбирают перед спуском");
+      return;
+    }
+    if (st.left <= 0) {
+      showActionIcon("hero", "no_effect");
+      toast("Заряды кончились — пополни у костра");
+      return;
+    }
     const c = b.challenge;
     if (st.key === "insight") {
       if (c.type === "code" || c.type === "copy") {
@@ -12585,6 +12615,8 @@
     G.stats.abilitiesUsed = (G.stats.abilitiesUsed || 0) + 1;
     updateHud();
     renderBattle();
+    showActionIcon("hero",
+      st.key === "strike" ? "attack" : st.key === "breath" ? "heal" : "hint");
   }
 
   // Подсказка теперь берётся только из свитка — редкого предмета. Без
@@ -12611,15 +12643,20 @@
     if (!b || b.phase !== "question") return;
     const c = b.challenge;
     const item = c.question || c.task;
-    if (!item || !item.options || c.hintUsed) return;
+    if (!item || !item.options || c.hintUsed) {
+      showActionIcon("hero", "no_effect");
+      return;
+    }
     // Проклятие лича: подсказка не работает, и стоить она не должна. Раньше
     // она всё равно забирала 10 здоровья и обнуляла серию — ни за что.
     if (b.cursed) {
+      showActionIcon("hero", "no_effect");
       toast("Проклятие лича: подсказка не работает");
       return;
     }
     const paid = consumeHintCost();
     if (!paid.ok) {
+      showActionIcon("hero", "no_effect");
       toast("Нужен свиток подсказки");
       return;
     }
@@ -12643,6 +12680,7 @@
     effectFlash("Свиток · подсказка");
     updateHud();
     renderBattle();
+    showActionIcon("hero", "hint");
   }
 
   // Подсказка для заданий с кодом и «повтори код». В MC-вопросе подсказка
@@ -12670,13 +12708,19 @@
     if (!b || b.phase !== "question" || b.busy) return;
     const c = b.challenge;
     if (!c || (c.type !== "code" && c.type !== "copy")) return;
-    if (c.hintUsed) { toast("Подсказка уже взята"); return; }
+    if (c.hintUsed) {
+      showActionIcon("hero", "no_effect");
+      toast("Подсказка уже взята");
+      return;
+    }
     if (b.cursed) {
+      showActionIcon("hero", "no_effect");
       toast("Проклятие лича: подсказка не работает");
       return;
     }
     const paid = consumeHintCost();
     if (!paid.ok) {
+      showActionIcon("hero", "no_effect");
       toast("Нужен свиток подсказки");
       return;
     }
@@ -12690,6 +12734,7 @@
     toast("Свиток подсказки использован");
     updateHud();
     renderBattle();
+    showActionIcon("hero", "hint");
   }
 
   // Тема задачи «повтори код» / «напиши функцию» — из таблицы task-meta.js:
@@ -13156,6 +13201,8 @@
     // удар приходил «из воздуха». Теперь враг делает выпад, по герою
     // проходит вспышка, а над ним всплывает урон — как при ответном ударе.
     const box = el("battle-box");
+    const badge = enemyTurnBadge(e, b, turn);
+    showActionIcon(badge.side, badge.icon);
     if (turn.taken > 0) {
       strikeScene(box, "hero", "-" + turn.taken, "hurt");
       shakeEl(box.querySelector(".battle-stage") || box);
@@ -13217,12 +13264,6 @@
         log("Ты разорвал цепь ударом.", "fight");
       }
       closeBattle();
-      return;
-    }
-    if (b.skipEnemyTurn) {
-      b.skipEnemyTurn = false;
-      nextChallenge();
-      renderBattle();
       return;
     }
     if (b.enemy && b.enemy.hp > 0) {
@@ -14648,6 +14689,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.37.0",
+      date: "9 ноября 2026",
+      title: "Щиты и новая дуэль",
+      items: [
+        "Семь щитов в отдельном слоте: «Оборона» тем сильнее, чем лучше щит.",
+        "Бой стал дуэлью: ответы сеткой 2×2 и отдельные кнопки действий.",
+        "Пропуск задания убран, побег зависит от здоровья врага, а мобы сами открывают двери."
+      ]
+    },
+    {
       version: "1.36.2",
       date: "9 ноября 2026",
       title: "Враг бьёт с анимацией",
@@ -15824,7 +15875,7 @@ function topicName(key) {
       poison: 0,
       freeHints: 0
     };
-    G.equipment = { weapon: null, armor: null, accessory: null };
+    G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
     G.forge = { weapon: 0, armor: 0, vitality: 0 };
     G.inventory = [{ ...itemById("small_potion") }];
     // Ключи от тайников — ресурс похода: новый поход не наследует их
@@ -16552,8 +16603,6 @@ function topicName(key) {
             results: G.battle.results || null,
             enemyTurn: G.battle.enemyTurn || null,
             enemyGuard: G.battle.enemyGuard || 0,
-            skipEnemyTurn: !!G.battle.skipEnemyTurn,
-            skipFailed: !!G.battle.skipFailed,
             fleeFailed: !!G.battle.fleeFailed,
             braced: !!G.battle.braced,
             resultText: G.battle.resultText || "",
@@ -16751,7 +16800,10 @@ function topicName(key) {
     G.player.snared = !!data.player.snared;
     G.player.snareWaits = data.player.snareWaits || 0;
     G.player.cursedNext = !!data.player.cursedNext;
-    G.equipment = data.equipment || { weapon: null, armor: null, accessory: null };
+    G.equipment = Object.assign(
+      { weapon: null, shield: null, armor: null, accessory: null },
+      data.equipment || {}
+    );
     // Старый сейв без кузницы: уровни считаем нулевыми.
     G.forge = Object.assign({ weapon: 0, armor: 0, vitality: 0 }, data.forge || {});
     // Сейв без прогрессии (старая версия) — берём её из профиля, а не нулями:

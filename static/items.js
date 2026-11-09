@@ -1,7 +1,8 @@
-// Предметы подземелья: оружие, броня, амулеты и зелья.
-// slot: weapon | armor | accessory | potion
+// Предметы подземелья: оружие, щиты, броня, амулеты и зелья.
+// slot: weapon | shield | armor | accessory | potion
 // atk — бонус к урону, hp — бонус к максимуму здоровья, def — снижение урона,
 // heal — сколько здоровья восстанавливает зелье, tier — с какого этажа может выпасть.
+// brace — доля урона, которую гасит «Оборона», если надет этот щит.
 // effect — особое действие предмета (см.game.js, applyItemEffect):
 //   { kind: "lifesteal", pct }      — лечит героя на pct% нанесённого урона
 //   { kind: "crit", chance, mul }   — шанс chance Crit ×mul
@@ -17,6 +18,7 @@
 //   { kind: "antidote" }            — зелье снимает только яд
 const SLOT_NAMES = {
   weapon: "Оружие",
+  shield: "Щит",
   armor: "Броня",
   accessory: "Амулет",
   potion: "Зелье"
@@ -133,14 +135,31 @@ const ITEM_POOL = [
     effect: { kind: "crit", chance: 0.2, mul: 2 },
     desc: "Светлый клинок, в котором утренний свет не гаснет даже под землёй." },
 
+  // ---------- Щиты ----------
+  { id: "wooden_shield", name: "Деревянный щит", slot: "shield", hp: 8, def: 0, brace: 0.1, rarity: "common", tier: 0,
+    desc: "Сколочен из дубовых досок. Держит удар, но против огня ненадёжен." },
+  { id: "round_shield", name: "Круглый щит", slot: "shield", hp: 14, def: 1, brace: 0.14, rarity: "uncommon", tier: 1,
+    desc: "Обитый кожей круг с железным умбоном. Удобно ловить стрелы." },
+  { id: "steel_shield", name: "Стальной щит", slot: "shield", hp: 22, def: 2, brace: 0.18, rarity: "rare", tier: 2,
+    desc: "Тяжёлая сталь с золотой окантовкой. В обороне гасит заметную часть удара." },
+  { id: "spiked_shield", name: "Шипастый щит", slot: "shield", hp: 20, def: 1, brace: 0.16, rarity: "rare", tier: 2, set: "shadow",
+    effect: { kind: "thorns", pct: 25 },
+    desc: "Обратная сторона щита покрыта шипами: враг ранится обо что ударит." },
+  { id: "mirror_shield", name: "Зеркальный щит", slot: "shield", hp: 30, def: 2, brace: 0.2, rarity: "epic", tier: 3,
+    effect: { kind: "block", charges: 1 },
+    desc: "Полированная сталь ловит удар и первый раз полностью гасит его." },
+  { id: "warden_shield", name: "Щит хранителя", slot: "shield", hp: 38, def: 3, brace: 0.22, rarity: "epic", tier: 4,
+    effect: { kind: "thorns", pct: 25 },
+    desc: "Тяжёлый щит стража подземелья: и закрывает, и ранит нападающего." },
+  { id: "aegis", name: "Эгида", slot: "shield", hp: 45, def: 4, brace: 0.25, rarity: "epic", tier: 4,
+    effect: { kind: "block", charges: 2 },
+    desc: "Щит Афины. Гасит первые две атаки врага в каждом бою и лучше всех держит оборону." },
+
   // ---------- Броня ----------
   { id: "cloth_robe", name: "Роба послушника", slot: "armor", hp: 10, def: 0, rarity: "common", tier: 0, set: "luck",
     desc: "Чуть лучше, чем идти голым. Зато свободно." },
   { id: "leather_armor", name: "Кожаный доспех", slot: "armor", hp: 20, def: 1, rarity: "uncommon", tier: 1, set: "blood",
     desc: "Прошитая из четырёх пластов. Скрипит при ходьбе." },
-  { id: "spiked_shield", name: "Шипастый щит", slot: "armor", hp: 22, def: 1, rarity: "rare", tier: 2, set: "shadow",
-    effect: { kind: "thorns", pct: 25 },
-    desc: "Обратная сторона щита покрыта шипами: враг ранится обо что ударит." },
   { id: "chainmail", name: "Кольчуга", slot: "armor", hp: 35, def: 3, rarity: "rare", tier: 2, set: "forge",
     desc: "Тысячи колечек. Тяжёлая, зато не пробьёт." },
   { id: "mirror_plate", name: "Зеркальный панцирь", slot: "armor", hp: 30, def: 3, rarity: "epic", tier: 3,
@@ -151,9 +170,6 @@ const ITEM_POOL = [
   { id: "ash_mantle", name: "Пепельная мантия", slot: "armor", hp: 32, def: 3, rarity: "rare", tier: 3, set: "ash",
     effect: { kind: "thorns", pct: 20 },
     desc: "Обгоревшая ткань, в которую вплетены осколки угля. Бьющий обжигается." },
-  { id: "aegis", name: "Эгида", slot: "armor", hp: 75, def: 9, rarity: "epic", tier: 4,
-    effect: { kind: "block", charges: 2 },
-    desc: "Щит Афины. Гасит первые две атаки врага в каждом бою." },
   { id: "warden_plate", name: "Латы хранителя", slot: "armor", hp: 80, def: 10, rarity: "epic", tier: 4,
     effect: { kind: "thorns", pct: 25 },
     desc: "Тяжёлые латы, покрытые шипами изнутри и снаружи. Каждый удар по тебе — и по врагу." },
