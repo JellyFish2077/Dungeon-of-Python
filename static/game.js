@@ -12343,7 +12343,12 @@
     // Тролль затягивает раны прямо в бою: его надо либо бить быстро, либо
     // не связываться вовсе.
     if (ability === "regen" && hit > 0 && e.hp > 0) {
-      const healed = Math.max(1, Math.round(e.maxHp * (e.elite ? 0.14 : 0.08)));
+      // Босс затягивает не больше четверти нанесённого урона. Иначе при
+      // большом запасе HP (Король големов, 1303) восстановление перекрывает
+      // любой удар и бой превращается в бесконечный цикл.
+      const healed = e.boss
+        ? Math.min(Math.round(hit * 0.25), Math.round(e.maxHp * 0.05))
+        : Math.max(1, Math.round(e.maxHp * (e.elite ? 0.14 : 0.08)));
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + healed);
       if (e.hp > before) {
@@ -14194,7 +14199,10 @@
 
   function healEnemy(e, share) {
     const was = e.hp;
-    e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(e.maxHp * share)));
+    // Босс не залечивает больше 5% запаса за действие: иначе «восстановление»
+    // в третьей фазе голема отменяет удары героя и бой не кончается.
+    const pct = e.boss ? Math.min(share, 0.05) : share;
+    e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(e.maxHp * pct)));
     return e.hp - was;
   }
 

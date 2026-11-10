@@ -76,7 +76,7 @@ function flushTimers() {
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
     difficulty: "normal", forge: true, amulets: 1, bank: 600, campaign: false,
-    omen: "steady", maxed: false, collect: null };
+    omen: "steady", maxed: false, collect: null, ability: "breath" };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--games") out.games = Number(argv[++i]);
@@ -98,6 +98,7 @@ function parseArgs(argv) {
     // обречён, победа приходит за несколько заходов.
     else if (a === "--campaign") out.campaign = true;
     else if (a === "--collect") out.collect = Number(argv[++i]);
+    else if (a === "--ability") out.ability = argv[++i];
     // --maxed: профиль сразу прокачан до предела (все постройки и улучшения).
     // Так проверяется конец игры: побеждает ли тот, кто дошёл до предела.
     else if (a === "--maxed") out.maxed = true;
@@ -190,9 +191,18 @@ function codeAnswer(skill, rng) {
 function playBattleStep(skill, rng, state) {
   const b = G.battle;
   if (!b) return "no-battle";
-  // Живой игрок пьёт зелье прямо в бою, когда здоровье падает. Бот раньше
-  // делал это только между боями и потому умирал там, где человек выжил бы.
-  if (G.player.hp < G.player.maxHp * 0.6) {
+  // Сначала доигрываем результат хода: зелья, умение и защита работают
+  // только в окне вопроса, а вызов их в фазе result — пустой ход. Из-за
+  // этого бот мог крутиться на месте, пока враг не добивал героя.
+  if (b.phase !== "question") {
+    API.continueBattle();
+    return "continue";
+  }
+  // Живой игрок пьёт зелье прямо в бою, когда здоровье падает. Перед боссом
+  // и элитой порог выше: там зелья решают исход, на обычных врагах хватает
+  // «второго дыхания», чтобы не сжечь запас до главного боя.
+  const isBossFight = !!(b.enemy.boss || b.enemy.elite);
+  if (G.player.hp < G.player.maxHp * (isBossFight ? 0.65 : 0.3)) {
     const idx = G.inventory.findIndex((i) => i.slot === "potion");
     if (idx >= 0) {
       const before = G.player.hp;
@@ -200,9 +210,27 @@ function playBattleStep(skill, rng, state) {
       if (G.player.hp > before) return "drink";
     }
   }
-  if (b.phase !== "question") {
-    API.continueBattle();
-    return "continue";
+  // Второе дыхание: бесплатное лечение на 40% максимума, если зелий нет
+  // или здоровье всё ещё низкое. Умение расходуется, поэтому не спамим.
+  if (G.ability && G.ability.key === "breath" && G.ability.left > 0 &&
+      G.player.hp < G.player.maxHp * 0.55) {
+    const before = G.player.hp;
+    API.useAbility();
+    if (G.player.hp > before) return "ability";
+  }
+  // Точный удар перед боссом/элитой: следующий верный ответ бьёт вдвое.
+  if (G.ability && G.ability.key === "strike" && G.ability.left > 0 &&
+      !b.strikeNext && (b.enemy.boss || b.enemy.elite)) {
+    API.useAbility();
+    return "ability";
+  }
+  // Совсем плохо: зелий нет и дыхание кончилось. Один ход в защиту
+  // снижает следующий удар, вместо того чтобы умереть на следующем вопросе.
+  const potionsLeft = G.inventory.some((i) => i.slot === "potion");
+  const breathLeft = G.ability && G.ability.key === "breath" && G.ability.left > 0;
+  if (!potionsLeft && !breathLeft && G.player.hp < G.player.maxHp * 0.35) {
+    API.defendTurn();
+    return "brace";
   }
   const c = b.challenge;
   if (!c) return "no-challenge";
@@ -266,24 +294,27 @@ function equipBetter() {
 // Покупки в лавке. Номер товара — это место в shopOffers(), том же списке,
 // по которому лавка рисуется: зелий на глубине больше, поэтому номера
 // снаряжения от этажа к этажу сдвигаются.
-// Снаряжение — то, что сильнее надетого, сразу «Купить и надеть». Зелья
-// лечения — до трёх в сумке, самое сильное из тех, на что хватает золота.
+// Сначала зелья лечения — до трёх в сумке, самое сильное из тех, на что
+// хватает золота. Полный эликсир на боссе важнее ещё одной единицы брони:
+// раньше бот тратил золото на снаряжение и приходил к боссу с пустой сумкой.
+// Потом — снаряжение, которое сильнее надетого, сразу «Купить и надеть».
 function shopRound() {
   let spent = 0;
-  const offers = API.shopOffers();
-  offers.forEach((o, i) => {
-    if (o.kind !== "gear" || gearGain(o.item) <= 0 || G.player.gold < o.price) return;
-    API.buyItem(i, true);
-    spent += 1;
-  });
-  const potions = offers
-    .map((o, i) => ({ o: o, i: i }))
-    .filter((p) => p.o.kind === "potion" && p.o.item.heal > 0)
-    .sort((a, b) => b.o.item.heal - a.o.item.heal || a.o.price - b.o.price);
   while (API.countPotions() < 3) {
-    const pick = potions.find((p) => G.player.gold >= p.o.price);
+    const pick = API.shopOffers()
+      .map((o, i) => ({ o: o, i: i }))
+      .filter((p) => p.o.kind === "potion" && p.o.item.heal > 0 && G.player.gold >= p.o.price)
+      .sort((a, b) => b.o.item.heal - a.o.item.heal || a.o.price - b.o.price)[0];
     if (!pick) break;
     API.buyItem(pick.i, false);
+    spent += 1;
+  }
+  for (;;) {
+    const offers = API.shopOffers();
+    const gear = offers.findIndex((o) =>
+      o.kind === "gear" && gearGain(o.item) > 0 && G.player.gold >= o.price);
+    if (gear < 0) break;
+    API.buyItem(gear, true);
     spent += 1;
   }
   return spent > 0;
@@ -315,9 +346,14 @@ function shopWorth() {
     o.kind === "gear" && gearGain(o.item) > 0 && G.player.gold >= o.price);
 }
 
-// Зелья в бою и на подходе к врагу: пьём, когда ранены.
+// Зелья в бою и на подходе к врагу: пьём, когда ранены. Перед боссом или
+// элитой пополняем здоровье почти до полного: на них зелья и нужны, а на
+// обычных врагах дешевле потратить заряд «второго дыхания».
 function drinkIfHurt() {
-  if (G.player.hp >= G.player.maxHp * 0.7) return false;
+  const bossNear = (G.enemies || []).some((e) => (e.boss || e.elite) &&
+    Math.abs(e.x - G.playerPos.x) + Math.abs(e.y - G.playerPos.y) <= 3);
+  const threshold = bossNear ? 0.9 : 0.55;
+  if (G.player.hp >= G.player.maxHp * threshold) return false;
   const idx = G.inventory.findIndex((i) => i.slot === "potion");
   if (idx < 0) return false;
   const before = G.player.hp;
@@ -383,6 +419,7 @@ function playStep(skill, rng, state) {
     // лавку, а ожидание, от которого цепь слабеет, не наступало бы.
     if (t && t.kind === "trader" && !state.shopsDone.has(t.obj && t.obj.uid)) {
       state.shopsDone.add(t.obj && t.obj.uid);
+      if (t.obj) (G.__botShopDone = G.__botShopDone || new Set()).add(t.obj.uid);
       if (G.player.gold >= 20 && shopWorth()) {
         API.openShop(true);
         return "shop-open";
@@ -468,9 +505,11 @@ function playStep(skill, rng, state) {
     if (G.player.gold >= 20 && shopWorth()) {
       API.openShop(true);
       state.shopsDone.add(near.obj && near.obj.uid);
+      if (near.obj) (G.__botShopDone = G.__botShopDone || new Set()).add(near.obj.uid);
       return "shop-open";
     }
     state.shopsDone.add(near.obj && near.obj.uid);
+    if (near.obj) (G.__botShopDone = G.__botShopDone || new Set()).add(near.obj.uid);
   }
 
   // Лестница вниз. interactTarget() отдаёт kind "locked", когда выход
@@ -561,6 +600,21 @@ function stepAlongPath(goal, allowEnemy) {
   return { dx: dx, dy: dy, enemy: enemy || null };
 }
 
+// Ближайший торговец, у которого бот ещё не был. Лавка — единственное место,
+// где пополняются зелья и покупается снаряжение; без захода туда бот
+// приходил к каждому боссу с пустой сумкой.
+function botTraderTarget() {
+  const done = G.__botShopDone || new Set();
+  let best = null;
+  (G.traders || []).forEach((t) => {
+    if (done.has(t.uid)) return;
+    const path = API.findPath(G.playerPos, { x: t.x, y: t.y });
+    if (!path || !path.length) return;
+    if (!best || path.length < best.dist) best = { x: t.x, y: t.y, dist: path.length };
+  });
+  return best ? { x: best.x, y: best.y } : null;
+}
+
 // Ближайшая жила или сундук, которые бот ещё не трогал. Нужна для
 // кампании: без сбора материалов деревня не растёт между походами.
 function botLootTarget() {
@@ -646,6 +700,11 @@ function goalCell() {
       if (target) return target;
     }
   }
+  // Пополнение у торговца: зелья и снаряжение важнее скорости спуска.
+  if (G.player.gold >= 20 && shopWorth()) {
+    const trader = botTraderTarget();
+    if (trader) return trader;
+  }
   if (down.active !== false) return { x: down.x, y: down.y };
   const keeper = G.enemies.find((e) => e.boss || e.guard);
   if (keeper) return { x: keeper.x, y: keeper.y };
@@ -658,6 +717,7 @@ function startGame(opts, rng) {
   // В кампании всё наоборот: герой один, и профиль между походами живёт.
   G.__botBadChests = new Set();
   G.__botBadNodes = new Set();
+  G.__botShopDone = new Set();
   G.__botLoot = { floor: -1, taken: 0, quota: opts.collect != null ? opts.collect : (opts.campaign ? 2 : 0) };
   if (!opts.campaign) globalThis.localStorage._d = {};
   // begin() берёт имя из сессии аккаунта (auth.js) и без входа не запускает
@@ -676,6 +736,9 @@ function startGame(opts, rng) {
   // Деревня перед спуском: ученик приходит с накопленным золотом и тратит
   // часть на амулеты возврата и зелья. Без этого второй шанс не проверить.
   const prof = getProfile("Бот");
+  if (API.pickAbility(opts.ability)) {
+    // Умение выбирается до спуска; для выживания по умолчанию — дыхание.
+  }
   if (!opts.campaign) {
     prof.wallet.gold = opts.bank;
     prof.hub.revive = 0;
@@ -705,6 +768,8 @@ function startGame(opts, rng) {
   // чтобы партия не пропала.
   if (!G.running) API.begin();
   if (!G.running) throw new Error("не удалось начать партию");
+  // Бот не проходит окно стража, поэтому умение выставляем напрямую.
+  G.ability = { key: opts.ability, left: API.abilityCharges ? API.abilityCharges() : 2 };
   // Сложность в настоящей игре выбирают в окне стража до спуска, а begin()
   // её не сбрасывает: ставим заранее, первый этаж уже будет нужной. Режим
   // берётся с переключателя, а его в заглушке нет — ставим напрямую и
@@ -847,7 +912,7 @@ function playOne(opts, rng, trace) {
   };
   let steps = 0;
   let lastProgress = { steps: 0, what: "старт", pos: G.playerPos.x + "," + G.playerPos.y,
-    hp: G.player.hp, floor: G.floorIndex };
+    hp: G.player.hp, floor: G.floorIndex, enemyHp: Infinity };
 
   while (steps < opts.turns) {
     steps += 1;
@@ -890,7 +955,7 @@ function playOne(opts, rng, trace) {
         campaignSpend();
         if (API.canDescend() && API.loadGame()) {
           lastProgress = { steps, what: "resume", pos: G.playerPos.x + "," + G.playerPos.y,
-            hp: G.player.hp, floor: G.floorIndex };
+            hp: G.player.hp, floor: G.floorIndex, enemyHp: Infinity };
           continue;
         }
       }
@@ -966,11 +1031,16 @@ function playOne(opts, rng, trace) {
     }
 
     // Прогресс — это смена клетки, этажа, здоровья или открытого боя.
+    // Здоровье босса тоже считаем: иначе долгий бой без урона герою
+    // выглядит как зависание, хотя босс теряет HP и бой движется.
     const pos = G.playerPos.x + "," + G.playerPos.y;
+    const enemyHp = G.battle && G.battle.enemy ? G.battle.enemy.hp : Infinity;
     if (what === "descend" || what === "chest" || what === "shop-buy" ||
         what === "drink" || what === "equip" || what === "forge" || pos !== lastProgress.pos ||
-        G.player.hp !== lastProgress.hp || G.floorIndex !== lastProgress.floor) {
-      lastProgress = { steps, what, pos, hp: G.player.hp, floor: G.floorIndex };
+        G.player.hp !== lastProgress.hp || G.floorIndex !== lastProgress.floor ||
+        enemyHp < lastProgress.enemyHp) {
+      lastProgress = { steps, what, pos, hp: G.player.hp,
+        floor: G.floorIndex, enemyHp: enemyHp };
     }
     if (trace) {
       console.log("   " + what + "  клетка " + G.playerPos.x + "," + G.playerPos.y +
@@ -1103,6 +1173,15 @@ function printResult(i, opts, r, elapsed, seed) {
 // улучшения героя — от здоровья и силы к деньгам. Возвращает список покупок.
 function campaignSpend() {
   const bought = [];
+  const prof = getProfile(G.name);
+  if (prof && prof.quests) {
+    // Кампания стартует с главы «Знакомство». Бот не ходит по домам,
+    // поэтому отмечаем жителей сразу: иначе староста не принимает главу
+    // и оберег глубины никогда не выдаётся.
+    prof.quests.met = (API.VILLAGE_MEET_NPCS || []).slice();
+    putProfile(G.name, prof);
+    syncProfile(G.name);
+  }
   if (process.env.PYQUIZ_BOT_DEBUG) {
     const p = getProfile(G.name);
     console.log("DBG profile", G.name, "gold", p && p.wallet.gold,

@@ -8436,6 +8436,23 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
     "v2: удар ниже 35% открывает третью фазу", "фаза " + thresholdBoss.bossPhase);
   API.continueBattle();
   log(G.battle === null, "v2: третья фаза тоже возвращает на карту");
+  // Регенерация босса не должна перекрывать урон: иначе третья фаза голема
+  // лечится быстрее, чем герой бьёт, и бой никогда не заканчивается.
+  API.setCampaign(1);
+  freshRun(0);
+  const regenBoss = API.makeEnemy("troll", 3, false, 0, 0, true);
+  regenBoss.boss = true;
+  regenBoss.maxHp = 1000;
+  regenBoss.hp = 1000;
+  G.battle = { enemy: regenBoss, phase: "result", won: false, bossPhase: 1 };
+  API.applyAttack(100, "Проверка регенерации", false, "", true);
+  log(regenBoss.hp <= 925,
+    "босс с регенерацией не залечивает весь урон", "осталось " + regenBoss.hp + " из 1000");
+  regenBoss.hp = 500;
+  API.healEnemy(regenBoss, 0.2);
+  log(regenBoss.hp <= 550,
+    "лечение босса ограничено 5% запаса", "стало " + regenBoss.hp + " из 1000");
+  G.battle = null;
   log(API.floorHazard(2, 2) === null && API.floorHazard(3, 2) &&
     API.floorHazard(3, 2).key === "dark",
     "v2: у арены нет среды, у катакомб тьма");
