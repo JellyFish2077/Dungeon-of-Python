@@ -192,7 +192,7 @@ function playBattleStep(skill, rng, state) {
   if (!b) return "no-battle";
   // Живой игрок пьёт зелье прямо в бою, когда здоровье падает. Бот раньше
   // делал это только между боями и потому умирал там, где человек выжил бы.
-  if (G.player.hp < G.player.maxHp * 0.35) {
+  if (G.player.hp < G.player.maxHp * 0.6) {
     const idx = G.inventory.findIndex((i) => i.slot === "potion");
     if (idx >= 0) {
       const before = G.player.hp;
