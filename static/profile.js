@@ -73,6 +73,7 @@ function progressEmpty() {
     village: { well: 0, barn: 0, forge: 0, smith: 0 },
     loot: { ore: 0, wood: 0, shard: 0, keys: [] },
     quests: { story: 0, done: [], repeat: {}, progress: {}, active: "", failed: [], met: [] },
+    trophies: [],
     ability: { pick: "", used: 0 },
     // Курс Python: оплаченные и пройденные уроки, модули, домашнее задание
     // и отдельная практика у доски задач.
@@ -118,6 +119,10 @@ function normalizeProgress(p) {
   p.quests.active = typeof p.quests.active === "string" ? p.quests.active.slice(0, 40) : "";
   const step = Math.floor(Number(p.quests.story) || 0);
   p.quests.story = isFinite(step) && step > 0 ? Math.min(60, step) : 0;
+  // Трофеи боссов — постоянная коллекция профиля, а не инвентарь похода.
+  if (!Array.isArray(p.trophies)) p.trophies = [];
+  p.trophies = p.trophies.filter((k, i, arr) =>
+    typeof k === "string" && k && arr.indexOf(k) === i).slice(0, 40);
   if (!p.ability || typeof p.ability !== "object") p.ability = blank.ability;
   p.ability.pick = typeof p.ability.pick === "string" ? p.ability.pick.slice(0, 20) : "";
   const used = Math.floor(Number(p.ability.used) || 0);
@@ -191,6 +196,8 @@ function progressMerge(local, remote) {
   out.quests.failed = failed.slice(-60);
   out.quests.met = (l.quests.met || []).concat((r.quests.met || [])
     .filter((k) => (l.quests.met || []).indexOf(k) < 0)).slice(0, 40);
+  out.trophies = (l.trophies || []).concat((r.trophies || [])
+    .filter((k) => (l.trophies || []).indexOf(k) < 0)).slice(0, 40);
   out.ability.pick = l.ability.pick || r.ability.pick;
   out.ability.used = Math.max(l.ability.used, r.ability.used);
   // Курс только растёт: уроки и модули объединяем, домашнее задание берём

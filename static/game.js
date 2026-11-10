@@ -1931,7 +1931,7 @@
     forge: { weapon: 0, armor: 0, vitality: 0 },
     inventory: [],
     // Что герой уже видел: справочник показывает только это.
-    codex: { items: {}, npcs: {}, enemies: {} },
+    codex: { items: {}, npcs: {}, enemies: {}, bosses: {} },
     uid: 0,
     entityEls: new Map(),
     tileEls: [],
@@ -2489,6 +2489,8 @@
 
   function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx, isBoss) {
     const t = ENEMY_TYPES.find((e) => e.key === typeKey);
+    // Босс носит своё имя («Гоблин-вожак»), а не имя обычного моба.
+    const bossData = isBoss ? BOSS_INFO[typeKey] : null;
     const mul = DIFFICULTY[G.difficulty].enemyScale;
     const isElite = !!elite;
     const hpMul = isElite ? ELITE.hpMul : 1;
@@ -2504,13 +2506,13 @@
     // с одного-двух точных ответов, как обычный моб.
     const hpEase = isBoss ? ENEMY_HP_MUL : enemyHpMulFor(floorIdx);
     const hp = Math.round(baseHp * (1 + HP_PER_FLOOR * floorIdx) * mul * hpMul *
-      hpEase * deepScale(floorIdx).hp * bossBoost);
+      hpEase * deepScale(floorIdx).hp * bossBoost * devBalanceMul("enemyHp"));
     const dmg = Math.round(enemyDamageFor(t, floorIdx, mul * dmgMul * deepScale(floorIdx).dmg) *
-      (currentOmen().enemyDmgMul || 1));
+      (currentOmen().enemyDmgMul || 1) * devBalanceMul("enemyDmg"));
     return {
       uid: ++G.uid,
       key: t.key,
-      name: t.name,
+      name: bossData ? bossData.name : t.name,
       color: t.color,
       maxHp: hp,
       hp,
@@ -2790,6 +2792,7 @@
       title: "Предзал",
       subtitle: f.bossName || "Арена",
       text: "Впереди — " + (f.bossName || "босс") + ". Фаз: три. " +
+        ((BOSS_INFO[f.bossKey] && BOSS_INFO[f.bossKey].intro) || "") + " " +
         arenaInfo(a.key).rule
     }];
     state.enemies = [];
@@ -2935,6 +2938,7 @@
 
     if (key === "goblin") {
       dmgMul = phase === 2 ? 1.15 : 1.25;
+      phaseAbility = phase === 2 ? "summon" : "charge";
       phaseText = phase === 2
         ? "Вожак уходит за баррикаду: бьёт сильнее и прячется за укрытием."
         : "Баррикада рушится, у входа открываются ямы.";
@@ -2962,7 +2966,7 @@
     } else if (key === "golem") {
       dmgMul = phase === 2 ? 1.1 : 1.2;
       armorPct = phase === 2 ? 0.35 : 0.45;
-      phaseAbility = "armor";
+      phaseAbility = phase === 2 ? "armor" : "regen";
       phaseText = phase === 2
         ? "Лёд ползёт от стен, две колонны рушатся."
         : "Вокруг центра поднимаются колонны: держись твёрдых островков.";
@@ -2992,7 +2996,7 @@
       dmgMul = phase === 2 ? 1.15 : 1.25;
       darkRadius = phase === 2 ? 4 : 3;
       hazardKey = "dark";
-      phaseAbility = "bossrage";
+      phaseAbility = phase === 2 ? "summon" : "bossrage";
       phaseText = phase === 2
         ? "Дракон уходит к сокровищнице: золото рассыпано, тьма густеет."
         : "Две колонны рушатся, тьма сжимается до трёх шагов.";
@@ -3018,6 +3022,9 @@
         dmgMul *= 1 + tribute.dmgPct;
       }
     }
+    const lore = BOSS_INFO[key];
+    const phaseQuip = lore && lore.phaseQuips && lore.phaseQuips[phase];
+    if (phaseQuip) phaseText += " " + phaseQuip;
     e.baseDmg = e.baseDmg || e.dmg;
     e.dmg = Math.max(1, Math.round(e.baseDmg * dmgMul));
     e.armorPct = armorPct;
@@ -7075,11 +7082,41 @@
     return item ? Object.assign({}, item) : null;
   }
 
-  // Добыча с дракона: только лучшее, что есть в игре, без зелий.
-  function bossDrop() {
+  // Добыча с босса: тематическая вещь его биома, а не просто случайный
+  // топ-тир. Если вещи нет в пуле (старое сохранение), остаётся прежний
+  // запасной вариант.
+  function bossDrop(enemy) {
+    const info = enemy && BOSS_INFO[enemy.key];
+    if (info && info.loot && info.loot.length) {
+      const id = info.loot[Math.floor(Math.random() * info.loot.length)];
+      const item = ITEM_POOL.find((i) => i.id === id);
+      if (item) return { ...item };
+    }
     const best = ITEM_POOL.filter((i) => i.tier >= 3 && i.slot !== "potion");
     if (!best.length) return randomItemForFloor(lastDungeonFloor(), null);
     return { ...best[Math.floor(Math.random() * best.length)] };
+  }
+
+  function bossTrophyEarned(key) {
+    const info = BOSS_INFO[key];
+    const prof = hubProfile();
+    return !!(info && prof && Array.isArray(prof.trophies) &&
+      prof.trophies.indexOf(info.trophy.key) >= 0);
+  }
+
+  function grantBossTrophy(key) {
+    const info = BOSS_INFO[key];
+    if (!info) return false;
+    const prof = hubProfile();
+    if (!prof) return false;
+    if (!Array.isArray(prof.trophies)) prof.trophies = [];
+    if (prof.trophies.indexOf(info.trophy.key) >= 0) return false;
+    prof.trophies.push(info.trophy.key);
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    log("Трофей босса: «" + info.trophy.name + "». " + info.trophy.text, "loot");
+    toast("Трофей: " + info.trophy.name);
+    return true;
   }
 
   let visibilitySig = "";
@@ -10772,6 +10809,23 @@
     return null;
   }
 
+  // Босс до боя патрулирует зал, а не стоит памятником у якоря. За его
+  // пределы не выходит: предзал — территория игрока, пока тот не вошёл.
+  function bossWander(e) {
+    const a = G.arena;
+    if (!a) return wander(e);
+    const dirs = shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
+    for (const [dx, dy] of dirs) {
+      const x = e.x + dx;
+      const y = e.y + dy;
+      if (x <= a.left || x >= a.right || y <= a.top || y >= a.bottom) continue;
+      if (tileBlockedForEnemy(x, y, e)) continue;
+      if (x === G.playerPos.x && y === G.playerPos.y) continue;
+      return { x, y };
+    }
+    return null;
+  }
+
   // Ловушка срабатывает при первом шаге на клетку.
   // Ловушки без урона меняют правила боя: цепь заставляет пропустить
   // ближайшего врага, проклятая плита делает следующий вопрос тяжелее.
@@ -10848,7 +10902,7 @@
   // бесконечно.
   function summonMinion(necro) {
     if (!necro || necro.hp <= 0) return null;
-    const cap = necro.elite ? 3 : 2;
+    const cap = necro.boss ? 3 : (necro.elite ? 3 : 2);
     const mine = (G.enemies || []).filter((o) => o.summonedBy === necro.uid && o.hp > 0).length;
     if (mine >= cap) return null;
     const dirs = shuffle([[0, -1], [0, 1], [-1, 0], [1, 0]]);
@@ -10857,8 +10911,16 @@
       if (!G.map.grid[y] || G.map.grid[y][x] !== 1) continue;
       if (G.enemies.some((o) => o.hp > 0 && o.x === x && o.y === y)) continue;
       if (G.playerPos.x === x && G.playerPos.y === y) continue;
-      const pool = floorDef(G.floorIndex).pool || ["rat"];
-      const kind = pool.filter((k) => !abilityOfType(k))[0] || pool[0];
+      // У босса — свои слуги, а не копия самого босса. Иначе некромант
+      // на арене поднимал второго некроманта, и бой разрастался в снежный ком.
+      const info = necro.boss ? BOSS_INFO[necro.key] : null;
+      let kind = "";
+      if (info && info.minions && info.minions.length) {
+        kind = info.minions[Math.floor(Math.random() * info.minions.length)];
+      } else {
+        const pool = floorDef(G.floorIndex).pool || ["rat"];
+        kind = pool.filter((k) => !abilityOfType(k))[0] || pool[0];
+      }
       const minion = makeEnemy(kind, G.floorIndex, false);
       minion.x = x;
       minion.y = y;
@@ -10866,9 +10928,9 @@
       minion.hp = Math.max(1, Math.round(minion.hp * 0.6));
       minion.maxHp = minion.hp;
       G.enemies.push(minion);
-      log("Некромант поднимает слугу: " + minion.name + ".", "fight");
+      log(necro.name + " поднимает слугу: " + minion.name + ".", "fight");
       if (G.battle) G.battle.summoned = (G.battle.summoned || 0) + 1;
-      toast("Некромант поднял слугу!");
+      toast(necro.boss ? "Босс зовёт слугу!" : "Некромант поднял слугу!");
       return minion;
     }
     return null;
@@ -10921,11 +10983,19 @@
     const py = G.playerPos.y;
     for (const e of G.enemies.slice()) {
       if (e.hp <= 0) continue;
-      // Босс между фазами ждёт у якоря: игрок должен успеть дойти по
-      // изменившемуся залу, а не получить удар в спину на переходе.
-      if (e.phaseHold) continue;
+      // Босс между фазами больше не стоит у якоря: он патрулирует зал и
+      // сам идёт навстречу. Флаг оставлен для старых сохранений, но босса
+      // он не обездвиживает.
+      if (e.phaseHold && !e.boss) continue;
       if (e.trapHold > 0) {
         e.trapHold -= 1;
+        continue;
+      }
+      // До боя босс ходит по залу. Как только игрок вошёл и дверь
+      // закрылась, он начинает охоту.
+      if (e.boss && G.arena && !G.arena.sealed) {
+        const patrol = bossWander(e);
+        if (patrol) moveEnemyTo(e, patrol.x, patrol.y);
         continue;
       }
       // Страж не сходит с поста и не бродит: бьёт, только когда герой
@@ -10959,6 +11029,10 @@
       }
       const dist = Math.hypot(e.x - px, e.y - py);
       const range = e.range || 1;
+      // Босс видит весь зал и не теряет героя за колонной: иначе он
+      // останавливался бы в двух шагах и бой снова начинался бы только
+      // когда игрок сам подойдёт вплотную.
+      const aggro = e.boss ? Math.max(G.map.w, G.map.h) : AGGRO_RADIUS;
       // Дальнобойный держит дистанцию: если подошёл вплотную — отходит
       // на свою дальность и бьёт оттуда, а не лезет на героя.
       if (range > 1 && dist <= range) {
@@ -10982,8 +11056,8 @@
       // Без прямой видимости монстр не начинает преследование: стена
       // действительно скрывает героя. Закрытую дверь он чует и идёт
       // открывать — для преследования она не считается стеной.
-      if (dist > AGGRO_RADIUS + range - 1 ||
-          !hasLineOfSight(e.x, e.y, px, py, true)) {
+      if (dist > aggro + range - 1 ||
+          (!e.boss && !hasLineOfSight(e.x, e.y, px, py, true))) {
         if (abilityOf(e) === "phasing" && Math.random() < (e.phaseChance == null ? 0.25 : e.phaseChance)) {
           if (phaseTeleport(e)) continue;
         }
@@ -11017,11 +11091,17 @@
       // первым шагом настоящего пути — в обход.
       if (nextDist >= dist) {
         const around = detourStep(e, px, py);
-        if (around) moveEnemyTo(e, around.x, around.y);
+        if (around) {
+          moveEnemyTo(e, around.x, around.y);
+          if (e.boss && Math.hypot(e.x - px, e.y - py) <= range) return e;
+        }
         continue;
       }
       if (step.x === px && step.y === py) return e;
       moveEnemyTo(e, step.x, step.y);
+      // Босс не ждёт следующего хода игрока: подошёл вплотную — бой
+      // начинается сразу.
+      if (e.boss && Math.hypot(e.x - px, e.y - py) <= range) return e;
     }
     return null;
   }
@@ -11173,6 +11253,7 @@
   function openBattle(enemy, restore) {
     // Новый бой не должен начинаться в полноэкранном редакторе от прошлого.
     document.body.classList.remove("code-focus");
+    if (enemy.boss && BOSS_INFO[enemy.key]) enemy.name = BOSS_INFO[enemy.key].name;
     // Серия верных ответов — награда внутри боя, а не вечный множитель,
     // который переносится из боя в бой. Раньше после нескольких удачных
     // вопросов герой входил в следующий бой уже с ×1.75 и снимал моба
@@ -11182,7 +11263,9 @@
     endWalk();
     cancelBattleClose();
     markCodex("enemies", enemy.key);
-    // Босс дождался героя у якоря: с этого момента он снова участвует в бою.
+    if (enemy.boss) markCodex("bosses", enemy.key);
+    // Босс вернулся к якорю на переходе фазы: с этого момента он снова
+    // участвует в бою и патрулирует зал.
     if (enemy.boss) enemy.phaseHold = false;
     G.battle = {
       enemy,
@@ -11190,6 +11273,8 @@
       phase: "question",
       bossPhase: enemy.bossPhase || 0,
       bossBreak: null,
+      quip: enemy.boss && typeof enemyQuip === "function"
+        ? enemyQuip(enemy.key, true) : "",
       challenge: null,
       feedback: "",
       explanation: "",
@@ -11253,6 +11338,7 @@
         G.battle.results = restore.results || null;
         G.battle.bossBreak = restore.bossBreak || null;
         G.battle.bossPhase = restore.bossPhase || enemy.bossPhase || 0;
+        if (restore.quip) G.battle.quip = restore.quip;
         G.battle.enemyTurn = restore.enemyTurn || null;
         // Старые сохранения хранили в итоге хода ответ врага. Вопрос и
         // варианты больше не показываем, поэтому чистим и текст.
@@ -11817,6 +11903,20 @@
     return { type: "mc", question: pickQuestion() };
   }
 
+  // Принудительный тип задания для DEV-панели: один источник для кнопок
+  // «вопрос / пропуск / ошибка / копия / код».
+  function devChallengeFor(type) {
+    if (type === "copy") return { type: "copy", task: pickCopyTask(), code: "", results: null };
+    if (type === "fill") return { type: "fill", task: pickFillTask() };
+    if (type === "error") return { type: "error", task: pickErrorTask() };
+    if (type === "code") {
+      if (G.codeCheck === false) return { type: "copy", task: pickCopyTask(), code: "", results: null };
+      const task = pickCodeTask();
+      return { type: "code", task, code: task.starter, results: null };
+    }
+    return { type: "mc", question: pickQuestion() };
+  }
+
   function nextChallenge() {
     const b = G.battle;
     const step = b.step || 0;
@@ -11824,10 +11924,14 @@
     b.fleeFailed = false;
     let c = null;
 
+    if (G.dev && G.dev.forceQuestion) {
+      c = devChallengeFor(G.dev.forceQuestion);
+    }
+
     // Призрак ошибки начинает бой с задания, на котором ученик ошибся, а
     // дальше бой идёт по теме этого задания: вспомнил — примени.
     const payload = b.enemy.payload;
-    if (payload && step === 0) {
+    if (!c && payload && step === 0) {
       const item = findPayload(payload);
       if (item) {
         c = payload.kind === "mc" ? { type: "mc", question: item } : { type: payload.kind, task: item };
@@ -12401,7 +12505,10 @@
     }
     G.stats.kills += 1;
     courseQuestEvent("kills", 1);
-    if (e.boss) courseQuestEvent("boss", 1);
+    if (e.boss) {
+      courseQuestEvent("boss", 1);
+      grantBossTrophy(e.key);
+    }
     if (G.tutorial && G.tutorial.active) tutorialEvent("battle");
     // Стражи лестницы держат ключи от построек деревни: ключ от амбара лежит
     // с третьего этажа, ключ от дома мастера — с пятого. Так деревня растёт
@@ -12415,15 +12522,17 @@
       log("Элита повержена: " + e.name + " пала в бою.", "fight");
       effectFlash("Элита повержена");
     }
-    const xp = e.xp || e.maxHp;
+    const xp = Math.round((e.xp || e.maxHp) * devBalanceMul("xp"));
     G.player.xp += xp;
-    const quip = typeof enemyDefeatQuip === "function" ? enemyDefeatQuip(e.key) : "";
+    const quip = typeof enemyDefeatQuip === "function"
+      ? enemyDefeatQuip(e.key, e.boss) : "";
     log(e.name + " повержен! Получено " + xp + " опыта." + (quip ? " " + quip : ""), "fight");
     // «Тёмная сделка» удваивает золото с монстров этого этажа.
     // Награда растёт с глубиной: иначе золото обесценивается, ведь монстры
     // к 8-му этажу бьют втрое сильнее, а платили за них столько же.
     const baseGold = e.boss ? ECON.bossGold : ECON.goldBase + (e.elite ? eliteGoldBonus() : 0);
-    const bagGold = Math.round(baseGold * depthMul(ECON.goldDepth) * goldMulForFloor());
+    const bagGold = Math.round(baseGold * depthMul(ECON.goldDepth) *
+      goldMulForFloor() * devBalanceMul("gold"));
     while (G.player.xp >= G.player.xpNext) {
       G.player.xp -= G.player.xpNext;
       G.player.level += 1;
@@ -12444,7 +12553,7 @@
     if (!amuletDrop && Math.random() < dropChance) {
       // Дракон — единственный, кто всегда что-то оставляет, и оставляет
       // вещь высшего тира: раньше он ронял случайную вещь третьего этажа.
-      bagItem = e.boss ? bossDrop() : randomItemForFloor(G.floorIndex);
+      bagItem = e.boss ? bossDrop(e) : randomItemForFloor(G.floorIndex);
     }
     const bag = ensureLootBag(e.x, e.y, bagGold, bagItem);
     const bagOnPlayer = bag.x === G.playerPos.x && bag.y === G.playerPos.y;
@@ -12708,6 +12817,7 @@
     const heroHp = Math.max(0, Math.min(G.player.hp, heroMax));
     const heroPct = Math.round((heroHp / heroMax) * 100);
     const abilityText = abilityTextOf(e);
+    const bossMeta = e.boss ? BOSS_INFO[e.key] : null;
     const heroName = (G.name && String(G.name).trim()) || "Герой";
     const isCodeTask = b.phase === "question" && b.challenge &&
       (b.challenge.type === "copy" || b.challenge.type === "code");
@@ -12733,6 +12843,8 @@
     stageHtml +=
       "<div class='battle-intro" + (b.showIntro ? "" : " gone") + "'>" +
       "<b>" + escText(e.name) + " преграждает путь</b>" +
+      (bossMeta ? "<span class='battle-intro-sub'>" + escText(bossMeta.title) +
+        " · " + escText(bossMeta.phases[0]) + "</span>" : "") +
       "<i></i>" +
       "</div>";
     stageHtml +=
@@ -12771,6 +12883,8 @@
       "<div class='combatant enemy'>" +
       "<span class='combatant-info'>" +
       "<span class='name' style='color:" + e.color + "'>" + escText(e.name) + "</span>" +
+      (bossMeta ? "<span class='boss-tag'>" + escText(bossMeta.title) +
+        " · фаза " + (b.bossPhase || 1) + " из 3</span>" : "") +
       "<span class='hp-line'>" +
       "<span class='hp-bar enemy'><i style='width:" + hpPct + "%'></i></span>" +
       "<span class='num'>" + e.hp + " / " + e.maxHp + "</span>" +
@@ -12821,6 +12935,9 @@
     html +=
       (abilityText
         ? "<div class='enemy-ability'>" + abilityText + "</div>"
+        : "") +
+      (b.quip
+        ? "<div class='enemy-quip taunt'>«" + escText(b.quip) + "»</div>"
         : "") +
       (e.boss && b.bossPhase > 1
         ? "<div class='enemy-ability'>Фаза " + b.bossPhase + " из 3: " +
@@ -13196,7 +13313,7 @@
         b.showIntro = false;
         const intro = box.querySelector(".battle-intro");
         if (intro) intro.classList.add("gone");
-      }, 1250);
+      }, e.boss ? 2200 : 1250);
     }
     requestAnimationFrame(() => {
       if (G.battle === b) updateCamera();
@@ -15486,6 +15603,21 @@ function topicName(key) {
         failed: true
       });
     });
+    // Трофеи боссов — постоянная коллекция, а не пункт похода. Они живут
+    // в профиле и остаются в архиве после смерти и новой игры.
+    (prof.trophies || []).forEach((trophyKey) => {
+      const key = Object.keys(BOSS_INFO).find((k) => BOSS_INFO[k].trophy.key === trophyKey);
+      if (!key) return;
+      const info = BOSS_INFO[key];
+      out.push({
+        title: info.trophy.name,
+        text: info.trophy.text,
+        meta: "Босс: " + info.name + " · фазы: " + info.phases.join(" → "),
+        status: "Трофей",
+        kind: "boss",
+        done: true
+      });
+    });
     return out;
   }
 
@@ -15494,7 +15626,8 @@ function topicName(key) {
     return "<article class='journal-card" + cls + "'>" +
       "<div class='journal-card-head'><span class='journal-kind'>" +
       (item.kind === "story" ? "Сюжет" :
-        item.kind === "course" ? "Учитель" : "Поручение") + "</span>" +
+        item.kind === "course" ? "Учитель" :
+        item.kind === "boss" ? "Трофей" : "Поручение") + "</span>" +
       "<span class='journal-status'>" + item.status + "</span></div>" +
       "<h3>" + item.title + "</h3>" +
       "<p>" + item.text + "</p>" +
@@ -15638,7 +15771,8 @@ function topicName(key) {
     controls: "Управление",
     items: "Предметы",
     npcs: "НПС",
-    mobs: "Мобы"
+    mobs: "Мобы",
+    bosses: "Боссы"
   };
   const CODEX_CONTROLS = [
     ["WASD / стрелки", "ходить по карте"],
@@ -15664,9 +15798,9 @@ function topicName(key) {
 
   function codexState() {
     if (!G.codex || typeof G.codex !== "object") {
-      G.codex = { items: {}, npcs: {}, enemies: {} };
+      G.codex = { items: {}, npcs: {}, enemies: {}, bosses: {} };
     }
-    ["items", "npcs", "enemies"].forEach((kind) => {
+    ["items", "npcs", "enemies", "bosses"].forEach((kind) => {
       if (!G.codex[kind] || typeof G.codex[kind] !== "object") G.codex[kind] = {};
     });
     return G.codex;
@@ -15746,6 +15880,20 @@ function topicName(key) {
           iconSvg(mob.key))
       ).join("") + "</div>";
     }
+    if (tab === "bosses") {
+      const known = Object.keys(BOSS_INFO).filter((key) => codexState().bosses[key]);
+      if (!known.length) {
+        return "<div class='codex-empty'>Ты ещё не встретил ни одного босса.</div>";
+      }
+      return "<div class='codex-list'>" + known.map((key) => {
+        const info = BOSS_INFO[key];
+        const trophy = bossTrophyEarned(key);
+        return codexCard(info.name,
+          info.title + " · " + (trophy ? "трофей получен" : "ещё не побеждён"),
+          "Фазы: " + info.phases.join(" → ") + ". " + info.rule,
+          iconSvg(key), trophy ? "is-boss-won" : "");
+      }).join("") + "</div>";
+    }
     return "";
   }
 
@@ -15804,6 +15952,39 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.44.0",
+      date: "9 ноября 2026",
+      title: "Контент-линтер и E2E",
+      items: [
+        "Проверка контента: id, награды, боссы, курс и практика.",
+        "E2E: все пять боссов, диалог учителя и удержание клавиши.",
+        "Аудит публичной сборки: DEV-флаги, секреты и битые ссылки."
+      ]
+    },
+    {
+      version: "1.43.0",
+      date: "9 ноября 2026",
+      title: "Панель разработчика",
+      items: [
+        "Восемь вкладок: мир, игрок, бой, квесты, деревня, предметы, баланс, отладка.",
+        "Спавн боссов, фазы, HP врага и принудительный тип вопроса.",
+        "Множители HP, урона, золота и опыта для проверки баланса.",
+        "Вне игры — node tools/dev_toolkit.js: этажи, боссы, баланс."
+      ]
+    },
+    {
+      version: "1.42.0",
+      date: "9 ноября 2026",
+      title: "Боссы: титулы, фазы и трофеи",
+      items: [
+        "У каждого босса свой титул, реплика и фраза смерти.",
+        "Босс патрулирует зал и сам идёт на героя, а не ждёт у якоря.",
+        "Фазы меняют не только урон: вожак зовёт слуг, дракон — тоже.",
+        "За победу дают трофей в профиль и тематическую вещь биома.",
+        "Боссы появились в справочнике, а трофеи — в архиве журнала."
+      ]
+    },
     {
       version: "1.41.0",
       date: "9 ноября 2026",
@@ -17762,6 +17943,7 @@ function topicName(key) {
             won: !!G.battle.won,
             bossBreak: G.battle.bossBreak || null,
             bossPhase: G.battle.bossPhase || 0,
+            quip: G.battle.quip || "",
             playerDead: !!G.battle.playerDead,
             results: G.battle.results || null,
             enemyTurn: G.battle.enemyTurn || null,
@@ -18022,8 +18204,9 @@ function topicName(key) {
     G.learn = data.learn || null;
     learnState();
     G.codex = data.codex && typeof data.codex === "object"
-      ? { items: data.codex.items || {}, npcs: data.codex.npcs || {}, enemies: data.codex.enemies || {} }
-      : { items: {}, npcs: {}, enemies: {} };
+      ? { items: data.codex.items || {}, npcs: data.codex.npcs || {},
+          enemies: data.codex.enemies || {}, bosses: data.codex.bosses || {} }
+      : { items: {}, npcs: {}, enemies: {}, bosses: {} };
     G.blessings = data.blessings || {};
     G.minimapZoom = clamp(Number(data.minimapZoom) || 1,
       MINIMAP_ZOOM_MIN, MINIMAP_ZOOM_MAX);
@@ -18861,6 +19044,23 @@ function topicName(key) {
     return !!(G.dev && G.dev.god);
   }
 
+  // Множители для быстрой проверки баланса: не трогают файлы и сервер,
+  // действуют только в DEV-сборке и только на новые бои/награды.
+  function devBalance() {
+    if (!G.dev) return null;
+    if (!G.dev.balance) {
+      G.dev.balance = { enemyHp: 1, enemyDmg: 1, gold: 1, xp: 1 };
+    }
+    return G.dev.balance;
+  }
+
+  function devBalanceMul(kind) {
+    if (!devEnabled()) return 1;
+    const b = devBalance();
+    const v = b && Number(b[kind]);
+    return isFinite(v) && v > 0 ? v : 1;
+  }
+
   function devRevealAll() {
     if (!G.map) return;
     const all = new Set();
@@ -18878,6 +19078,8 @@ function topicName(key) {
     if (!devEnabled()) return;
     if (!G.dev) G.dev = { god: false, reveal: false, panel: false, tab: "world" };
     if (!G.dev.tab) G.dev.tab = "world";
+    if (!G.dev.balance) G.dev.balance = { enemyHp: 1, enemyDmg: 1, gold: 1, xp: 1 };
+    if (G.dev.forceQuestion == null) G.dev.forceQuestion = "";
 
     const btn = document.createElement("button");
     btn.type = "button";
@@ -18898,15 +19100,25 @@ function topicName(key) {
       "<div class='dev-tabs'>" +
       "<button type='button' class='dev-tab is-active' data-dev-tab='world'>Мир</button>" +
       "<button type='button' class='dev-tab' data-dev-tab='player'>Игрок</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='battle'>Бой</button>" +
       "<button type='button' class='dev-tab' data-dev-tab='quests'>Квесты</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='village'>Деревня</button>" +
       "<button type='button' class='dev-tab' data-dev-tab='items'>Предметы</button>" +
-      "<button type='button' class='dev-tab' data-dev-tab='settings'>Настройки</button></div>" +
+      "<button type='button' class='dev-tab' data-dev-tab='balance'>Баланс</button>" +
+      "<button type='button' class='dev-tab' data-dev-tab='debug'>Отладка</button></div>" +
       "<div class='dev-pane is-active' data-dev-pane='world'>" +
       "<div class='dev-group'><span>Этаж</span>" +
       "<input type='number' id='dev-floor' min='1' max='99' step='1'>" +
       "<button type='button' class='dev-btn' data-dev='jump'>Перейти</button>" +
       "<button type='button' class='dev-btn' data-dev='next'>Следующий</button>" +
       "<button type='button' class='dev-btn' data-dev='regen'>Пересоздать</button></div>" +
+      "<div class='dev-group'><span>Быстро</span>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='0'>1</button>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='2'>3</button>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='5'>6</button>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='8'>9</button>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='11'>12</button>" +
+      "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='14'>15</button></div>" +
       "<div class='dev-group'><span>Кампания</span>" +
       "<button type='button' class='dev-btn' data-dev='gen-v2'>Генератор v2</button>" +
       "<button type='button' class='dev-btn' data-dev='gen-legacy'>Legacy</button>" +
@@ -18921,40 +19133,125 @@ function topicName(key) {
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='portal'>Открыть портал</button>" +
       "<button type='button' class='dev-btn dev-primary' data-dev='village'>Вернуться в деревню</button></div>" +
+      "<div class='dev-group'><span>Поставить</span>" +
+      "<input type='text' id='dev-enemy' value='goblin' size='8'>" +
+      "<button type='button' class='dev-btn' data-dev='spawn'>Врага</button>" +
+      "<button type='button' class='dev-btn' data-dev='spawn-boss'>Босса</button></div>" +
+      "<div class='dev-group'><span>Бой с боссом</span>" +
+      "<button type='button' class='dev-btn' data-dev='boss-start' data-key='goblin'>Гоблин</button>" +
+      "<button type='button' class='dev-btn' data-dev='boss-start' data-key='necromancer'>Некромант</button>" +
+      "<button type='button' class='dev-btn' data-dev='boss-start' data-key='golem'>Голем</button>" +
+      "<button type='button' class='dev-btn' data-dev='boss-start' data-key='demon'>Демон</button>" +
+      "<button type='button' class='dev-btn' data-dev='boss-start' data-key='dragon'>Дракон</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='player'>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='heal'>Лечить</button>" +
       "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
-      "<button type='button' class='dev-btn' data-dev='xp'>+1000 опыта</button></div>" +
+      "<button type='button' class='dev-btn' data-dev='xp'>+1000 опыта</button>" +
+      "<button type='button' class='dev-btn' data-dev='xp-big'>+10000 опыта</button></div>" +
+      "<div class='dev-group'><span>Уровень</span>" +
+      "<input type='number' id='dev-level' min='1' max='99' step='1'>" +
+      "<button type='button' class='dev-btn' data-dev='set-level'>Поднять</button></div>" +
+      "<div class='dev-group'><span>HP</span>" +
+      "<input type='number' id='dev-hp' min='1' max='99999' step='1'>" +
+      "<button type='button' class='dev-btn' data-dev='set-hp'>Задать</button></div>" +
+      "<div class='dev-group'><span>Золото в походе</span>" +
+      "<input type='number' id='dev-run-gold' min='0' max='999999' step='1'>" +
+      "<button type='button' class='dev-btn' data-dev='set-run-gold'>Задать</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='battle-win'>Победить в бою</button></div>" +
       "</div>" +
+      "<div class='dev-pane' data-dev-pane='battle'>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='battle-win'>Победить</button>" +
+      "<button type='button' class='dev-btn' data-dev='battle-next'>Следующий вопрос</button>" +
+      "<button type='button' class='dev-btn' data-dev='battle-phase'>+1 фаза босса</button></div>" +
+      "<div class='dev-group'><span>HP врага</span>" +
+      "<button type='button' class='dev-btn' data-dev='enemy-hp' data-pct='100'>100%</button>" +
+      "<button type='button' class='dev-btn' data-dev='enemy-hp' data-pct='70'>70%</button>" +
+      "<button type='button' class='dev-btn' data-dev='enemy-hp' data-pct='35'>35%</button>" +
+      "<button type='button' class='dev-btn' data-dev='enemy-hp' data-pct='10'>10%</button>" +
+      "<button type='button' class='dev-btn' data-dev='enemy-hp' data-pct='1'>1 HP</button></div>" +
+      "<div class='dev-group'><span>Тип вопроса</span>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type=''>Случайный</button>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type='mc'>Вопрос</button>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type='fill'>Пропуск</button>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type='error'>Ошибка</button>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type='copy'>Копия</button>" +
+      "<button type='button' class='dev-btn' data-dev='force' data-type='code'>Код</button></div>" +
+      "</div>" +
       "<div class='dev-pane' data-dev-pane='quests'>" +
       "<div class='dev-quest' id='dev-quest-state'></div>" +
+      "<div class='dev-group'><span>Глава</span>" +
+      "<input type='number' id='dev-story' min='0' max='6' step='1'>" +
+      "<button type='button' class='dev-btn' data-dev='set-story'>Поставить</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='story'>Сдать сюжетный шаг</button>" +
       "<button type='button' class='dev-btn' data-dev='repeat'>Закрыть повторяемое</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='quest-fill'>Заполнить прогресс</button>" +
+      "<button type='button' class='dev-btn' data-dev='meet-all'>Познакомить со всеми</button></div>" +
+      "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='story-reset'>Сбросить сюжет</button>" +
       "<button type='button' class='dev-btn' data-dev='quest-reset'>Сбросить повторяемые</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='village'>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='village-unlock'>Все постройки</button>" +
+      "<button type='button' class='dev-btn' data-dev='village-max'>Максимум</button>" +
+      "<button type='button' class='dev-btn' data-dev='village-reset'>Сбросить деревню</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='mats'>Материалы +10</button>" +
+      "<button type='button' class='dev-btn' data-dev='keys'>Все ключи</button>" +
+      "<button type='button' class='dev-btn' data-dev='bank-gold'>Банк +10000</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='trophies-all'>Все трофеи</button>" +
+      "<button type='button' class='dev-btn' data-dev='trophies-reset'>Сбросить трофеи</button></div>" +
       "</div>" +
       "<div class='dev-pane' data-dev-pane='items'>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='gold'>+1000 золота</button>" +
-      "<button type='button' class='dev-btn' data-dev='items'>Выдать снаряжение</button></div>" +
+      "<button type='button' class='dev-btn' data-dev='items'>Выдать снаряжение</button>" +
+      "<button type='button' class='dev-btn' data-dev='items-all'>Всё снаряжение</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='mats'>Материалы +10</button>" +
       "<button type='button' class='dev-btn' data-dev='keys'>Все ключи</button></div>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='codex-all'>Открыть весь справочник</button></div>" +
       "</div>" +
-      "<div class='dev-pane' data-dev-pane='settings'>" +
+      "<div class='dev-pane' data-dev-pane='balance'>" +
+      "<div class='dev-state' id='dev-balance-state'></div>" +
+      "<div class='dev-group'><span>HP врагов</span>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyHp' data-mul='0.5'>×0.5</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyHp' data-mul='1'>×1</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyHp' data-mul='2'>×2</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyHp' data-mul='5'>×5</button></div>" +
+      "<div class='dev-group'><span>Урон врагов</span>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyDmg' data-mul='0.5'>×0.5</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyDmg' data-mul='1'>×1</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyDmg' data-mul='2'>×2</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='enemyDmg' data-mul='5'>×5</button></div>" +
+      "<div class='dev-group'><span>Золото</span>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='gold' data-mul='0.5'>×0.5</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='gold' data-mul='1'>×1</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='gold' data-mul='2'>×2</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='gold' data-mul='5'>×5</button></div>" +
+      "<div class='dev-group'><span>Опыт</span>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='xp' data-mul='0.5'>×0.5</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='xp' data-mul='1'>×1</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='xp' data-mul='2'>×2</button>" +
+      "<button type='button' class='dev-btn' data-dev='bal' data-kind='xp' data-mul='5'>×5</button></div>" +
+      "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='bal-reset'>Сбросить множители</button></div>" +
+      "</div>" +
+      "<div class='dev-pane' data-dev-pane='debug'>" +
       "<div class='dev-group'>" +
       "<button type='button' class='dev-btn' data-dev='reveal'>Открыть карту</button>" +
-      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button></div>" +
+      "<button type='button' class='dev-btn' data-dev='god'>Неуязвимость</button>" +
+      "<button type='button' class='dev-btn' data-dev='dump-state'>Состояние в консоль</button></div>" +
       "<div class='dev-group'>" +
+      "<button type='button' class='dev-btn' data-dev='dev-reset'>Сбросить DEV-флаги</button>" +
       "<button type='button' class='dev-btn dev-danger' data-dev='wipe'>Удалить сейв</button></div>" +
       "</div>";
     document.body.appendChild(panel);
@@ -19051,6 +19348,7 @@ function topicName(key) {
     });
     VILLAGE_NPCS.forEach((npc) => { state.npcs[npc.key] = 1; });
     ENEMY_TYPES.forEach((mob) => { state.enemies[mob.key] = 1; });
+    Object.keys(BOSS_INFO).forEach((key) => { state.bosses[key] = 1; });
     scheduleSave();
     toast("Справочник открыт полностью");
   }
@@ -19149,18 +19447,7 @@ function topicName(key) {
   }
 
   function devXp() {
-    if (!G.player) return;
-    G.player.xp += 1000;
-    while (G.player.xp >= G.player.xpNext) {
-      G.player.xp -= G.player.xpNext;
-      G.player.level += 1;
-      G.player.baseMaxHp += LEVEL_HP;
-      G.player.dmgBase += LEVEL_DMG;
-      G.player.xpNext = XP_BASE * G.player.level;
-      recalcStats();
-    }
-    updateHud();
-    toast("+1000 опыта");
+    devXpAmount(1000);
   }
 
   function devClick(ev) {
@@ -19172,15 +19459,351 @@ function topicName(key) {
     }
     const btn = ev.target && ev.target.closest ? ev.target.closest("[data-dev]") : null;
     if (!btn) return;
-    devAction(btn.dataset.dev);
+    devAction(btn.dataset.dev, btn);
     devRender();
   }
 
-  function devAction(action) {
+  function devXpAmount(amount) {
+    if (!G.player) return;
+    const add = Math.max(0, Math.floor(Number(amount) || 0));
+    G.player.xp += add;
+    while (G.player.xp >= G.player.xpNext) {
+      G.player.xp -= G.player.xpNext;
+      G.player.level += 1;
+      G.player.baseMaxHp += LEVEL_HP;
+      G.player.dmgBase += LEVEL_DMG;
+      G.player.xpNext = XP_BASE * G.player.level;
+      recalcStats();
+    }
+    updateHud();
+    toast("+" + add + " опыта");
+  }
+
+  function devSetLevel(level) {
+    if (!G.player) return;
+    const target = Math.max(1, Math.min(99, Math.floor(Number(level) || 1)));
+    let guard = 0;
+    while (G.player.level < target && guard < 100) {
+      G.player.xp = G.player.xpNext;
+      G.player.xp -= G.player.xpNext;
+      G.player.level += 1;
+      G.player.baseMaxHp += LEVEL_HP;
+      G.player.dmgBase += LEVEL_DMG;
+      G.player.xpNext = XP_BASE * G.player.level;
+      recalcStats();
+      guard += 1;
+    }
+    G.player.hp = G.player.maxHp;
+    updateHud();
+    toast("Уровень: " + G.player.level);
+  }
+
+  function devSetHp(value) {
+    if (!G.player) return;
+    const v = Math.max(1, Math.min(G.player.maxHp, Math.floor(Number(value) || 1)));
+    G.player.hp = v;
+    updateHud();
+    toast("HP: " + v);
+  }
+
+  function devSetRunGold(value) {
+    if (!G.player) return;
+    G.player.gold = Math.max(0, Math.floor(Number(value) || 0));
+    updateHud();
+    toast("Золото в походе: " + G.player.gold);
+  }
+
+  function devFreeCellNear(x, y) {
+    for (let r = 1; r <= 4; r += 1) {
+      for (let dy = -r; dy <= r; dy += 1) {
+        for (let dx = -r; dx <= r; dx += 1) {
+          if (Math.abs(dx) !== r && Math.abs(dy) !== r) continue;
+          const nx = x + dx, ny = y + dy;
+          if (!G.map.grid[ny] || G.map.grid[ny][nx] !== 1) continue;
+          if (cellBlocked(nx, ny)) continue;
+          if (G.enemies.some((o) => o.x === nx && o.y === ny)) continue;
+          return { x: nx, y: ny };
+        }
+      }
+    }
+    return null;
+  }
+
+  function devMakeEnemy(key, boss) {
+    const type = ENEMY_TYPES.find((t) => t.key === key);
+    if (!type) return null;
+    const e = makeEnemy(key, G.floorIndex, false, 0, 0, !!boss);
+    if (boss) {
+      e.boss = true;
+      e.bossPhase = 1;
+      e.phaseHold = false;
+      if (BOSS_INFO[key]) e.name = BOSS_INFO[key].name;
+    }
+    return e;
+  }
+
+  function devSpawnEnemy(boss) {
+    if (G.place !== "dungeon" || !G.map) {
+      toast("Спавн работает в подземелье");
+      return;
+    }
+    const input = el("dev-enemy");
+    const key = String(input && input.value || "").trim();
+    const e = devMakeEnemy(key, boss);
+    if (!e) { toast("Неизвестный враг: " + key); return; }
+    const spot = devFreeCellNear(G.playerPos.x, G.playerPos.y);
+    if (!spot) { toast("Нет свободной клетки рядом"); return; }
+    e.x = spot.x;
+    e.y = spot.y;
+    G.enemies.push(e);
+    render();
+    updateHud();
+    toast((boss ? "Босс: " : "Враг: ") + e.name);
+  }
+
+  function devBossStart(key) {
+    if (G.place !== "dungeon" || !G.map) {
+      toast("Сначала спустись в подземелье");
+      return;
+    }
+    const e = devMakeEnemy(key, true);
+    if (!e) { toast("Неизвестный босс: " + key); return; }
+    const spot = devFreeCellNear(G.playerPos.x, G.playerPos.y);
+    if (!spot) { toast("Нет свободной клетки рядом"); return; }
+    e.x = spot.x;
+    e.y = spot.y;
+    G.enemies.push(e);
+    openBattle(e);
+  }
+
+  function devBattleNext() {
+    if (!G.battle || G.battle.phase !== "question") {
+      toast("Сейчас нет вопроса");
+      return;
+    }
+    nextChallenge();
+    renderBattle();
+  }
+
+  function devBattlePhase() {
+    const e = G.battle && G.battle.enemy;
+    if (!e || !e.boss) { toast("В бою нет босса"); return; }
+    if (!G.arena) { toast("Фазы доступны на арене"); return; }
+    const next = Math.min(3, (e.bossPhase || 1) + 1);
+    if (next === e.bossPhase) { toast("Босс уже в третьей фазе"); return; }
+    startBossPhase(e, next);
+    renderBattle();
+  }
+
+  function devSetEnemyHp(pct) {
+    const e = G.battle && G.battle.enemy;
+    if (!e) { toast("Сейчас нет боя"); return; }
+    const n = Math.max(0, Number(pct) || 0);
+    e.hp = n <= 1 ? 1 : Math.max(1, Math.round(e.maxHp * n / 100));
+    renderBattle();
+    toast("HP врага: " + e.hp + " / " + e.maxHp);
+  }
+
+  function devForceQuestion(type) {
+    G.dev.forceQuestion = type || "";
+    if (G.battle && G.battle.phase === "question") {
+      nextChallenge();
+      renderBattle();
+    }
+    toast(type ? "Тип вопроса: " + type : "Тип вопроса: случайный");
+  }
+
+  function devSetStory(index) {
+    const prof = hubProfile();
+    if (!prof) return;
+    const n = Math.max(0, Math.min(STORY_QUESTS.length, Math.floor(Number(index) || 0)));
+    prof.quests.story = n;
+    prof.quests.done = STORY_QUESTS.slice(0, n).map((step) => step.key);
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.questProgress = { n: 0 };
+    renderVillageInfo();
+    updateHud();
+    toast("Сюжет: глава " + n + " из " + STORY_QUESTS.length);
+  }
+
+  function devMeetAll() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.quests.met = VILLAGE_MEET_NPCS.slice();
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateHud();
+    render();
+    toast("Знакомства: все жители отмечены");
+  }
+
+  function devVillageUnlock(max) {
+    const prof = hubProfile();
+    if (!prof) return;
+    Object.keys(VILLAGE_CAPS).forEach((key) => {
+      prof.village[key] = max ? VILLAGE_CAPS[key] : Math.max(1, prof.village[key] || 0);
+    });
+    if (max) {
+      Object.keys(HERO_CAPS).forEach((key) => { prof.hero[key] = HERO_CAPS[key]; });
+    }
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.prog = progressBonus();
+    recalcStats();
+    if (G.player) G.player.hp = G.player.maxHp;
+    renderVillageInfo();
+    updateWalletLine();
+    updateHud();
+    toast(max ? "Деревня и герой прокачаны до максимума" : "Все постройки открыты");
+  }
+
+  function devVillageReset() {
+    const prof = hubProfile();
+    if (!prof) return;
+    Object.keys(VILLAGE_CAPS).forEach((key) => { prof.village[key] = 0; });
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    G.prog = progressBonus();
+    recalcStats();
+    renderVillageInfo();
+    updateWalletLine();
+    updateHud();
+    toast("Деревня сброшена");
+  }
+
+  function devBankGold() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.wallet.gold = (prof.wallet.gold || 0) + 10000;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateWalletLine();
+    toast("Банк: +10000 золота");
+  }
+
+  function devItemsAll() {
+    ITEM_POOL.filter((item) => item.slot !== "potion").forEach((item) => {
+      addItem(Object.assign({}, item));
+    });
+    renderInventory();
+    updateHud();
+    toast("Выдано всё снаряжение");
+  }
+
+  function devAllTrophies() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.trophies = Object.keys(BOSS_INFO).map((key) => BOSS_INFO[key].trophy.key);
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateHud();
+    toast("Все трофеи боссов выданы");
+  }
+
+  function devResetTrophies() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.trophies = [];
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    updateHud();
+    toast("Трофеи сброшены");
+  }
+
+  function devBalanceScale(kind, mul) {
+    const b = devBalance();
+    if (!b) return;
+    const value = Math.max(0.1, Math.min(20, Number(mul) || 1));
+    b[kind] = value;
+    render();
+    devRender();
+    toast("Баланс: " + kind + " ×" + value);
+  }
+
+  function devBalanceReset() {
+    const b = devBalance();
+    if (!b) return;
+    b.enemyHp = 1;
+    b.enemyDmg = 1;
+    b.gold = 1;
+    b.xp = 1;
+    devRender();
+    toast("Множители баланса сброшены");
+  }
+
+  function devDumpState() {
+    const dump = {
+      place: G.place,
+      floor: G.floorIndex,
+      campaign: G.campaign,
+      player: G.player,
+      enemies: G.enemies,
+      arena: G.arena,
+      dev: G.dev,
+      profile: hubProfile()
+    };
+    try { console.log("PYDUNGEON DEV STATE", dump); } catch (e) {}
+    toast("Состояние выведено в консоль");
+  }
+
+  function devResetFlags() {
+    if (!G.dev) return;
+    G.dev.god = false;
+    G.dev.reveal = false;
+    G.dev.forceQuestion = "";
+    G.dev.balance = { enemyHp: 1, enemyDmg: 1, gold: 1, xp: 1 };
+    render();
+    devRender();
+    toast("DEV-флаги и множители сброшены");
+  }
+
+  function devAction(action, btn) {
     if (!G.dev) return;
     if (action === "panel") { devToggle(); return; }
     if (action === "village") { devReturnVillage(); return; }
     if (action === "battle-win") { devBattleWin(); return; }
+    if (action === "battle-next") { devBattleNext(); return; }
+    if (action === "battle-phase") { devBattlePhase(); return; }
+    if (action === "enemy-hp") { devSetEnemyHp(btn && btn.dataset.pct); return; }
+    if (action === "force") { devForceQuestion(btn && btn.dataset.type); return; }
+    if (action === "spawn") { devSpawnEnemy(false); return; }
+    if (action === "spawn-boss") { devSpawnEnemy(true); return; }
+    if (action === "boss-start") { devBossStart(btn && btn.dataset.key); return; }
+    if (action === "jump-preset") { devJump(Number(btn && btn.dataset.floor) || 0); return; }
+    if (action === "xp-big") { devXpAmount(10000); return; }
+    if (action === "set-level") {
+      const input = el("dev-level");
+      devSetLevel(input && input.value);
+      return;
+    }
+    if (action === "set-hp") {
+      const input = el("dev-hp");
+      devSetHp(input && input.value);
+      return;
+    }
+    if (action === "set-run-gold") {
+      const input = el("dev-run-gold");
+      devSetRunGold(input && input.value);
+      return;
+    }
+    if (action === "set-story") {
+      const input = el("dev-story");
+      devSetStory(input && input.value);
+      return;
+    }
+    if (action === "meet-all") { devMeetAll(); return; }
+    if (action === "village-unlock") { devVillageUnlock(false); return; }
+    if (action === "village-max") { devVillageUnlock(true); return; }
+    if (action === "village-reset") { devVillageReset(); return; }
+    if (action === "bank-gold") { devBankGold(); return; }
+    if (action === "items-all") { devItemsAll(); return; }
+    if (action === "trophies-all") { devAllTrophies(); return; }
+    if (action === "trophies-reset") { devResetTrophies(); return; }
+    if (action === "bal") { devBalanceScale(btn && btn.dataset.kind, btn && btn.dataset.mul); return; }
+    if (action === "bal-reset") { devBalanceReset(); return; }
+    if (action === "dump-state") { devDumpState(); return; }
+    if (action === "dev-reset") { devResetFlags(); return; }
     if (action === "quest-fill") { devQuestFill(); return; }
     if (action === "codex-all") { devCodexAll(); return; }
     if (action === "portal") { devOpenPortal(); return; }
@@ -19374,6 +19997,35 @@ function topicName(key) {
     const input = el("dev-floor");
     if (input && document.activeElement !== input) {
       input.value = String(G.floorIndex + 1);
+    }
+    const levelInput = el("dev-level");
+    if (levelInput && document.activeElement !== levelInput && G.player) {
+      levelInput.value = String(G.player.level);
+    }
+    const hpInput = el("dev-hp");
+    if (hpInput && document.activeElement !== hpInput && G.player) {
+      hpInput.value = String(G.player.hp);
+    }
+    const goldInput = el("dev-run-gold");
+    if (goldInput && document.activeElement !== goldInput && G.player) {
+      goldInput.value = String(G.player.gold || 0);
+    }
+    const storyInput = el("dev-story");
+    if (storyInput && document.activeElement !== storyInput) {
+      const prof = hubProfile();
+      storyInput.value = String(prof && prof.quests ? prof.quests.story : 0);
+    }
+    document.querySelectorAll("[data-dev='force']").forEach((node) => {
+      node.classList.toggle("dev-on",
+        (node.dataset.type || "") === (G.dev.forceQuestion || ""));
+    });
+    const balanceState = el("dev-balance-state");
+    if (balanceState) {
+      const b = devBalance();
+      balanceState.textContent = b
+        ? "HP врагов ×" + b.enemyHp + " · урон ×" + b.enemyDmg +
+          " · золото ×" + b.gold + " · опыт ×" + b.xp
+        : "Баланс недоступен";
     }
   }
 
