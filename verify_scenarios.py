@@ -136,6 +136,22 @@ def boss_scenarios(page):
           sorted(trophies))
 
 
+def reload_scenario(page, base):
+    # Профиль и трофеи должны пережить перезагрузку страницы. Новую игру
+    # начинаем уже после reload: сюжет сбрасывается, коллекция — нет.
+    page.goto(base + "/?debug=1")
+    page.wait_for_function("() => window.PyMenu && window.PyMenu.isOpen()", timeout=20000)
+    page.wait_for_timeout(400)
+    start_game(page, base)
+    open_dev(page)
+    click_dev(page, "#dev-panel [data-dev-tab='world']")
+    click_dev(page, "#dev-panel [data-dev='village']")
+    page.wait_for_timeout(500)
+    bank = page.evaluate("() => document.getElementById('village-bank').innerText")
+    check("Знамя вожака" in bank and "Сердце дракона" in bank,
+          "трофеи боссов переживают перезагрузку", bank[:160])
+
+
 def dialogue_scenario(page):
     page.evaluate("() => window.__setFloor(0)")
     wait_floor(page)
@@ -188,6 +204,7 @@ def run_scenarios(browser, base):
     try:
         start_game(page, base)
         boss_scenarios(page)
+        reload_scenario(page, base)
         dialogue_scenario(page)
         hold_scenario(page)
     finally:

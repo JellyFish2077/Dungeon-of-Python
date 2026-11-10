@@ -8471,6 +8471,25 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   log(/Гоблин-вожак/.test(bossCodex) && /Фазы/.test(bossCodex) &&
     /трофей получен/.test(bossCodex),
     "босс появился в справочнике с фазами и трофеем");
+  log(/гоблин-вожак/i.test(API.CAMPAIGN.prologue) &&
+    /некромант/i.test(API.CAMPAIGN.prologue) &&
+    /дракон/i.test(API.CAMPAIGN.prologue),
+    "пролог называет стражей глубины и дракона");
+  const bossPath = API.bossPathHtml();
+  log(/Стражи глубины/.test(bossPath) &&
+    Object.keys(API.BOSS_INFO).every((key) => bossPath.indexOf(API.BOSS_INFO[key].name) >= 0),
+    "журнал показывает всех стражей глубины");
+  resetProgress();
+  API.enterVillage(null);
+  const trophyProf = getProfile(G.name);
+  trophyProf.trophies = ["goblin_banner"];
+  putProfile(G.name, trophyProf);
+  API.renderVillageInfo();
+  log(/Трофеи боссов/.test(el("village-bank").innerHTML) &&
+    /Знамя вожака/.test(el("village-bank").innerHTML),
+    "трофей виден в деревне, а не только в архиве");
+  const normalQuip = API.enemyQuip("rat", false);
+  log(!!normalQuip, "у обычного врага тоже есть реплика", normalQuip);
   // Босс не стоит памятником: до боя патрулирует зал, после входа — догоняет.
   freshRun(0);
   API.setCampaign(2);

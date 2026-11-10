@@ -73,9 +73,34 @@ class QuietHandler(http.server.SimpleHTTPRequestHandler):
         pass
 
 
+def newest_source_mtime():
+    latest = 0
+    static = os.path.join(ROOT, "static")
+    for dirpath, _, names in os.walk(static):
+        for name in names:
+            try:
+                latest = max(latest, os.path.getmtime(os.path.join(dirpath, name)))
+            except OSError:
+                pass
+    for extra in ("tools/build_web.py", "package.json"):
+        try:
+            latest = max(latest, os.path.getmtime(os.path.join(ROOT, extra)))
+        except OSError:
+            pass
+    return latest
+
+
 def ensure_build(rebuild):
     index = os.path.join(BUILD, "index.html")
-    if rebuild or not os.path.isfile(index):
+    web_boot = os.path.join(BUILD, "static", "web-boot.js")
+    stale = not os.path.isfile(index) or newest_source_mtime() > os.path.getmtime(index)
+    dev = False
+    if os.path.isfile(web_boot):
+        try:
+            dev = "dev: true" in open(web_boot, "r", encoding="utf-8", errors="replace").read()
+        except OSError:
+            pass
+    if rebuild or stale or dev:
         print("Сборка standalone/build…")
         code = subprocess.call(
             [sys.executable, os.path.join(ROOT, "tools", "build_web.py")],
@@ -83,6 +108,14 @@ def ensure_build(rebuild):
         )
         if code != 0:
             return False
+        # Публичная проверка должна работать офлайн: подкладываем Pyodide,
+        # если он уже есть в локальном кэше.
+        subprocess.call(
+            [sys.executable, os.path.join(ROOT, "tools", "fetch_pyodide.py")],
+            cwd=ROOT,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
     pyodide = os.path.join(BUILD, "static", "pyodide", "pyodide.js")
     if not os.path.isfile(pyodide):
         print("Pyodide локально не найден: первая проверка кода пойдёт через CDN.")
@@ -652,10 +685,11 @@ def run_checks(browser, base):
     journal_text = page.locator("#journal-box").inner_text()
     check(page.locator(".journal-tab.is-active").get_attribute("data-jtab") == "story",
           "HUD открывает журнал на вкладке сюжета")
-    check("Печати глубины" in journal_text and "Знакомство" in journal_text,
-          "журнал показывает кампанию и текущую главу")
-    check(page.locator(".story-path-step").count() == 6,
-          "в журнале виден весь путь из шести глав")
+    check("Печати глубины" in journal_text and "Знакомство" in journal_text and
+          "стражи глубины" in journal_text.lower(),
+          "журнал показывает кампанию, текущую главу и стражей")
+    check(page.locator(".story-path-step").count() == 11,
+          "в журнале виден путь из шести глав и пяти стражей")
     page.click("#journal-close")
     page.wait_for_timeout(200)
 

@@ -257,7 +257,7 @@
        // Постоянная прогрессия: таблицы улучшений, построек и квестов — по ним
        // проверки считают, что деревня даёт герою и сколько это стоит.
        "VILLAGE_BUILDINGS", "HERO_STEPS", "HERO_PRICES", "HERO_UPGRADE_LIST",
-       "STORY_QUESTS", "REPEAT_QUESTS", "KEY_DEFS", "LOOT_KINDS", "LOOT_NAMES",
+       "STORY_QUESTS", "REPEAT_QUESTS", "KEY_DEFS", "LOOT_KINDS", "LOOT_NAMES", "CAMPAIGN",
        "HERO_CAPS", "VILLAGE_CAPS", "villageBuildingAtDoor", "villageBuildingByKey"]
         .concat(fnNames)
         .filter(Boolean)
