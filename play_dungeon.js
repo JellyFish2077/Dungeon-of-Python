@@ -413,12 +413,22 @@ function potionForHeal(allowFull) {
   return full.length ? full[0].i : -1;
 }
 
-// Верхняя оценка следующего удара врага. Нужна, чтобы вовремя уйти в
-// защиту, а не узнать о смертельном ударе уже после боя.
+// Оценка следующего удара врага сверху — по сырому урону, до брони и блока.
+// Нужна, чтобы вовремя уйти в защиту, а не узнать о смертельном ударе уже
+// после боя. Учитываем то, что реально входит в формулу playerTakeHit:
+// серию ошибок, «Тёмную сделку» и разовую ярость босса.
 function expectedEnemyHit(e) {
   if (!e) return 0;
+  const b = G.battle || {};
+  // Дальнобойный в перезарядке не бьёт вообще.
+  if ((e.range || 1) > 1 && (b.rangedCd || 0) > 0) return 0;
   const mul = e.nextDmgMul && e.nextDmgMul > 0 ? e.nextDmgMul : 1;
-  return Math.round(((e.dmg || 0) + (e.dmgBoost || 0)) * mul);
+  const rage = API.abilityOf && API.abilityOf(e) === "bossrage" ? 1.25 : 1;
+  const deal = API.curseDmgMul ? API.curseDmgMul() : 1;
+  const miss = API.missMul ? API.missMul(b.missStreak || 1) : 1;
+  // Ярость выставляет nextDmgMul через max, а не умножением.
+  const hitMul = Math.max(mul, rage);
+  return Math.round(((e.dmg || 0) + (e.dmgBoost || 0)) * hitMul * deal * miss) + 3;
 }
 
 function potionHealAmount(index) {
@@ -722,7 +732,26 @@ function botTraderTarget() {
 // Следующий этаж — босс? Тогда перед спуском стоит потратить привал даже
 // на 80–90% HP: он вернёт заряды умения и полное здоровье к главному бою.
 function botFloorDef(index) {
-  return (API.FLOORS || [])[index == null ? G.floorIndex : index] || null;
+  const i = index == null ? G.floorIndex : index;
+  // API.FLOORS в harness — снимок таблицы на момент загрузки (V1), а
+  // floorDef() читает живую FLOORS, которую startRun() переключает на V2.
+  if (API.floorDef) return API.floorDef(i) || null;
+  return (API.FLOORS || [])[i] || null;
+}
+
+// Страховка от рассинхронизации: бот принимает решения про боссов по
+// botFloorDef(), и молчаливое расхождение с таблицей кампании снова
+// превратит «не отвлекаться на боссовом этаже» в случайные этажи.
+function verifyBotFloorTable() {
+  if (typeof API.floorDef !== "function") return;
+  if (G.campaign !== 1 && G.campaign !== 2) return;
+  const table = G.campaign === 2 ? API.FLOORS_V2 : API.FLOORS_V1;
+  if (!table) return;
+  for (let i = 0; i < table.length; i += 1) {
+    if (!!API.floorDef(i).boss !== !!table[i].boss) {
+      throw new Error("бот: floorDef не совпадает с таблицей кампании на этаже " + (i + 1));
+    }
+  }
 }
 
 function botNextFloorIsBoss() {
@@ -919,6 +948,7 @@ function startGame(opts, rng) {
   // чтобы партия не пропала.
   if (!G.running) API.begin();
   if (!G.running) throw new Error("не удалось начать партию");
+  verifyBotFloorTable();
   // Бот не проходит окно стража, поэтому умение выставляем напрямую.
   G.ability = { key: opts.ability, left: API.abilityCharges ? API.abilityCharges() : 2 };
   // Сложность в настоящей игре выбирают в окне стража до спуска, а begin()

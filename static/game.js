@@ -765,6 +765,15 @@
     return best;
   }
 
+  // Лимит элит для плана. Знамение меняет его не только в назначении
+  // ролей, но и в бюджете плана: иначе валидатор сверяет роли с сырым
+  // f.eliteCap, бракует собственный план и отправляет этаж в старый
+  // генератор (чаще всего на «Кровавой луне»).
+  function genEliteCap(f) {
+    return Math.max(0,
+      (Number(f.eliteCap) || 0) + (currentOmen().eliteCap || 0));
+  }
+
   // Роли по грамматике. Хребет: вход, врата, 2–4 развилки, среда и
   // проходные бои. Ветки: промежуточные бои, лист — награда или риск.
   function genAssignRoles(plan, f, index, rng) {
@@ -832,8 +841,7 @@
     const counts = { vault: 0, rest: 0, elite: 0, secret: 0 };
     // Знамение меняет число элит и в плане v2, а не только в старом
     // генераторе: иначе «Тихий спуск» не убирал бы элит на обычных этажах.
-    const omenEliteCap = Math.max(0,
-      (Number(f.eliteCap) || 0) + (currentOmen().eliteCap || 0));
+    const omenEliteCap = genEliteCap(f);
     const byStem = {};
     rooms.filter((room) => room.kind === "branch").forEach((room) => {
       if (!byStem[room.stem]) byStem[room.stem] = [];
@@ -974,6 +982,19 @@
           (room.role === "combat" || room.role === "lore")) ||
           rooms.find((room) => room.kind === "branch" &&
             (room.role === "combat" || room.role === "lore"));
+      }
+      if (!target) {
+        // Последний резерв: тайник важнее одной элиты — она не обещана
+        // таблицей, а сундук и жила обещаны. Жилу, привал и последний
+        // сундук не трогаем, промежуточные комнаты ветки — можно.
+        const treasureCount = leaves.filter((room) => room.role === "treasure").length;
+        target = leaves.find((room) => room.role === "elite") ||
+          leaves.find((room) => room.role !== "resource" &&
+            room.role !== "rest" && room.role !== "vault" &&
+            !(room.role === "treasure" && treasureCount <= 1)) ||
+          rooms.find((room) => room.kind === "branch" && !room.leaf &&
+            room.role !== "resource" && room.role !== "rest" &&
+            room.role !== "vault" && room.role !== "treasure");
       }
       if (target) target.role = "vault";
     }
@@ -1294,13 +1315,67 @@
     });
   }
 
+  // Клетки крупной сетки, через которые пройдёт L-коридор между двумя
+  // комнатами (без их собственных клеток). Клетка 8×6 почти целиком занята
+  // комнатой, поэтому «маршрут через клетку с комнатой» — это туннель сквозь
+  // её стены с лишними выходами.
+  function genCryptRouteCells(a, b, horizontalFirst) {
+    const out = [];
+    const add = (cx, cy) => {
+      if (cx === a.cx && cy === a.cy) return;
+      if (cx === b.cx && cy === b.cy) return;
+      out.push({ cx, cy });
+    };
+    if (horizontalFirst) {
+      const sx = b.cx > a.cx ? 1 : b.cx < a.cx ? -1 : 0;
+      for (let cx = a.cx + sx; sx && cx !== b.cx + sx; cx += sx) add(cx, a.cy);
+      const sy = b.cy > a.cy ? 1 : b.cy < a.cy ? -1 : 0;
+      for (let cy = a.cy + sy; sy && cy !== b.cy + sy; cy += sy) add(b.cx, cy);
+    } else {
+      const sy = b.cy > a.cy ? 1 : b.cy < a.cy ? -1 : 0;
+      for (let cy = a.cy + sy; sy && cy !== b.cy + sy; cy += sy) add(a.cx, cy);
+      const sx = b.cx > a.cx ? 1 : b.cx < a.cx ? -1 : 0;
+      for (let cx = a.cx + sx; sx && cx !== b.cx + sx; cx += sx) add(cx, b.cy);
+    }
+    return out;
+  }
+
+  // Свободная трасса до комнаты: "h" — сначала горизонталь, "v" — сначала
+  // вертикаль, null — оба варианта режут чужую комнату.
+  function genCryptRoute(from, to, ownerByCell) {
+    for (const orient of ["h", "v"]) {
+      const cells = genCryptRouteCells(from.cell, to.cell, orient === "h");
+      const blocked = cells.some((cell) => {
+        const owner = ownerByCell.get(genCellKey(cell));
+        return !!owner && owner.id !== from.id && owner.id !== to.id;
+      });
+      if (!blocked) return orient;
+    }
+    return null;
+  }
+
   // Катакомбы: центральная развилка с четырьмя дверями. Добираем рёбра
-  // до ближайших treasure/ambush/lore и одной комнаты хребта.
+  // до ближайших treasure/ambush/lore и одной комнаты хребта. Только в
+  // пределах двух клеток и только по свободной трассе: раньше коридор шёл
+  // к ближайшей по роли комнате через полкарты, прорезал чужие комнаты и
+  // добавлял им выходы (85% криптовых коридоров проходили сквозь комнаты).
   function genCryptDoors(plan) {
     if (plan.biome !== "catacombs") return plan;
+    const MAX_CELLS = 2;
+    const ownerByCell = new Map();
+    plan.rooms.forEach((room) => {
+      if (room.cell) ownerByCell.set(genCellKey(room.cell), room);
+    });
     const hasEdge = (a, b) => (plan.edges || []).some((edge) =>
       (edge.a === a && edge.b === b) || (edge.a === b && edge.b === a));
     const spineSet = new Set(plan.spine || []);
+    const connect = (junction, room) => {
+      if (genCellDist(junction.cell, room.cell) > MAX_CELLS) return false;
+      const orient = genCryptRoute(junction, room, ownerByCell);
+      if (!orient) return false;
+      plan.edges.push({ a: junction.id, b: room.id, kind: "crypt", orient });
+      return true;
+    };
     const junctions = plan.rooms.filter((room) => room.role === "junction");
     for (const junction of junctions) {
       let doors = (plan.edges || []).filter((edge) =>
@@ -1313,26 +1388,21 @@
       const wantedRoles = ["treasure", "ambush", "lore", "vault", "secret"];
       for (const role of wantedRoles) {
         if (doors >= 4) break;
-        const target = plan.rooms
+        const targets = plan.rooms
           .filter((room) => room.id !== junction.id && room.role === role &&
             !hasEdge(junction.id, room.id))
           .sort((a, b) => genCellDist(junction.cell, a.cell) -
-            genCellDist(junction.cell, b.cell))[0];
-        if (!target) continue;
-        plan.edges.push({ a: junction.id, b: target.id, kind: "crypt" });
-        doors += 1;
+            genCellDist(junction.cell, b.cell));
+        if (targets.some((room) => connect(junction, room))) doors += 1;
       }
       if (doors < 4) {
-        const target = plan.rooms
+        const targets = plan.rooms
           .filter((room) => room.id !== junction.id && spineSet.has(room.id) &&
             room.role !== "entry" && room.role !== "gate" &&
             !hasEdge(junction.id, room.id))
           .sort((a, b) => genCellDist(junction.cell, a.cell) -
-            genCellDist(junction.cell, b.cell))[0];
-        if (target) {
-          plan.edges.push({ a: junction.id, b: target.id, kind: "crypt" });
-          doors += 1;
-        }
+            genCellDist(junction.cell, b.cell));
+        if (targets.some((room) => connect(junction, room))) doors += 1;
       }
       if (doors >= 4) {
         junction.meta = junction.meta || {};
@@ -1359,7 +1429,12 @@
       if (!a || !b) return;
       const wide = edge.kind === "spine" &&
         (plan.biome === "catacombs" || plan.biome === "lair");
-      edge.cells = genCarveCorridor(grid, a.center, b.center, wide ? 2 : 1, w, h, rng);
+      // У криптового ребра ориентация выбрана при планировании: она
+      // гарантирует, что коридор пойдёт в обход чужих комнат.
+      const edgeRng = edge.orient === "h" ? () => 0 :
+        edge.orient === "v" ? () => 1 : rng;
+      edge.cells = genCarveCorridor(grid, a.center, b.center,
+        wide ? 2 : 1, w, h, edgeRng);
     });
     genCryptNiches(plan, grid, w, h, rng);
     // Выходы комнаты: клетка на её рамке, за которой уже есть пол.
@@ -1565,7 +1640,7 @@
       optionalMin: f.optionalShare - 0.05,
       optionalMax: f.optionalShare + 0.05,
       minJunctions: f.minJunctions,
-      eliteCap: f.eliteCap,
+      eliteCap: genEliteCap(f),
       vault: f.vault,
       camp: f.camp,
       hazardHallMax: f.hazardHallMax
@@ -1702,7 +1777,7 @@
         optionalMin: f.optionalShare - 0.05,
         optionalMax: f.optionalShare + 0.05,
         minJunctions: f.minJunctions,
-        eliteCap: f.eliteCap,
+        eliteCap: genEliteCap(f),
         vault: f.vault,
         camp: f.camp,
         hazardHallMax: f.hazardHallMax
@@ -3390,7 +3465,10 @@
         if (used.has(key(spot.x, spot.y))) continue;
         if (state.map.grid[spot.y][spot.x] !== 1) continue;
         const role = planCellRole(plan, spot.x, spot.y);
-        if (role && ["treasure", "secret", "vault"].indexOf(role) < 0) continue;
+        // Коридор — не место для награды: сундук в проходе встречается
+        // раньше комнаты и ломает ритм «зачистил — получил». Добираем
+        // только в комнатах, для которых сундук и задуман.
+        if (["treasure", "secret", "vault"].indexOf(role) < 0) continue;
         used.add(key(spot.x, spot.y));
         state.treasures.push({
           uid: ++G.uid, x: spot.x, y: spot.y,
@@ -3565,7 +3643,8 @@
         if (used.has(key(spot.x, spot.y))) continue;
         if (state.map.grid[spot.y][spot.x] !== 1) continue;
         const role = planCellRole(state.plan, spot.x, spot.y);
-        if (role && ["resource", "vault"].indexOf(role) < 0) continue;
+        // Жила в коридоре — та же ошибка, что сундук в проходе.
+        if (["resource", "vault"].indexOf(role) < 0) continue;
         used.add(key(spot.x, spot.y));
         out.push({ uid: ++G.uid, x: spot.x, y: spot.y, kind: "ore", taken: false });
       }
@@ -3798,8 +3877,14 @@
     if (!f.boss) state.stairsDown.active = !placeGuard(state, f, index, used, gen.end);
     applyMissedPayloads(state);
     placePlanChests(state, f, index, used, free);
+    // Роль «тайник» в плане — обещание этажа, а не пожелание: если комната
+    // не запечаталась (лишние выходы, петля, тесный угол), тайник ставим
+    // принудительно в монолит. Иначе остаётся тупик без награды и рычаг,
+    // который открывает пустоту.
+    const vaultRole = state.plan.rooms.some((room) => room.role === "vault");
     const vault = placePlanVault(state, index, used) ||
-      placeVault(state, index, gen, used);
+      placeVault(state, index, gen, used) ||
+      (vaultRole ? placeVault(state, index, gen, used, true) : null);
     if (vault) state.vaults.push(vault);
     placePlanTrader(state, f, index, used);
     state.traps = placePlanTraps(state, f, index, used, free);
@@ -3879,17 +3964,33 @@
   // дверью. Генератор комнат её не знает, поэтому она ничего не ломает:
   // попасть внутрь можно только через дверь, а дверь открывает ключ или
   // рычаг. Внутри — сокровища и материалы, ради которых и стоит возиться.
-  function placeVault(state, index, gen, used) {
-    if (index < 3) return null;
-    if (Math.random() < 0.25) return null;
+  function placeVault(state, index, gen, used, force) {
+    // force — последний рубеж, когда план уже обещает тайник, а обычная
+    // расстановка не нашла места. Тогда перебираем весь пол этажа, а не
+    // сорок случайных точек: пустая комната с ролью «тайник» и рычаг,
+    // которому нечего открывать, хуже тесного тайника в углу.
+    if (!force && index < 3) return null;
+    if (!force && Math.random() < 0.25) return null;
     const grid = state.map.grid;
     const w = state.map.w, h = state.map.h;
+    let spots = gen.spots;
+    if (force) {
+      spots = [];
+      for (let y = 1; y < h - 1; y += 1) {
+        for (let x = 1; x < w - 1; x += 1) {
+          if (grid[y][x] === 1) spots.push({ x, y });
+        }
+      }
+      shuffle(spots);
+    }
+    const attempts = force ? spots.length : 40;
     const dirs = shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
-    for (let t = 0; t < 40; t += 1) {
-      const spot = gen.spots[Math.floor(Math.random() * gen.spots.length)];
+    for (let t = 0; t < attempts; t += 1) {
+      const spot = force ? spots[t] : spots[Math.floor(Math.random() * spots.length)];
       if (!spot) continue;
       if (used.has(key(spot.x, spot.y))) continue;
-      if (Math.abs(spot.x - gen.start.x) + Math.abs(spot.y - gen.start.y) < 5) continue;
+      if (!force && Math.abs(spot.x - gen.start.x) +
+          Math.abs(spot.y - gen.start.y) < 5) continue;
       for (let d = 0; d < dirs.length; d += 1) {
         const dx = dirs[d][0], dy = dirs[d][1];
         const door = { x: spot.x + dx, y: spot.y + dy };
@@ -4620,6 +4721,12 @@
     if (tail < minArea) problems.push("доступно слишком мало клеток: " + tail);
     if (state.plan) {
       for (const p of genValidatePlan(state.plan, grid)) problems.push(p);
+      // План обещает тайник, а на этаже его нет: тупик без награды и
+      // рычаг, который открывает пустоту. Пересоздаём этаж.
+      if (state.plan.rooms.some((room) => room.role === "vault") &&
+          !(state.vaults || []).length) {
+        problems.push("роль тайника без тайника");
+      }
     }
     return problems;
   }

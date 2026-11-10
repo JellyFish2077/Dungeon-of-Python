@@ -8085,6 +8085,134 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   log(buildBad === 0, "buildCheckedFloor: 15 этажей v2 без отказов", buildBad);
 }
 
+// Знамение поднимает лимит элит. План и проверка должны считать его
+// одинаково: раньше genAssignRoles добавлял элиту по знамению, а бюджет
+// плана брал сырой f.eliteCap — каждый план с лишней элитой браковался,
+// и этаж уходил в старый генератор (на «Кровавой луне» заметно часто).
+{
+  freshRun(0);
+  G.omen = "blood";
+  let bad = 0;
+  for (const [i, f] of API.FLOORS_V2.entries()) {
+    if (f.boss) continue;
+    for (let seed = 0; seed < 10; seed += 1) {
+      const gen = API.generateFloorV2(f, i, { seed });
+      if (API.genValidatePlan(gen.plan, gen.grid).length) bad += 1;
+    }
+  }
+  log(bad === 0, "Кровавая луна: лимит элит плана совпадает с валидатором", bad);
+
+  freshRun(0);
+  G.omen = "blood";
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let fallback = 0;
+  for (let i = 0; i < API.FLOORS_V2.length; i += 1) {
+    if (API.FLOORS_V2[i].boss) continue;
+    if (!API.buildCheckedFloor(i).plan) fallback += 1;
+  }
+  API.setCampaign(1);
+  G.omen = "steady";
+  log(fallback === 0, "Кровавая луна: этажи v2 строятся планом, без отката", fallback);
+}
+
+// Роль «тайник» — обещание этажа. Пока рычаг не опущен, комната запечатана;
+// если план не смог её запечатать, тайник ставится принудительно, иначе
+// игрок видит пустой тупик и рычаг, которому нечего открывать.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let missing = 0;
+  let total = 0;
+  for (let i = 0; i < API.FLOORS_V2.length; i += 1) {
+    const f = API.floorDef(i);
+    if (f.boss || !f.vault) continue;
+    for (let k = 0; k < 4; k += 1) {
+      const state = API.buildCheckedFloor(i);
+      total += 1;
+      const role = !!(state.plan &&
+        state.plan.rooms.some((room) => room.role === "vault"));
+      if (!role || !(state.vaults || []).length) missing += 1;
+    }
+  }
+  API.setCampaign(1);
+  log(total > 0 && missing === 0, "роль тайника всегда получает тайник",
+    missing + " сбоев из " + total);
+}
+
+// Криптовые коридоры катакомб: раньше дверь развилки могла вести к комнате
+// через полкарты, прорезая чужие комнаты и добавляя им лишние выходы.
+// Теперь ребро соединяет только комнаты в двух клетках и только по
+// свободной трассе — и об этом должна знать геометрия.
+{
+  let edges = 0;
+  let bad = 0;
+  for (const [i, f] of API.FLOORS_V2.entries()) {
+    if (f.boss || f.biome !== "catacombs") continue;
+    for (let seed = 0; seed < 20; seed += 1) {
+      const gen = API.generateFloorV2(f, i, { seed });
+      const byId = {};
+      gen.plan.rooms.forEach((room) => { byId[room.id] = room; });
+      for (const edge of gen.plan.edges || []) {
+        if (edge.kind !== "crypt") continue;
+        edges += 1;
+        const a = byId[edge.a];
+        const b = byId[edge.b];
+        if (!a || !b || !edge.cells ||
+            (edge.orient !== "h" && edge.orient !== "v") ||
+            API.genCellDist(a.cell, b.cell) > 2) {
+          bad += 1;
+          continue;
+        }
+        const hits = gen.plan.rooms.some((room) => {
+          if (room === a || room === b || !room.rect) return false;
+          return edge.cells.some((cell) =>
+            cell.x >= room.rect.x && cell.x < room.rect.x + room.rect.w &&
+            cell.y >= room.rect.y && cell.y < room.rect.y + room.rect.h);
+        });
+        if (hits) bad += 1;
+      }
+    }
+  }
+  log(edges > 0 && bad === 0,
+    "катакомбы: криптовые коридоры не режут чужие комнаты",
+    "рёбер: " + edges + ", ошибок: " + bad);
+}
+
+// Награда — только внутри комнат: коридор это транзит, а не витрина.
+// Единственное исключение — тайник, вырубленный в монолите (его клетки
+// не входят в план, поэтому planCellRole() для них тоже null).
+{
+  freshRun(0);
+  API.setCampaign(2);
+  API.setGenV2(true);
+  let outside = 0;
+  let far = 0;
+  for (let i = 0; i < API.FLOORS_V2.length; i += 1) {
+    if (API.floorDef(i).boss) continue;
+    for (let k = 0; k < 3; k += 1) {
+      const state = API.buildCheckedFloor(i);
+      if (!state.plan) continue;
+      const vaultDoors = (state.vaults || []).map((v) => v.door);
+      const check = (list) => {
+        (list || []).forEach((o) => {
+          if (API.planCellRole(state.plan, o.x, o.y)) return;
+          outside += 1;
+          const near = vaultDoors.some((door) =>
+            Math.abs(o.x - door.x) + Math.abs(o.y - door.y) <= 4);
+          if (!near) far += 1;
+        });
+      };
+      check(state.treasures);
+      check(state.nodes);
+    }
+  }
+  API.setCampaign(1);
+  log(far === 0, "сундуки и жилы не лежат в коридорах",
+    "вне комнат: " + outside + ", из них не в тайнике: " + far);
+}
+
 // Этап 4: радиальные острова демонов.
 {
   const at = API.FLOORS_V2.findIndex((f) => f.biome === "demons" && !f.boss);
