@@ -808,10 +808,27 @@ function stepOffCell() {
   return false;
 }
 
+// Покупка в деревенской лавке с проверкой, что золото действительно ушло:
+// buyHubItem() молчит при нехватке денег, а боту нужно знать, что куплено.
+function buyHubSafe(kind) {
+  const prof = getProfile("Бот");
+  const gold = (prof && prof.wallet && prof.wallet.gold) || 0;
+  const offer = API.hubShopOffers().find((o) => o.kind === kind);
+  if (!offer || gold < offer.price) return false;
+  API.buyHubItem(kind);
+  const after = getProfile("Бот");
+  return !!after && !!after.wallet && after.wallet.gold < gold;
+}
+
 // Проход деревни ботом: дойти, войти, поговорить, выйти, спуститься.
 // Возвращает, что удалось: это видно в сводке и ловит поломку уровня.
 function villagePhase(opts) {
   const seen = { house: false, trader: false, guard: false };
+  // Прошлый поход мог закончиться на окне разговора. Оно не входит в список
+  // оверлеев, которые прячет startGame, но overlayOpen() его видит — и тогда
+  // все doInteract() в деревне молча игнорируются. Поэтому закрываем явно.
+  if (API.closeTalk) API.closeTalk();
+  API.closeDialog();
   API.enterVillage(null);
   const house = API.VILLAGE_HOUSES.trader;
   const doorFront = frontOf(house.door.x, house.door.y);
@@ -823,10 +840,38 @@ function villagePhase(opts) {
       const npcFront = npc ? (frontOf(npc.x, npc.y) || npc) : null;
       if (npcFront && walkTo(npcFront.x, npcFront.y, 40)) {
         API.doInteract();
+        // Первая встреча открывает разговор, а не окно лавки. Проводим его
+        // до конца, иначе onDone не откроет торговца.
+        if (G.talkState && API.finishTalk) API.finishTalk();
         if (openOverlay("dialog-overlay")) {
           seen.trader = true;
           for (let i = 0; i < opts.amulets; i++) API.buyHubItem("amulet");
-          API.buyHubItem("small_potion");
+          // Сначала зелья в дорогу, потом снаряжение. Деревенское золото
+          // копится между походами, а купленное снаряжение расходуется за
+          // поход: перед каждым спуском его надо покупать заново.
+          for (let i = 0; i < 2; i++) {
+            if (buyHubSafe("big_potion")) seen.potions = (seen.potions || 0) + 1;
+          }
+          for (let i = 0; i < 2; i++) {
+            if (buyHubSafe("small_potion")) seen.potions = (seen.potions || 0) + 1;
+          }
+          const bestSlot = {};
+          API.hubShopOffers().forEach((o) => {
+            if (o.kind.indexOf("gear:") !== 0) return;
+            const item = API.ITEM_POOL.find((it) => it.id === o.kind.slice(5));
+            if (!item || !item.slot) return;
+            const cur = bestSlot[item.slot];
+            if (!cur || gearPower(item) > gearPower(cur.item)) {
+              bestSlot[item.slot] = { offer: o, item: item };
+            }
+          });
+          Object.keys(bestSlot)
+            .sort((a, b) => gearPower(bestSlot[b].item) - gearPower(bestSlot[a].item))
+            .forEach((slot) => {
+              if (buyHubSafe(bestSlot[slot].offer.kind)) {
+                seen.gearBought = (seen.gearBought || 0) + 1;
+              }
+            });
           API.closeDialog();
         }
       }
@@ -838,6 +883,7 @@ function villagePhase(opts) {
   const guardFront = frontOf(guard.at.x, guard.at.y);
   if (guardFront && walkTo(guardFront.x, guardFront.y, 90)) {
     API.doInteract();
+    if (G.talkState && API.finishTalk) API.finishTalk();
     if (openOverlay("entrance-overlay")) seen.guard = true;
   }
   return seen;
@@ -1279,9 +1325,13 @@ function printSummary(opts, rows) {
     console.log("  где умирали: " + floors.map((f) => "этаж " + f + " — " + perFloor[f]).join(", "));
   }
   console.log("  деревня: в дом торговца попал в " +
-    share((r) => r.village && r.village.house) + "% партий, в лавку — " +
-    share((r) => r.village && r.village.trader) + "%, к стражу входа — " +
+    share((r) => r.village && r.village.house) + "% партий, в лавку - " +
+    share((r) => r.village && r.village.trader) + "%, к стражу входа - " +
     share((r) => r.village && r.village.guard) + "%");
+  // Покупки перед спуском — это и есть петля «умер, вернулся, стал сильнее».
+  console.log("  покупки перед спуском: зелий " +
+    avg((r) => (r.village && r.village.potions) || 0).toFixed(1) +
+    ", снаряжения " + avg((r) => (r.village && r.village.gearBought) || 0).toFixed(1));
   console.log("  второй шанс: амулетов куплено " + opts.amulets + " на партию, возрождений " +
     avg((r) => r.revives).toFixed(2) + ", возвратов в деревню " + avg((r) => r.toHub).toFixed(2));
   console.log("  самое низкое здоровье за партию: в среднем " + Math.round(avg((r) => r.lowestPct) * 100) +
