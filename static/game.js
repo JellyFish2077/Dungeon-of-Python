@@ -6867,6 +6867,16 @@
     // этого ученик не понимает, зачем таскает руду из подземелья.
     html += "<p class='lead'><b>Материалы:</b> " + LOOT_KINDS.map((k) =>
       LOOT_NAMES[k] + " " + (prof.loot[k] || 0)).join(" · ") + "</p>";
+    const earnedTrophies = (prof.trophies || []).map((trophyKey) => {
+      const key = Object.keys(BOSS_INFO).find((bossKey) =>
+        BOSS_INFO[bossKey].trophy.key === trophyKey);
+      return key ? BOSS_INFO[key].trophy.name : "";
+    }).filter(Boolean);
+    html += "<p class='lead'><b>Трофеи боссов:</b> " +
+      (earnedTrophies.length
+        ? earnedTrophies.join(" · ") + " (" + earnedTrophies.length + " из " +
+          Object.keys(BOSS_INFO).length + ")"
+        : "пока нет — победи стражей глубины") + "</p>";
     const built = Object.keys(VILLAGE_BUILDINGS).filter((k) => villageLevel(k) > 0);
     html += "<p class='lead'><b>Постройки:</b> " + (built.length
       ? built.map((k) => VILLAGE_BUILDINGS[k].name + " " + villageLevel(k)).join(", ")
@@ -11273,8 +11283,8 @@
       phase: "question",
       bossPhase: enemy.bossPhase || 0,
       bossBreak: null,
-      quip: enemy.boss && typeof enemyQuip === "function"
-        ? enemyQuip(enemy.key, true) : "",
+      quip: typeof enemyQuip === "function"
+        ? enemyQuip(enemy.key, !!enemy.boss) : "",
       challenge: null,
       feedback: "",
       explanation: "",
@@ -15068,8 +15078,9 @@ function topicName(key) {
     title: "Печати глубины",
     prologue: "Деревня держится на четырёх опорах: амбар, колодец, кузня и дом " +
       "мастера. Под ними — старый спуск. Когда-то здесь учили первых писцов, " +
-      "а потом заперли то, что не смогли объяснить. Дракон внизу охраняет " +
-      "последнюю дверь.",
+      "а потом заперли то, что не смогли объяснить. Между опорами стоят стражи: " +
+      "гоблин-вожак, некромант, король големов и владыка демонов. За ними — " +
+      "дракон, последний хранитель двери.",
     epilogue: "Печати на месте. Деревня переживёт ещё одну зиму. За последней " +
       "дверью — тишина, и теперь только тебе решать, стоит ли её открывать."
   };
@@ -15653,6 +15664,29 @@ function topicName(key) {
     return "<div class='story-path-head'>Путь кампании</div><ol class='story-path'>" + rows + "</ol>";
   }
 
+  // Стражи глубины — часть сюжета, а не только «жирные мобы» на этажах.
+  // Журнал показывает, кто встречен и у кого уже взят трофей.
+  function bossPathHtml() {
+    const numerals = ["I", "II", "III", "IV", "V"];
+    const seen = codexState().bosses || {};
+    const rows = Object.keys(BOSS_INFO).map((key, index) => {
+      const info = BOSS_INFO[key];
+      const won = bossTrophyEarned(key);
+      const met = won || !!seen[key];
+      const floorIndex = FLOORS_V2.findIndex((floor) => floor.boss && floor.bossKey === key);
+      const state = won ? "is-done" : met ? "is-current" : "is-locked";
+      const status = won ? "Побеждён" : met ? "Встречен" : "Впереди";
+      return "<li class='story-path-step " + state + "'>" +
+        "<span class='story-path-num'>" + (numerals[index] || (index + 1)) + "</span>" +
+        "<div class='story-path-text'><b>" + escText(info.name) + "</b><span>" +
+        escText(info.title) + " · " + (floorIndex >= 0 ? "этаж " + (floorIndex + 1) : "арена") +
+        " · " + escText(info.phases.join(" → ")) + "</span></div>" +
+        "<span class='story-path-state'>" + status + "</span></li>";
+    }).join("");
+    return "<div class='story-path-head'>Стражи глубины</div><ol class='story-path boss-path'>" +
+      rows + "</ol>";
+  }
+
   function storyTabHtml() {
     const done = storyDoneCount();
     const step = STORY_QUESTS[done];
@@ -15678,7 +15712,7 @@ function topicName(key) {
         "<span>" + (ready ? "Цель выполнена — вернись к старосте" : (progress || "Цель в работе")) + "</span>" +
         "<span>Награда: " + rewardText(step.reward) + "</span></div></article>";
     }
-    html += storyPathHtml() + "</div>";
+    html += storyPathHtml() + bossPathHtml() + "</div>";
     return html;
   }
 
@@ -15952,6 +15986,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.45.0",
+      date: "10 ноября 2026",
+      title: "Стражи глубины в журнале",
+      items: [
+        "Журнал показывает всех пяти стражей, их фазы и трофеи.",
+        "Трофеи боссов видны в деревне, а не только в архиве.",
+        "Обычные враги снова говорят свои реплики в бою."
+      ]
+    },
     {
       version: "1.44.0",
       date: "9 ноября 2026",
