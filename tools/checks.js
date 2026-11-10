@@ -6548,6 +6548,7 @@ function resetProgress() {
   p.village = blank.village;
   p.loot = blank.loot;
   p.quests = blank.quests;
+  p.trophies = [];
   p.ability = blank.ability;
   p.wallet = { gold: 0, small_potion: 0, big_potion: 0 };
   p.hub = { revive: 0, gear: [] };
@@ -8394,15 +8395,21 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   // остаётся закрытой до победы.
   API.activateFloor(2);
   const arenaBoss = G.enemies[0];
+  log(arenaBoss.name === "Гоблин-вожак",
+    "v2: у босса своё имя, а не имя обычного гоблина", arenaBoss.name);
   const trapsBefore = G.traps.length;
   API.startBossPhase(arenaBoss, 2);
   log(arenaBoss.bossPhase === 2 && arenaBoss.phaseHold === true &&
     G.traps.length > trapsBefore,
     "v2: вторая фаза двигает босса и добавляет опасность",
     "якорь " + arenaBoss.x + "," + arenaBoss.y + ", ловушек " + G.traps.length);
+  log(arenaBoss.phaseAbility === "summon",
+    "v2: во второй фазе вожак зовёт слуг", String(arenaBoss.phaseAbility));
   API.startBossPhase(arenaBoss, 3);
   log(arenaBoss.bossPhase === 3 && arenaBoss.phaseHold === true,
     "v2: третья фаза двигает босса к последнему якорю", "фаза " + arenaBoss.bossPhase);
+  log(arenaBoss.phaseAbility === "charge",
+    "v2: в третьей фазе вожак переходит в натиск", String(arenaBoss.phaseAbility));
   const phaseProblems = API.validateFloorState({
     map: G.map, playerPos: G.playerPos, stairsDown: G.stairsDown,
     stairsUp: G.stairsUp, enemies: G.enemies
@@ -8422,7 +8429,7 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
     "HP " + thresholdBoss.hp + " из " + bossMax);
   API.continueBattle();
   log(G.battle === null && thresholdBoss.phaseHold === true,
-    "v2: после фазы бой закрывается, босс ждёт у якоря");
+    "v2: после фазы бой закрывается, босс возвращается к якорю");
   API.openBattle(thresholdBoss);
   API.applyAttack(Math.ceil(bossMax * 0.4), "Проверка порога", false, "", true);
   log(!!G.battle && thresholdBoss.bossPhase === 3,
@@ -8432,6 +8439,66 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   log(API.floorHazard(2, 2) === null && API.floorHazard(3, 2) &&
     API.floorHazard(3, 2).key === "dark",
     "v2: у арены нет среды, у катакомб тьма");
+  // Боссы: имя, титул, фазы, реплики, трофей и тематическая добыча.
+  const bossKeys = ["goblin", "necromancer", "golem", "demon", "dragon"];
+  const bossBad = bossKeys.filter((key) => {
+    const b = API.BOSS_INFO[key];
+    return !b || !b.name || !b.title || !b.trophy || !b.defeat ||
+      b.phases.length !== 3 || !b.loot.length || !b.minions.length || !b.taunts.length;
+  });
+  log(bossBad.length === 0,
+    "у всех пяти боссов есть титул, три фазы, трофей и слуги", bossBad.join(", "));
+  log(API.BOSS_INFO.goblin.taunts.indexOf(API.enemyQuip("goblin", true)) >= 0,
+    "босс говорит свою реплику, а не реплику обычного моба");
+  log(API.enemyDefeatQuip("goblin", true) === API.BOSS_INFO.goblin.defeat,
+    "у босса своя фраза смерти");
+  const goblinDrop = API.bossDrop({ key: "goblin" });
+  log(!!goblinDrop && API.BOSS_INFO.goblin.loot.indexOf(goblinDrop.id) >= 0,
+    "с босса падает тематическая вещь", goblinDrop && goblinDrop.id);
+  resetProgress();
+  const trophyFirst = API.grantBossTrophy("goblin");
+  const trophySecond = API.grantBossTrophy("goblin");
+  log(trophyFirst && !trophySecond &&
+    getProfile(G.name).trophies.indexOf("goblin_banner") >= 0,
+    "трофей босса записывается один раз");
+  log(API.bossTrophyEarned("goblin") && !API.bossTrophyEarned("dragon"),
+    "трофей виден в профиле и различает боссов");
+  const bossArchive = API.archiveEntries().find((x) =>
+    x.kind === "boss" && /Знамя/.test(x.title));
+  log(!!bossArchive, "трофей попадает в архив журнала");
+  API.codexState().bosses.goblin = 1;
+  const bossCodex = API.codexBodyHtml("bosses");
+  log(/Гоблин-вожак/.test(bossCodex) && /Фазы/.test(bossCodex) &&
+    /трофей получен/.test(bossCodex),
+    "босс появился в справочнике с фазами и трофеем");
+  // Босс не стоит памятником: до боя патрулирует зал, после входа — догоняет.
+  freshRun(0);
+  API.setCampaign(2);
+  API.activateFloor(2);
+  const movingBoss = G.enemies[0];
+  const patrolStart = { x: movingBoss.x, y: movingBoss.y };
+  let patrolMoved = false;
+  let patrolLeft = false;
+  for (let i = 0; i < 12; i++) {
+    API.enemyTurn();
+    if (movingBoss.x !== patrolStart.x || movingBoss.y !== patrolStart.y) patrolMoved = true;
+    const a = G.arena;
+    if (movingBoss.x <= a.left || movingBoss.x >= a.right ||
+        movingBoss.y <= a.top || movingBoss.y >= a.bottom) patrolLeft = true;
+  }
+  log(patrolMoved && !patrolLeft,
+    "босс патрулирует зал и не уходит в предзал",
+    "из " + patrolStart.x + "," + patrolStart.y + " в " + movingBoss.x + "," + movingBoss.y);
+  const huntArena = G.arena;
+  G.playerPos = { x: huntArena.cx, y: huntArena.bottom - 2 };
+  huntArena.sealed = true;
+  const huntStart = Math.hypot(movingBoss.x - G.playerPos.x, movingBoss.y - G.playerPos.y);
+  let hunter = null;
+  for (let i = 0; i < 40 && !hunter; i++) hunter = API.enemyTurn();
+  const huntEnd = Math.hypot(movingBoss.x - G.playerPos.x, movingBoss.y - G.playerPos.y);
+  log(hunter === movingBoss || huntEnd < huntStart,
+    "после входа в зал босс сам идёт на героя",
+    "дистанция " + Math.round(huntStart) + " -> " + Math.round(huntEnd));
   // Все пять арен: предзал, один босс, три якоря и проходимый зал после
   // каждой смены фазы.
   const arenaIndexes = API.FLOORS_V2
@@ -8651,5 +8718,51 @@ const restored = API.deserializeFloor(API.serializeFloor(saveState));
 log(restored.map.doors.length === 1 && restored.map.doors[0].open === true,
   "двери и их состояние переживают сохранение",
   JSON.stringify(restored.map.doors));
+
+// DEV-инструменты: быстрые сценарии для ручной проверки прохождения.
+resetProgress();
+freshRun(0);
+API.devSetLevel(5);
+API.devSetHp(1);
+API.devSetRunGold(1234);
+log(G.player.level >= 5 && G.player.hp >= 1 && G.player.gold === 1234,
+  "dev: уровень, HP и золото задаются вручную",
+  "ур. " + G.player.level + ", HP " + G.player.hp + ", золото " + G.player.gold);
+API.enterVillage(null);
+API.devSetStory(2);
+API.devMeetAll();
+const devProf = getProfile(G.name);
+log(devProf.quests.story === 2 && devProf.quests.done.indexOf("meet") >= 0 &&
+  devProf.quests.done.indexOf("barn") >= 0,
+  "dev: глава ставится вместе с закрытыми шагами", devProf.quests.done.join(", "));
+log(devProf.quests.met.length === API.VILLAGE_MEET_NPCS.length,
+  "dev: знакомства отмечаются все сразу", String(devProf.quests.met.length));
+API.devVillageUnlock(true);
+log(Object.keys(API.VILLAGE_CAPS).every((key) =>
+  getProfile(G.name).village[key] === API.VILLAGE_CAPS[key]),
+  "dev: деревня и герой прокачиваются до максимума");
+API.devVillageReset();
+log(Object.keys(API.VILLAGE_CAPS).every((key) => getProfile(G.name).village[key] === 0),
+  "dev: деревня сбрасывается");
+const devGoldBefore = getProfile(G.name).wallet.gold;
+API.devBankGold();
+log(getProfile(G.name).wallet.gold === devGoldBefore + 10000,
+  "dev: золото в банк начисляется");
+API.devAllTrophies();
+log(Object.keys(API.BOSS_INFO).every((key) => API.bossTrophyEarned(key)),
+  "dev: все трофеи боссов выдаются");
+API.devResetTrophies();
+log(getProfile(G.name).trophies.length === 0, "dev: трофеи сбрасываются");
+// Множитель HP действует только при включённом DEV и на новых врагов.
+const devBaseline = API.makeEnemy("rat", 0, false);
+const savedFeatures = globalThis.__PYQUIZ_FEATURES;
+globalThis.__PYQUIZ_FEATURES = { dev: true };
+G.dev = { balance: { enemyHp: 2, enemyDmg: 1, gold: 1, xp: 1 }, forceQuestion: "" };
+const devDoubled = API.makeEnemy("rat", 0, false);
+log(devDoubled.maxHp >= devBaseline.maxHp * 1.9,
+  "dev: множитель HP удваивает новых врагов",
+  devBaseline.maxHp + " -> " + devDoubled.maxHp);
+G.dev = null;
+globalThis.__PYQUIZ_FEATURES = savedFeatures;
 
 console.log("__JSON__" + JSON.stringify(out));

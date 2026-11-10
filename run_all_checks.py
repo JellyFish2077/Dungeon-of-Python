@@ -14,8 +14,10 @@ verify_dungeon), без него пропускаются с явной поме
 ненулевой код: пропуск — не то же самое, что успех. Опечатка в --only тоже
 ошибка, а не «ноль проверок, всё хорошо».
 
-Проверка веб-сборки (verify_web.py) необязательная: без Playwright или
-браузера она печатает причину и не валит прогон. В --quick не входит.
+Проверки веб-сборки (verify_web.py, verify_scenarios.py) необязательные:
+без Playwright или браузера они печатают причину и не валят прогон.
+В --quick браузерные проверки не входят. build_audit.py пересобирает
+публичную сборку и проверяет её на DEV-флаги, секреты и битые ссылки.
 """
 import argparse
 import os
@@ -38,10 +40,13 @@ for _stream in (sys.stdout, sys.stderr):
 # needs: "node" — нужен Node.js (входит в --quick), "browser" — нужен
 # Playwright (необязательная проверка, в --quick не входит).
 ALL_CHECKS = [
+    ("verify_content.py", "контент: ссылки, id, боссы и курс", "node"),
     ("verify_variants.py", "генератор вариантов вопросов", "node"),
     ("verify_practice.py", "генератор практики, прогон кода на Python", "node"),
     ("verify_dungeon.py", "подземелье: 900+ проверок в node", "node"),
     ("verify_web.py", "публичная веб-сборка (Playwright)", "browser"),
+    ("verify_scenarios.py", "сценарии: боссы, диалог, удержание (Playwright)", "browser"),
+    ("build_audit.py", "публичная сборка: DEV-флаги, секреты, ссылки", "none"),
 ]
 
 

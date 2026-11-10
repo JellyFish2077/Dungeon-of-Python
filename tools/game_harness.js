@@ -220,7 +220,7 @@
        "bossDrop",
        "VILLAGE_MAP", "VILLAGE_SPAWN", "VILLAGE_HOUSES", "HOUSE_MAPS", "VILLAGE_NPCS",
        "VILLAGE_TILES", "VILLAGE_GROUND", "VILLAGE_SEALED", "VILLAGE_ROOF_COLORS",
-       "VILLAGE_SIGNS", "VILLAGE_MEET_NPCS", "NPC_GREETINGS",
+       "VILLAGE_SIGNS", "VILLAGE_MEET_NPCS", "NPC_GREETINGS", "BOSS_INFO",
        "HOLD_MOVE_DELAY", "HOLD_MOVE_STEP",
        "villageParseMap", "villageHouseAtDoor", "villageBuildingList", "villageMaterials",
        "villageTileUri", "TERRAIN_VILLAGE",
