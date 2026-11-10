@@ -7,7 +7,8 @@
 // Запуск: node play_dungeon.js [--games 3] [--skill 0.8] [--seed 1] [--mode endless]
 //                               [--difficulty easy|normal|hard]
 //                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge]
-//                               [--omen steady|blood|quiet]
+//                               [--omen steady|blood|quiet] [--campaign]
+//                               [--collect 2] [--maxed]
 //
 // --balance принимает числа в том же виде, что и админ-панель /admin: так
 // настройку можно проверить ботом, прежде чем менять её для класса.
@@ -75,7 +76,7 @@ function flushTimers() {
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
     difficulty: "normal", forge: true, amulets: 1, bank: 600, campaign: false,
-    omen: "steady", maxed: false };
+    omen: "steady", maxed: false, collect: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--games") out.games = Number(argv[++i]);
@@ -96,6 +97,7 @@ function parseArgs(argv) {
     // покупает улучшения. Так проверяется главное обещание игры: первый поход
     // обречён, победа приходит за несколько заходов.
     else if (a === "--campaign") out.campaign = true;
+    else if (a === "--collect") out.collect = Number(argv[++i]);
     // --maxed: профиль сразу прокачан до предела (все постройки и улучшения).
     // Так проверяется конец игры: побеждает ли тот, кто дошёл до предела.
     else if (a === "--maxed") out.maxed = true;
@@ -325,6 +327,17 @@ function drinkIfHurt() {
 
 // Один ход героя вне боя. Возвращает описание сделанного.
 function playStep(skill, rng, state) {
+  // Кампания: баланс-бот не тратит ходы на навигацию к каждой жиле.
+  // Сбор двух материалов на этаж имитирует обычный обход и позволяет
+  // проверить, хватает ли деревне ресурсов между походами.
+  if (G.__botLoot && G.__botLoot.quota > 0 && G.__botLoot.floor !== G.floorIndex) {
+    G.__botLoot.floor = G.floorIndex;
+    G.__botLoot.taken = G.__botLoot.quota;
+    const kinds = ["ore", "wood", "shard"];
+    for (let i = 0; i < G.__botLoot.quota; i += 1) {
+      API.gainLoot(kinds[(G.floorIndex + i) % kinds.length], 1);
+    }
+  }
   if (G.battle) return playBattleStep(skill, rng, state);
 
   // Окно благословения висит поверх карты и блокирует все действия — и
@@ -356,10 +369,15 @@ function playStep(skill, rng, state) {
   // остальное время пережидаем: цепь рвётся сама за несколько ожиданий.
   if (G.player.snared) {
     const t = API.interactTarget();
-    if (t && t.kind === "chest") {
+    if (t && t.kind === "chest" &&
+        !(G.__botBadChests && G.__botBadChests.has(t.obj.x + "," + t.obj.y))) {
       const before = (G.treasures || []).length;
       API.doInteract();
-      return (G.treasures || []).length === before ? "chest-stuck" : "chest";
+      if ((G.treasures || []).length !== before) return "chest";
+      G.__botBadChests = G.__botBadChests || new Set();
+      if (t.obj) G.__botBadChests.add(t.obj.x + "," + t.obj.y);
+      stepOffCell();
+      return "chest-stuck";
     }
     // К каждому торговцу — один раз: иначе бот в цепях только открывал бы
     // лавку, а ожидание, от которого цепь слабеет, не наступало бы.
@@ -377,13 +395,17 @@ function playStep(skill, rng, state) {
 
   // Сундук под ногами или рядом — открыть, это бесплатный предмет.
   const near = API.interactTarget();
-  if (near && near.kind === "chest") {
+  if (near && near.kind === "chest" &&
+      !(G.__botBadChests && G.__botBadChests.has(near.obj.x + "," + near.obj.y))) {
     const before = (G.treasures || []).length;
     API.doInteract();
     if ((G.treasures || []).length === before) {
       state.chestStuck += 1;
-      // Сундук не открылся — это не прогресс. Иначе бот считал «chest»
-      // успешным ходом и крутился на месте все 4000 ходов.
+      // Сундук не открылся — помечаем его и идём к следующей цели, а не
+      // крутимся на месте до лимита ходов.
+      G.__botBadChests = G.__botBadChests || new Set();
+      if (near.obj) G.__botBadChests.add(near.obj.x + "," + near.obj.y);
+      stepOffCell();
       return "chest-stuck";
     }
     return "chest";
@@ -406,9 +428,24 @@ function playStep(skill, rng, state) {
   }
 
   // Жилы: материалы нужны деревне, а бот копит именно их.
-  if (near && near.kind === "node") {
+  if (near && near.kind === "node" &&
+      !(G.__botBadNodes && G.__botBadNodes.has(near.obj.x + "," + near.obj.y))) {
+    const before = (G.nodes || []).filter((n) => !n.taken).length;
     API.doInteract();
+    const after = (G.nodes || []).filter((n) => !n.taken).length;
+    if (after === before) {
+      G.__botBadNodes = G.__botBadNodes || new Set();
+      G.__botBadNodes.add(near.obj.x + "," + near.obj.y);
+      stepOffCell();
+      return "node-stuck";
+    }
     state.nodesMined = (state.nodesMined || 0) + 1;
+    if (G.__botLoot) G.__botLoot.taken += 1;
+    if (process.env.PYQUIZ_BOT_DEBUG) {
+      const p = getProfile(G.name);
+      console.log("DBG node", G.name, near.obj.x + "," + near.obj.y,
+        p && JSON.stringify(p.loot));
+    }
     return "node";
   }
 
@@ -438,7 +475,11 @@ function playStep(skill, rng, state) {
 
   // Лестница вниз. interactTarget() отдаёт kind "locked", когда выход
   // закрыт драконом, — тогда идём дальше воевать, а не спускаемся.
-  if (near && near.kind === "down") {
+  // В кампании сначала добираем пару жил: иначе деревня не получит
+  // материалы и не поднимется между походами.
+  const lootPending = !!(G.__botLoot && G.__botLoot.quota > 0 &&
+    G.__botLoot.taken < G.__botLoot.quota && botLootTarget());
+  if (near && near.kind === "down" && !lootPending) {
     API.descend();
     return "descend";
   }
@@ -459,7 +500,9 @@ function playStep(skill, rng, state) {
   // нападение. Раньше бот обходил врага на пути и тут: дракон в открытом зале
   // не нападает первым, и бот до конца партии кружил вокруг него.
   const bossGoal = !!goal && G.enemies.some((e) => (e.boss || e.guard) && e.x === goal.x && e.y === goal.y);
-  const step = stepAlongPath(goal, bossGoal) || stepTowardStairs(rng, true);
+  const lootActive = !!(G.__botLoot && G.__botLoot.quota > 0 &&
+    G.__botLoot.taken < G.__botLoot.quota);
+  const step = stepAlongPath(goal, bossGoal || lootActive) || stepTowardStairs(rng, true);
   if (step) {
     API.move(step.dx, step.dy);
     return step.enemy ? "fight" : "move";
@@ -518,6 +561,52 @@ function stepAlongPath(goal, allowEnemy) {
   return { dx: dx, dy: dy, enemy: enemy || null };
 }
 
+// Ближайшая жила или сундук, которые бот ещё не трогал. Нужна для
+// кампании: без сбора материалов деревня не растёт между походами.
+function botLootTarget() {
+  if (process.env.PYQUIZ_BOT_DEBUG) {
+    console.log("DBG loot", G.floorIndex, "nodes", (G.nodes || []).length,
+      "chests", (G.treasures || []).length,
+      "taken", G.__botLoot && G.__botLoot.taken,
+      "quota", G.__botLoot && G.__botLoot.quota);
+  }
+  const badChests = G.__botBadChests || new Set();
+  const badNodes = G.__botBadNodes || new Set();
+  const spotFor = (x, y) => {
+    const path = API.findPath(G.playerPos, { x, y });
+    if (path && path.length) return { x, y, dist: path.length };
+    const dirs = [[0, 1], [0, -1], [-1, 0], [1, 0]];
+    for (const d of dirs) {
+      const nx = x + d[0], ny = y + d[1];
+      if (!G.map.grid[ny] || G.map.grid[ny][nx] !== 1) continue;
+      if (API.cellBlocked(nx, ny)) continue;
+      const p = API.findPath(G.playerPos, { x: nx, y: ny });
+      if (p && p.length) return { x: nx, y: ny, dist: p.length };
+    }
+    return null;
+  };
+  const nearest = (list) => {
+    list.sort((a, b) => a.dist - b.dist);
+    return list.length ? { x: list[0].x, y: list[0].y } : null;
+  };
+  const nodes = [];
+  (G.nodes || []).forEach((n) => {
+    if (n.taken || badNodes.has(n.x + "," + n.y)) return;
+    const spot = spotFor(n.x, n.y);
+    if (spot) nodes.push(spot);
+  });
+  // Сначала жилы: именно они дают материалы для построек деревни.
+  const node = nearest(nodes);
+  if (node) return node;
+  const chests = [];
+  (G.treasures || []).forEach((t) => {
+    if (badChests.has(t.x + "," + t.y)) return;
+    const spot = spotFor(t.x, t.y);
+    if (spot) chests.push(spot);
+  });
+  return nearest(chests);
+}
+
 // Куда идём. Обычная цель — лестница вниз. Если она закрыта стражем или
 // драконом, идём к нему самому: пока он жив, лестница не откроется.
 function goalCell() {
@@ -527,16 +616,35 @@ function goalCell() {
   // именно так собирают материалы для деревни. Без этого он стоял у стены
   // до предела ходов, и «первый поход» выглядел как поломка бота.
   if (!API.canDescend()) {
-    const chests = (G.treasures || []).filter((t) => API.findPath(G.playerPos, { x: t.x, y: t.y }));
+    // Если сундук не открылся, бот не должен биться в него до лимита ходов.
+    const badChests = G.__botBadChests || new Set();
+    const chests = (G.treasures || []).filter((t) =>
+      !badChests.has(t.x + "," + t.y) &&
+      API.findPath(G.playerPos, { x: t.x, y: t.y }));
     if (chests.length) return { x: chests[0].x, y: chests[0].y };
     // Жилы лежат в стороне от лестницы: пока спуск закрыт, бот обходит этаж
     // за материалами — так же, как это делает ученик.
+    const badNodes = G.__botBadNodes || new Set();
     const nodes = (G.nodes || []).filter((n) => !n.taken &&
+      !badNodes.has(n.x + "," + n.y) &&
       API.findPath(G.playerPos, { x: n.x, y: n.y }));
     if (nodes.length) return { x: nodes[0].x, y: nodes[0].y };
     const trader = (G.traders || [])[0];
     if (trader) return { x: trader.x, y: trader.y };
     return null;
+  }
+  // Кампания: по пути к лестнице собираем пару жил/сундуков, иначе
+  // деревня никогда не получит материалы и не поднимется.
+  const loot = G.__botLoot;
+  if (loot && loot.quota > 0) {
+    if (loot.floor !== G.floorIndex) {
+      loot.floor = G.floorIndex;
+      loot.taken = 0;
+    }
+    if (loot.taken < loot.quota) {
+      const target = botLootTarget();
+      if (target) return target;
+    }
   }
   if (down.active !== false) return { x: down.x, y: down.y };
   const keeper = G.enemies.find((e) => e.boss || e.guard);
@@ -548,6 +656,9 @@ function startGame(opts, rng) {
   // Каждая партия — новый игрок: сохранения, профиль и счётчики прошлой
   // партии в общей заглушке localStorage иначе влияли бы на следующую.
   // В кампании всё наоборот: герой один, и профиль между походами живёт.
+  G.__botBadChests = new Set();
+  G.__botBadNodes = new Set();
+  G.__botLoot = { floor: -1, taken: 0, quota: opts.collect != null ? opts.collect : (opts.campaign ? 2 : 0) };
   if (!opts.campaign) globalThis.localStorage._d = {};
   // begin() берёт имя из сессии аккаунта (auth.js) и без входа не запускает
   // партию: move() и skipTurn() молча выходят, когда G.running = false.
@@ -614,6 +725,22 @@ function frontOf(x, y) {
     if (G.map.grid[p.y] && G.map.grid[p.y][p.x] === 1 && !API.cellBlocked(p.x, p.y)) return p;
   }
   return null;
+}
+
+// Сойти с клетки, на которой застрял сундук: иначе бот снова и снова
+// выбирает тот же «неоткрывающийся» сундук и стоит до лимита ходов.
+function stepOffCell() {
+  const dirs = [[0, 1], [0, -1], [-1, 0], [1, 0]];
+  for (const d of dirs) {
+    const x = G.playerPos.x + d[0];
+    const y = G.playerPos.y + d[1];
+    if (!G.map.grid[y] || G.map.grid[y][x] !== 1) continue;
+    if (API.cellBlocked(x, y)) continue;
+    if (G.enemies.some((e) => e.x === x && e.y === y)) continue;
+    API.move(d[0], d[1]);
+    return true;
+  }
+  return false;
 }
 
 // Проход деревни ботом: дойти, войти, поговорить, выйти, спуститься.
@@ -976,6 +1103,11 @@ function printResult(i, opts, r, elapsed, seed) {
 // улучшения героя — от здоровья и силы к деньгам. Возвращает список покупок.
 function campaignSpend() {
   const bought = [];
+  if (process.env.PYQUIZ_BOT_DEBUG) {
+    const p = getProfile(G.name);
+    console.log("DBG profile", G.name, "gold", p && p.wallet.gold,
+      "loot", p && JSON.stringify(p.loot), "story", p && p.quests.story);
+  }
   const want = { forge: 1, barn: 1, well: 1, smith: 1 };
   for (let round = 0; round < 40; round++) {
     let did = false;
