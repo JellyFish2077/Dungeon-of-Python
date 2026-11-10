@@ -741,6 +741,52 @@ log(dragon.enraged === true, "дракон впадает в ярость при
 log(dragon.nextDmgMul >= 1.25, "в ярости дракон бьёт сильнее", "x" + dragon.nextDmgMul);
 G.battle = null;
 
+// огонь демона не разгоняется бесконечно: иначе удар становится сильнее
+// полного запаса здоровья и бой нельзя выиграть.
+const fireBoss = API.makeEnemy("demon", 11, false, 0, 0, true);
+fireBoss.fireScale = 1.55;
+G.battle = { enemy: fireBoss, phase: "question", challenge: null };
+API.resolveEnemySpecial(fireBoss, G.battle, { feedback: "" });
+log(fireBoss.fireScale <= 1.6 + 1e-9,
+  "огонь демона не разгоняется выше предела", "x" + fireBoss.fireScale);
+G.battle = null;
+
+// В третьей фазе демон получает «ярость», но лечиться за каждый удар, как
+// дракон, не должен: иначе его HP не уменьшается и бой не кончается.
+API.setCampaign(1);
+freshRun(11);
+const rageDemon = API.makeEnemy("demon", 11, false, 0, 0, true);
+rageDemon.bossPhase = 3;
+rageDemon.enraged = true;
+rageDemon.phaseAbility = "bossrage";
+rageDemon.hp = 1000;
+rageDemon.maxHp = 2000;
+API.openBattle(rageDemon);
+const demonBefore = rageDemon.hp;
+API.applyAttack(100, "Проверка ярости", false, "", true);
+log(rageDemon.hp < demonBefore,
+  "демон в ярости не лечится за каждый удар",
+  demonBefore + " -> " + rageDemon.hp);
+G.battle = null;
+
+// Дракон в ярости лечится, но не больше трети нанесённого урона: иначе
+// при его запасе HP лечение перекрывает удар и бой не кончается.
+API.setCampaign(1);
+freshRun(14);
+const rageDragon = API.makeEnemy("dragon", 14, false, 0, 0, true);
+rageDragon.bossPhase = 3;
+rageDragon.enraged = true;
+rageDragon.phaseAbility = "bossrage";
+rageDragon.hp = 1000;
+rageDragon.maxHp = 2000;
+API.openBattle(rageDragon);
+const dragonBefore = rageDragon.hp;
+API.applyAttack(100, "Проверка ярости дракона", false, "", true);
+log(rageDragon.hp < dragonBefore,
+  "дракон в ярости не залечивает весь удар",
+  dragonBefore + " -> " + rageDragon.hp);
+G.battle = null;
+
 // лич: проклятие
 freshRun(8);
 let lich = enemyOnPlayerCell("lich", 600);
@@ -4174,6 +4220,22 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
   G.battle = null;
   log(cladTaken < bareTaken, "в бою броня действительно гасит удар",
     bareTaken + " -> " + cladTaken + " (защита 45)");
+
+  // «Следующий удар сильнее» должно сбрасываться после удара. Иначе бонус
+  // копится на весь бой, и босс бьёт с полного здоровья.
+  freshRun(5);
+  const charged = enemyOnPlayerCell("orc", 900);
+  API.openBattle(charged);
+  charged.dmg = 100;
+  charged.dmgBoost = 20;
+  charged.nextDmgMul = 1.25;
+  G.player.hp = 5000;
+  G.player.maxHp = 5000;
+  API.playerTakeHit();
+  log(charged.nextDmgMul === 1 && charged.dmgBoost === 0,
+    "бонус «следующий удар» сбрасывается после удара",
+    "x" + charged.nextDmgMul + ", +" + charged.dmgBoost);
+  G.battle = null;
 
   // Удар с бронёй виден словами: игрок понимает, откуда экономия.
   freshRun(2);

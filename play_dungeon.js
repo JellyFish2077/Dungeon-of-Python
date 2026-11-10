@@ -198,12 +198,29 @@ function playBattleStep(skill, rng, state) {
     API.continueBattle();
     return "continue";
   }
+  // Смертельный удар: сначала пробуем закрыть его зельем, иначе уходим в
+  // защиту. Без этого бот на полном HP ловил удар сильнее всего запаса.
+  const incoming = expectedEnemyHit(b.enemy);
+  if (incoming > 0 && incoming >= G.player.hp * 0.9) {
+    const idx = potionForHeal(true);
+    if (idx >= 0 && G.player.hp + potionHealAmount(idx) >= incoming) {
+      API.usePotion(idx);
+      return "drink";
+    }
+    const cut = API.braceCutForPlayer ? API.braceCutForPlayer() : 0.5;
+    if (Math.round(incoming * (1 - cut)) < G.player.hp) {
+      API.defendTurn();
+      return "brace";
+    }
+  }
   // Живой игрок пьёт зелье прямо в бою, когда здоровье падает. Перед боссом
   // и элитой порог выше: там зелья решают исход, на обычных врагах хватает
   // «второго дыхания», чтобы не сжечь запас до главного боя.
   const isBossFight = !!(b.enemy.boss || b.enemy.elite);
+
   if (G.player.hp < G.player.maxHp * (isBossFight ? 0.65 : 0.3)) {
-    const idx = G.inventory.findIndex((i) => i.slot === "potion");
+    const missing = G.player.maxHp - G.player.hp;
+    const idx = potionForHeal(isBossFight || missing >= G.player.maxHp * 0.7);
     if (idx >= 0) {
       const before = G.player.hp;
       API.usePotion(idx);
@@ -226,7 +243,7 @@ function playBattleStep(skill, rng, state) {
   }
   // Совсем плохо: зелий нет и дыхание кончилось. Один ход в защиту
   // снижает следующий удар, вместо того чтобы умереть на следующем вопросе.
-  const potionsLeft = G.inventory.some((i) => i.slot === "potion");
+  const potionsLeft = healingPotions().length > 0;
   const breathLeft = G.ability && G.ability.key === "breath" && G.ability.left > 0;
   if (!potionsLeft && !breathLeft && G.player.hp < G.player.maxHp * 0.35) {
     API.defendTurn();
@@ -264,7 +281,10 @@ function playBattleStep(skill, rng, state) {
 // Особый эффект добавляет немного — из двух равных по числам берём с эффектом.
 function gearPower(item) {
   if (!item) return 0;
-  return (item.atk || 0) * 3 + (item.def || 0) * 4 + (item.hp || 0) * 0.5 + (item.effect ? 4 : 0);
+  // Урон важнее защиты: затянутый бой с боссом опаснее, чем один лишний
+  // пропущенный удар. Раньше броня перевешивала, и бот не успевал убить
+  // демона до того, как его огонь начинал бить с полного здоровья.
+  return (item.atk || 0) * 5 + (item.def || 0) * 3 + (item.hp || 0) * 0.4 + (item.effect ? 4 : 0);
 }
 
 // Насколько вещь сильнее надетой в тот же слот (0 и меньше — не нужна).
@@ -300,13 +320,21 @@ function equipBetter() {
 // Потом — снаряжение, которое сильнее надетого, сразу «Купить и надеть».
 function shopRound() {
   let spent = 0;
-  while (API.countPotions() < 3) {
+  // Если полного эликсира ещё нет, разрешаем четвёртое зелье: иначе три
+  // малых занимают сумку и бот проходит мимо эликсира, который лечит всё.
+  const held = G.inventory.filter((i) => i.slot === "potion" && (i.heal || 0) > 0);
+  // На глубоких этажах запас не ограничиваем тремя: впереди боссы, а
+  // эликсиры в лавке не заканчиваются. Иначе к дракону бот приходит пустым.
+  const deep = G.floorIndex >= 10;
+  const cap = deep ? 7 : (held.some((i) => (i.heal || 0) >= 9999) ? 3 : 4);
+  while (held.length < cap) {
     const pick = API.shopOffers()
       .map((o, i) => ({ o: o, i: i }))
       .filter((p) => p.o.kind === "potion" && p.o.item.heal > 0 && G.player.gold >= p.o.price)
       .sort((a, b) => b.o.item.heal - a.o.item.heal || a.o.price - b.o.price)[0];
     if (!pick) break;
     API.buyItem(pick.i, false);
+    held.push(pick.o.item);
     spent += 1;
   }
   for (;;) {
@@ -328,12 +356,18 @@ function shopRound() {
 function forgeRound(state) {
   if (!state.forge) return 0;
   const reserve = 60 + 30 * G.floorIndex;
-  const keys = API.FORGE_TRACKS.map((t) => t.key);
   let bought = 0;
   for (;;) {
-    const key = keys.slice().sort((a, b) => API.forgeCost(a) - API.forgeCost(b))[0];
-    if (G.player.gold - API.forgeCost(key) < reserve) return bought;
+    // Сначала оружие: урон сокращает бой, а значит и число вражеских ударов.
+    // Броня и здоровье — после того, как заточка добралась до третьего уровня.
+    const order = (G.forge && G.forge.weapon >= 3)
+      ? ["armor", "vitality", "weapon"]
+      : ["weapon", "armor", "vitality"];
+    const key = order.find((k) => G.player.gold - API.forgeCost(k) >= reserve);
+    if (!key) return bought;
+    const before = G.player.gold;
     API.buyForge(key);
+    if (G.player.gold === before) return bought;
     bought += 1;
   }
 }
@@ -341,20 +375,72 @@ function forgeRound(state) {
 // Есть ли смысл заходить в лавку: зелий меньше трёх или в ней лежит вещь
 // сильнее надетой, и на неё хватает золота.
 function shopWorth() {
-  if (API.countPotions() < 3) return true;
+  // На глубоких этажах держим большой запас: боссы и финальный дракон
+  // требуют нескольких полных лечений, а не трёх малых зелий.
+  const cap = G.floorIndex >= 10 ? 7 : 3;
+  if (healingPotions().length < cap) return true;
   return API.shopOffers().some((o) =>
     o.kind === "gear" && gearGain(o.item) > 0 && G.player.gold >= o.price);
 }
 
-// Зелья в бою и на подходе к врагу: пьём, когда ранены. Перед боссом или
-// элитой пополняем здоровье почти до полного: на них зелья и нужны, а на
-// обычных врагах дешевле потратить заряд «второго дыхания».
+// Только зелья, которые реально лечат. Противоядие и свиток подсказки
+// тоже лежат в слоте potion, но HP не возвращают — раньше они сбивали
+// подсчёт, и бот считал, что запас лечения полон.
+function healingPotions() {
+  return G.inventory.filter((i) => i.slot === "potion" && (i.heal || 0) > 0);
+}
+
+// Какое зелье выпить: самое слабое, которого хватит, чтобы закрыть нехватку
+// HP. Полный эликсир бережём до серьёзной раны или босса — иначе бот тратил
+// его на 40 HP и оставался без лечения в главном бою.
+function potionForHeal(allowFull) {
+  const missing = Math.max(0, G.player.maxHp - G.player.hp);
+  if (missing <= 0) return -1;
+  const list = [];
+  G.inventory.forEach((it, i) => {
+    if (it.slot === "potion" && (it.heal || 0) > 0) list.push({ it: it, i: i });
+  });
+  if (!list.length) return -1;
+  list.sort((a, b) => (a.it.heal || 0) - (b.it.heal || 0));
+  const full = list.filter((x) => (x.it.heal || 0) >= 9999);
+  const normal = list.filter((x) => (x.it.heal || 0) < 9999);
+  const enough = normal.find((x) => x.it.heal >= missing);
+  if (enough) return enough.i;
+  // Полный эликсир — для босса или очень тяжёлой раны, а не для обычной
+  // драки: иначе он сгорит на полпути и до финального боя не доживёт.
+  if (full.length && (allowFull || missing >= G.player.maxHp * 0.8)) return full[0].i;
+  if (normal.length) return normal[normal.length - 1].i;
+  return full.length ? full[0].i : -1;
+}
+
+// Верхняя оценка следующего удара врага. Нужна, чтобы вовремя уйти в
+// защиту, а не узнать о смертельном ударе уже после боя.
+function expectedEnemyHit(e) {
+  if (!e) return 0;
+  const mul = e.nextDmgMul && e.nextDmgMul > 0 ? e.nextDmgMul : 1;
+  return Math.round(((e.dmg || 0) + (e.dmgBoost || 0)) * mul);
+}
+
+function potionHealAmount(index) {
+  const it = G.inventory[index];
+  if (!it) return 0;
+  const missing = Math.max(0, G.player.maxHp - G.player.hp);
+  if ((it.heal || 0) >= 9999) return missing;
+  return Math.min(it.heal || 0, missing);
+}
+
+// Зелья на подходе к врагу: пьём, когда ранены. Перед боссом или элитой
+// пополняем здоровье почти до полного: на них зелья и нужны, а на обычных
+// врагах дешевле потратить заряд «второго дыхания».
 function drinkIfHurt() {
   const bossNear = (G.enemies || []).some((e) => (e.boss || e.elite) &&
     Math.abs(e.x - G.playerPos.x) + Math.abs(e.y - G.playerPos.y) <= 3);
-  const threshold = bossNear ? 0.9 : 0.55;
+  // На глубоких этажах зелья почти не тратим на обычные драки: впереди
+  // боссы, а бесплатный привал лечит лучше.
+  const threshold = bossNear ? 0.9 : (G.floorIndex >= 10 ? 0.35 : 0.55);
   if (G.player.hp >= G.player.maxHp * threshold) return false;
-  const idx = G.inventory.findIndex((i) => i.slot === "potion");
+  const missing = G.player.maxHp - G.player.hp;
+  const idx = potionForHeal(bossNear || missing >= G.player.maxHp * 0.8);
   if (idx < 0) return false;
   const before = G.player.hp;
   API.usePotion(idx);
@@ -489,7 +575,8 @@ function playStep(skill, rng, state) {
   // Костёр рядом, а герой ранен: привал лечит и возвращает заряды умения.
   // Тратим его не всегда, а когда здоровья меньше половины — привалов мало.
   if (near && near.kind === "camp" && (G.restsLeft || 0) > 0 &&
-      G.player.hp < G.player.maxHp * 0.5) {
+      (G.player.hp < G.player.maxHp * (G.floorIndex >= 10 ? 0.8 : 0.7) ||
+        (botNextFloorIsBoss() && G.player.hp < G.player.maxHp * 0.9))) {
     API.doInteract();
     state.rests = (state.rests || 0) + 1;
     return "rest";
@@ -539,9 +626,12 @@ function playStep(skill, rng, state) {
   // нападение. Раньше бот обходил врага на пути и тут: дракон в открытом зале
   // не нападает первым, и бот до конца партии кружил вокруг него.
   const bossGoal = !!goal && G.enemies.some((e) => (e.boss || e.guard) && e.x === goal.x && e.y === goal.y);
-  const lootActive = !!(G.__botLoot && G.__botLoot.quota > 0 &&
-    G.__botLoot.taken < G.__botLoot.quota);
-  const step = stepAlongPath(goal, bossGoal || lootActive) || stepTowardStairs(rng, true);
+  // На низком HP и на этаже с боссом обходим обычных врагов: лишний бой
+  // дороже опыта, а зелья нужны боссу.
+  const avoidTrash = !bossGoal &&
+    (G.player.hp < G.player.maxHp * 0.6 || botBossFloor() || G.floorIndex >= 12);
+  const step = stepAlongPath(goal, bossGoal || !avoidTrash, avoidTrash) ||
+    stepTowardStairs(rng, true);
   if (step) {
     API.move(step.dx, step.dy);
     return step.enemy ? "fight" : "move";
@@ -589,8 +679,22 @@ function playStep(skill, rng, state) {
 
 // Шаг к цели с учётом препятствий: берём первый клетку настоящего пути,
 // а не «ближайшую соседнюю», иначе бот упирается в стену и топчется.
-function stepAlongPath(goal, allowEnemy) {
-  const path = API.findPath(G.playerPos, goal);
+function stepAlongPath(goal, allowEnemy, avoidEnemies) {
+  // findPath умеет обходить заданные клетки. Ловушки бот обходит всегда:
+  // на поздних этажах один «шип» отнимает больше, чем стоит обход. На низком
+  // HP к ловушкам добавляются обычные враги.
+  const avoid = goal
+    ? (x, y) => {
+      const trap = (G.traps || []).some((t) => t.armed !== false && t.x === x && t.y === y);
+      if (trap) return true;
+      return avoidEnemies && (G.enemies || []).some((e) =>
+        e.hp > 0 && e.x === x && e.y === y && !(e.boss || e.guard) &&
+        !(e.x === goal.x && e.y === goal.y));
+    }
+    : null;
+  let path = API.findPath(G.playerPos, goal, avoid);
+  // Если безопасного пути нет, идём обычным: стоять на месте хуже.
+  if (!path && avoid) path = API.findPath(G.playerPos, goal);
   if (!path || !path.length) return null;
   const first = path[0];
   const dx = first.x - G.playerPos.x;
@@ -611,6 +715,39 @@ function botTraderTarget() {
     const path = API.findPath(G.playerPos, { x: t.x, y: t.y });
     if (!path || !path.length) return;
     if (!best || path.length < best.dist) best = { x: t.x, y: t.y, dist: path.length };
+  });
+  return best ? { x: best.x, y: best.y } : null;
+}
+
+// Следующий этаж — босс? Тогда перед спуском стоит потратить привал даже
+// на 80–90% HP: он вернёт заряды умения и полное здоровье к главному бою.
+function botFloorDef(index) {
+  return (API.FLOORS || [])[index == null ? G.floorIndex : index] || null;
+}
+
+function botNextFloorIsBoss() {
+  const next = botFloorDef(G.floorIndex + 1);
+  return !!(next && next.boss);
+}
+
+// На этаже с боссом не отвлекаемся на сундуки и торговца: цель — босс.
+// Иначе на финальном этаже бот тратит зелья на обычных врагов и приходит
+// к дракону пустым.
+function botBossFloor() {
+  const f = botFloorDef();
+  return !!(f && f.boss);
+}
+
+// Ближайший неиспользованный привал. Привал полностью лечит и возвращает
+// заряды умения — ради него стоит свернуть с прямого пути.
+function botCampTarget() {
+  if (!(G.restsLeft > 0)) return null;
+  let best = null;
+  (G.camps || []).forEach((c) => {
+    if (c.used) return;
+    const path = API.findPath(G.playerPos, { x: c.x, y: c.y });
+    if (!path || !path.length) return;
+    if (!best || path.length < best.dist) best = { x: c.x, y: c.y, dist: path.length };
   });
   return best ? { x: best.x, y: best.y } : null;
 }
@@ -687,15 +824,29 @@ function goalCell() {
     if (trader) return { x: trader.x, y: trader.y };
     return null;
   }
+  // Привал важнее сундуков и спуска: полное лечение и заряд умения.
+  // На глубоких этажах идём к нему уже при 75% HP: это дешевле зелья.
+  const campAt = G.floorIndex >= 10 ? 0.75 : 0.65;
+  const wantCamp = G.player.hp < G.player.maxHp * campAt ||
+    (botNextFloorIsBoss() && G.player.hp < G.player.maxHp * 0.9);
+  if (wantCamp) {
+    const camp = botCampTarget();
+    if (camp) return camp;
+  }
   // Кампания: по пути к лестнице собираем пару жил/сундуков, иначе
-  // деревня никогда не получит материалы и не поднимется.
+  // деревня никогда не получит материалы и не поднимется. На низком HP
+  // пропускаем добычу — сначала лечение или спуск.
   const loot = G.__botLoot;
   if (loot && loot.quota > 0) {
     if (loot.floor !== G.floorIndex) {
       loot.floor = G.floorIndex;
       loot.taken = 0;
     }
-    if (loot.taken < loot.quota) {
+    // На поздних этажах деревня уже обеспечена материалами: сундуки и жилы
+    // не стоят потерянного здоровья перед боссом.
+    const late = G.floorIndex >= 12;
+    if (loot.taken < loot.quota && G.player.hp > G.player.maxHp * 0.5 &&
+        !botBossFloor() && !late) {
       const target = botLootTarget();
       if (target) return target;
     }
@@ -849,12 +1000,10 @@ function villagePhase(opts) {
           // Сначала зелья в дорогу, потом снаряжение. Деревенское золото
           // копится между походами, а купленное снаряжение расходуется за
           // поход: перед каждым спуском его надо покупать заново.
-          for (let i = 0; i < 2; i++) {
+          for (let i = 0; i < 3; i++) {
             if (buyHubSafe("big_potion")) seen.potions = (seen.potions || 0) + 1;
           }
-          for (let i = 0; i < 2; i++) {
-            if (buyHubSafe("small_potion")) seen.potions = (seen.potions || 0) + 1;
-          }
+          if (buyHubSafe("small_potion")) seen.potions = (seen.potions || 0) + 1;
           const bestSlot = {};
           API.hubShopOffers().forEach((o) => {
             if (o.kind.indexOf("gear:") !== 0) return;
