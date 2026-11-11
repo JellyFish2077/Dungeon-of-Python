@@ -4403,6 +4403,12 @@
     // край, а не равномерная соль по всей комнате. v2 оставляем прежним,
     // чтобы откат вёл себя ровно как раньше.
     const organic = !!(plan && plan.version === 3);
+    // Пятна растут от зерна этажа: один сид даёт одну и ту же среду.
+    // Math.random оставлял бы карту разной при повторной сборке того же
+    // этажа и ломал воспроизводимость прогонов баланс-бота.
+    const patchRng = organic && plan.seed != null
+      ? genRng((plan.seed ^ 0x85ebca6b) >>> 0)
+      : Math.random;
     const growPatch = (cells, want) => {
       if (!organic) {
         shuffle(cells);
@@ -4413,12 +4419,12 @@
       while (out.length < want && free.size) {
         // Новое зерно — только когда фронт исчерпан: так пятно остаётся
         // связным, но не превращается в кляксу на всю комнату.
-        const seedKey = Array.from(free)[Math.floor(Math.random() * free.size)];
+        const seedKey = Array.from(free)[Math.floor(patchRng() * free.size)];
         const [sx, sy] = seedKey.split(",").map(Number);
         const queue = [{ x: sx, y: sy }];
         free.delete(seedKey);
         while (out.length < want && queue.length) {
-          const at = Math.floor(Math.random() * queue.length);
+          const at = Math.floor(patchRng() * queue.length);
           const cell = queue.splice(at, 1)[0];
           out.push(cell);
           GEN_DIRS.forEach(([dx, dy]) => {

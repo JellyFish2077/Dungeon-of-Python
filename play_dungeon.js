@@ -104,7 +104,7 @@ function parseArgs(argv) {
     else if (a === "--maxed") out.maxed = true;
     else if (a === "--bank") out.bank = Number(argv[++i]);
     // --gen: сравнить планировщики на одних и тех же зёрнах. Без флага
-    // бот играет с настройками игры (сейчас v2).
+    // бот играет с настройками игры (сейчас v3).
     else if (a === "--gen") out.gen = argv[++i];
     else throw new Error("не понял аргумент: " + a);
   }

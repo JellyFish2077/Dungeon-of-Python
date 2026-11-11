@@ -9242,10 +9242,11 @@ globalThis.__PYQUIZ_FEATURES = savedFeatures;
     "рёбер: " + cryptEdges + ", ошибок: " + cryptBad +
     ", макс. клеток: " + cryptMax);
 
-  // Детерминизм: один сид даёт одну и ту же планировку.
-  const f3 = API.floorDef(2);
-  const ga = API.generateFloorV3(f3, 2, { seed: 12345 });
-  const gb = API.generateFloorV3(f3, 2, { seed: 12345 });
+  // Детерминизм: один сид даёт одну и ту же планировку. Индекс 3 —
+  // обычный этаж катакомб: на боссовых планов v3 не бывает.
+  const f3 = API.floorDef(3);
+  const ga = API.generateFloorV3(f3, 3, { seed: 12345 });
+  const gb = API.generateFloorV3(f3, 3, { seed: 12345 });
   log(API.genPlanSignature(ga.plan) === API.genPlanSignature(gb.plan) &&
     ga.plan.version === 3,
     "v3: сид воспроизводит планировку",
