@@ -339,6 +339,11 @@
   // сохранения остаются десятиэтажными: версия кампании записана в сейве
   // и не меняется на ходу.
   let GEN_V2 = true;
+  // Генератор v3 — свободная расстановка комнат (см. docs/GEN_V3.md).
+  // Срез 5 пройден: полный набор проверок и баланс-бот на тех же сидах.
+  // Включён по умолчанию для кампании v2; v2 остаётся откатом через
+  // ?gen=v2, ?gen=legacy и дев-панель.
+  let GEN_V3 = true;
   let CAMPAIGN_V2 = true;
 
   function activeFloors() {
@@ -362,6 +367,10 @@
     GEN_V2 = !!on;
   }
 
+  function setGenV3(on) {
+    GEN_V3 = !!on;
+  }
+
   function setCampaignFlag(on) {
     CAMPAIGN_V2 = !!on;
   }
@@ -370,8 +379,13 @@
     if (typeof window === "undefined" || !devEnabled()) return;
     try {
       const q = new URLSearchParams(window.location.search);
-      if (q.get("gen") === "v2") GEN_V2 = true;
-      else if (q.get("gen") === "legacy") GEN_V2 = false;
+      if (q.get("gen") === "v3") GEN_V3 = true;
+      else if (q.get("gen") === "v2") GEN_V3 = false;
+      else if (q.get("gen") === "legacy") {
+        GEN_V2 = false;
+        GEN_V3 = false;
+      }
+      if (q.get("gen") === "v2" || q.get("gen") === "v3") GEN_V2 = true;
       if (q.get("campaign") === "v2") CAMPAIGN_V2 = true;
       else if (q.get("campaign") === "v1") CAMPAIGN_V2 = false;
     } catch (e) {
@@ -765,6 +779,15 @@
     return best;
   }
 
+  // Лимит элит для плана. Знамение меняет его не только в назначении
+  // ролей, но и в бюджете плана: иначе валидатор сверяет роли с сырым
+  // f.eliteCap, бракует собственный план и отправляет этаж в старый
+  // генератор (чаще всего на «Кровавой луне»).
+  function genEliteCap(f) {
+    return Math.max(0,
+      (Number(f.eliteCap) || 0) + (currentOmen().eliteCap || 0));
+  }
+
   // Роли по грамматике. Хребет: вход, врата, 2–4 развилки, среда и
   // проходные бои. Ветки: промежуточные бои, лист — награда или риск.
   function genAssignRoles(plan, f, index, rng) {
@@ -832,8 +855,7 @@
     const counts = { vault: 0, rest: 0, elite: 0, secret: 0 };
     // Знамение меняет число элит и в плане v2, а не только в старом
     // генераторе: иначе «Тихий спуск» не убирал бы элит на обычных этажах.
-    const omenEliteCap = Math.max(0,
-      (Number(f.eliteCap) || 0) + (currentOmen().eliteCap || 0));
+    const omenEliteCap = genEliteCap(f);
     const byStem = {};
     rooms.filter((room) => room.kind === "branch").forEach((room) => {
       if (!byStem[room.stem]) byStem[room.stem] = [];
@@ -975,6 +997,19 @@
           rooms.find((room) => room.kind === "branch" &&
             (room.role === "combat" || room.role === "lore"));
       }
+      if (!target) {
+        // Последний резерв: тайник важнее одной элиты — она не обещана
+        // таблицей, а сундук и жила обещаны. Жилу, привал и последний
+        // сундук не трогаем, промежуточные комнаты ветки — можно.
+        const treasureCount = leaves.filter((room) => room.role === "treasure").length;
+        target = leaves.find((room) => room.role === "elite") ||
+          leaves.find((room) => room.role !== "resource" &&
+            room.role !== "rest" && room.role !== "vault" &&
+            !(room.role === "treasure" && treasureCount <= 1)) ||
+          rooms.find((room) => room.kind === "branch" && !room.leaf &&
+            room.role !== "resource" && room.role !== "rest" &&
+            room.role !== "vault" && room.role !== "treasure");
+      }
       if (target) target.role = "vault";
     }
     return plan;
@@ -1064,9 +1099,11 @@
       corners.forEach(([x, y]) => {
         if (rng() < 0.45) grid[y][x] = 0;
       });
-    } else if (room.shape === "island") {
+    } else if (room.shape === "island" || room.shape === "cross1") {
       // Скруглённый остров: углы срезаны всегда, поэтому комната не
       // выглядит прямоугольной коробкой и лучше читается как остров.
+      // cross1 — мягкий крест v3: те же срезанные углы, но без широких
+      // вырезов 2×2, которые оставляли от маленькой комнаты рожки.
       grid[r.y][r.x] = 0;
       grid[r.y][r.x + r.w - 1] = 0;
       grid[r.y + r.h - 1][r.x] = 0;
@@ -1294,13 +1331,67 @@
     });
   }
 
+  // Клетки крупной сетки, через которые пройдёт L-коридор между двумя
+  // комнатами (без их собственных клеток). Клетка 8×6 почти целиком занята
+  // комнатой, поэтому «маршрут через клетку с комнатой» — это туннель сквозь
+  // её стены с лишними выходами.
+  function genCryptRouteCells(a, b, horizontalFirst) {
+    const out = [];
+    const add = (cx, cy) => {
+      if (cx === a.cx && cy === a.cy) return;
+      if (cx === b.cx && cy === b.cy) return;
+      out.push({ cx, cy });
+    };
+    if (horizontalFirst) {
+      const sx = b.cx > a.cx ? 1 : b.cx < a.cx ? -1 : 0;
+      for (let cx = a.cx + sx; sx && cx !== b.cx + sx; cx += sx) add(cx, a.cy);
+      const sy = b.cy > a.cy ? 1 : b.cy < a.cy ? -1 : 0;
+      for (let cy = a.cy + sy; sy && cy !== b.cy + sy; cy += sy) add(b.cx, cy);
+    } else {
+      const sy = b.cy > a.cy ? 1 : b.cy < a.cy ? -1 : 0;
+      for (let cy = a.cy + sy; sy && cy !== b.cy + sy; cy += sy) add(a.cx, cy);
+      const sx = b.cx > a.cx ? 1 : b.cx < a.cx ? -1 : 0;
+      for (let cx = a.cx + sx; sx && cx !== b.cx + sx; cx += sx) add(cx, b.cy);
+    }
+    return out;
+  }
+
+  // Свободная трасса до комнаты: "h" — сначала горизонталь, "v" — сначала
+  // вертикаль, null — оба варианта режут чужую комнату.
+  function genCryptRoute(from, to, ownerByCell) {
+    for (const orient of ["h", "v"]) {
+      const cells = genCryptRouteCells(from.cell, to.cell, orient === "h");
+      const blocked = cells.some((cell) => {
+        const owner = ownerByCell.get(genCellKey(cell));
+        return !!owner && owner.id !== from.id && owner.id !== to.id;
+      });
+      if (!blocked) return orient;
+    }
+    return null;
+  }
+
   // Катакомбы: центральная развилка с четырьмя дверями. Добираем рёбра
-  // до ближайших treasure/ambush/lore и одной комнаты хребта.
+  // до ближайших treasure/ambush/lore и одной комнаты хребта. Только в
+  // пределах двух клеток и только по свободной трассе: раньше коридор шёл
+  // к ближайшей по роли комнате через полкарты, прорезал чужие комнаты и
+  // добавлял им выходы (85% криптовых коридоров проходили сквозь комнаты).
   function genCryptDoors(plan) {
     if (plan.biome !== "catacombs") return plan;
+    const MAX_CELLS = 2;
+    const ownerByCell = new Map();
+    plan.rooms.forEach((room) => {
+      if (room.cell) ownerByCell.set(genCellKey(room.cell), room);
+    });
     const hasEdge = (a, b) => (plan.edges || []).some((edge) =>
       (edge.a === a && edge.b === b) || (edge.a === b && edge.b === a));
     const spineSet = new Set(plan.spine || []);
+    const connect = (junction, room) => {
+      if (genCellDist(junction.cell, room.cell) > MAX_CELLS) return false;
+      const orient = genCryptRoute(junction, room, ownerByCell);
+      if (!orient) return false;
+      plan.edges.push({ a: junction.id, b: room.id, kind: "crypt", orient });
+      return true;
+    };
     const junctions = plan.rooms.filter((room) => room.role === "junction");
     for (const junction of junctions) {
       let doors = (plan.edges || []).filter((edge) =>
@@ -1313,26 +1404,21 @@
       const wantedRoles = ["treasure", "ambush", "lore", "vault", "secret"];
       for (const role of wantedRoles) {
         if (doors >= 4) break;
-        const target = plan.rooms
+        const targets = plan.rooms
           .filter((room) => room.id !== junction.id && room.role === role &&
             !hasEdge(junction.id, room.id))
           .sort((a, b) => genCellDist(junction.cell, a.cell) -
-            genCellDist(junction.cell, b.cell))[0];
-        if (!target) continue;
-        plan.edges.push({ a: junction.id, b: target.id, kind: "crypt" });
-        doors += 1;
+            genCellDist(junction.cell, b.cell));
+        if (targets.some((room) => connect(junction, room))) doors += 1;
       }
       if (doors < 4) {
-        const target = plan.rooms
+        const targets = plan.rooms
           .filter((room) => room.id !== junction.id && spineSet.has(room.id) &&
             room.role !== "entry" && room.role !== "gate" &&
             !hasEdge(junction.id, room.id))
           .sort((a, b) => genCellDist(junction.cell, a.cell) -
-            genCellDist(junction.cell, b.cell))[0];
-        if (target) {
-          plan.edges.push({ a: junction.id, b: target.id, kind: "crypt" });
-          doors += 1;
-        }
+            genCellDist(junction.cell, b.cell));
+        if (targets.some((room) => connect(junction, room))) doors += 1;
       }
       if (doors >= 4) {
         junction.meta = junction.meta || {};
@@ -1359,7 +1445,12 @@
       if (!a || !b) return;
       const wide = edge.kind === "spine" &&
         (plan.biome === "catacombs" || plan.biome === "lair");
-      edge.cells = genCarveCorridor(grid, a.center, b.center, wide ? 2 : 1, w, h, rng);
+      // У криптового ребра ориентация выбрана при планировании: она
+      // гарантирует, что коридор пойдёт в обход чужих комнат.
+      const edgeRng = edge.orient === "h" ? () => 0 :
+        edge.orient === "v" ? () => 1 : rng;
+      edge.cells = genCarveCorridor(grid, a.center, b.center,
+        wide ? 2 : 1, w, h, edgeRng);
     });
     genCryptNiches(plan, grid, w, h, rng);
     // Выходы комнаты: клетка на её рамке, за которой уже есть пол.
@@ -1565,7 +1656,7 @@
       optionalMin: f.optionalShare - 0.05,
       optionalMax: f.optionalShare + 0.05,
       minJunctions: f.minJunctions,
-      eliteCap: f.eliteCap,
+      eliteCap: genEliteCap(f),
       vault: f.vault,
       camp: f.camp,
       hazardHallMax: f.hazardHallMax
@@ -1644,24 +1735,647 @@
       if (reward.indexOf(room.role) < 0) problems.push("пустой тупик ветки");
     });
     const hazards = rooms.filter((room) => room.role === "hazard_hall");
+    const hazardNear = (a, b) => (plan.version === 3 && a.rect && b.rect)
+      ? genV3RectGap(a.rect, b.rect) <= 1
+      : genCellDist(a.cell, b.cell) === 1;
     for (let i = 0; i < hazards.length; i += 1) {
       for (let j = i + 1; j < hazards.length; j += 1) {
-        if (genCellDist(hazards[i].cell, hazards[j].cell) === 1) {
+        if (hazardNear(hazards[i], hazards[j])) {
           problems.push("опасные залы примыкают");
         }
       }
     }
     if (plan.stats.pathLen > 0 && plan.stats.clearLen > 0) {
       const ratio = plan.stats.pathLen / plan.stats.clearLen;
-      // На этапе 1 это измерение, а не приговор: ветки длинные, и
-      // отношение ниже 0.50 почти всегда. Жёсткий порог — после этапа 3,
-      // когда появятся короткие ветки и биомные правила.
-      if (ratio < 0.50 || ratio > 0.70) {
+      // Раньше ориентир был 0.55–0.65, но он относится к старым длинным
+      // коридорам. В кампании v2 и в v3 короткие связи дают медиану ≈0.26
+      // (500 сборок: v2 p5–p95 0.124–0.378, v3 0.152–0.347). Порог ловит
+      // только выбросы за пределами хвостов, а не обычную планировку.
+      if (ratio < 0.12 || ratio > 0.45) {
         plan.warnings = plan.warnings || [];
         plan.warnings.push("отношение хребта к обходу: " + ratio.toFixed(2));
       }
     }
     return problems;
+  }
+
+  // ---------- Генератор v3: свободная расстановка комнат ----------
+  // Идеи планировщика Shattered Pixel Dungeon: комнаты — прямоугольники по
+  // плиткам, а не ячейки 8×6; размеры small/normal/large; хребет с ветками;
+  // короткие прямые туннели между соседними комнатами. Контракт плана
+  // остаётся прежним, поэтому роли, лут, тайники и проверки работают без
+  // изменений. См. docs/GEN_V3.md.
+  const GEN_V3_MARGIN = 2;
+  const GEN_V3_DIRS = [[1, 0], [0, 1], [-1, 0], [0, -1]];
+
+  // Расстояние между прямоугольниками по Чебышёву: 1 — общая стена,
+  // 0 — пересечение (в v3 не допускается).
+  function genV3RectGap(a, b) {
+    const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+    const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+    return Math.max(dx, dy);
+  }
+
+  // Пересечение с запасом в одну клетку: между комнатами всегда остаётся
+  // стена, иначе две комнаты сливаются в одну.
+  function genV3RectClear(rect, rooms) {
+    return !(rooms || []).some((room) => {
+      const r = room.rect;
+      if (!r) return false;
+      return rect.x < r.x + r.w + 1 && rect.x + rect.w + 1 > r.x &&
+        rect.y < r.y + r.h + 1 && rect.y + rect.h + 1 > r.y;
+    });
+  }
+
+  function genV3Size(rng, smallBias) {
+    const roll = rng();
+    let cat = "normal";
+    if (smallBias) cat = roll < 0.55 ? "small" : "normal";
+    else if (roll < 0.22) cat = "small";
+    else if (roll < 0.86) cat = "normal";
+    else cat = "large";
+    if (cat === "large") {
+      return { w: genInt(rng, 8, 9), h: 6, cat };
+    }
+    if (cat === "small") {
+      return { w: genInt(rng, 5, 6), h: 4, cat };
+    }
+    return { w: genInt(rng, 6, 7), h: genInt(rng, 4, 5), cat };
+  }
+
+  // Кандидат в направлении dir на расстоянии gap. Сдвиг вдоль стены держим
+  // таким, чтобы перекрытие с опорной комнатой было не меньше трёх клеток:
+  // тогда прямой туннель гарантированно не заденет третью комнату.
+  function genV3Candidate(anchor, dir, gap, size, w, h, rng) {
+    const [dx, dy] = dir;
+    const r = anchor.rect;
+    let x;
+    let y;
+    if (dx !== 0) {
+      x = dx > 0 ? r.x + r.w + gap : r.x - gap - size.w;
+      const lo = Math.max(GEN_V3_MARGIN, r.y - size.h + 3);
+      const hi = Math.min(h - GEN_V3_MARGIN - size.h, r.y + r.h - 3);
+      if (lo > hi) return null;
+      y = genInt(rng, lo, hi);
+    } else {
+      y = dy > 0 ? r.y + r.h + gap : r.y - gap - size.h;
+      const lo = Math.max(GEN_V3_MARGIN, r.x - size.w + 3);
+      const hi = Math.min(w - GEN_V3_MARGIN - size.w, r.x + r.w - 3);
+      if (lo > hi) return null;
+      x = genInt(rng, lo, hi);
+    }
+    if (x < GEN_V3_MARGIN || y < GEN_V3_MARGIN ||
+        x + size.w > w - GEN_V3_MARGIN ||
+        y + size.h > h - GEN_V3_MARGIN) return null;
+    return { x, y, w: size.w, h: size.h };
+  }
+
+  function genV3OrderedDirs(rng, bias, exclude) {
+    return GEN_V3_DIRS
+      .filter((dir) => !exclude || dir[0] !== -exclude[0] || dir[1] !== -exclude[1])
+      .map((dir) => ({
+        dir,
+        score: dir[0] * bias.x + dir[1] * bias.y + rng() * 1.2
+      }))
+      .sort((a, b) => b.score - a.score)
+      .map((item) => item.dir);
+  }
+
+  function genV3PlaceNext(plan, anchor, dirs, w, h, rng, smallBias) {
+    const sizes = [genV3Size(rng, smallBias), { w: 5, h: 4, cat: "small" }];
+    for (const size of sizes) {
+      for (const dir of dirs) {
+        for (const gap of [1, 2, 3]) {
+          const rect = genV3Candidate(anchor, dir, gap, size, w, h, rng);
+          if (!rect) continue;
+          if (!genV3RectClear(rect, plan.rooms)) continue;
+          return { rect, dir, gap };
+        }
+      }
+    }
+    return null;
+  }
+
+  function genV3AddRoom(plan, rect, data) {
+    const room = {
+      id: plan.rooms.length + 1,
+      role: null,
+      meta: {},
+      rect,
+      center: { x: rect.x + Math.floor(rect.w / 2), y: rect.y + Math.floor(rect.h / 2) },
+      cells: [],
+      exits: [],
+      // Синтетическая клетка для старого контракта: подпись плана и
+      // проверки не должны знать про свободную расстановку.
+      cell: {
+        cx: Math.floor((rect.x + rect.w / 2) / GEN_CELL_W),
+        cy: Math.floor((rect.y + rect.h / 2) / GEN_CELL_H)
+      }
+    };
+    Object.keys(data || {}).forEach((key) => { room[key] = data[key]; });
+    plan.rooms.push(room);
+    return room;
+  }
+
+  function genV3SeedRect(w, h, rng) {
+    const size = genV3Size(rng, false);
+    const side = Math.floor(rng() * 4);
+    const maxX = Math.max(GEN_V3_MARGIN, w - GEN_V3_MARGIN - size.w);
+    const maxY = Math.max(GEN_V3_MARGIN, h - GEN_V3_MARGIN - size.h);
+    const x = side === 0 || side === 2 ? GEN_V3_MARGIN : maxX;
+    const topLo = GEN_V3_MARGIN;
+    const topHi = Math.max(topLo, Math.min(maxY, Math.floor(h / 2)));
+    const botLo = Math.min(maxY, Math.max(GEN_V3_MARGIN, Math.ceil(h / 2)));
+    const botHi = maxY;
+    const y = side === 0 || side === 1
+      ? genInt(rng, topLo, topHi)
+      : genInt(rng, botLo, botHi);
+    return { x, y, w: size.w, h: size.h };
+  }
+
+  // Хребет — цепочка комнат от входа к вратам. Ведём её к противоположному
+  // углу карты с лёгким зигзагом: прямая линия на 40×28 не помещает 7
+  // комнат, а зигзаг помещает.
+  function genV3BuildSpine(plan, f, target, rng) {
+    const w = f.w;
+    const h = f.h;
+    const seedRect = genV3SeedRect(w, h, rng);
+    let head = genV3AddRoom(plan, seedRect, {
+      kind: "spine", spineIndex: 0, depth: 0, stem: 0,
+      originSpineIndex: 0, leaf: false
+    });
+    plan.spine.push(head.id);
+    const goal = {
+      x: w - (seedRect.x + seedRect.w / 2),
+      y: h - (seedRect.y + seedRect.h / 2)
+    };
+    let prevDir = null;
+    for (let i = 1; i < target; i += 1) {
+      const bias = {
+        x: goal.x - head.center.x,
+        y: goal.y - head.center.y
+      };
+      if (!bias.x && !bias.y) bias.x = 1;
+      // Перпендикулярное покачивание превращает почти прямую цепочку в
+      // зигзаг, не ломая общее направление к цели.
+      const sway = (i % 2 === 0 ? 0.45 : -0.45);
+      bias.x += -bias.y * sway;
+      bias.y += bias.x * sway;
+      const placed = genV3PlaceNext(plan, head, genV3OrderedDirs(rng, bias, prevDir),
+        w, h, rng, false);
+      if (!placed) break;
+      const room = genV3AddRoom(plan, placed.rect, {
+        kind: "spine", spineIndex: i, depth: 0, stem: 0,
+        originSpineIndex: i, leaf: false
+      });
+      plan.edges.push({ a: head.id, b: room.id, kind: "spine" });
+      plan.spine.push(room.id);
+      head = room;
+      prevDir = placed.dir;
+    }
+    if (plan.spine.length < 3) return null;
+    plan.entryId = plan.spine[0];
+    plan.gateId = plan.spine[plan.spine.length - 1];
+    return plan;
+  }
+
+  // Ветки растут от внутренних комнат хребта наружу от его центра. Каждая
+  // ветка — короткая цепочка длины 1–3, последняя комната помечается
+  // листом: ролевая грамматика вешает награду именно на лист.
+  function genV3BuildBranches(plan, f, budget, rng) {
+    if (budget <= 0) return;
+    const byId = {};
+    plan.rooms.forEach((room) => { byId[room.id] = room; });
+    const spineRooms = plan.spine.map((id) => byId[id]).filter(Boolean);
+    const anchors = spineRooms.slice(1, -1);
+    if (!anchors.length) return;
+    const centroid = spineRooms.reduce((acc, room) => {
+      acc.x += room.center.x;
+      acc.y += room.center.y;
+      return acc;
+    }, { x: 0, y: 0 });
+    centroid.x /= spineRooms.length;
+    centroid.y /= spineRooms.length;
+    const stems = Math.min(6, Math.max(2, Math.ceil(budget / 2)));
+    // Якорь может не принять комнату: тогда бюджет веток остаётся
+    // невыбранным и валидатор ругается «мало веток». Пробуем следующие
+    // якоря, пока бюджет не исчерпан; число попыток ограничено.
+    const maxStems = Math.min(12, stems + budget);
+    const order = genShuffle(rng, anchors.slice());
+    let left = budget;
+    for (let s = 0; s < maxStems && left > 0; s += 1) {
+      const anchor = order[s % order.length];
+      const length = Math.min(left, 1 + Math.floor(rng() * 3));
+      const bias = {
+        x: anchor.center.x - centroid.x,
+        y: anchor.center.y - centroid.y
+      };
+      if (!bias.x && !bias.y) bias.x = 1;
+      // Комнаты-коридоры в начале ветки: 0–2, но после них всегда остаётся
+      // хотя бы одна комната под награду. Они меньше обычных и не считаются
+      // листом — ролевая грамматика отдаёт им бой или лор.
+      let connectors = rng() < 0.5 ? 1 : 0;
+      if (connectors && length >= 3 && rng() < 0.30) connectors = 2;
+      connectors = Math.min(connectors, length - 1);
+      let parent = anchor;
+      let prevDir = null;
+      let made = 0;
+      for (let d = 0; d < length; d += 1) {
+        const connector = d < connectors;
+        const placed = genV3PlaceNext(plan, parent,
+          genV3OrderedDirs(rng, bias, prevDir), f.w, f.h, rng,
+          connector || d > 0);
+        if (!placed) break;
+        const room = genV3AddRoom(plan, placed.rect, {
+          kind: "branch", spineIndex: -1, depth: d + 1, stem: s + 1,
+          originSpineIndex: anchor.spineIndex, leaf: false, connector
+        });
+        plan.edges.push({ a: parent.id, b: room.id, kind: "branch" });
+        parent = room;
+        prevDir = placed.dir;
+        made += 1;
+      }
+      if (made) {
+        // Цепочка могла оборваться на комнате-коридоре: тогда лист должен
+        // быть обычной комнатой, иначе останется тупик без награды.
+        parent.connector = false;
+        parent.leaf = true;
+        left -= made;
+      }
+    }
+  }
+
+  // Близкие комнаты: зазор 1–2 клетки и общая стена хотя бы в две клетки.
+  // Такой зазор ещё режется коротким прямым туннелем, но пар для петель
+  // становится заметно больше, чем при строгом зазоре в одну клетку.
+  function genV3RoomsAdjacent(a, b) {
+    if (!a.rect || !b.rect) return false;
+    const ar = a.rect;
+    const br = b.rect;
+    const gapX = Math.max(ar.x, br.x) - Math.min(ar.x + ar.w, br.x + br.w);
+    const gapY = Math.max(ar.y, br.y) - Math.min(ar.y + ar.h, br.y + br.h);
+    const overlapX = Math.min(ar.x + ar.w, br.x + br.w) - Math.max(ar.x, br.x);
+    const overlapY = Math.min(ar.y + ar.h, br.y + br.h) - Math.max(ar.y, br.y);
+    return (gapX >= 1 && gapX <= 2 && overlapY >= 2) ||
+      (gapY >= 1 && gapY <= 2 && overlapX >= 2);
+  }
+
+  // Дополнительные связи между близкими комнатами: каждая подходящая пара
+  // получает шанс ≈30 %, а не фиксированное число петель. Ветка с веткой
+  // напрямую не соединяется, иначе лабиринт теряет читаемый хребет.
+  function genV3AddExtraConnections(plan, rng) {
+    const rooms = plan.rooms || [];
+    if (rooms.length < 4) return;
+    const hasEdge = (a, b) => (plan.edges || []).some((edge) =>
+      (edge.a === a && edge.b === b) || (edge.a === b && edge.b === a));
+    const candidates = [];
+    for (let i = 0; i < rooms.length; i += 1) {
+      for (let j = i + 1; j < rooms.length; j += 1) {
+        const a = rooms[i];
+        const b = rooms[j];
+        if (a.id === plan.entryId && b.id === plan.gateId) continue;
+        if (a.id === plan.gateId && b.id === plan.entryId) continue;
+        if (hasEdge(a.id, b.id)) continue;
+        if (a.kind === "branch" && b.kind === "branch") continue;
+        if (!genV3RoomsAdjacent(a, b)) continue;
+        candidates.push({ a: a.id, b: b.id });
+      }
+    }
+    if (!candidates.length) return;
+    const cap = 2 + (plan.biome === "caves" ? 1 : 0);
+    let added = 0;
+    genShuffle(rng, candidates).forEach((pair) => {
+      if (added >= cap) return;
+      if (rng() >= 0.30) return;
+      plan.edges.push({ a: pair.a, b: pair.b, kind: "loop" });
+      added += 1;
+    });
+  }
+
+  // Катакомбы: развилка обрастает короткими связями с соседними комнатами.
+  // Длинных L здесь нет: пара обязана стоять через зазор 1–2 клетки, и
+  // genV3LinkCells режет её прямым туннелем. Ребро помечается crypt, чтобы
+  // подпись плана и проверки отличали склеповые двери от обычных петель.
+  function genV3CryptLinks(plan, rng) {
+    if (plan.biome !== "catacombs") return;
+    const rooms = plan.rooms || [];
+    const junctions = rooms.filter((room) => room.role === "junction");
+    if (!junctions.length) return;
+    const hasEdge = (a, b) => (plan.edges || []).some((edge) =>
+      (edge.a === a && edge.b === b) || (edge.a === b && edge.b === a));
+    // Для склепа близость считается в плитках: зазор до трёх клеток ещё
+    // режется прямым туннелем и не превращается в длинный L. Прямоугольники
+    // v3 меньше старых ячеек 8×6, поэтому это те же «две клетки» v2.
+    const near = (a, b) => {
+      if (!a.rect || !b.rect) return false;
+      const ar = a.rect;
+      const br = b.rect;
+      const gapX = Math.max(ar.x, br.x) - Math.min(ar.x + ar.w, br.x + br.w);
+      const gapY = Math.max(ar.y, br.y) - Math.min(ar.y + ar.h, br.y + br.h);
+      const overlapX = Math.min(ar.x + ar.w, br.x + br.w) - Math.max(ar.x, br.x);
+      const overlapY = Math.min(ar.y + ar.h, br.y + br.h) - Math.max(ar.y, br.y);
+      return (gapX >= 1 && gapX <= 3 && overlapY >= 2) ||
+        (gapY >= 1 && gapY <= 3 && overlapX >= 2);
+    };
+    const rewardRoles = ["treasure", "ambush", "lore", "vault", "secret"];
+    genShuffle(rng, junctions).forEach((junction) => {
+      let doors = (plan.edges || []).filter((edge) =>
+        edge.a === junction.id || edge.b === junction.id).length;
+      if (doors >= 4) return;
+      const nearby = rooms.filter((room) => {
+        if (room.id === junction.id) return false;
+        if (room.role === "entry" || room.role === "gate") return false;
+        if (hasEdge(junction.id, room.id)) return false;
+        return near(junction, room);
+      }).sort((a, b) => {
+        const ra = rewardRoles.indexOf(a.role) >= 0 ? 0 : 1;
+        const rb = rewardRoles.indexOf(b.role) >= 0 ? 0 : 1;
+        if (ra !== rb) return ra - rb;
+        return genCellDist(a.cell, junction.cell) -
+          genCellDist(b.cell, junction.cell);
+      });
+      for (const room of nearby) {
+        if (doors >= 4) break;
+        plan.edges.push({ a: junction.id, b: room.id, kind: "crypt" });
+        doors += 1;
+      }
+    });
+  }
+
+  // Прямой туннель через общую стену. В отличие от L-коридора v2, он не
+  // может пересечь третью комнату: зазор между соседними прямоугольниками
+  // уже свободен от комнат на одну клетку в каждую сторону.
+  function genV3LinkCells(a, b, grid, w, h) {
+    const ar = a.rect;
+    const br = b.rect;
+    const overlapY = Math.min(ar.y + ar.h, br.y + br.h) - Math.max(ar.y, br.y);
+    const overlapX = Math.min(ar.x + ar.w, br.x + br.w) - Math.max(ar.x, br.x);
+    const bounded = (cells) => cells.every((c) =>
+      c.x >= 1 && c.y >= 1 && c.x < w - 1 && c.y < h - 1);
+    const build = (points) => {
+      const cells = [];
+      const seen = new Set();
+      points.forEach((p) => {
+        const k = p.x + "," + p.y;
+        if (seen.has(k)) return;
+        seen.add(k);
+        cells.push({ x: p.x, y: p.y });
+      });
+      return bounded(cells) ? cells : null;
+    };
+    const lineH = (x1, x2, y) => {
+      const out = [];
+      const step = x1 <= x2 ? 1 : -1;
+      for (let x = x1; x !== x2 + step; x += step) out.push({ x, y });
+      return out;
+    };
+    const lineV = (y1, y2, x) => {
+      const out = [];
+      const step = y1 <= y2 ? 1 : -1;
+      for (let y = y1; y !== y2 + step; y += step) out.push({ x, y });
+      return out;
+    };
+    if (overlapY >= 1 && (ar.x + ar.w <= br.x || br.x + br.w <= ar.x)) {
+      const left = ar.x + ar.w <= br.x ? a : b;
+      const right = left === a ? b : a;
+      const lr = left.rect;
+      const rr = right.rect;
+      const y0 = Math.max(lr.y, rr.y);
+      const y1 = Math.min(lr.y + lr.h, rr.y + rr.h) - 1;
+      const xa = lr.x + lr.w - 1;
+      const xb = rr.x;
+      const rowsA = [];
+      const rowsB = [];
+      for (let y = y0; y <= y1; y += 1) {
+        if (grid[y][xa] === 1) rowsA.push(y);
+        if (grid[y][xb] === 1) rowsB.push(y);
+      }
+      if (!rowsA.length || !rowsB.length) return null;
+      for (const y of rowsA) {
+        if (rowsB.indexOf(y) >= 0) {
+          const straight = build(lineH(xa, xb, y));
+          if (straight) return straight;
+        }
+      }
+      // Изогнутая связь: у двух фигурных комнат полные ряды могут не
+      // совпасть. Вертикальный шаг делаем в середине зазора, а не у стены:
+      // иначе туннель идёт вдоль стены и оставляет широкий проём.
+      const gap = rr.x - (lr.x + lr.w);
+      if (gap < 3) return null;
+      const xMid = lr.x + lr.w + Math.floor((gap - 1) / 2);
+      let best = null;
+      rowsA.forEach((ya) => rowsB.forEach((yb) => {
+        const d = Math.abs(ya - yb);
+        if (!best || d < best.d) best = { ya, yb, d };
+      }));
+      return build(lineH(xa, xMid, best.ya)
+        .concat(lineV(best.ya, best.yb, xMid))
+        .concat(lineH(xMid, xb, best.yb)));
+    }
+    if (overlapX >= 1 && (ar.y + ar.h <= br.y || br.y + br.h <= ar.y)) {
+      const top = ar.y + ar.h <= br.y ? a : b;
+      const bottom = top === a ? b : a;
+      const tr = top.rect;
+      const brr = bottom.rect;
+      const x0 = Math.max(tr.x, brr.x);
+      const x1 = Math.min(tr.x + tr.w, brr.x + brr.w) - 1;
+      const ya = tr.y + tr.h - 1;
+      const yb = brr.y;
+      const colsA = [];
+      const colsB = [];
+      for (let x = x0; x <= x1; x += 1) {
+        if (grid[ya][x] === 1) colsA.push(x);
+        if (grid[yb][x] === 1) colsB.push(x);
+      }
+      if (!colsA.length || !colsB.length) return null;
+      for (const x of colsA) {
+        if (colsB.indexOf(x) >= 0) {
+          const straight = build(lineV(ya, yb, x));
+          if (straight) return straight;
+        }
+      }
+      const gap = brr.y - (tr.y + tr.h);
+      if (gap < 3) return null;
+      const yMid = tr.y + tr.h + Math.floor((gap - 1) / 2);
+      let best = null;
+      colsA.forEach((xca) => colsB.forEach((xcb) => {
+        const d = Math.abs(xca - xcb);
+        if (!best || d < best.d) best = { xa: xca, xb: xcb, d };
+      }));
+      return build(lineV(ya, yMid, best.xa)
+        .concat(lineH(best.xa, best.xb, yMid))
+        .concat(lineV(yMid, yb, best.xb)));
+    }
+    return null;
+  }
+
+  function genV3ComputeExits(plan, grid, w, h) {
+    plan.rooms.forEach((room) => {
+      const r = room.rect;
+      const seen = new Set();
+      const addExit = (x, y) => {
+        if (!grid[y] || grid[y][x] !== 1) return;
+        const k = x + "," + y;
+        if (seen.has(k)) return;
+        const outside = GEN_DIRS.some(([dx, dy]) => {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w || ny >= h) return false;
+          const inside = nx >= r.x && nx < r.x + r.w &&
+            ny >= r.y && ny < r.y + r.h;
+          return !inside && grid[ny][nx] === 1;
+        });
+        if (outside) {
+          seen.add(k);
+          room.exits.push({ x, y, to: 0 });
+        }
+      };
+      for (let x = r.x; x < r.x + r.w; x += 1) {
+        addExit(x, r.y);
+        addExit(x, r.y + r.h - 1);
+      }
+      for (let y = r.y; y < r.y + r.h; y += 1) {
+        addExit(r.x, y);
+        addExit(r.x + r.w - 1, y);
+      }
+      // Заготовка двери тайника/секрета: настоящую дверь поставит
+      // placePlanVault после выбора выхода. Валидатору важно, чтобы
+      // заготовка лежала в стене, а не на полу.
+      if (room.role === "vault" || room.role === "secret") {
+        const dx = r.x + Math.floor(r.w / 2);
+        const dy = r.y - 1;
+        if (grid[dy] && grid[dy][dx] === 0) room.meta.door = { x: dx, y: dy };
+      }
+    });
+  }
+
+  function genV3Carve(plan, w, h, index, rng) {
+    const grid = Array.from({ length: h }, () => Array(w).fill(0));
+    const byId = {};
+    plan.rooms.forEach((room) => { byId[room.id] = room; });
+    plan.rooms.forEach((room) => {
+      room.meta = room.meta || {};
+      room.shape = room.shape || genShapeFor(plan.biome, rng);
+      // Крест v2 срезает по 2×2 угла: в свободной расстановке из-за этого
+      // у соседних крестов не совпадает ни один полный ряд и прямой
+      // туннель не встаёт. В v3 крест мягкий, со срезом 1×1.
+      if (room.shape === "cross") room.shape = "cross1";
+      room.exits = [];
+      genCarveRoom(grid, room, rng);
+    });
+    (plan.edges || []).forEach((edge) => {
+      const a = byId[edge.a];
+      const b = byId[edge.b];
+      if (!a || !b) { edge.cells = []; return; }
+      const cells = genV3LinkCells(a, b, grid, w, h);
+      if (!cells) {
+        edge.cells = [];
+        // Петля и склеповая дверь не обязательны: если прямой туннель не
+        // встал, просто убираем ребро. Для хребта и ветки это ошибка плана —
+        // комнату без связи отбракует валидатор, и расстановка повторится.
+        if (edge.kind === "loop" || edge.kind === "crypt") edge.dead = true;
+        else plan.warnings.push("связь " + edge.a + "-" + edge.b + " не проложена");
+        return;
+      }
+      cells.forEach((c) => { grid[c.y][c.x] = 1; });
+      edge.cells = cells;
+      // Короткая связь — это дверной проём или туннель в одну-две клетки.
+      edge.shared = cells.length <= 4;
+    });
+    plan.edges = (plan.edges || []).filter((edge) => !edge.dead);
+    // Склеповая развилка: число дверей считаем по фактическим рёбрам уже
+    // после резки, иначе удалённая петля оставит в подписи лишнюю дверь.
+    plan.rooms.forEach((room) => {
+      if (room.role !== "junction") return;
+      room.meta = room.meta || {};
+      room.meta.doors = plan.edges.filter((edge) =>
+        edge.a === room.id || edge.b === room.id).length;
+    });
+    genCryptNiches(plan, grid, w, h, rng);
+    genV3ComputeExits(plan, grid, w, h);
+    const startRoom = byId[plan.entryId];
+    const gateRoom = byId[plan.gateId];
+    if (!startRoom || !gateRoom) return null;
+    const start = startRoom.center;
+    const end = gateRoom.center;
+    grid[start.y][start.x] = 1;
+    grid[end.y][end.x] = 1;
+    const spots = genCollectSpots(grid, w, h);
+    const decor = genDecorate(plan, grid, w, h, index, plan.campaign, rng);
+    return { grid, decor, start, end, spots };
+  }
+
+  function genV3Plan(f, index, seed, rng) {
+    const roomTarget = Math.max(6, Number(f.roomTarget) || 10);
+    const optionalShare = Number(f.optionalShare) || 0.35;
+    const spineTarget = Math.max(4, Math.round(roomTarget * (1 - optionalShare)));
+    const branchTarget = Math.max(1, roomTarget - spineTarget);
+    const plan = {
+      version: 3,
+      index,
+      biome: f.biome,
+      campaign: f.campaign,
+      seed,
+      w: f.w,
+      h: f.h,
+      cw: Math.ceil(f.w / GEN_CELL_W),
+      ch: Math.ceil(f.h / GEN_CELL_H),
+      budget: {
+        roomTarget: f.roomTarget,
+        optionalMin: f.optionalShare - 0.05,
+        optionalMax: f.optionalShare + 0.05,
+        minJunctions: f.minJunctions,
+        eliteCap: genEliteCap(f),
+        vault: f.vault,
+        camp: f.camp,
+        hazardHallMax: f.hazardHallMax
+      },
+      rooms: [],
+      edges: [],
+      spine: [],
+      entryId: 0,
+      gateId: 0,
+      stats: {},
+      warnings: []
+    };
+    if (!genV3BuildSpine(plan, f, spineTarget, rng)) return null;
+    if (plan.spine.length < spineTarget - 2) return null;
+    genV3BuildBranches(plan, f, branchTarget, rng);
+    const branches = plan.rooms.filter((room) => room.kind === "branch").length;
+    if (branches < 1) return null;
+    genV3AddExtraConnections(plan, rng);
+    genAssignRoles(plan, f, index, rng);
+    genV3CryptLinks(plan, rng);
+    return plan;
+  }
+
+  function generateFloorV3(f, index, opts) {
+    const o = opts || {};
+    const baseSeed = o.seed != null ? o.seed : genDefaultSeed(index);
+    // Один сид может не сложиться: свободная расстановка вероятностная.
+    // Пробуем несколько производных сидов, годный план возвращаем сразу.
+    // Негодный план наружу не отдаём: createFloorState откатит этаж на v2,
+    // а не покажет игроку наполовину связанную карту.
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const seed = (baseSeed + attempt * 2654435761) >>> 0;
+      const rng = genRng(seed);
+      const plan = genV3Plan(f, index, seed, rng);
+      if (!plan) continue;
+      const carved = genV3Carve(plan, f.w, f.h, index, rng);
+      if (!carved) continue;
+      plan.stats = genPlanStats(plan, carved.grid);
+      const problems = genValidatePlan(plan, carved.grid);
+      if (problems.length) continue;
+      return {
+        grid: carved.grid,
+        decor: carved.decor,
+        start: carved.start,
+        end: carved.end,
+        spots: carved.spots,
+        plan
+      };
+    }
+    throw new Error("gen v3: не удалось собрать валидный план");
   }
 
   function generateFloorV2(f, index, opts) {
@@ -1702,7 +2416,7 @@
         optionalMin: f.optionalShare - 0.05,
         optionalMax: f.optionalShare + 0.05,
         minJunctions: f.minJunctions,
-        eliteCap: f.eliteCap,
+        eliteCap: genEliteCap(f),
         vault: f.vault,
         camp: f.camp,
         hazardHallMax: f.hazardHallMax
@@ -2060,7 +2774,7 @@
   };
 
   // Флаги этапа 0–1 читаются из адресной строки только в dev-сборке.
-  // ?gen=v2 / ?gen=legacy и ?campaign=v2 / ?campaign=v1.
+  // ?gen=v3 / ?gen=v2 / ?gen=legacy и ?campaign=v2 / ?campaign=v1.
   applyUrlFlags();
 
   // Скрытый хук для автопроверок: ?debug=1 открывает состояние игры. Только
@@ -2070,7 +2784,12 @@
     if (typeof window !== "undefined" && devEnabled() &&
         new URLSearchParams(window.location.search).get("debug") === "1") {
       window.__pyquiz = G;
-      window.__floors = FLOORS;
+      // Геттер, а не снимок: setCampaign() переключает FLOORS на таблицу
+      // v2/v1, и старый снимок показывал 10 этажей даже в кампании v2.
+      Object.defineProperty(window, "__floors", {
+        configurable: true,
+        get: () => FLOORS
+      });
       // Строка журнала — чтобы проба могла проверить цвета всех родов событий.
       window.__log = log;
       // ?debug=1&floor=7 — проба сразу открывает нужный этаж: иначе до
@@ -3067,10 +3786,24 @@
     const f = floorDef(index);
     const o = opts || {};
     const arenaFloor = !!f.boss && f.campaign === 2 && !o.legacy && !f.endless;
-    const useV2 = (o.forceV2 || GEN_V2) && !o.legacy && !f.boss && !f.endless;
+    const useV3 = (o.forceV3 || GEN_V3) && !o.forceV2 && !o.legacy &&
+      !f.boss && !f.endless && f.campaign === 2;
+    const useV2 = !useV3 && (o.forceV2 || GEN_V2) && !o.legacy && !f.boss && !f.endless;
     let gen;
     if (arenaFloor) {
       gen = generateArenaFloor(f, index);
+    } else if (useV3) {
+      try {
+        gen = generateFloorV3(f, index, o);
+      } catch (err) {
+        console.warn("gen v3: откат на генератор v2", err);
+        try {
+          gen = generateFloorV2(f, index, o);
+        } catch (err2) {
+          console.warn("gen v2: откат на старый генератор", err2);
+          gen = generateMap(f.w, f.h, index, f.campaign);
+        }
+      }
     } else if (useV2) {
       try {
         gen = generateFloorV2(f, index, o);
@@ -3390,7 +4123,10 @@
         if (used.has(key(spot.x, spot.y))) continue;
         if (state.map.grid[spot.y][spot.x] !== 1) continue;
         const role = planCellRole(plan, spot.x, spot.y);
-        if (role && ["treasure", "secret", "vault"].indexOf(role) < 0) continue;
+        // Коридор — не место для награды: сундук в проходе встречается
+        // раньше комнаты и ломает ритм «зачистил — получил». Добираем
+        // только в комнатах, для которых сундук и задуман.
+        if (["treasure", "secret", "vault"].indexOf(role) < 0) continue;
         used.add(key(spot.x, spot.y));
         state.treasures.push({
           uid: ++G.uid, x: spot.x, y: spot.y,
@@ -3565,7 +4301,8 @@
         if (used.has(key(spot.x, spot.y))) continue;
         if (state.map.grid[spot.y][spot.x] !== 1) continue;
         const role = planCellRole(state.plan, spot.x, spot.y);
-        if (role && ["resource", "vault"].indexOf(role) < 0) continue;
+        // Жила в коридоре — та же ошибка, что сундук в проходе.
+        if (["resource", "vault"].indexOf(role) < 0) continue;
         used.add(key(spot.x, spot.y));
         out.push({ uid: ++G.uid, x: spot.x, y: spot.y, kind: "ore", taken: false });
       }
@@ -3667,6 +4404,44 @@
     });
     const start = state.playerPos;
     const end = state.stairsDown;
+    // v3 растит среду пятном от зерна: у льда и лавы появляется неровный
+    // край, а не равномерная соль по всей комнате. v2 оставляем прежним,
+    // чтобы откат вёл себя ровно как раньше.
+    const organic = !!(plan && plan.version === 3);
+    // Пятна растут от зерна этажа: один сид даёт одну и ту же среду.
+    // Math.random оставлял бы карту разной при повторной сборке того же
+    // этажа и ломал воспроизводимость прогонов баланс-бота.
+    const patchRng = organic && plan.seed != null
+      ? genRng((plan.seed ^ 0x85ebca6b) >>> 0)
+      : Math.random;
+    const growPatch = (cells, want) => {
+      if (!organic) {
+        shuffle(cells);
+        return cells.slice(0, want);
+      }
+      const free = new Set(cells.map((cell) => cell.x + "," + cell.y));
+      const out = [];
+      while (out.length < want && free.size) {
+        // Новое зерно — только когда фронт исчерпан: так пятно остаётся
+        // связным, но не превращается в кляксу на всю комнату.
+        const seedKey = Array.from(free)[Math.floor(patchRng() * free.size)];
+        const [sx, sy] = seedKey.split(",").map(Number);
+        const queue = [{ x: sx, y: sy }];
+        free.delete(seedKey);
+        while (out.length < want && queue.length) {
+          const at = Math.floor(patchRng() * queue.length);
+          const cell = queue.splice(at, 1)[0];
+          out.push(cell);
+          GEN_DIRS.forEach(([dx, dy]) => {
+            const key = (cell.x + dx) + "," + (cell.y + dy);
+            if (!free.has(key)) return;
+            free.delete(key);
+            queue.push({ x: cell.x + dx, y: cell.y + dy });
+          });
+        }
+      }
+      return out;
+    };
     const put = (room, density) => {
       const cells = (room.cells || []).filter((cell) =>
         grid[cell.y][cell.x] === 1 &&
@@ -3674,11 +4449,10 @@
         !exits.has(cell.x + "," + cell.y) &&
         !(cell.x === start.x && cell.y === start.y) &&
         !(end && cell.x === end.x && cell.y === end.y));
-      shuffle(cells);
       const want = Math.round(cells.length * density);
-      for (let i = 0; i < want && i < cells.length; i += 1) {
-        state.hazard[cells[i].y][cells[i].x] = type.key;
-      }
+      growPatch(cells, want).forEach((cell) => {
+        state.hazard[cell.y][cell.x] = type.key;
+      });
     };
     plan.rooms.forEach((room) => {
       if (room.role === "crossing") put(room, 1);
@@ -3725,36 +4499,151 @@
     (state.enemies || []).forEach((e) => points.push(e));
     (state.traders || []).forEach((t) => points.push(t));
     if (end) points.push(end);
+    // Требуем сохранения только того, что было достижимо до замуровки.
+    // Тайник запечатан намеренно (placePlanVault гасит его дверь), поэтому
+    // его лут и дверь недостижимы уже на базовой маске. Раньше они входили
+    // в обязательные точки, guard считал этаж разрезанным и откатывал
+    // каждую дверь — на 90 % этажей дверей не было вовсе.
+    const baseReach = genReachMask(grid, w, h, start);
+    const protectedPoints = points.filter((p) =>
+      baseReach[p.y * w + p.x]);
+    // Куда смотрит выход: соседняя клетка ребра надёжнее любого соседнего
+    // пола. У угла комнаты пол может быть с двух сторон, и дверь уходила
+    // не в тот проход, замуровывая середину чужого туннеля.
+    const exitDirs = new Map();
+    const tunnelCells = new Set();
+    const cellEdges = new Map();
+    (plan.edges || []).forEach((edge, edgeIndex) => {
+      const cells = edge.cells || [];
+      cells.forEach((c) => {
+        const k = c.x + "," + c.y;
+        tunnelCells.add(k);
+        const ids = cellEdges.get(k) || new Set();
+        ids.add(edgeIndex);
+        cellEdges.set(k, ids);
+      });
+      if (cells.length < 2) return;
+      const mark = (end, next) => {
+        const k = end.x + "," + end.y;
+        const dir = [Math.sign(next.x - end.x), Math.sign(next.y - end.y)];
+        const list = exitDirs.get(k) || [];
+        if (!list.some((d) => d[0] === dir[0] && d[1] === dir[1])) list.push(dir);
+        exitDirs.set(k, list);
+      };
+      mark(cells[0], cells[1]);
+      mark(cells[cells.length - 1], cells[cells.length - 2]);
+    });
+    // Сторона стены, в которую смотрит выход. Ось двери берём от неё, а не
+    // от направления на центр комнаты.
+    const doorSide = (room, e) => {
+      const known = exitDirs.get(e.x + "," + e.y);
+      if (known && known.length) return known[0];
+      const r = room.rect;
+      const dirs = [];
+      if (e.y === r.y && grid[e.y - 1] && grid[e.y - 1][e.x] === 1) dirs.push([0, -1]);
+      if (e.y === r.y + r.h - 1 && grid[e.y + 1] && grid[e.y + 1][e.x] === 1) dirs.push([0, 1]);
+      if (e.x === r.x && grid[e.y] && grid[e.y][e.x - 1] === 1) dirs.push([-1, 0]);
+      if (e.x === r.x + r.w - 1 && grid[e.y] && grid[e.y][e.x + 1] === 1) dirs.push([1, 0]);
+      return dirs[0] || null;
+    };
     plan.rooms.forEach((room) => {
+      if (!room.rect) return;
       const exits = (room.exits || []).filter((e) =>
         grid[e.y] && grid[e.y][e.x] === 1 &&
         !(start && e.x === start.x && e.y === start.y) &&
         !(end && e.x === end.x && e.y === end.y) &&
         !taken.has(e.x + "," + e.y));
-      if (!exits.length) return;
-      // Смежные клетки одного проёма — одна дверь.
+      const sided = exits.map((e) => {
+        const side = doorSide(room, e);
+        return side ? { x: e.x, y: e.y, side } : null;
+      }).filter(Boolean);
+      if (!sided.length) return;
+      // Группа — клетки одного проёма на одной стене. Угловые клетки с
+      // выходами в разные стороны — разные проёмы, а не широкое устье.
       const groups = [];
-      exits.forEach((e) => {
-        const near = groups.find((g) => g.some((c) =>
-          Math.abs(c.x - e.x) + Math.abs(c.y - e.y) === 1));
+      sided.forEach((e) => {
+        const near = groups.find((g) =>
+          g.side[0] === e.side[0] && g.side[1] === e.side[1] &&
+          g.some((c) => (e.side[0] === 0
+            ? c.y === e.y && Math.abs(c.x - e.x) === 1
+            : c.x === e.x && Math.abs(c.y - e.y) === 1)));
         if (near) near.push(e);
-        else groups.push([e]);
+        else groups.push(Object.assign([e], { side: e.side }));
       });
+      const midOf = (g) => {
+        const sorted = g.slice().sort((a, b) =>
+          g.side[0] === 0 ? a.x - b.x : a.y - b.y);
+        return sorted[Math.floor(sorted.length / 2)];
+      };
+      const mids = new Set(groups.map((g) => {
+        const m = midOf(g);
+        return m.x + "," + m.y;
+      }));
       groups.forEach((g) => {
-        const mid = g[Math.floor(g.length / 2)];
-        const center = room.center || { x: room.rect.x + 1, y: room.rect.y + 1 };
-        // Ось прохода: от центра комнаты к двери. Боковые клетки —
-        // перпендикуляр к ней: их и замуровываем, чтобы получилась рама.
-        const axisX = Math.abs(mid.x - center.x) >= Math.abs(mid.y - center.y);
-        const px = axisX ? 0 : 1;
-        const py = axisX ? 1 : 0;
+        const mid = midOf(g);
+        // Замуровываем соседей вдоль стены: широкое устье сужается до одной
+        // клетки, а у одиночного проёма получается рама.
+        const tx = g.side[0] === 0 ? 1 : 0;
+        const ty = g.side[0] === 0 ? 0 : 1;
+        const groupKeys = new Set(g.map((c) => c.x + "," + c.y));
+        const midEdges = cellEdges.get(mid.x + "," + mid.y) || new Set();
+        const sameEdge = (c) => {
+          const ids = cellEdges.get(c.x + "," + c.y);
+          if (!ids) return false;
+          for (const id of ids) if (midEdges.has(id)) return true;
+          return false;
+        };
         const sides = [
-          { x: mid.x + px, y: mid.y + py },
-          { x: mid.x - px, y: mid.y - py }
-        ].filter((c) => grid[c.y] && grid[c.y][c.x] === 1);
+          { x: mid.x + tx, y: mid.y + ty },
+          { x: mid.x - tx, y: mid.y - ty }
+        ].filter((c) => {
+          if (!grid[c.y] || grid[c.y][c.x] !== 1) return false;
+          // Сосед по тому же проёму сужаем до одной клетки, но середину
+          // чужого туннеля не закладываем: в одну клетку стены могут
+          // упираться два прохода с разных сторон.
+          if (groupKeys.has(c.x + "," + c.y)) return sameEdge(c);
+          return !tunnelCells.has(c.x + "," + c.y);
+        });
+        // Угловая пара: соседняя клетка — дверь другой стены. Не закладываем
+        // её, иначе один из двух проходов закроется.
+        if (sides.some((c) => mids.has(c.x + "," + c.y))) return;
         // Клетку с предметом в стену не закладываем: сундук в стене хуже
         // двери, а враг в стене — сломанный этаж.
         if (sides.some((c) => used.has(key(c.x, c.y)))) return;
+        const walled = new Set(sides.map((c) => c.x + "," + c.y));
+        const isWall = (x, y) => !grid[y] || grid[y][x] !== 1 ||
+          walled.has(x + "," + y);
+        const framed = (isWall(mid.x - 1, mid.y) && isWall(mid.x + 1, mid.y)) ||
+          (isWall(mid.x, mid.y - 1) && isWall(mid.x, mid.y + 1));
+        // Дверь без рамы — дверь посреди пола. В тесном узле, где раму
+        // нельзя поставить без перекрытия чужого туннеля, дверь не ставим,
+        // но устье всё равно сужаем до одной клетки.
+        if (!framed) {
+          const extra = g.filter((c) =>
+            !(c.x === mid.x && c.y === mid.y) &&
+            grid[c.y] && grid[c.y][c.x] === 1 &&
+            sameEdge(c) && !used.has(key(c.x, c.y)) &&
+            !mids.has(c.x + "," + c.y));
+          if (!extra.length) return;
+          const was = extra.map((c) =>
+            state.hazard ? state.hazard[c.y][c.x] : null);
+          extra.forEach((c) => {
+            grid[c.y][c.x] = 0;
+            if (state.hazard) state.hazard[c.y][c.x] = null;
+          });
+          const reach = genReachMask(grid, w, h, start);
+          let lost = protectedPoints.some((p) => !reach[p.y * w + p.x]);
+          if (!lost) lost = !reach[mid.y * w + mid.x];
+          if (lost) {
+            extra.forEach((c, i) => {
+              grid[c.y][c.x] = 1;
+              if (state.hazard) state.hazard[c.y][c.x] = was[i];
+            });
+            return;
+          }
+          extra.forEach((c) => used.add(key(c.x, c.y)));
+          return;
+        }
         // Уже в раме: ни стен, ни проверки не нужно.
         if (!sides.length) {
           taken.add(mid.x + "," + mid.y);
@@ -3770,7 +4659,7 @@
         });
         // Проверяем, что стены не отрезали ни комнату, ни добычу.
         const reach = genReachMask(grid, w, h, start);
-        let lost = points.some((p) => !reach[p.y * w + p.x]);
+        let lost = protectedPoints.some((p) => !reach[p.y * w + p.x]);
         if (!lost) lost = !reach[mid.y * w + mid.x];
         if (lost) {
           sides.forEach((c, i) => {
@@ -3798,8 +4687,14 @@
     if (!f.boss) state.stairsDown.active = !placeGuard(state, f, index, used, gen.end);
     applyMissedPayloads(state);
     placePlanChests(state, f, index, used, free);
+    // Роль «тайник» в плане — обещание этажа, а не пожелание: если комната
+    // не запечаталась (лишние выходы, петля, тесный угол), тайник ставим
+    // принудительно в монолит. Иначе остаётся тупик без награды и рычаг,
+    // который открывает пустоту.
+    const vaultRole = state.plan.rooms.some((room) => room.role === "vault");
     const vault = placePlanVault(state, index, used) ||
-      placeVault(state, index, gen, used);
+      placeVault(state, index, gen, used) ||
+      (vaultRole ? placeVault(state, index, gen, used, true) : null);
     if (vault) state.vaults.push(vault);
     placePlanTrader(state, f, index, used);
     state.traps = placePlanTraps(state, f, index, used, free);
@@ -3879,17 +4774,33 @@
   // дверью. Генератор комнат её не знает, поэтому она ничего не ломает:
   // попасть внутрь можно только через дверь, а дверь открывает ключ или
   // рычаг. Внутри — сокровища и материалы, ради которых и стоит возиться.
-  function placeVault(state, index, gen, used) {
-    if (index < 3) return null;
-    if (Math.random() < 0.25) return null;
+  function placeVault(state, index, gen, used, force) {
+    // force — последний рубеж, когда план уже обещает тайник, а обычная
+    // расстановка не нашла места. Тогда перебираем весь пол этажа, а не
+    // сорок случайных точек: пустая комната с ролью «тайник» и рычаг,
+    // которому нечего открывать, хуже тесного тайника в углу.
+    if (!force && index < 3) return null;
+    if (!force && Math.random() < 0.25) return null;
     const grid = state.map.grid;
     const w = state.map.w, h = state.map.h;
+    let spots = gen.spots;
+    if (force) {
+      spots = [];
+      for (let y = 1; y < h - 1; y += 1) {
+        for (let x = 1; x < w - 1; x += 1) {
+          if (grid[y][x] === 1) spots.push({ x, y });
+        }
+      }
+      shuffle(spots);
+    }
+    const attempts = force ? spots.length : 40;
     const dirs = shuffle([[1, 0], [-1, 0], [0, 1], [0, -1]]);
-    for (let t = 0; t < 40; t += 1) {
-      const spot = gen.spots[Math.floor(Math.random() * gen.spots.length)];
+    for (let t = 0; t < attempts; t += 1) {
+      const spot = force ? spots[t] : spots[Math.floor(Math.random() * spots.length)];
       if (!spot) continue;
       if (used.has(key(spot.x, spot.y))) continue;
-      if (Math.abs(spot.x - gen.start.x) + Math.abs(spot.y - gen.start.y) < 5) continue;
+      if (!force && Math.abs(spot.x - gen.start.x) +
+          Math.abs(spot.y - gen.start.y) < 5) continue;
       for (let d = 0; d < dirs.length; d += 1) {
         const dx = dirs[d][0], dy = dirs[d][1];
         const door = { x: spot.x + dx, y: spot.y + dy };
@@ -4620,6 +5531,12 @@
     if (tail < minArea) problems.push("доступно слишком мало клеток: " + tail);
     if (state.plan) {
       for (const p of genValidatePlan(state.plan, grid)) problems.push(p);
+      // План обещает тайник, а на этаже его нет: тупик без награды и
+      // рычаг, который открывает пустоту. Пересоздаём этаж.
+      if (state.plan.rooms.some((room) => room.role === "vault") &&
+          !(state.vaults || []).length) {
+        problems.push("роль тайника без тайника");
+      }
     }
     return problems;
   }
@@ -4648,8 +5565,10 @@
   function buildCheckedFloor(index) {
     const missedBackup = (G.missed || []).slice();
     const f = floorDef(index);
+    const v3 = GEN_V3 && f.campaign === 2 && !f.boss && !f.endless;
     const v2 = GEN_V2 && !f.boss && !f.endless;
-    const tries = v2 ? 20 : FLOOR_MAX_ATTEMPTS;
+    const planner = v3 || v2;
+    const tries = planner ? (v3 ? 12 : 20) : FLOOR_MAX_ATTEMPTS;
     for (let attempt = 1; attempt <= tries; attempt++) {
       const state = createFloorState(index);
       const problems = validateFloorState(state);
@@ -4659,6 +5578,32 @@
       }
       G.missed = missedBackup.slice();
       if (attempt === tries) {
+        if (v3) {
+          // v3 не сошёлся: пробуем v2, затем legacy с починкой. Так
+          // проверки видят, что свободная расстановка не сломала этаж.
+          const v2state = createFloorState(index, { forceV2: true });
+          const left2 = validateFloorState(v2state);
+          if (!left2.length) {
+            v2state.checked = {
+              attempts: attempt,
+              problems: problems,
+              repaired: false,
+              fallback: "v2"
+            };
+            return v2state;
+          }
+          const legacy = createFloorState(index, { legacy: true });
+          const left = validateFloorState(legacy);
+          if (left.length) repairFloorState(legacy);
+          legacy.checked = {
+            attempts: attempt,
+            problems: problems,
+            repaired: true,
+            fallback: "legacy",
+            left: validateFloorState(legacy)
+          };
+          return legacy;
+        }
         if (v2) {
           // План v2 чинить нельзя: repairFloorState не знает ролей.
           // Уходим на старый генератор и, если нужно, чиним уже его.
@@ -16011,6 +16956,17 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.47.0",
+      date: "11 ноября 2026",
+      title: "Новые этажи подземелья",
+      items: [
+        "Комнаты снова разного размера: от тесных каморок до больших залов.",
+        "В этажах появились короткие обходы, комнаты-коридоры и двери в общих стенах.",
+        "В катакомбах развилки соединяются короткими склеповыми дверями.",
+        "Лёд и лава растут пятнами с неровным краем, а не сыплются по комнате."
+      ]
+    },
+    {
       version: "1.46.0",
       date: "11 ноября 2026",
       title: "Поздние боссы и умный бот",
@@ -19198,6 +20154,7 @@ function topicName(key) {
       "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='11'>12</button>" +
       "<button type='button' class='dev-btn' data-dev='jump-preset' data-floor='14'>15</button></div>" +
       "<div class='dev-group'><span>Кампания</span>" +
+      "<button type='button' class='dev-btn' data-dev='gen-v3'>Генератор v3</button>" +
       "<button type='button' class='dev-btn' data-dev='gen-v2'>Генератор v2</button>" +
       "<button type='button' class='dev-btn' data-dev='gen-legacy'>Legacy</button>" +
       "<button type='button' class='dev-btn' data-dev='campaign-v2'>15 этажей</button>" +
@@ -19836,6 +20793,23 @@ function topicName(key) {
     toast("DEV-флаги и множители сброшены");
   }
 
+  // Переключение генератора в дев-панели пересобирает текущий этаж: иначе
+  // флаг меняется, а на экране остаётся старая карта, и демонстрация врёт.
+  function devRebuildAfterGen(label) {
+    if (G.place !== "dungeon" || !G.running) {
+      toast(label + ": флаг для новых этажей кампании v2.");
+      return;
+    }
+    const f = floorDef(G.floorIndex);
+    if (f.boss) {
+      toast(label + ": арена не меняется, флаг — для следующего этажа.");
+      return;
+    }
+    delete G.cache[G.floorIndex];
+    activateFloorLoaded(G.floorIndex);
+    toast(label + ": текущий этаж пересобран.");
+  }
+
   function devAction(action, btn) {
     if (!G.dev) return;
     if (action === "panel") { devToggle(); return; }
@@ -19922,14 +20896,22 @@ function topicName(key) {
       toast("Школа: учитель рядом");
       return;
     }
-    if (action === "gen-v2") {
+    if (action === "gen-v3") {
+      setGenV3(true);
       setGenV2(true);
-      toast("Флаг GEN_V2 включён. Генератор подключится на этапе 1.");
+      devRebuildAfterGen("Генератор v3");
+      return;
+    }
+    if (action === "gen-v2") {
+      setGenV3(false);
+      setGenV2(true);
+      devRebuildAfterGen("Генератор v2");
       return;
     }
     if (action === "gen-legacy") {
+      setGenV3(false);
       setGenV2(false);
-      toast("Флаг GEN_V2 выключен.");
+      devRebuildAfterGen("Legacy");
       return;
     }
     if (action === "campaign-v2") {
@@ -20035,6 +21017,7 @@ function topicName(key) {
       " · врагов " + ((G.enemies || []).length) +
       " · камп. v" + campaignVersion() +
       " · GEN_V2 " + (GEN_V2 ? "вкл" : "выкл") +
+      " · GEN_V3 " + (GEN_V3 ? "вкл" : "выкл") +
       " · CAMPAIGN_V2 " + (CAMPAIGN_V2 ? "вкл" : "выкл") +
       (checked ? " · проверка: попыток " + checked.attempts +
         (checked.repaired ? ", чинена" : "") : "");
