@@ -8,7 +8,7 @@
 //                               [--difficulty easy|normal|hard]
 //                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge]
 //                               [--omen steady|blood|quiet] [--campaign]
-//                               [--collect 2] [--maxed]
+//                               [--collect 2] [--maxed] [--gen v2|v3|legacy]
 //
 // --balance принимает числа в том же виде, что и админ-панель /admin: так
 // настройку можно проверить ботом, прежде чем менять её для класса.
@@ -76,7 +76,7 @@ function flushTimers() {
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
     difficulty: "normal", forge: true, amulets: 1, bank: 600, campaign: false,
-    omen: "steady", maxed: false, collect: null, ability: "breath" };
+    omen: "steady", maxed: false, collect: null, ability: "breath", gen: null };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--games") out.games = Number(argv[++i]);
@@ -103,6 +103,9 @@ function parseArgs(argv) {
     // Так проверяется конец игры: побеждает ли тот, кто дошёл до предела.
     else if (a === "--maxed") out.maxed = true;
     else if (a === "--bank") out.bank = Number(argv[++i]);
+    // --gen: сравнить планировщики на одних и тех же зёрнах. Без флага
+    // бот играет с настройками игры (сейчас v2).
+    else if (a === "--gen") out.gen = argv[++i];
     else throw new Error("не понял аргумент: " + a);
   }
   if (!Number.isFinite(out.games) || out.games < 1) throw new Error("--games должен быть >= 1");
@@ -115,6 +118,9 @@ function parseArgs(argv) {
   }
   if (out.balance !== undefined && (!out.balance || typeof out.balance !== "object" || Array.isArray(out.balance))) {
     throw new Error("--balance: нужен объект JSON, например '{\"enemy.hpMul\": 2.5}'");
+  }
+  if (out.gen !== null && ["v2", "v3", "legacy"].indexOf(out.gen) < 0) {
+    throw new Error("--gen: v2, v3 или legacy");
   }
   if (["steady", "blood", "quiet"].indexOf(out.omen) < 0) {
     throw new Error("--omen: steady, blood или quiet");
@@ -1356,7 +1362,8 @@ function playOne(opts, rng, trace) {
 
 function printResult(i, opts, r, elapsed, seed) {
   // Зерно для повтора: --seed принимает базу, а партия i берёт базу + i × 7919.
-  const replay = " | повтор: --seed " + (seed - 7919) + " --games 1";
+  const replay = " | повтор: --seed " + (seed - 7919) + " --games 1" +
+    (opts.gen ? " --gen " + opts.gen : "");
   if (r.crash) {
     console.log("партия " + i + ": УПАЛА после " + r.steps + " ходов" + replay);
     return false;
@@ -1484,6 +1491,7 @@ function printSummary(opts, rows) {
   console.log("");
   console.log("сводка: " + ok.length + " партий, сложность «" + names[opts.difficulty] + "», верных ответов " +
     Math.round(opts.skill * 100) + "%");
+  if (opts.gen) console.log("  генератор: " + opts.gen);
   if (opts.omen !== "steady") {
     const omenNames = { blood: "Кровавая луна", quiet: "Тихий спуск" };
     console.log("  знамение: " + (omenNames[opts.omen] || opts.omen));
@@ -1546,6 +1554,13 @@ function printSummary(opts, rows) {
 
 function main() {
   const opts = parseArgs(process.argv);
+  if (opts.gen) {
+    if (typeof API.setGenV3 !== "function" || typeof API.setGenV2 !== "function") {
+      throw new Error("--gen: harness не отдаёт переключатели генератора");
+    }
+    API.setGenV2(opts.gen !== "legacy");
+    API.setGenV3(opts.gen === "v3");
+  }
   const baseSeed = opts.seed === null ? 20260520 : opts.seed;
   if (opts.balance) {
     const keys = Object.keys(opts.balance);
