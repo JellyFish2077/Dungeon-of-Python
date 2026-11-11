@@ -1095,6 +1095,51 @@ body.game-page:has(.stage.village) .tile.unseen {
   filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.95));
 }
 
+/* Состояние врага: значок висит над головой, а не в углу клетки. Размер —
+   половина клетки (16/32/48 px при шаге 32/64/96): масштаб целый, пиксели
+   остаются квадратными, а значок не спорит с крупным спрайтом. */
+.ent-marker.ent-state {
+  width: calc(var(--cell) * 0.5);
+  height: calc(var(--cell) * 0.5);
+  margin-left: 0;
+  /* Центр сетки уже поднял значок на четверть клетки; сдвигаем ещё на
+     0.78 — низ висит чуть выше кромки, не закрывая голову. Transform,
+     а не margin: отрицательный margin в grid-центрировании сдвигает
+     элемент только на половину своей величины. */
+  transform: translateY(calc(var(--cell) * -0.78));
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+}
+
+/* Покой намеренно тихий: три точки не должны перетягивать взгляд с карты. */
+.ent-state.calm {
+  opacity: 0.7;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
+}
+
+/* Тревога пульсирует свечением, а не размером: scale размывал бы пиксель-арт. */
+.ent-state.alert {
+  filter: drop-shadow(0 0 5px rgba(217, 74, 80, 0.85)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+  animation: stateAlertPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes stateAlertPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(217, 74, 80, 0.6)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+  }
+  50% {
+    filter: drop-shadow(0 0 9px rgba(217, 74, 80, 1)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+  }
+}
+
+/* Поиски: ровное золотое свечение — враг настороже, но цели не видит. */
+.ent-state.search {
+  filter: drop-shadow(0 0 4px rgba(232, 183, 91, 0.75)) drop-shadow(0 2px 3px rgba(0, 0, 0, 0.8));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ent-state.alert { animation: none; }
+}
+
 /* Сундук */
 .ent-treasure {
   width: calc(var(--cell) * 0.66);
@@ -1117,6 +1162,22 @@ body.game-page:has(.stage.village) .tile.unseen {
   opacity: 0.12;
   filter: grayscale(0.85);
   animation: none;
+}
+
+/* Сработавшая ловушка перечёркнута: одной разницы в прозрачности (0.3 → 0.12)
+   на тёмном полу не хватало, и шаг на ловушку выглядел как «ничего не было».
+   Крест рисуем на клетке, а не на иконке: у .ent-trap.spent opacity 0.12,
+   и любой её потомок погас бы вместе с ней. */
+.entity:has(> .ent-trap.spent)::after {
+  content: "×";
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(148, 163, 184, 0.85);
+  font: 700 calc(var(--cell) * 0.4) / 1 var(--font-ui);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 
 /* Сундук и ловушки-тайлы мерцают свечением, а не размером: дробный scale

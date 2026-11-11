@@ -777,6 +777,26 @@
         }
       ]
     },
+    "states": {
+      "destination": "states",
+      "assets": [
+        {
+          "tag": "alert",
+          "file": "alert.png",
+          "sha256": "a2acfa9e6970e8aea59b945b43d698730fc89894ca77030dd22355862e7f1bd6"
+        },
+        {
+          "tag": "calm",
+          "file": "calm.png",
+          "sha256": "e6d8a417e7d1c081601be7083db4e1475ec63b25bcea048397f0d3ea85dd02c0"
+        },
+        {
+          "tag": "search",
+          "file": "search.png",
+          "sha256": "b674ff8ae0cceddeed2ee2db21f045e60c3bb9beeb1d66d064bc8d42da00da97"
+        }
+      ]
+    },
     "terrain_01": {
       "destination": "floors\\01",
       "assets": [
@@ -2069,6 +2089,9 @@
     "actions/ranged.png": "ba83a2402450c718e501ba243dbd99c273f391434cb9db2e1702fa74cde33a2c",
     "actions/summon.png": "01c734356a6a1cc955b46ba5c77ae5f240100fd30f6fb516d35ea236ac5feb3a",
     "actions/thorns.png": "3fc80c52e3e12d6de890572b36b907ec396fcf7c059ce106b81f2d96206c0d30",
+    "states/alert.png": "a2acfa9e6970e8aea59b945b43d698730fc89894ca77030dd22355862e7f1bd6",
+    "states/calm.png": "e6d8a417e7d1c081601be7083db4e1475ec63b25bcea048397f0d3ea85dd02c0",
+    "states/search.png": "b674ff8ae0cceddeed2ee2db21f045e60c3bb9beeb1d66d064bc8d42da00da97",
     "floors/01/floor_0.png": "cfeedf35a2bc486684adb43dfd8eb217ab523032137eb78452de6b369ab95e2c",
     "floors/01/floor_1.png": "4b5a124e0fa76608fa6b3a7686dcb31b67ccb836280b4e0f8ce5ba5ab191f92e",
     "floors/01/floor_2.png": "8821c1c4a66ee65da8d8186f0c5265c8cf764bf480d8fdac97470f001eb79e72",

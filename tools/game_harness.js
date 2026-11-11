@@ -225,7 +225,7 @@
        "villageParseMap", "villageHouseAtDoor", "villageBuildingList", "villageMaterials",
        "villageTileUri", "TERRAIN_VILLAGE",
        "SLOT_NAMES", "ICONS", "SPRITES", "spriteImg", "mapIcon", "QUESTIONS", "FILL_TASKS",
-       "ACTION_ICONS",
+       "ACTION_ICONS", "STATE_ICONS", "SEARCH_TURNS", "ENEMY_STATE_TITLES",
        "TERRAIN_FLOORS", "TERRAIN_WATER", "TERRAIN_LAVA", "TERRAIN_DECOR", "TERRAIN_STAIRS",
        "TERRAIN_TRAPS", "TERRAIN_DOORS", "TERRAIN_ICONS", "TERRAIN_DECOR_NAMES",
        "terrainPick", "terrainBg", "terrainDecorUri", "terrainAnimFrames", "terrainAnimBg",

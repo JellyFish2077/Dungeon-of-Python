@@ -481,6 +481,13 @@ def build(manifest):
     for name in source_files("actions"):
         actions[name[:-4]] = png_uri(load("actions/" + name))
 
+    # Значки состояний врага на карте: покой, тревога, поиски. Префикс
+    # state_ отделяет их от спрайтов существ и тайлов: mapIcon() ищет
+    # STATE_ICONS по полному ключу.
+    states = {}
+    for name in source_files("states"):
+        states["state_" + name[:-4]] = png_uri(load("states/" + name))
+
     # Этажи: стены и пол каждого этажа — к своим целевым тонам.
     floors = []
     dirs = set()
@@ -538,6 +545,7 @@ def build(manifest):
     village, npc_sprites, village_meta = build_village(manifest, report)
     sprites.update(npc_sprites)
     return {"sprites": sprites, "items": items, "worn": worn, "actions": actions,
+            "states": states,
             "floors": floors, "water": water, "lava": lava,
             "decor": decor, "stairs": stairs, "traps": traps, "doors": doors, "objects": objects,
             "village": village, "village_meta": village_meta}, report
@@ -594,7 +602,9 @@ def sprites_block(art):
             "// Надетые вещи: слой на герое поверх player_base, ключ — id предмета.\n"
             "const WORN_SPRITES = " + js_map(art["worn"]) + ";\n\n"
             "// Значки действий в бою: меч, щит, зелье, искра и т.д.\n"
-            "const ACTION_ICONS = " + js_map(art["actions"]) + ";\n")
+            "const ACTION_ICONS = " + js_map(art["actions"]) + ";\n\n"
+            "// Состояния врага на карте: покой, тревога, поиски.\n"
+            "const STATE_ICONS = " + js_map(art["states"]) + ";\n")
 
 
 def terrain_block(art):

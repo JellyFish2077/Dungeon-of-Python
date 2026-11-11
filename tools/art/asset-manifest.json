@@ -3035,6 +3035,39 @@
           "status": "in-game review"
         }
       ]
+    },
+    "states": {
+      "source": "tools/art/aseprite/states.aseprite",
+      "destination": "tools/art/src_custom/states",
+      "assets": [
+        {
+          "tag": "calm",
+          "file": "calm.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "alert",
+          "file": "alert.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        },
+        {
+          "tag": "search",
+          "file": "search.png",
+          "size": [
+            32,
+            32
+          ],
+          "status": "in-game review"
+        }
+      ]
     }
   }
 }

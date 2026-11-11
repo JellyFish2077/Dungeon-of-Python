@@ -3911,6 +3911,81 @@ if (nbSkip && nbSkip.length) {
   log(false, "не нашлось соседней клетки для проверки атаки при пропуске");
 }
 
+// Состояния врага на карте: покой → тревога → поиски → покой.
+// Значок обязан совпадать с тем, что монстр действительно делает: иначе
+// игрок читает «тревога» у спокойно бродящего врага.
+freshRun(1);
+const stStates = API.createFloorState(1);
+G.map = stStates.map;
+G.playerPos = { ...stStates.playerPos };
+G.traps = [];
+G.traders = [];
+G.enemies = [];
+G.hazard = null;
+G.battle = null;
+G.running = true;
+// Ровная площадка, чтобы видимость зависела от логики, а не от случайной стены.
+const STATE_ROOM = 7;
+for (let dy = -STATE_ROOM; dy <= STATE_ROOM; dy++) {
+  for (let dx = -STATE_ROOM; dx <= STATE_ROOM; dx++) {
+    const x = G.playerPos.x + dx, y = G.playerPos.y + dy;
+    if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) continue;
+    G.map.grid[y][x] = 1;
+  }
+}
+const stHero = { x: G.playerPos.x, y: G.playerPos.y };
+const seer = API.makeEnemy("rat", 1);
+seer.x = stHero.x + 2 < G.map.w ? stHero.x + 2 : stHero.x - 2;
+seer.y = stHero.y;
+G.enemies = [seer];
+API.updateEnemyStates();
+log(seer.state === "alert", "враг в двух шагах видит героя и переходит в тревогу",
+  String(seer.state));
+
+// Герой уходит за радиус: враг идёт по последнему следу, а не замирает.
+const trail = { x: seer.x, y: seer.y };
+G.playerPos = { x: seer.x > 5 ? seer.x - 5 : seer.x + 5, y: seer.y };
+API.skipTurn();
+const movedX = seer.x !== trail.x, movedY = seer.y !== trail.y;
+log(seer.state === "search", "потеряв героя, враг переходит в поиски", String(seer.state));
+log(movedX || movedY, "в поисках враг шагает по следу, а не стоит на месте",
+  trail.x + "," + trail.y + " -> " + seer.x + "," + seer.y);
+for (let i = 0; i < API.SEARCH_TURNS + 1; i++) API.updateEnemyStates();
+log(seer.state === "calm", "поиски заканчиваются покоем", String(seer.state));
+
+// Отряд: ведомый, который сам героя не видит, всё равно тревожится.
+const lead = API.makeEnemy("rat", 1);
+lead.x = stHero.x + 2 < G.map.w ? stHero.x + 2 : stHero.x - 2;
+lead.y = stHero.y;
+lead.squadId = 99;
+lead.squadIdx = 0;
+const wing = API.makeEnemy("rat", 1);
+wing.x = stHero.x + 6 < G.map.w ? stHero.x + 6 : stHero.x - 6;
+wing.y = stHero.y;
+wing.squadId = 99;
+wing.squadIdx = 1;
+G.playerPos = { ...stHero };
+G.enemies = [lead, wing];
+API.updateEnemyStates();
+log(lead.state === "alert" && wing.state === "alert",
+  "отряд тревожится вместе с тем, кто увидел героя",
+  lead.state + "/" + wing.state);
+
+// Страж с поста не ищет: он либо видит героя, либо спокоен.
+const sentry = API.makeEnemy("rat", 1);
+sentry.guard = true;
+sentry.x = stHero.x + 2 < G.map.w ? stHero.x + 2 : stHero.x - 2;
+sentry.y = stHero.y;
+sentry.state = "search";
+sentry.searchLeft = API.SEARCH_TURNS;
+G.enemies = [sentry];
+API.updateEnemyStates();
+log(sentry.state === "calm" && sentry.searchLeft === 0,
+  "страж не уходит в поиски, а возвращается в покой", String(sentry.state));
+G.enemies = [];
+G.battle = null;
+G.playerPos = { ...stHero };
+
 // Во время боя пропускать ход нельзя: иначе монстр ходил бы поверх вопроса.
 const guardEnemy = API.makeEnemy("rat", 1);
 guardEnemy.x = G.playerPos.x;
@@ -7627,6 +7702,18 @@ log(!!API.ACTION_ICONS &&
       .every((k) => typeof API.ACTION_ICONS[k] === "string" &&
         API.ACTION_ICONS[k].startsWith("data:image/png")),
   "набор значков действий собран из Aseprite");
+
+// Значки состояний врага: покой, тревога, поиски — три картинки из Aseprite.
+log(!!API.STATE_ICONS &&
+    ["state_calm", "state_alert", "state_search"]
+      .every((k) => typeof API.STATE_ICONS[k] === "string" &&
+        API.STATE_ICONS[k].startsWith("data:image/png")) &&
+    Object.keys(API.STATE_ICONS).length === 3,
+  "набор значков состояний врага собран из Aseprite",
+  API.STATE_ICONS ? Object.keys(API.STATE_ICONS).join(",") : "нет");
+log(API.enemyStateOf({}) === "calm" && API.enemyStateOf({ state: "search" }) === "search" &&
+    API.SEARCH_TURNS > 0,
+  "враг без состояния спокоен, а поиски длятся несколько ходов");
 log(API.playerAttackIcon(false, false) === "attack" &&
     API.playerAttackIcon(true, false) === "crit" &&
     API.playerAttackIcon(false, true) === "execute" &&

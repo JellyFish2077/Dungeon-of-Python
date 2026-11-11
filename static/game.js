@@ -5338,10 +5338,10 @@
     const dmg = devGod() ? 0 : armorDamage(HAZARD_DMG_BASE + G.floorIndex);
     G.player.hp = Math.max(0, G.player.hp - dmg);
     setMsg("Лава обжигает: −" + dmg + " здоровья.");
+    toast("Лава обжигает: −" + dmg + " здоровья.", 2200);
     log("Лавовый разлом обжёг тебя на " + dmg + ".", "hurt");
-    const map = el("map");
-    if (map) spawnFloat(map, "-" + dmg, "hurt", 50, 50);
-    if (map) shakeEl(map);
+    floatAtHero("-" + dmg, "hurt");
+    if (el("map")) shakeEl(el("map"));
     updateHud();
     if (G.player.hp <= 0) {
       showDeath();
@@ -9250,6 +9250,12 @@
         place("guard-" + e.uid, e.x, e.y, vis, "guard", "ent-marker guard", "#38bdf8",
           "Страж лестницы: пока он жив, спуска нет", 6);
       }
+      // Значок состояния висит над головой: покой, тревога, поиски.
+      // Отдельная сущность на клетке врага — как метки стража и прицела,
+      // поэтому она не мешает спрайту и его свечению.
+      const st = enemyStateOf(e);
+      place("state-" + e.uid, e.x, e.y, vis, "state_" + st,
+        "ent-marker ent-state " + st, null, ENEMY_STATE_TITLES[st], 7);
       // Дальнобойные отмечаются отдельной меткой: игрок должен знать,
       // что этот монстр бьёт издалека и к нему нельзя подходить вплотную.
       if (!(e.range > 1)) return;
@@ -11708,6 +11714,15 @@
   // С какого расстояния враг замечает героя. Встроенное значение — запасное:
   // при загрузке его перекрывает настройка баланса «combat.aggro».
   let AGGRO_RADIUS = 3;
+  // Сколько ходов враг ищет героя после того, как потерял его из виду.
+  // Значок «Поиски» висит ровно столько же: игрок успевает понять, что
+  // монстр ещё рядом и вот-вот вернётся.
+  const SEARCH_TURNS = 6;
+  const ENEMY_STATE_TITLES = {
+    calm: "Покой: героя не заметил",
+    alert: "Тревога: видит героя",
+    search: "Поиски: потерял героя из виду"
+  };
 
   function tileBlockedForEnemy(x, y, mover) {
     if (x < 0 || y < 0 || x >= G.map.w || y >= G.map.h) return true;
@@ -11784,6 +11799,106 @@
     return null;
   }
 
+  // ---------- Состояния врага на карте ----------
+  // Покой — монстр занят патрулём и героя не заметил. Тревога — видит героя
+  // и активно его преследует/стреляет. Поиски — потерял цель и несколько
+  // ходов прочёсывает последнее место, где её видел. Состояние меняет только
+  // значок над головой и шаг поиска: погоня и бой остаются прежними.
+  function enemyStateOf(e) {
+    return e.state === "alert" || e.state === "search" ? e.state : "calm";
+  }
+
+  // Видит ли враг героя ровно там, где его считает видимым боевая логика:
+  // иначе значок кричал бы «тревога», пока монстр спокойно бродит.
+  function enemySeesPlayer(e) {
+    const px = G.playerPos.x;
+    const py = G.playerPos.y;
+    const dist = Math.hypot(e.x - px, e.y - py);
+    const range = e.range || 1;
+    // Босс в запечатанном зале видит весь зал — см. aggro в enemyTurn().
+    if (e.boss) return !!(G.arena && G.arena.sealed);
+    // Страж не сходит с поста и бьёт только в упор/на свою дистанцию.
+    if (e.guard) return dist <= range && hasLineOfSight(e.x, e.y, px, py);
+    if (range > 1 && dist <= range) return hasLineOfSight(e.x, e.y, px, py);
+    if (dist > AGGRO_RADIUS + range - 1) return false;
+    // Для погони закрытая дверь не стена: монстр чует героя и идёт открывать.
+    return hasLineOfSight(e.x, e.y, px, py, true);
+  }
+
+  // Пересчитать состояния до ходов: ведомые ориентируются на ведущего,
+  // который тоже мог ещё не походить.
+  function updateEnemyStates() {
+    const alive = G.enemies.filter((e) => e.hp > 0);
+    const seen = new Set();
+    alive.forEach((e) => {
+      if (enemySeesPlayer(e)) seen.add(e);
+    });
+    // Отряд знает о герое, если его увидел хотя бы один: иначе ведомый
+    // показывал бы «покой», шагая за кричащим ведущим.
+    const alertedSquads = new Set();
+    alive.forEach((e) => {
+      if (e.squadId && seen.has(e)) alertedSquads.add(e.squadId);
+    });
+    alive.forEach((e) => {
+      const sees = seen.has(e) || (!!e.squadId && alertedSquads.has(e.squadId));
+      // Страж с поста не ищет: он либо видит героя, либо спокоен.
+      if (e.guard) {
+        e.state = sees ? "alert" : "calm";
+        e.searchLeft = 0;
+        e.lastSeen = sees ? { x: G.playerPos.x, y: G.playerPos.y } : null;
+        return;
+      }
+      if (sees) {
+        e.state = "alert";
+        e.lastSeen = { x: G.playerPos.x, y: G.playerPos.y };
+        e.searchLeft = SEARCH_TURNS;
+        return;
+      }
+      if (e.state === "alert") {
+        // Только что потерял героя: идём к последнему месту, где видел.
+        e.state = "search";
+        e.searchLeft = SEARCH_TURNS;
+        return;
+      }
+      if (e.state === "search") {
+        e.searchLeft = Math.max(0, (e.searchLeft || 0) - 1);
+        if (e.searchLeft <= 0) {
+          e.state = "calm";
+          e.lastSeen = null;
+        }
+        return;
+      }
+      e.state = "calm";
+      e.lastSeen = null;
+    });
+  }
+
+  // Шаг поиска: к последнему замеченному месту, обходом, если напрямик
+  // упёрлись в стену. Клетку героя поиск не занимает: это не атака.
+  function searchStep(e) {
+    const target = e.lastSeen;
+    if (!target) return wander(e);
+    const here = G.playerPos;
+    if (e.x === target.x && e.y === target.y) return wander(e);
+    let step = stepToward(e, target.x, target.y);
+    if (!step || Math.hypot(step.x - target.x, step.y - target.y) >=
+                 Math.hypot(e.x - target.x, e.y - target.y)) {
+      const around = detourStep(e, target.x, target.y);
+      if (around) step = around;
+    }
+    if (step && step.x === here.x && step.y === here.y) return wander(e);
+    return step || wander(e);
+  }
+
+  // Враг потерял цель: в «Поисках» он идёт по следу каждый ход, иначе
+  // ведёт себя как раньше — изредка бродит. true — ход уже потрачен.
+  function lostTargetStep(e) {
+    if (e.state !== "search") return false;
+    const s = searchStep(e);
+    if (s) moveEnemyTo(e, s.x, s.y);
+    return true;
+  }
+
   // Ловушка срабатывает при первом шаге на клетку.
   // Ловушки без урона меняют правила боя: цепь заставляет пропустить
   // ближайшего врага, проклятая плита делает следующий вопрос тяжелее.
@@ -11797,6 +11912,9 @@
       p.snared = true;
       p.snareWaits = 0;
       setMsg(type.text + " Пока цепь цела, ты не уйдёшь с этой клетки.");
+      // Плашка сообщений и лог скрыты из интерфейса — единственный видимый
+      // канал остался у тоста. Без него цепь читалась как «ничего не было».
+      toast(type.text + " Цепь держит: сорви её в бою или пережди.", 3200);
       log("Цепь держит тебя на месте. Сорви её победой в бою или пережди — " +
         "звенья разойдутся за " + SNARE_WAITS + " ходов.", "hurt");
       render();
@@ -11819,6 +11937,7 @@
     if (type.key === "curse_tile") {
       G.player.cursedNext = true;
       setMsg(type.text);
+      toast(type.text + " Следующий вопрос будет труднее.", 3200);
       log("Проклятая плита: следующий вопрос будет сбивать с толку.", "hurt");
       render();
       return true;
@@ -11827,8 +11946,9 @@
     const dmg = devGod() ? 0 : armorDamage(type.damage);
     p.hp = Math.max(0, p.hp - dmg);
     setMsg(type.text + " −" + dmg + " здоровья.");
+    toast(type.text + " −" + dmg + " здоровья.", 2600);
     log(type.text + " Ты теряешь " + dmg + " здоровья.", "hurt");
-    spawnFloat(el("map"), "-" + dmg, "hurt", 50, 50);
+    floatAtHero("-" + dmg, "hurt");
     shakeEl(el("map"));
     updateHud();
     render();
@@ -11937,6 +12057,9 @@
   }
 
   function enemyTurn() {
+    // Состояния считаем до ходов, по позициям на начало хода: тогда значки
+    // не зависят от того, в каком порядке ходили монстры.
+    updateEnemyStates();
     const px = G.playerPos.x;
     const py = G.playerPos.y;
     for (const e of G.enemies.slice()) {
@@ -11997,6 +12120,7 @@
         // Стена между монстром и героем: стрелять нельзя и вести героя
         // сквозь стену тоже нельзя. Дальнобойный теряет цель и бродит.
         if (!hasLineOfSight(e.x, e.y, px, py)) {
+          if (lostTargetStep(e)) continue;
           if (Math.random() < 0.25) {
             const w = wander(e);
             if (w) moveEnemyTo(e, w.x, w.y);
@@ -12019,6 +12143,7 @@
         if (abilityOf(e) === "phasing" && Math.random() < (e.phaseChance == null ? 0.25 : e.phaseChance)) {
           if (phaseTeleport(e)) continue;
         }
+        if (lostTargetStep(e)) continue;
         if (Math.random() < 0.25) {
           const w = wander(e);
           if (w) {
@@ -13169,6 +13294,20 @@
     span.style.top = (yPct == null ? 40 : yPct) + "%";
     container.appendChild(span);
     setTimeout(() => span.remove(), 1000);
+  }
+
+  // Всплывающее число над клеткой героя. spawnFloat считает проценты от
+  // контейнера, а карта выше экрана: её центр при прокрутке оказывался за
+  // кадром, и «−8» от ловушки или лавы улетало мимо. Берём долю от размеров
+  // самой карты, а не фиксированные 50/50.
+  function floatAtHero(text, cls) {
+    const map = el("map");
+    if (!map) return;
+    const m = mapMetrics();
+    const size = mapSize(m);
+    const x = size.w > 0 ? ((m.pad + G.playerPos.x * m.step + m.step / 2) / size.w) * 100 : 50;
+    const y = size.h > 0 ? ((m.pad + G.playerPos.y * m.step + m.step / 2) / size.h) * 100 : 50;
+    spawnFloat(map, text, cls, x, y);
   }
 
   function shakeEl(node) {
@@ -16956,6 +17095,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.48.0",
+      date: "11 ноября 2026",
+      title: "Враги показывают, что задумали",
+      items: [
+        "Над врагами появились значки: покой, тревога и поиски.",
+        "Заметив героя, враг кричит «!» и преследует; потеряв след, ищет его.",
+        "Ловушки и лава сообщают об уроне, а сработавшая ловушка гаснет с крестом."
+      ]
+    },
+    {
       version: "1.47.0",
       date: "11 ноября 2026",
       title: "Новые этажи подземелья",
@@ -18582,6 +18731,12 @@ function topicName(key) {
         // пропустил: без payload оно терялось при перезагрузке страницы.
         payload: e.payload || null,
         guard: !!e.guard,
+        // Состояние на карте: без него после перехода на другой этаж
+        // и обратно монстры «забывали», что ищут героя, и значки
+        // сбрасывались в покой.
+        state: e.state || "calm",
+        lastSeen: e.lastSeen ? { x: e.lastSeen.x, y: e.lastSeen.y } : null,
+        searchLeft: e.searchLeft || 0,
         xp: e.xp || 0,
         x: e.x,
         y: e.y
@@ -18647,7 +18802,7 @@ function topicName(key) {
             bossPhase: 0, phaseHold: false, phaseAbility: null, phaseAbilityText: "",
             elite: false, title: "", baseDmg: 0, fireScale: 1, shotScale: 1,
             payload: null, squadId: 0, squadIdx: 0, range: 1, guard: false, xp: 0,
-            summonedBy: 0 },
+            summonedBy: 0, state: "calm", lastSeen: null, searchLeft: 0 },
           e
         )
       ),

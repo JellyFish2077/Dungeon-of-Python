@@ -151,6 +151,13 @@ const ACTION_ICONS = {
   summon: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAFVBMVEUAAAAFBw0KDxpVNHeTZrjot1v/4aDVz5vOAAAAB3RSTlMA////////pX+m+wAAAP1JREFUeNplkUFOAzEMRZ+dLpgVMbvuZnoBRogrcG3ECTgC5ASNpW5SgWIWYUpFvXD8v34UKw/+lYzDgArAbmhjc9Kfnmi/huwJb+e7KRooYFSHqNhIyD6aLnbv5ykaCobrrE86BwYJ2Udb4vguUz1P0RRwxVmDOQDFgrlySl4VN5TxEgAzoJIhiLU84iBZwWfHAQ+NSzz1nsY0jLi0LbEWynplnACSX4ygQx93FHLJI712AQ2HQmH08B3QE4erT5bl+ettiJfvVxdkCT+EI/lD8tGVcKGIWe7kcBQquRfoRagD1EMejCw+x2IVyyBG3VAOUNS6kWtMm76FfVM/PRRs/drdjJwAAAAASUVORK5CYII=",
   thorns: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAFVBMVEUAAAAFBw0KDxoSGytKUl5cPyePZkKxOLEyAAAAB3RSTlMA////////pX+m+wAAAL9JREFUeNqFkbFuQyEMRQ9+DLwp9pQ5/YLOnfjwfEzHTMVbs0R0sJGekla1EPgeYzAYnqzEYsAAoIY2FtmW9rZzBwQolnmawHAA3AIUBeiEJ2AUmDMvE4py6qDQKRqHjglrk2BMFAAFQ7LiWtORokvVCkXl+XELeBYXIFTMf6b8Dzo9nI3S+Ghnad9v7XybNwHmYSD5t2mDCvh1aYPK9O099ePTEY45IxplR1ABv6T+Wo1ij7gvcGcHxvi12S/2A6hZMRDBrxNoAAAAAElFTkSuQmCC"
 };
+
+// Состояния врага на карте: покой, тревога, поиски.
+const STATE_ICONS = {
+  state_alert: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAElBMVEUAAAAFBw0KDxoSGyuOIjPZSlBI0+y6AAAABnRSTlMA//////96eeD+AAAA2ElEQVR42n2RO1LEQAxE37Sdr4eIaEv4AlRx/ztwg7WAnJkicoJmAw/rZfkoUXXrU90S3ETaUgYKAOOGM1/MuGEZsTEjkPIcJzSfWgUBWeEQbhkQpLujA8TrwwQjZFsYHmt4KFdEmuLQNXiaEOildiIMRLZ2kamMIHbdDkrTNyeTkO84DN26/Yv4TPj/HddEGMBzAMhRq9f1VtWnwgEMBlbtXg7LKvqSvgJtY8PTbGCtIijeWxQFRmjv2Bug49KvXkIGMi/AAMD6cb/GUurltzkDpfz67B9xBjjETVFN9cbfAAAAAElFTkSuQmCC",
+  state_calm: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAElBMVEUAAAAFBw0KDxoSGyspQF8/X4jMGrGaAAAABnRSTlMA//////96eeD+AAAA2klEQVR42nWRO3LDMBBDH0H1FtOlcRifwPc/hU8g06nSkek0mfHSxcqWlQ8aDsD9YAfwA8GfBFQABueJuzI4V8ZcGYCQDjahw9QbCEiyAlZyAgThZV8A7ON9BEHKF19lShAJrztmV77os0CXtpiyDCLl/rCphMBW3wUUxs0lo1BZuWW3Ho/XyOl4PbmxLQaAXk30avxbYRPA5FawvH6roN6eG3rTZkyGyKz1lt15Fk9DVEDetnT0hqCWpURWIQJ8vzVA+/Onr6imDMql3qP0oEp9CB5lrX+G/Qs3DfVOTrAcfaAAAAAASUVORK5CYII=",
+  state_search: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgBAMAAACBVGfHAAAAElBMVEUAAAAFBw0KDxoSGyu5gi/ot1soLWXBAAAABnRSTlMA//////96eeD+AAAA40lEQVR42m2RPW7DMAxGn2gN3WL2ACnrEwTI/Y+QK8Rqp06VkKVGB6qDZMNJykX4nvjxB4SHCO1RIAMQm1ZWEpsWwxuJQNDJr8h0rQUEUPEEnkwBgfB6TAD++T5CBLX5DMBFtCCE0Q99hhRGIshH7TO4fSOo1T6cIUoEhwsgCgliGAGY+iajIKmXzOCGPG67Al1B3L483WU8WXbAbacSsZa2WCO1yJ3LYGCRuoHDvAi7IpJAmo3hfAKrBYGceop4hgHg962El5/bcf5qLbKLgVjK9AyWm+FzLtttVYGc/z32U/wBAZFLnWHOmFsAAAAASUVORK5CYII="
+};
 // </art:sprites>
 
 const SPRITE_FALLBACK = SPRITES.goblin;
@@ -173,6 +180,12 @@ function mapIconIsPixel(key) {
 // дальнобойного) — SVG-иконка.
 function mapIcon(key) {
   if (SPRITES[key]) return spriteImg(key);
+  // Значки состояний врага (state_calm, state_alert, state_search) — свои
+  // пиксельные картинки, но не спрайты существ: mapIconIsPixel их не
+  // считает, иначе .ent-px растянул бы значок на всю клетку.
+  if (typeof STATE_ICONS !== "undefined" && STATE_ICONS[key]) {
+    return "<img class='sprite-img' src='" + STATE_ICONS[key] + "' alt=''>";
+  }
   if (typeof terrainIcon === "function") {
     const tile = terrainIcon(key);
     if (tile) return "<img class='sprite-img' src='" + tile + "' alt=''>";

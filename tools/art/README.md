@@ -47,6 +47,7 @@ bootstrap/make_interior.py  одноразовый генератор интер
 bootstrap/make_objects3.py  одноразовый генератор жилы, обломков, рычага, таблички и мешочка
 bootstrap/make_furniture.py  одноразовый генератор мебели домов
 bootstrap/make_actions.py  одноразовый генератор значков действий в бою
+bootstrap/make_states.py   одноразовый генератор значков состояний врага на карте
 bootstrap/make_shields.py  одноразовый генератор новых щитов
 bootstrap/make_altar.py    одноразовый генератор алтаря сделки
 export_aseprite.py       Aseprite CLI → src_custom
@@ -98,6 +99,9 @@ python tools/art/bootstrap/make_objects3.py --force
 
 python tools/art/bootstrap/make_furniture.py --preview tools/art/_furniture_preview.png
 python tools/art/bootstrap/make_furniture.py --force
+
+python tools/art/bootstrap/make_states.py --preview tools/art/_states_preview.png
+python tools/art/bootstrap/make_states.py --force
 ```
 
 `bootstrap/make_slice.py`, `bootstrap/make_environment.py`,
@@ -105,7 +109,8 @@ python tools/art/bootstrap/make_furniture.py --force
 `bootstrap/make_village_extra.py`,
 `bootstrap/make_biomes.py`, `bootstrap/make_creatures2.py`,
 `bootstrap/make_items2.py`, `bootstrap/make_portal.py`,
-`bootstrap/make_interior.py`, `bootstrap/make_objects3.py` и
-`bootstrap/make_furniture.py` перезаписывают `.aseprite` и нужны только для
+`bootstrap/make_interior.py`, `bootstrap/make_objects3.py`,
+`bootstrap/make_furniture.py` и `bootstrap/make_states.py` перезаписывают
+`.aseprite` и нужны только для
 старта нового набора. После начала ручной работы их не запускают: они
 затрут правки.

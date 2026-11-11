@@ -51,6 +51,7 @@ FAMILIES = {
     "objects4": "objects",
     "furniture": "objects",
     "actions": "actions",
+    "states": "states",
     "terrain_01": os.path.join("floors", "01"),
     "water": "water",
     "lava": "lava",
