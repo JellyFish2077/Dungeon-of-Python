@@ -1886,6 +1886,9 @@
   // ход и ослабляет удар врага, отступление выводит из боя без цены HP,
   // умение тратит заряд похода.
   let BRACE_CUT = 0.5;          // максимальная доля блока при обороне
+  // Предел разгона «огня»: без него демон в третьей фазе бьёт сильнее
+  // полного запаса здоровья, и бой нельзя выиграть никакой тактикой.
+  const FIRE_CAP = 1.6;
   // Ход врага — отдельный вопрос. Враг отвечает сам и может ошибиться:
   // тогда герой бьёт в ответ. Точность растёт с глубиной, но не до 100%.
   const ENEMY_QUIZ = {
@@ -11389,7 +11392,8 @@
         // Рост урона от боя к бою не должен копиться в самом поле врага:
         // держим масштаб рядом с боем, иначе демон после этажа бьёт
         // в разы сильнее заявленного.
-        enemy.fireScale = (enemy.fireScale || 1) * (enemy.fireMul || 1.15);
+        enemy.fireScale = Math.min(FIRE_CAP,
+          (enemy.fireScale || 1) * (enemy.fireMul || 1.15));
       }
       // Дальнобойный бьёт слабее, зато не лезет вплотную. Считаем урон от
       // базы заново: и огонь демона, и прицел мыши должны сходиться
@@ -11470,7 +11474,7 @@
       G.player.poison = Math.min(3, (G.player.poison || 0) + 1 + (e.poisonBonus || 0));
     }
     if (ab === "fire") {
-      e.fireScale = (e.fireScale || 1) * (e.fireMul || 1.15);
+      e.fireScale = Math.min(FIRE_CAP, (e.fireScale || 1) * (e.fireMul || 1.15));
     }
     if ((e.range || 1) > 1) {
       e.shotScale = RANGED.dmgScale;
@@ -12152,6 +12156,11 @@
     // Ошибка подряд в этом бою бьёт сильнее (см. MISS_STEP).
     const miss = missMul(b.missStreak || 1);
     const raw = Math.round((e.dmg + (e.dmgBoost || 0)) * mul * deal * miss * share) + rand(0, 3);
+    // «Следующий удар сильнее» — именно следующий, а не весь бой. Раньше
+    // nextDmgMul и dmgBoost копились до конца схватки: демон в третьей фазе
+    // разгонялся до удара с полного здоровья, и бой становился непроходимым.
+    if (e.nextDmgMul && e.nextDmgMul > 1) e.nextDmgMul = 1;
+    if (e.dmgBoost) e.dmgBoost = 0;
     // Постоянное улучшение «Броня» гасит долю каждого удара. Считается после
     // защиты снаряжения и до блока: блок — это полный пропуск удара.
     const cut = progOf("armor");
@@ -12331,8 +12340,15 @@
       resultParts.push("Минотавр накапливает силу.");
     }
     e.hp = Math.max(0, e.hp - hit);
-    if (ability === "bossrage" && e.enraged && hit > 0 && e.hp > 0) {
-      const healed = Math.max(1, Math.round(e.maxHp * (e.elite ? 0.12 : 0.08)));
+    // Лечение в ярости — механика дракона. Демон в третьей фазе тоже получает
+    // «bossrage», но лечиться за каждый удар не должен: иначе его HP не падает.
+    if (ability === "bossrage" && e.enraged && hit > 0 && e.hp > 0 && e.key === "dragon") {
+      // Лечение в ярости не может перекрыть удар: иначе дракон с 3544 HP
+      // лечится на 283 за каждый удар и его невозможно убить.
+      const healed = Math.min(
+        Math.max(1, Math.round(e.maxHp * (e.elite ? 0.12 : 0.08))),
+        Math.max(1, Math.round(hit * 0.35))
+      );
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + healed);
       if (e.hp > before) {
@@ -12343,7 +12359,12 @@
     // Тролль затягивает раны прямо в бою: его надо либо бить быстро, либо
     // не связываться вовсе.
     if (ability === "regen" && hit > 0 && e.hp > 0) {
-      const healed = Math.max(1, Math.round(e.maxHp * (e.elite ? 0.14 : 0.08)));
+      // Босс затягивает не больше четверти нанесённого урона. Иначе при
+      // большом запасе HP (Король големов, 1303) восстановление перекрывает
+      // любой удар и бой превращается в бесконечный цикл.
+      const healed = e.boss
+        ? Math.min(Math.round(hit * 0.25), Math.round(e.maxHp * 0.05))
+        : Math.max(1, Math.round(e.maxHp * (e.elite ? 0.14 : 0.08)));
       const before = e.hp;
       e.hp = Math.min(e.maxHp, e.hp + healed);
       if (e.hp > before) {
@@ -14194,7 +14215,10 @@
 
   function healEnemy(e, share) {
     const was = e.hp;
-    e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(e.maxHp * share)));
+    // Босс не залечивает больше 5% запаса за действие: иначе «восстановление»
+    // в третьей фазе голема отменяет удары героя и бой не кончается.
+    const pct = e.boss ? Math.min(share, 0.05) : share;
+    e.hp = Math.min(e.maxHp, e.hp + Math.max(1, Math.round(e.maxHp * pct)));
     return e.hp - was;
   }
 
@@ -14214,7 +14238,7 @@
       return;
     }
     if (ab === "fire") {
-      e.fireScale = (e.fireScale || 1) * (e.fireMul || 1.15);
+      e.fireScale = Math.min(FIRE_CAP, (e.fireScale || 1) * (e.fireMul || 1.15));
       e.dmg = Math.max(1, Math.round(e.baseDmg * e.fireScale * (e.shotScale || 1)));
       turn.feedback = e.name + " разжигает пламя: следующий удар будет сильнее.";
       return;
@@ -15986,6 +16010,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.46.0",
+      date: "11 ноября 2026",
+      title: "Поздние боссы и умный бот",
+      items: [
+        "Демон и дракон больше не разгоняются до удара с полного здоровья.",
+        "«Следующий удар сильнее» сбрасывается после удара.",
+        "Баланс-бот обходит ловушки, ищет привалы и бережёт эликсиры."
+      ]
+    },
     {
       version: "1.45.0",
       date: "10 ноября 2026",
