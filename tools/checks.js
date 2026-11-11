@@ -8023,9 +8023,11 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
     !JSON.stringify(saved).includes("rooms"),
     "plan не сериализуется");
   API.setGenV2(false);
+  API.setGenV3(false);
   const legacy = API.createFloorState(0);
-  log(!legacy.plan, "без GEN_V2 план не создаётся");
+  log(!legacy.plan, "без GEN_V2 и GEN_V3 план не создаётся");
   API.setGenV2(true);
+  API.setGenV3(true);
   API.setCampaign(1);
 }
 
@@ -8797,9 +8799,20 @@ let doorsFramed = true;
 let vaultOpen = 0;
 let vaultCount = 0;
 let vaultOpenInfo = [];
-function checkFloorContent(i) {
+// Двери: guard достижимости больше не считает запечатанный тайник
+// обязательной точкой, поэтому двери должны стоять на каждом этаже.
+let plannedFloors = 0;
+let doorFloors = 0;
+let doorTotal = 0;
+function checkFloorContent(i, countDoors) {
   const st = API.buildCheckedFloor(i);
   if (!st.plan) return;
+  if (countDoors !== false) {
+    plannedFloors += 1;
+    const n = (st.doors || []).length;
+    doorTotal += n;
+    if (n) doorFloors += 1;
+  }
   const vault = (st.vaults || [])[0];
   const normal = Math.max(0, (st.treasures || []).length - (vault ? 2 : 0));
   if (normal > chestMax) chestMax = normal;
@@ -8842,7 +8855,14 @@ function checkFloorContent(i) {
   }
 }
 for (let i = 0; i < API.FLOORS.length; i += 1) checkFloorContent(i);
-for (let t = 0; t < 30 && vaultCount === 0; t += 1) checkFloorContent(4);
+for (let t = 0; t < 30 && vaultCount === 0; t += 1) checkFloorContent(4, false);
+log(plannedFloors > 0 && doorFloors === plannedFloors,
+  "на каждом этаже с планом есть двери комнат",
+  "этажей с дверями: " + doorFloors + " из " + plannedFloors +
+  ", всего дверей: " + doorTotal);
+log(doorTotal >= plannedFloors * 10,
+  "двери не пропадают из-за запечатанного тайника",
+  (doorTotal / Math.max(1, plannedFloors)).toFixed(1) + " дверей на этаж");
 log(chestMax > 0 && chestMax <= 4, "обычных сундуков на этаже не больше четырёх", chestMax);
 log(doorsOk, "двери комнат стоят на полу, а не в стене");
 log(doorsFramed, "каждая дверь стоит в раме, а не посреди пола");
@@ -8990,5 +9010,251 @@ log(devDoubled.maxHp >= devBaseline.maxHp * 1.9,
   devBaseline.maxHp + " -> " + devDoubled.maxHp);
 G.dev = null;
 globalThis.__PYQUIZ_FEATURES = savedFeatures;
+
+// ============ Генератор v3: свободная расстановка комнат ============
+// Ветка gen-v3. Генератор включён по умолчанию для кампании v2. Блок
+// проверяет и сам дефолт, и ручное переключение, а в конце возвращает
+// флаги к рабочему состоянию.
+{
+  freshRun(0);
+  API.setCampaign(2);
+  // Индекс 3 — обычный (не боссовый) этаж катакомб.
+  const defaultState = API.createFloorState(3);
+  log(((defaultState.plan || {}).version || 0) === 3,
+    "v3: кампания v2 по умолчанию строит план v3",
+    "версия плана: " + ((defaultState.plan || {}).version || 0));
+  API.setGenV2(true);
+  API.setGenV3(true);
+  const nonboss = [];
+  for (let i = 0; i < API.FLOORS_V2.length; i += 1) {
+    if (!API.floorDef(i).boss) nonboss.push(i);
+  }
+  let builds = 0;
+  let v3plans = 0;
+  let fallbacks = 0;
+  let overlaps = 0;
+  let unlinked = 0;
+  let badGeom = 0;
+  let doorTotal = 0;
+  let doorless = 0;
+  let unframed = 0;
+  let wideMouths = 0;
+  let connectors = 0;
+  let loneConnectors = 0;
+  let loops = 0;
+  let hazardRooms = 0;
+  let hazardSplit = 0;
+  const ratios = [];
+  const sizes = new Set();
+  // Среда v3 растёт пятном: клетки одной комнаты должны образовывать
+  // одну-две связные области, а не равномерную соль из десятка точек.
+  const hazardParts = (cells, hazard) => {
+    const free = new Set(cells
+      .filter((c) => hazard[c.y] && hazard[c.y][c.x])
+      .map((c) => c.x + "," + c.y));
+    let parts = 0;
+    while (free.size) {
+      parts += 1;
+      const start = free.values().next().value;
+      free.delete(start);
+      const queue = [start];
+      while (queue.length) {
+        const [x, y] = queue.pop().split(",").map(Number);
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
+          const key = (x + dx) + "," + (y + dy);
+          if (free.has(key)) {
+            free.delete(key);
+            queue.push(key);
+          }
+        });
+      }
+    }
+    return parts;
+  };
+  for (let pass = 0; pass < 5; pass += 1) {
+    for (const fi of nonboss) {
+      const state = API.buildCheckedFloor(fi);
+      builds += 1;
+      const plan = state.plan;
+      if (!plan) continue;
+      if (plan.version === 3) v3plans += 1;
+      if (state.checked && state.checked.fallback) fallbacks += 1;
+      if ((state.checked && (state.checked.repaired ||
+          (state.checked.left || []).length)) || !plan.version) badGeom += 1;
+      for (let i = 0; i < plan.rooms.length; i += 1) {
+        const a = plan.rooms[i];
+        if (!a.rect || !a.center || !a.cells.length) badGeom += 1;
+        else sizes.add(a.rect.w + "x" + a.rect.h);
+        for (let j = i + 1; j < plan.rooms.length; j += 1) {
+          const b = plan.rooms[j];
+          if (!b.rect) continue;
+          const ix = Math.min(a.rect.x + a.rect.w, b.rect.x + b.rect.w) -
+            Math.max(a.rect.x, b.rect.x);
+          const iy = Math.min(a.rect.y + a.rect.h, b.rect.y + b.rect.h) -
+            Math.max(a.rect.y, b.rect.y);
+          // Допустим только зазор не меньше одной клетки: тогда хотя бы
+          // одна из величин отрицательна или равна -1.
+          if (ix > -1 && iy > -1) overlaps += 1;
+        }
+      }
+      (plan.edges || []).forEach((edge) => {
+        if (!edge.cells || !edge.cells.length) unlinked += 1;
+      });
+      // Комната-коридор стоит в начале ветки и всегда имеет продолжение:
+      // если цепочка оборвалась на ней, строитель делает её обычным листом.
+      const degree = {};
+      (plan.edges || []).forEach((edge) => {
+        degree[edge.a] = (degree[edge.a] || 0) + 1;
+        degree[edge.b] = (degree[edge.b] || 0) + 1;
+      });
+      plan.rooms.forEach((room) => {
+        if (!room.connector) return;
+        connectors += 1;
+        if ((degree[room.id] || 0) < 2) loneConnectors += 1;
+      });
+      loops += (plan.edges || []).filter((edge) => edge.kind === "loop").length;
+      if (plan.stats && plan.stats.clearLen > 0) {
+        ratios.push(plan.stats.pathLen / plan.stats.clearLen);
+      }
+      const grid = state.map.grid;
+      const doors = state.doors || [];
+      doorTotal += doors.length;
+      if (!doors.length) doorless += 1;
+      doors.forEach((d) => {
+        const wall = (x, y) => !grid[y] || grid[y][x] !== 1;
+        if (!((wall(d.x - 1, d.y) && wall(d.x + 1, d.y)) ||
+            (wall(d.x, d.y - 1) && wall(d.x, d.y + 1)))) unframed += 1;
+      });
+      // Широкое устье — две соседние клетки выхода на одной стене комнаты.
+      plan.rooms.forEach((room) => {
+        if (!room.rect) return;
+        const r = room.rect;
+        const exits = (room.exits || []).filter((e) =>
+          grid[e.y] && grid[e.y][e.x] === 1);
+        const sides = [
+          { ok: (e) => e.y === r.y && grid[e.y - 1] && grid[e.y - 1][e.x] === 1,
+            key: (e) => e.x },
+          { ok: (e) => e.y === r.y + r.h - 1 && grid[e.y + 1] && grid[e.y + 1][e.x] === 1,
+            key: (e) => e.x },
+          { ok: (e) => e.x === r.x && grid[e.y] && grid[e.y][e.x - 1] === 1,
+            key: (e) => e.y },
+          { ok: (e) => e.x === r.x + r.w - 1 && grid[e.y] && grid[e.y][e.x + 1] === 1,
+            key: (e) => e.y }
+        ];
+        sides.forEach((side) => {
+          const list = exits.filter(side.ok).sort((a, b) => side.key(a) - side.key(b));
+          for (let i = 1; i < list.length; i += 1) {
+            if (side.key(list[i]) - side.key(list[i - 1]) === 1) wideMouths += 1;
+          }
+        });
+      });
+      if (state.hazard) {
+        plan.rooms.forEach((room) => {
+          const cells = (room.cells || []).filter((c) =>
+            state.hazard[c.y] && state.hazard[c.y][c.x]);
+          if (!cells.length) return;
+          hazardRooms += 1;
+          if (hazardParts(cells, state.hazard) > 2) hazardSplit += 1;
+        });
+      }
+    }
+  }
+  const sizesArr = Array.from(sizes);
+  const hasSmall = sizesArr.some((s) => {
+    const [w, h] = s.split("x").map(Number);
+    return w <= 6 && h <= 4;
+  });
+  const hasLarge = sizesArr.some((s) => {
+    const [w, h] = s.split("x").map(Number);
+    return w >= 8 && h >= 6;
+  });
+  log(v3plans === builds && fallbacks === 0 && badGeom === 0,
+    "v3: 50 сборок без пересечений и откатов",
+    "сборок: " + builds + ", v3: " + v3plans + ", откатов: " + fallbacks +
+    ", ошибок геометрии: " + badGeom);
+  log(overlaps === 0,
+    "v3: комнаты не пересекаются и разделены минимум одной клеткой",
+    "нарушений: " + overlaps);
+  log(unlinked === 0,
+    "v3: у каждого ребра плана есть туннель",
+    "рёбер без клеток: " + unlinked);
+  log(hasSmall && hasLarge,
+    "v3: комнаты трёх размеров, а не один шаблон",
+    sizesArr.slice().sort().join(", "));
+  log(doorless === 0 && unframed === 0 && doorTotal >= builds * 5,
+    "v3: двери стоят на каждом этаже и в раме",
+    "без дверей: " + doorless + ", без рамы: " + unframed +
+    ", всего дверей: " + doorTotal);
+  log(wideMouths === 0,
+    "v3: широкие устья сужены до одной клетки",
+    "широких устьев: " + wideMouths);
+  const sortedRatios = ratios.slice().sort((a, b) => a - b);
+  const medianRatio = sortedRatios.length
+    ? sortedRatios[Math.floor(sortedRatios.length / 2)] : 0;
+  log(connectors > 0 && loneConnectors === 0,
+    "v3: комнаты-коридоры продолжают ветку, а не обрывают её",
+    "коридоров: " + connectors + " на " + builds + " сборок, обрывов: " +
+    loneConnectors);
+  log(loops > 0,
+    "v3: дополнительные связи между близкими комнатами появляются",
+    "петель: " + loops + " на " + builds + " сборок");
+  log(medianRatio >= 0.18 && medianRatio <= 0.35,
+    "v3: путь/обход на уровне v2 (медиана 0.18–0.35)",
+    "медиана: " + medianRatio.toFixed(3) + ", сборок: " + ratios.length);
+  log(hazardRooms > 0 && hazardSplit === 0,
+    "v3: среда растёт связным пятном, а не солью",
+    "комнат со средой: " + hazardRooms + ", разорвано на 3+ пятна: " +
+    hazardSplit);
+
+  // Склеповые двери катакомб: только соседние комнаты и только прямой
+  // туннель. Длинный L в v3 не появляется даже на фигурных комнатах.
+  let cryptEdges = 0;
+  let cryptBad = 0;
+  let cryptMax = 0;
+  for (const [fi, f] of API.FLOORS_V2.entries()) {
+    if (f.boss || f.biome !== "catacombs") continue;
+    for (let seed = 0; seed < 20; seed += 1) {
+      const gen = API.generateFloorV3(f, fi, { seed });
+      const byId = {};
+      gen.plan.rooms.forEach((room) => { byId[room.id] = room; });
+      (gen.plan.edges || []).forEach((edge) => {
+        if (edge.kind !== "crypt") return;
+        cryptEdges += 1;
+        const cells = edge.cells || [];
+        cryptMax = Math.max(cryptMax, cells.length);
+        const straight = cells.length > 0 &&
+          (cells.every((c) => c.y === cells[0].y) ||
+           cells.every((c) => c.x === cells[0].x));
+        const a = byId[edge.a];
+        const b = byId[edge.b];
+        const hits = gen.plan.rooms.some((room) => {
+          if (room === a || room === b || !room.rect) return false;
+          return cells.some((cell) =>
+            cell.x >= room.rect.x && cell.x < room.rect.x + room.rect.w &&
+            cell.y >= room.rect.y && cell.y < room.rect.y + room.rect.h);
+        });
+        if (!straight || cells.length > 5 || hits) cryptBad += 1;
+      });
+    }
+  }
+  log(cryptEdges > 0 && cryptBad === 0,
+    "v3: склеповые двери ведут к соседям без длинных L",
+    "рёбер: " + cryptEdges + ", ошибок: " + cryptBad +
+    ", макс. клеток: " + cryptMax);
+
+  // Детерминизм: один сид даёт одну и ту же планировку.
+  const f3 = API.floorDef(2);
+  const ga = API.generateFloorV3(f3, 2, { seed: 12345 });
+  const gb = API.generateFloorV3(f3, 2, { seed: 12345 });
+  log(API.genPlanSignature(ga.plan) === API.genPlanSignature(gb.plan) &&
+    ga.plan.version === 3,
+    "v3: сид воспроизводит планировку",
+    API.genPlanSignature(ga.plan).length + " байт подписи");
+
+  // Возвращаем рабочий дефолт: следующие проверки не должны зависеть от
+  // того, что этот блок выключал генератор.
+  API.setGenV3(true);
+  API.setCampaign(1);
+}
 
 console.log("__JSON__" + JSON.stringify(out));
