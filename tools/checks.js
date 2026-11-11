@@ -5456,6 +5456,21 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     return clear > 400;
   });
   log(wornOverlay, "слой снаряжения — накладка, а не второй целый герой");
+  // Щит висит на руке ниже головы. Раньше пять слоёв рисовались на уровне
+  // глаз и закрывали герою лицо — на скриншотах получалась бесформенная куча.
+  const shieldIds = API.ITEM_POOL.filter((it) => it.slot === "shield").map((it) => it.id);
+  const shieldsOffFace = shieldIds.length >= 5 && shieldIds.every((id) => {
+    const png = decodePng(API.WORN_SPRITES[id]);
+    if (!png) return false;
+    for (let y = 0; y <= 12; y++) {
+      for (let x = 5; x < 28; x++) {
+        if (png.rgba[(y * png.w + x) * 4 + 3]) return false;
+      }
+    }
+    return true;
+  });
+  log(shieldsOffFace, "щиты висят ниже лица героя, а не поверх глаз",
+    shieldIds.join(", "));
   const layerRule = (gameCss.match(/\.player-layer \{[\s\S]*?\n\}/) || [""])[0];
   log(/inset:\s*0/.test(layerRule) && /width:\s*100%/.test(layerRule) &&
     /height:\s*100%/.test(layerRule), "слой снаряжения занимает клетку героя целиком");

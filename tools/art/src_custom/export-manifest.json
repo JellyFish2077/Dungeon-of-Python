@@ -453,7 +453,7 @@
         {
           "tag": "ring_power",
           "file": "ring_power.png",
-          "sha256": "4bfd453b84913cf9cbd1ed99893b47dc1fda8dae283cfc0ebde8babb3b1301a4"
+          "sha256": "554874cf979047cac6aad6a23f454f0b1e6b658f8d1e70c66fe890bfaf2db700"
         },
         {
           "tag": "rusty_sword",
@@ -508,27 +508,27 @@
         {
           "tag": "mirror_shield",
           "file": "mirror_shield.png",
-          "sha256": "074ff09b74537fa66a6d3f8fc7ad4b3e37a07cd1b20576025fbb70064a7def1f"
+          "sha256": "a3c042e7b164f032867a377f7daeeb476ba70096e763d8f41b342cb336565067"
         },
         {
           "tag": "round_shield",
           "file": "round_shield.png",
-          "sha256": "6c56975129ed0662523ac2a7f45e2d88084aae3ad50c78a59bda6ff4823d2491"
+          "sha256": "b9d2c49355d648a1a86eff163f029ba79c98f01031cb9060568ed74cdf6e24d6"
         },
         {
           "tag": "steel_shield",
           "file": "steel_shield.png",
-          "sha256": "9a085cd157b4b25628256fbd9c4ec85a5b1c245fea2b139f72984fdfddf92dd0"
+          "sha256": "e5ffd974cb99f137fe2ca71c5451b37ccda5a3539c7b54db31bf0aa2ea0d17a5"
         },
         {
           "tag": "warden_shield",
           "file": "warden_shield.png",
-          "sha256": "56c10ef4e950dbfedaf810f61b22932a1aca6186a6c7442ce384bcd201663844"
+          "sha256": "919baeacd97e9f90f37813625e68d689ce8de75665d2273cbcc742e275318885"
         },
         {
           "tag": "wooden_shield",
           "file": "wooden_shield.png",
-          "sha256": "142892a6819edb40c8e126a13b61b961032e84b542e05b737c1b1613df3f6c2e"
+          "sha256": "3ee8a93f508c362aa350636a61f3dcd124f187e45a868430244cad0ddc4653ab"
         }
       ]
     },
@@ -2031,7 +2031,7 @@
     "equipment/ledger_amulet.png": "f0251560770b7f22f002e4d961336e398b87f19823ba56d07db67cadc085798f",
     "equipment/lucky_charm.png": "dfb388b505ab0c619b7f776cd3b525d86552a196cc9eeb256d9482976720baf4",
     "equipment/mirror_plate.png": "023300ebe37785461fc26ddf0f4b227b9b5277d380c3c149df097d17bc8e03e3",
-    "equipment/ring_power.png": "4bfd453b84913cf9cbd1ed99893b47dc1fda8dae283cfc0ebde8babb3b1301a4",
+    "equipment/ring_power.png": "554874cf979047cac6aad6a23f454f0b1e6b658f8d1e70c66fe890bfaf2db700",
     "equipment/rusty_sword.png": "8413a83e6a2e68298bfc2491628167c571f939ffded392a97c095681f4920805",
     "equipment/scout_lens.png": "1e9799f282a9b8fd4cfab64e1aa6dd24e670e9afb1cb70ea900e235ce56b4ae3",
     "equipment/serpent_ward.png": "6a58b86fb5e7e9f6eb0f271c2fd9ec2cedd80efae2dac919e0c3cb3352292db3",
@@ -2041,11 +2041,11 @@
     "equipment/trident_precise.png": "b37c3b42bdc58c0acbd0e23e84c4828f35adb15b2631744a45b386e98354b25b",
     "equipment/vampiric_blade.png": "88ee49fa9103e9f9a6d9a206bdb021ad31122f96f194c88a0412479b91c60fec",
     "equipment/warden_plate.png": "1dd9d3939d74648e646d33a79819ef4911fbf4f60976f61abe60814728e1daf6",
-    "equipment/mirror_shield.png": "074ff09b74537fa66a6d3f8fc7ad4b3e37a07cd1b20576025fbb70064a7def1f",
-    "equipment/round_shield.png": "6c56975129ed0662523ac2a7f45e2d88084aae3ad50c78a59bda6ff4823d2491",
-    "equipment/steel_shield.png": "9a085cd157b4b25628256fbd9c4ec85a5b1c245fea2b139f72984fdfddf92dd0",
-    "equipment/warden_shield.png": "56c10ef4e950dbfedaf810f61b22932a1aca6186a6c7442ce384bcd201663844",
-    "equipment/wooden_shield.png": "142892a6819edb40c8e126a13b61b961032e84b542e05b737c1b1613df3f6c2e",
+    "equipment/mirror_shield.png": "a3c042e7b164f032867a377f7daeeb476ba70096e763d8f41b342cb336565067",
+    "equipment/round_shield.png": "b9d2c49355d648a1a86eff163f029ba79c98f01031cb9060568ed74cdf6e24d6",
+    "equipment/steel_shield.png": "e5ffd974cb99f137fe2ca71c5451b37ccda5a3539c7b54db31bf0aa2ea0d17a5",
+    "equipment/warden_shield.png": "919baeacd97e9f90f37813625e68d689ce8de75665d2273cbcc742e275318885",
+    "equipment/wooden_shield.png": "3ee8a93f508c362aa350636a61f3dcd124f187e45a868430244cad0ddc4653ab",
     "objects/chest.png": "68d88849fc875c3ae1eea3ddf2afa6e5c92ac5a6a3ceccee1b177fe7d8ed3d23",
     "objects/portal.png": "7f8dcd4372743e394d2b775357cd9d67101824b13236556134becb7c594bf6d6",
     "objects/lever.png": "ec23814b887741f29c708fb57963676864ec11c4f6b387d390cf4234988983a5",
