@@ -978,9 +978,13 @@ body.game-page:has(.stage.village) .tile.unseen {
 }
 
 .player-amulet,
-.player-crown,
-.player-ring {
+.player-crown {
   z-index: 3;
+}
+
+/* Кольцо — на правой руке, поверх рукояти оружия: иначе клинок его прячет. */
+.player-ring {
+  z-index: 5;
 }
 
 /* Герой и жители тоже дышат. Анимация на картинке, а не на клетке: у
