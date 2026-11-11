@@ -68,6 +68,39 @@ def start_game(page, base):
         timeout=30000)
 
 
+def generator_scenario(page):
+    """Дефолт v3 и переключение генератора в дев-панели.
+
+    Обычный вход без ?gen должен строить этаж новым планировщиком: это
+    контракт релиза, а не только внутренний флаг. Кнопки панели должны
+    пересобирать уже открытый этаж, иначе демонстрация врёт.
+    """
+    page.evaluate("() => window.__setFloor(3)")
+    wait_floor(page)
+    version = page.evaluate(
+        "() => { const s = window.__pyquiz.cache[window.__pyquiz.floorIndex];"
+        " return s && s.plan ? s.plan.version : 0; }")
+    check(version == 3, "генератор v3 включён по умолчанию", version)
+    fallback = page.evaluate(
+        "() => { const s = window.__pyquiz.cache[window.__pyquiz.floorIndex];"
+        " return (s && s.checked && s.checked.fallback) || ''; }")
+    check(not fallback, "этаж v3 не откатился на v2", fallback)
+
+    open_dev(page)
+    click_dev(page, "#dev-panel [data-dev='gen-v2']")
+    page.wait_for_function(
+        "() => { const s = window.__pyquiz.cache[window.__pyquiz.floorIndex];"
+        " return s && s.plan && s.plan.version === 2; }", timeout=30000)
+    check(True, "кнопка «Генератор v2» пересобирает этаж")
+    click_dev(page, "#dev-panel [data-dev='gen-v3']")
+    page.wait_for_function(
+        "() => { const s = window.__pyquiz.cache[window.__pyquiz.floorIndex];"
+        " return s && s.plan && s.plan.version === 3; }", timeout=30000)
+    check(True, "кнопка «Генератор v3» возвращает новый этаж")
+    page.keyboard.press("p")
+    page.wait_for_timeout(150)
+
+
 def open_dev(page):
     page.evaluate("() => { const b=document.getElementById('dev-toggle'); if (b) b.click(); }")
     page.wait_for_timeout(150)
@@ -203,6 +236,7 @@ def run_scenarios(browser, base):
     page.on("pageerror", lambda error: check(False, "нет JS-исключений", str(error)))
     try:
         start_game(page, base)
+        generator_scenario(page)
         boss_scenarios(page)
         reload_scenario(page, base)
         dialogue_scenario(page)

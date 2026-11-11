@@ -42,13 +42,11 @@ python tools/build_web.py --dev
 3. Добавить `.nojekyll`.
 4. Закоммитить и запушить ветку.
 
-Или через GitHub Actions: workflow **deploy-pages** (`workflow_dispatch`).
-Он прогоняет `run_all_checks.py --quick`, собирает `standalone/build`,
-скачивает Pyodide и публикует ветку `gh-pages`. Автозапуска по push нет:
-до закрытия P0 публикация остаётся ручной.
-
-Workflow **verify** запускается на push и pull request и гоняет быстрые
-проверки.
+В репозитории нет workflow деплоя: публикация остаётся ручной. Если
+добавлять автоматизацию, workflow должен прогонять
+`run_all_checks.py --quick`, собирать `standalone/build`, скачивать Pyodide
+и публиковать ветку `gh-pages` по `workflow_dispatch`; автозапуск по push
+не нужен, пока публикация контролируется вручную.
 
 Адрес: https://jellyfish2077.github.io/Dungeon-of-Python/
 
