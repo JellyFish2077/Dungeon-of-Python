@@ -1,0 +1,59 @@
+name: Deploy Pages
+
+# Публикация только вручную: обновление сайта — осознанное действие,
+# автозапуск по push не нужен. Подробности — в HOSTING.md.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Код
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Проверки
+        run: python run_all_checks.py --quick
+
+      - name: Публичная сборка
+        run: python tools/build_web.py
+
+      - name: Локальный Pyodide
+        run: python tools/fetch_pyodide.py
+
+      - name: Публикация в gh-pages
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin gh-pages
+          WT="$RUNNER_TEMP/pages"
+          git worktree add -B gh-pages "$WT" origin/gh-pages
+          find "$WT" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a standalone/build/. "$WT"/
+          cd "$WT"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Сборка не изменилась — публиковать нечего."
+            exit 0
+          fi
+          git commit -m "Pages: ${GITHUB_SHA::7} — публикация из Actions"
+          git push origin gh-pages

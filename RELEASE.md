@@ -30,6 +30,7 @@ python run_all_checks.py --quick
 
 ## 3. GitHub Pages
 
+- [ ] Actions → **Deploy Pages** → Run workflow (или сборка вручную ниже).
 - [ ] Содержимое `standalone/build/` лежит в корне `gh-pages`.
 - [ ] В корне есть `.nojekyll`.
 - [ ] `index.html` открывает главное меню.
