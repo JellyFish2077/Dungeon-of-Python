@@ -13236,9 +13236,13 @@
     const cut = progOf("armor");
     let dmg = armorDamage(raw);
     if (cut > 0) dmg = Math.max(0, Math.round(dmg * (1 - Math.min(0.8, cut))));
-    const block = equippedEffect("block");
-    if (block && block.charges) {
-      if (G.battle.blockLeft == null) G.battle.blockLeft = block.charges;
+    // Блок складывается по всем надетым вещам: щит и панцирь с блоком
+    // должны давать больше зарядов, а не затирать друг друга. Потолок —
+    // три удара за бой, иначе «Эгида + зеркальный панцирь» гасили бы
+    // половину боя с обычным врагом.
+    const blockCharges = Math.min(3, effectTotal("block", "charges"));
+    if (blockCharges > 0) {
+      if (G.battle.blockLeft == null) G.battle.blockLeft = blockCharges;
       if (G.battle.blockLeft > 0) {
         G.battle.blockLeft -= 1;
         G.battle.blocked = true;
@@ -13500,10 +13504,12 @@
           effectFlash("Вампиризм +" + (G.player.hp - before) + " HP");
         }
       }
-      // Шипы на щите впиваются в того, кого ты бьёшь сам.
-      const th = equippedEffect("thorns");
-      if (th && th.pct) {
-        const extra = Math.max(1, Math.round((hit * th.pct) / 100));
+      // Шипы на щите и броне впиваются в того, кого ты бьёшь сам.
+      // Проценты складываются (две вещи по 25% — это 50%), но не выше
+      // половины удара: иначе шипастая сборка перебивала бы оружие.
+      const thornsPct = Math.min(50, effectTotal("thorns", "pct"));
+      if (thornsPct > 0) {
+        const extra = Math.max(1, Math.round((hit * thornsPct) / 100));
         e.hp = Math.max(0, e.hp - extra);
         dealt += extra;
         parts.push("Шипы на щите впиваются: " + extra + " урона.");
@@ -17094,6 +17100,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.49.0",
+      date: "12 ноября 2026",
+      title: "Шипы и блок складываются",
+      items: [
+        "Шипы брони и щита суммируются: две вещи по 25% дают 50% добавочного урона.",
+        "Заряды блока складываются: Эгида с панцирем гасят три удара за бой.",
+        "Предельные сборки замерены: крит, вампиризм, золото, шипы и блок."
+      ]
+    },
     {
       version: "1.48.1",
       date: "12 ноября 2026",
