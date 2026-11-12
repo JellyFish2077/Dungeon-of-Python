@@ -6903,12 +6903,63 @@ body.game-page .side-panel .equip-value {
 
 /* Хроника событий: тот же #log, только на виду. Строки те же, что игра
    пишет с первого шага, поэтому и цвета те же, что у скрытого лога. */
+.journal-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding-top: 10px;
+}
+
+.journal-filter {
+  min-height: 30px;
+  padding: 0 9px;
+  border: 1px solid rgba(214, 168, 75, 0.22);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--parchment-dim);
+  font: 700 10px/1 var(--font-data);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.journal-filter:hover,
+.journal-filter:focus-visible {
+  border-color: var(--gold-dim);
+  color: var(--parchment);
+  outline: none;
+}
+
+.journal-filter.is-active {
+  border-color: var(--gold);
+  background: rgba(214, 168, 75, 0.12);
+  color: var(--gold-bright);
+}
+
 .journal-events {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding-top: 10px;
   font: 12px/1.55 var(--font-data);
+}
+
+/* Заголовок места: хроника режется на «Деревня», «Этаж 3 · …» и так далее,
+   чтобы длинный поход не читался одной простынёй. */
+.journal-events .journal-floor {
+  margin: 8px 0 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(214, 168, 75, 0.16);
+  color: #f6c453;
+  font: 700 10px/1 var(--font-data);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.journal-events .journal-floor:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
 }
 
 .journal-events .log-line {
