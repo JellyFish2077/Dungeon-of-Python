@@ -1204,6 +1204,60 @@ if (thorns) {
   G.equipment.armor = null;
 } else log(false, "нет предмета с эффектом thorns");
 
+// шипы складываются у брони и щита, но не выше половины удара
+const thornsArmor = ITEM_POOL.find((i) => i.id === "warden_plate");
+const thornsShield = ITEM_POOL.find((i) => i.id === "warden_shield");
+if (thornsArmor && thornsShield) {
+  freshRun(2);
+  G.equipment.armor = thornsArmor;
+  G.equipment.shield = thornsShield;
+  G.player.hp = 300;
+  G.player.maxHp = 300;
+  const e = enemyOnPlayerCell("orc", 900);
+  API.openBattle(e);
+  e.hp = 900;
+  G.battle.phase = "result"; G.battle.won = false;
+  API.applyAttack(100, "тест", true, "");
+  const want = Math.round(100 * Math.min(50,
+    thornsArmor.effect.pct + thornsShield.effect.pct) / 100);
+  log(900 - e.hp === 100 + want, "шипы брони и щита складываются",
+    900 - e.hp + " (ожидалось " + (100 + want) + ")");
+  G.battle = null;
+  G.equipment.armor = null;
+  G.equipment.shield = null;
+} else log(false, "нет двух предметов с шипами для проверки стакинга");
+
+// блок складывается: панцирь и щит дают сумму зарядов за бой
+const blockArmor = ITEM_POOL.find((i) => i.id === "mirror_plate");
+const blockShield = ITEM_POOL.find((i) => i.id === "aegis");
+if (blockArmor && blockShield) {
+  freshRun(2);
+  G.equipment.armor = blockArmor;
+  G.equipment.shield = blockShield;
+  G.player.hp = 300;
+  G.player.maxHp = 300;
+  const e = enemyOnPlayerCell("orc", 900);
+  API.openBattle(e);
+  const want = Math.min(3, blockArmor.effect.charges + blockShield.effect.charges);
+  let blocked = 0;
+  for (let i = 0; i < want + 1; i++) {
+    e.hp = 900;
+    G.player.hp = 300;
+    if (i === 0) G.battle.blockLeft = null;
+    G.battle.phase = "result";
+    G.battle.won = false;
+    G.battle.playerDead = false;
+    G.battle.blocked = false;
+    API.playerTakeHit();
+    if (G.player.hp === 300) blocked++;
+  }
+  log(blocked === want, "блок брони и щита складывается",
+    blocked + "/" + want + " (charges=" + want + ")");
+  G.battle = null;
+  G.equipment.armor = null;
+  G.equipment.shield = null;
+} else log(false, "нет двух предметов с блоком для проверки стакинга");
+
 // золото
 const goldBonus = equipWithEffect("goldBonus");
 if (goldBonus) {
