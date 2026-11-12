@@ -1070,6 +1070,14 @@ function villagePhase(opts) {
       API.doInteract();
     }
   }
+  // Склад амбара: живой игрок тратит излишки материалов на зелья и
+  // снаряжение перед каждым спуском. Раньше бот копил по 250 руды и шёл в
+  // поход без единого зелья со склада — замер описывал склад, а не игрока.
+  if (API.villageLevel("barn") > 0) {
+    ["gear", "big", "small", "small"].forEach((key) => {
+      if (API.buyBarnSupply(key)) seen.barnSupplies = (seen.barnSupplies || 0) + 1;
+    });
+  }
   const guard = API.VILLAGE_NPCS.find((n) => n.key === "guard");
   const guardFront = frontOf(guard.at.x, guard.at.y);
   if (guardFront && walkTo(guardFront.x, guardFront.y, 90)) {
@@ -1119,6 +1127,25 @@ function dumpState(why) {
   }
 }
 
+// Пора ли сворачивать поход. Смерть забирает половину золота, отступление —
+// четверть, но и поход кончается, поэтому бот идёт до последнего, пока есть
+// чем лечиться: зелья в сумке, амулет в деревне или запас здоровья выше
+// пары ударов. Порог 16% — это примерно один пропущенный удар обычного врага
+// на этажах 10+, где стена и стоит.
+function shouldRetreat() {
+  if (!G.player || !G.running || G.place !== "dungeon") return false;
+  if (G.battle) return false;
+  const pct = G.player.maxHp ? G.player.hp / G.player.maxHp : 1;
+  if (pct > 0.16) return false;
+  // Привал лечит полностью: если он рядом, живой игрок идёт к нему, а не
+  // бросает поход. Отступаем только когда лечиться больше нечем.
+  if (botCampTarget()) return false;
+  if (typeof API.countPotions === "function" && API.countPotions() > 0) return false;
+  const prof = getProfile("Бот");
+  if (prof && prof.hub && prof.hub.revive > 0) return false;
+  return true;
+}
+
 function playOne(opts, rng, trace) {
   const skill = opts.skill;
   const village = startGame(opts, rng);
@@ -1129,6 +1156,12 @@ function playOne(opts, rng, trace) {
     // Второй шанс: сколько раз бот возродился амулетом и сколько раз поход
     // закончился возвратом в деревню.
     revives: 0, toHub: 0,
+    // Отступления: поход свёрнут живым, с 75% золота, вместо смерти с 50%.
+    retreats: 0, retreatFloors: [],
+    // Кто именно убивал героя: имя врага → смерти. По этой карте видно,
+    // стена — это босс этажа или обычные враги. lastEnemy нужен потому, что
+    // к моменту смерти G.battle уже закрыт и врага в нём нет.
+    deathEnemies: new Map(), lastEnemy: null,
     // lastFloorSeen — этаж, на который бот спустился в прошлый раз;
     // descentsLost — вызовы descend(), которые ничего не изменили.
     lastFloorSeen: G.floorIndex, descentsLost: 0,
@@ -1157,6 +1190,10 @@ function playOne(opts, rng, trace) {
       if (G.dead || G.player.hp <= 0) {
         seen.deaths += 1;
         seen.deathFloors.push(G.floorIndex + 1);
+        const killer = (G.battle && G.battle.enemy && G.battle.enemy.name) || seen.lastEnemy;
+        if (killer) {
+          seen.deathEnemies.set(killer, (seen.deathEnemies.get(killer) || 0) + 1);
+        }
         // Второй шанс: пока в деревне есть амулеты, бот возрождается и
         // продолжает поход. Амулеты кончились — поход окончен, в деревню.
         const prof = getProfile("Бот");
@@ -1199,6 +1236,20 @@ function playOne(opts, rng, trace) {
       seen.sealed = true;
       break;
     }
+    // Отступление вместо смерти: банк оставляет 75% золота против 50% у
+    // смерти, а поход всё равно кончается. Живой игрок сворачивается, когда
+    // зелий нет, амулета нет и здоровья осталось на пару ударов; бот шёл до
+    // конца и терял половину золота — замер был пессимистичнее игры.
+    if (opts.campaign && shouldRetreat()) {
+      const floorNo = G.floorIndex + 1;
+      if (API.returnToVillage()) {
+        API.retreatRun();
+        seen.retreats += 1;
+        seen.retreatFloors.push(floorNo);
+        if (trace) console.log("   здоровья нет — сворачиваю поход на этаже " + floorNo);
+        break;
+      }
+    }
     const hadBattle = !!G.battle;
     // Босс ли это — запоминаем до хода: после добивающего ответа G.battle
     // уже null, и по нему бой не классифицировать.
@@ -1239,6 +1290,7 @@ function playOne(opts, rng, trace) {
       seen.battleBoss = battleBoss;
     }
     if (!hadBattle && G.battle) seen.battles += 1;
+    if (G.battle && G.battle.enemy) seen.lastEnemy = G.battle.enemy.name;
     const pct = G.player.maxHp ? Math.max(0, G.player.hp) / G.player.maxHp : 1;
     if (pct < seen.lowestPct) seen.lowestPct = pct;
     if (G.battle && pct < seen.battleLowPct) seen.battleLowPct = pct;
@@ -1305,6 +1357,10 @@ function playOne(opts, rng, trace) {
     deaths: seen.deaths,
     revives: seen.revives,
     toHub: seen.toHub,
+    // Поход свёрнут живым: сколько раз и на каких этажах.
+    retreats: seen.retreats,
+    retreatFloors: seen.retreatFloors,
+    deathEnemies: [...seen.deathEnemies.entries()],
     // Что удалось в деревне: не дошёл до торговца или до стража — значит
     // сломался уровень, а не баланс.
     village: village,
@@ -1374,7 +1430,8 @@ function printResult(i, opts, r, elapsed, seed) {
     console.log("партия " + i + ": УПАЛА после " + r.steps + " ходов" + replay);
     return false;
   }
-  const end = r.victory ? "победа" : (r.dead ? "смерть" : (r.stuck ? "застрял" : "обрыв"));
+  const end = r.victory ? "победа" : (r.retreats ? "свёрнут" :
+    (r.dead ? "смерть" : (r.stuck ? "застрял" : "обрыв")));
   console.log(
     "партия " + i + ": " + end +
     " | глубже всего этаж " + r.deepest +
@@ -1479,6 +1536,15 @@ function printCampaign(opts, rows) {
   if (sealReturns) {
     console.log("  пауз на затворе с возвратом и продолжением: " + sealReturns);
   }
+  const retreats = ok.filter((r) => r.retreats > 0);
+  if (retreats.length) {
+    console.log("  свернули поход живыми: " + retreats.length + " из " + ok.length +
+      " (этажи " + retreats.map((r) => r.retreatFloors.join("+")).join(", ") + ")");
+  }
+  const supplies = ok.reduce((n, r) => n + ((r.village && r.village.barnSupplies) || 0), 0);
+  if (supplies) {
+    console.log("  взято со склада амбара: " + supplies + " припасов за серию");
+  }
 }
 
 function printSummary(opts, rows) {
@@ -1518,6 +1584,15 @@ function printSummary(opts, rows) {
   if (floors.length) {
     console.log("  где умирали: " + floors.map((f) => "этаж " + f + " — " + perFloor[f]).join(", "));
   }
+  const killers = {};
+  ok.forEach((r) => (r.deathEnemies || []).forEach(([name, n]) => {
+    killers[name] = (killers[name] || 0) + n;
+  }));
+  const killerNames = Object.keys(killers).sort((a, b) => killers[b] - killers[a]);
+  if (killerNames.length) {
+    console.log("  кто убивал: " + killerNames.slice(0, 6)
+      .map((n) => n + " ×" + killers[n]).join(", "));
+  }
   console.log("  деревня: в дом торговца попал в " +
     share((r) => r.village && r.village.house) + "% партий, в лавку - " +
     share((r) => r.village && r.village.trader) + "%, к стражу входа - " +
@@ -1525,9 +1600,11 @@ function printSummary(opts, rows) {
   // Покупки перед спуском — это и есть петля «умер, вернулся, стал сильнее».
   console.log("  покупки перед спуском: зелий " +
     avg((r) => (r.village && r.village.potions) || 0).toFixed(1) +
-    ", снаряжения " + avg((r) => (r.village && r.village.gearBought) || 0).toFixed(1));
+    ", снаряжения " + avg((r) => (r.village && r.village.gearBought) || 0).toFixed(1) +
+    ", со склада амбара " + avg((r) => (r.village && r.village.barnSupplies) || 0).toFixed(1));
   console.log("  второй шанс: амулетов куплено " + opts.amulets + " на партию, возрождений " +
-    avg((r) => r.revives).toFixed(2) + ", возвратов в деревню " + avg((r) => r.toHub).toFixed(2));
+    avg((r) => r.revives).toFixed(2) + ", возвратов в деревню " + avg((r) => r.toHub).toFixed(2) +
+    ", отступлений " + avg((r) => r.retreats).toFixed(2));
   console.log("  самое низкое здоровье за партию: в среднем " + Math.round(avg((r) => r.lowestPct) * 100) +
     "%, медиана " + Math.round(median((r) => r.lowestPct) * 100) + "%");
   console.log("  опасных боёв (здоровье ниже 30%): " + avg((r) => r.dangerBattles).toFixed(1) + " на партию из " +
