@@ -6901,6 +6901,26 @@ body.game-page .side-panel .equip-value {
   padding-top: 10px;
 }
 
+/* Хроника событий: тот же #log, только на виду. Строки те же, что игра
+   пишет с первого шага, поэтому и цвета те же, что у скрытого лога. */
+.journal-events {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 10px;
+  font: 12px/1.55 var(--font-data);
+}
+
+.journal-events .log-line {
+  padding: 2px 0;
+  color: #9fb3d1;
+}
+
+.journal-events .kind-loot { color: #8fe0a6; }
+.journal-events .kind-fight { color: #f0a68e; }
+.journal-events .kind-hurt { color: #f28b7d; font-weight: 600; }
+.journal-events .kind-floor { color: #f6c453; font-weight: 600; }
+
 .journal-card {
   padding: 11px 12px;
   border: 1px solid rgba(214, 168, 75, 0.18);

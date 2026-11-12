@@ -2887,8 +2887,18 @@
     while (box.children.length > LOG_LIMIT) box.removeChild(box.firstChild);
   }
 
+  // Плашка #game-msg скрыта из вида с 1.48 (она перекрывала мини-карту),
+  // и события вроде ловушек молчали. Поэтому строка статуса остаётся в DOM
+  // для aria-live и проверок, а игроку то же сообщение показывает тост —
+  // единственный принятый в игре канал короткой обратной связи.
   function setMsg(msg) {
     el("game-msg").textContent = msg || "";
+    if (!msg) {
+      if (toast._source === "msg") clearToast();
+      return;
+    }
+    toast(msg, 2600);
+    toast._source = "msg";
   }
 
   function toast(msg, ms) {
@@ -2897,6 +2907,7 @@
     t.classList.add("show");
     clearTimeout(toast._timer);
     toast._timer = setTimeout(() => t.classList.remove("show"), ms || 2200);
+    toast._source = "app";
   }
 
   function clearToast() {
@@ -5338,7 +5349,6 @@
     const dmg = devGod() ? 0 : armorDamage(HAZARD_DMG_BASE + G.floorIndex);
     G.player.hp = Math.max(0, G.player.hp - dmg);
     setMsg("Лава обжигает: −" + dmg + " здоровья.");
-    toast("Лава обжигает: −" + dmg + " здоровья.", 2200);
     log("Лавовый разлом обжёг тебя на " + dmg + ".", "hurt");
     floatAtHero("-" + dmg, "hurt");
     if (el("map")) shakeEl(el("map"));
@@ -11911,10 +11921,7 @@
     if (type.key === "chain_snare") {
       p.snared = true;
       p.snareWaits = 0;
-      setMsg(type.text + " Пока цепь цела, ты не уйдёшь с этой клетки.");
-      // Плашка сообщений и лог скрыты из интерфейса — единственный видимый
-      // канал остался у тоста. Без него цепь читалась как «ничего не было».
-      toast(type.text + " Цепь держит: сорви её в бою или пережди.", 3200);
+      setMsg(type.text + " Цепь держит: сорви её в бою или пережди.");
       log("Цепь держит тебя на месте. Сорви её победой в бою или пережди — " +
         "звенья разойдутся за " + SNARE_WAITS + " ходов.", "hurt");
       render();
@@ -11936,8 +11943,7 @@
 
     if (type.key === "curse_tile") {
       G.player.cursedNext = true;
-      setMsg(type.text);
-      toast(type.text + " Следующий вопрос будет труднее.", 3200);
+      setMsg(type.text + " Следующий вопрос будет труднее.");
       log("Проклятая плита: следующий вопрос будет сбивать с толку.", "hurt");
       render();
       return true;
@@ -11946,7 +11952,6 @@
     const dmg = devGod() ? 0 : armorDamage(type.damage);
     p.hp = Math.max(0, p.hp - dmg);
     setMsg(type.text + " −" + dmg + " здоровья.");
-    toast(type.text + " −" + dmg + " здоровья.", 2600);
     log(type.text + " Ты теряешь " + dmg + " здоровья.", "hurt");
     floatAtHero("-" + dmg, "hurt");
     shakeEl(el("map"));
@@ -16640,14 +16645,15 @@ function topicName(key) {
   // ---------- Журнал кампании ----------
   // Журнал — не лог событий и не список подсказок. Первая вкладка показывает
   // сюжет: пролог, текущую главу, её цель и весь путь до финала. Поручения
-  // старосты и закрытые записи лежат отдельно, чтобы не размывать сюжет.
-  // События по-прежнему пишутся в скрытый #log для проверок.
+  // старосты, закрытые записи и хроника событий лежат отдельно, чтобы не
+  // размывать сюжет.
   let journalTab = "story";
 
   const JOURNAL_TABS = {
     story: "Сюжет",
     tasks: "Поручения",
-    archive: "Архив"
+    archive: "Архив",
+    events: "События"
   };
 
   function repeatActiveEntry() {
@@ -16849,6 +16855,27 @@ function topicName(key) {
     return "<div class='journal-list'>" + items.map(journalCard).join("") + "</div>";
   }
 
+  // Хроника — это тот же #log, который игра ведёт с первого шага, но
+  // показанный игроку: лут, бои, этажи и ранения. Раньше он был скрыт
+  // целиком, и единственным следом события оставался тост на пару секунд.
+  function logLines() {
+    const box = el("log");
+    return box ? Array.prototype.slice.call(box.children) : [];
+  }
+
+  function eventsTabHtml() {
+    const lines = logLines();
+    if (!lines.length) {
+      return "<div class='journal-empty'>Событий пока нет. Они появятся, " +
+        "как только герой сделает первый шаг.</div>";
+    }
+    return "<div class='journal-events'>" + lines.map((line) => {
+      const cls = String(line.className || "").replace(/[^a-z0-9\- ]/gi, "").trim();
+      return "<div class='" + (cls || "log-line") + "'>" +
+        escText(line.textContent) + "</div>";
+    }).join("") + "</div>";
+  }
+
   function renderJournal() {
     const box = el("journal-box");
     if (!box) return;
@@ -16859,7 +16886,8 @@ function topicName(key) {
     const counts = {
       story: done + "/" + STORY_QUESTS.length,
       tasks: active ? 1 : 0,
-      archive: archive.length
+      archive: archive.length,
+      events: logLines().length
     };
     let subtitle;
     if (done >= STORY_QUESTS.length) subtitle = "Кампания завершена · печати на месте";
@@ -16883,9 +16911,10 @@ function topicName(key) {
       ).join("") + "</div>";
     if (journalTab === "story") html += storyTabHtml();
     else if (journalTab === "tasks") html += tasksTabHtml();
-    else html += archiveTabHtml();
+    else if (journalTab === "archive") html += archiveTabHtml();
+    else html += eventsTabHtml();
     html += "</div>";
-    html += "<div class='battle-foot'><span class='foot-note'>Сюжет, поручения и архив</span>" +
+    html += "<div class='battle-foot'><span class='foot-note'>Сюжет, поручения, архив и хроника</span>" +
       "<span class='win-chip'>Esc — закрыть</span></div>";
     box.innerHTML = html;
 
@@ -17100,6 +17129,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.50.0",
+      date: "12 ноября 2026",
+      title: "Сообщения снова видно",
+      items: [
+        "Ловушки, лава, цепь и подсказки у объектов показываются тостом — причина события больше не теряется.",
+        "В журнале появилась вкладка «События»: хроника находок, боёв и этажей.",
+        "Первая партия вещей проверена в лавке и в луте: сравнение, комплекты и спрайты."
+      ]
+    },
     {
       version: "1.49.0",
       date: "12 ноября 2026",
