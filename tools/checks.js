@@ -4406,6 +4406,105 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
     "сумка сообщает, что предмет соберёт семью 2/3");
 }
 
+// ============ 25б. Первая партия вещей: лавка, лут и «Пепел» ============
+// Проверяем не только наличие вещей в пуле, но и то, что игрок их увидит:
+// карточку в лавке со сравнением и комплектом, спрайт в карточке и бонус
+// семьи, когда вещи надеты.
+{
+  const batch = {
+    ash_blade: { slot: "weapon", tier: 3, rarity: "rare", set: "ash" },
+    ash_mantle: { slot: "armor", tier: 3, rarity: "rare", set: "ash" },
+    ash_eye: { slot: "accessory", tier: 3, rarity: "rare", set: "ash" },
+    dawn_blade: { slot: "weapon", tier: 4, rarity: "epic" },
+    warden_plate: { slot: "armor", tier: 4, rarity: "epic" },
+    heart_abyss: { slot: "accessory", tier: 4, rarity: "epic" },
+    wooden_shield: { slot: "shield", tier: 0, rarity: "common" },
+    round_shield: { slot: "shield", tier: 1, rarity: "uncommon" },
+    steel_shield: { slot: "shield", tier: 2, rarity: "rare" },
+    spiked_shield: { slot: "shield", tier: 2, rarity: "rare" },
+    mirror_shield: { slot: "shield", tier: 3, rarity: "epic" },
+    warden_shield: { slot: "shield", tier: 4, rarity: "epic" },
+    aegis: { slot: "shield", tier: 4, rarity: "epic" }
+  };
+  const batchIds = Object.keys(batch);
+  const byId = (id) => API.ITEM_POOL.find((i) => i.id === id) || null;
+  const wrongShape = batchIds.filter((id) => {
+    const it = byId(id);
+    const want = batch[id];
+    return !it || it.slot !== want.slot || it.tier !== want.tier ||
+      it.rarity !== want.rarity || (want.set && it.set !== want.set);
+  });
+  log(wrongShape.length === 0, "первая партия: 13 вещей на своих слотах и тирах",
+    wrongShape.join(", ") || "13 вещей");
+
+  const noPic = batchIds.filter((id) => {
+    const it = byId(id);
+    return !it || API.itemPic(it, "#fff").indexOf("item-px") < 0;
+  });
+  log(noPic.length === 0, "у каждой новой вещи картинка в карточке, а не иконка слота",
+    noPic.join(", ") || "все с картинкой");
+
+  const unreachable = batchIds.filter((id) => {
+    const it = byId(id);
+    return !API.itemsForFloor(14, it.slot).some((x) => x.id === id) ||
+      !(API.itemWeightFor(it, 14) > 0);
+  });
+  log(unreachable.length === 0, "каждая новая вещь попадает в пул лавки и лута",
+    unreachable.join(", ") || "все 13");
+
+  // Лавка: карточки новых вещей со сравнением и комплектом.
+  freshRun(3);
+  const ashWeapon = Object.assign({}, byId("ash_blade"));
+  const ashArmor = Object.assign({}, byId("ash_mantle"));
+  const ashEye = Object.assign({}, byId("ash_eye"));
+  const weakBlade = API.ITEM_POOL.filter((i) => i.slot === "weapon" && i.tier === 0)[0];
+  G.equipment = { weapon: Object.assign({}, weakBlade), shield: null, armor: null, accessory: null };
+  G.shopStock = { floor: 3, gear: { weapon: ashWeapon, armor: ashArmor, accessory: ashEye, shield: null } };
+  API.recalcStats();
+  API.renderShop();
+  const shopHtml = el("shop-box").innerHTML;
+  log(/item-cmp/.test(shopHtml), "лавка сравнивает новые вещи с надетым");
+  log((shopHtml.match(/item-px/g) || []).length >= 3,
+    "в карточках лавки видны спрайты новых вещей",
+    (shopHtml.match(/item-px/g) || []).length + " картинок");
+  log(/Пепел/.test(shopHtml) && /0\/3/.test(shopHtml) && /надето/.test(shopHtml),
+    "лавка показывает семью «Пепел» и прогресс набора");
+
+  // Комплект: две вещи дают урон, три — ещё и крит.
+  G.equipment = { weapon: null, shield: null, armor: null, accessory: null };
+  G.inventory = [Object.assign({}, ashWeapon), Object.assign({}, ashArmor)];
+  API.equipItem(0);
+  API.equipItem(0);
+  API.recalcStats();
+  log(API.setCounts().ash === 2 && G.player.setAtk === API.ITEM_SETS.ash.two.atk,
+    "две вещи «Пепла» дают бонус семьи к урону",
+    "урон набора +" + G.player.setAtk);
+  API.renderEffectList(el("effect-list"));
+  log(/Пепел/.test(el("effect-list").innerHTML) &&
+    /2\/3/.test(el("effect-list").innerHTML),
+    "в списке эффектов видна семья «Пепел» и счёт 2/3");
+
+  G.inventory = [Object.assign({}, ashEye)];
+  API.equipItem(0);
+  API.recalcStats();
+  log(API.setCounts().ash === 3 &&
+    G.player.setAtk === API.ITEM_SETS.ash.three.atk &&
+    G.player.setCrit === API.ITEM_SETS.ash.three.crit,
+    "три вещи «Пепла» добавляют крит",
+    "урон +" + G.player.setAtk + ", крит " + G.player.setCrit);
+  API.renderInventory();
+  log(/Пепел/.test(el("inventory-box").innerHTML) &&
+    /3\/3|набор собран/.test(el("inventory-box").innerHTML),
+    "сумка называет «Пепел» собранным");
+
+  // Лут: случайная вещь этажа берётся из того же пула и приходит с картинкой.
+  freshRun(4);
+  const loot = API.randomItemForFloor(4, null);
+  log(!!loot && API.itemsForFloor(4, loot.slot).some((i) => i.id === loot.id) &&
+    API.itemPic(loot, "#fff").indexOf("item-px") >= 0,
+    "случайная добыча этажа — из пула и со спрайтом", loot ? loot.id : "ничего");
+}
+
 // ================= 26. Экономика: глубина и кузница =================
 {
   log(typeof API.depthMul === "function" && typeof API.forgeCost === "function" &&
@@ -6695,6 +6794,22 @@ log(API.courseQuestions(examModule, examModule.lessons[0]).length === 5 &&
     /Победи 3 монстров/.test(el("journal-box").innerHTML),
     "домашнее задание учителя видно в журнале");
   API.closeJournal();
+  // Хроника — это тот же #log, который раньше был скрыт целиком. Теперь
+  // игрок видит события во вкладке журнала, а короткие сообщения — тостом.
+  API.log("Проверка хроники: находка", "loot");
+  API.openJournal("events");
+  log(/События/.test(el("journal-box").innerHTML) &&
+    /Проверка хроники: находка/.test(el("journal-box").innerHTML) &&
+    /kind-loot/.test(el("journal-box").innerHTML),
+    "во вкладке «События» видна хроника с родом события");
+  API.closeJournal();
+  API.setMsg("Проверка сообщения");
+  log(el("toast").textContent === "Проверка сообщения" &&
+    el("toast").classList.contains("show"),
+    "setMsg показывает сообщение тостом");
+  API.setMsg("");
+  log(!el("toast").classList.contains("show"),
+    "пустой setMsg убирает тост");
   API.courseQuestEvent("kills", 3);
   log(API.courseState().quest.done, "домашнее задание считается по событиям подземелья");
   const beforeClaim = API.hubProfile().wallet.gold;
@@ -7101,7 +7216,10 @@ G.blocked = [[1]];
 const warned = [];
 const realWarn = console.warn;
 console.warn = (...args) => { warned.push(args); };
-API.render();
+// Зовём страховку напрямую, а не через render(): у предыдущего блока мог
+// остаться отложенный переход на этаж, который срабатывает между задачами
+// и сбрасывает поля прямо посреди проверки. Сама страховка синхронна.
+API.healPlaceState();
 console.warn = realWarn;
 log(G.mat === null && !G.scenery.length && !G.npcs.length && G.blocked === null,
   "данные деревни в подземелье вычищаются, а не рисуются на карте");
@@ -7109,7 +7227,9 @@ log(warned.length > 0 && /Рассинхрон места/.test(String(warned[0]
   "и о рассинхроне пишется строка в консоль", warned.length ? "да" : "нет");
 freshRun(2);
 G.mat = [["roof"]];
+console.warn = () => {};
 API.render();
+console.warn = realWarn;
 log(G.mat === null, "в деревне материалы не трогаются — там они на месте");
 API.enterVillage(null);
 log(G.mat !== null, "и в самой деревне материалы остаются");
