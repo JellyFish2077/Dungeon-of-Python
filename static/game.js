@@ -2867,6 +2867,16 @@
     if (btn) btn.removeAttribute("data-unread");
   }
 
+  // Где герой в момент события — чтобы хроника в журнале могла разложить
+  // строки по местам. Пусто, пока место ещё не выбрано: тогда строка уйдёт
+  // в общий блок без заголовка.
+  function logPlace() {
+    if (!G || !G.place) return "";
+    if (G.place !== "dungeon") return placeName();
+    if (typeof G.floorIndex !== "number" || G.floorIndex < 0) return "";
+    return placeName();
+  }
+
   function log(msg, kind) {
     const box = el("log");
     if (!box) return;
@@ -2875,6 +2885,7 @@
     const line = document.createElement("div");
     line.className = "log-line " + def.cls;
     line.textContent = def.ico + " " + msg;
+    line.dataset.place = logPlace();
     box.appendChild(line);
     // Читающего выше не дёргаем вниз: он вернётся — прокрутка подтянется,
     // а пока на кнопке журнала висит счётчик новых строк.
@@ -16648,12 +16659,23 @@ function topicName(key) {
   // старосты, закрытые записи и хроника событий лежат отдельно, чтобы не
   // размывать сюжет.
   let journalTab = "story";
+  // Фильтр хроники переживает перерисовку журнала и смену вкладки: игрок
+  // выбирает его один раз, а не заново при каждом открытии.
+  let eventsFilter = "all";
 
   const JOURNAL_TABS = {
     story: "Сюжет",
     tasks: "Поручения",
     archive: "Архив",
     events: "События"
+  };
+
+  const EVENT_FILTERS = {
+    all: "Всё",
+    loot: "Находки",
+    fight: "Бои",
+    hurt: "Раны",
+    floor: "Этажи"
   };
 
   function repeatActiveEntry() {
@@ -16869,11 +16891,32 @@ function topicName(key) {
       return "<div class='journal-empty'>Событий пока нет. Они появятся, " +
         "как только герой сделает первый шаг.</div>";
     }
-    return "<div class='journal-events'>" + lines.map((line) => {
+    const filters = "<div class='journal-filters' role='group' aria-label='Фильтр хроники'>" +
+      Object.keys(EVENT_FILTERS).map((key) =>
+        "<button class='journal-filter" + (key === eventsFilter ? " is-active" : "") +
+        "' type='button' aria-pressed='" + (key === eventsFilter) +
+        "' data-evfilter='" + key + "'>" + EVENT_FILTERS[key] + "</button>"
+      ).join("") + "</div>";
+    const shown = lines.filter((line) =>
+      eventsFilter === "all" || String(line.className || "").indexOf("kind-" + eventsFilter) >= 0);
+    if (!shown.length) {
+      return filters + "<div class='journal-empty'>Событий такого рода пока нет. " +
+        "Выбери другой фильтр или продолжай поход.</div>";
+    }
+    // Строки идут по времени, поэтому место меняется только на границе
+    // спуска или подъёма — и заголовок ставится там же, без сортировки.
+    let lastPlace = null;
+    let rows = "";
+    shown.forEach((line) => {
+      const place = (line.dataset && line.dataset.place) || "";
+      if (place && place !== lastPlace) {
+        rows += "<div class='journal-floor'>" + escText(place) + "</div>";
+      }
+      lastPlace = place || lastPlace;
       const cls = String(line.className || "").replace(/[^a-z0-9\- ]/gi, "").trim();
-      return "<div class='" + (cls || "log-line") + "'>" +
-        escText(line.textContent) + "</div>";
-    }).join("") + "</div>";
+      rows += "<div class='" + (cls || "log-line") + "'>" + escText(line.textContent) + "</div>";
+    });
+    return filters + "<div class='journal-events'>" + rows + "</div>";
   }
 
   function renderJournal() {
@@ -16926,6 +16969,18 @@ function topicName(key) {
         renderJournal();
       });
     });
+    box.querySelectorAll("[data-evfilter]").forEach((btn) => {
+      btn.addEventListener("click", () => setEventsFilter(btn.dataset.evfilter));
+    });
+  }
+
+  // Смена фильтра хроники. Отдельной функцией, а не прямо в обработчике:
+  // так её видно проверкам и не приходится щёлкать по кнопкам.
+  function setEventsFilter(key) {
+    if (!EVENT_FILTERS[key]) return false;
+    eventsFilter = key;
+    renderJournal();
+    return true;
   }
 
   function openJournal(tab) {
@@ -17129,6 +17184,16 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.52.0",
+      date: "12 ноября 2026",
+      title: "Хроника по местам",
+      items: [
+        "События в журнале разложены по местам: деревня, каждый этаж отдельно.",
+        "Фильтр хроники: всё, находки, бои, раны или этажи.",
+        "Строка «Запечатанный проход» в проверках больше не зависит от жилы рядом."
+      ]
+    },
     {
       version: "1.51.0",
       date: "12 ноября 2026",

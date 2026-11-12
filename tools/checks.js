@@ -267,7 +267,16 @@ quietFloor(4);
 if ((G.vaults || []).length) {
   const vv = G.vaults[0];
   G.playerPos = { x: vv.from.x, y: vv.from.y };
+  // Любой объект на клетке героя или на соседней перебивает дверь тайника:
+  // проверка падала то на «Добыть: древесина», то на «Прочитать табличку».
+  // Убираем всё интерактивное с этажа — тайник от этого не меняется.
   G.treasures = [];
+  G.nodes = [];
+  G.camps = [];
+  G.signs = [];
+  G.levers = [];
+  G.traders = [];
+  G.npcs = [];
   const vt = API.interactTarget();
   log(/рычаг/i.test(vt.label) && /запечат/i.test(vt.label),
     "в подписи запечатанного прохода сказано про рычаг", vt.label);
@@ -2997,6 +3006,15 @@ function iceScenario(onIce) {
   G.treasures = [];
   G.traders = [];
   G.traps = [];
+  // Карту подменили на свежую, а объекты остались от прежней и могли лечь
+  // на вырубленную дорожку: тогда монстр упирается и просто не ходит.
+  G.nodes = [];
+  G.levers = [];
+  G.altars = [];
+  G.camps = [];
+  G.signs = [];
+  G.vaults = [];
+  G.npcs = [];
   // Ровная дорожка вправо на четыре клетки от героя.
   for (let d = 1; d <= 4; d++) {
     G.map.grid[G.playerPos.y][G.playerPos.x + d] = 1;
@@ -6858,6 +6876,23 @@ log(API.courseQuestions(examModule, examModule.lessons[0]).length === 5 &&
     /Проверка хроники: находка/.test(el("journal-box").innerHTML) &&
     /kind-loot/.test(el("journal-box").innerHTML),
     "во вкладке «События» видна хроника с родом события");
+  // Хроника режется по местам, а фильтр оставляет только выбранный род.
+  const evPlace = API.logPlace();
+  API.log("Проверка ранения в хронике", "hurt");
+  API.openJournal("events");
+  const evHtml = el("journal-box").innerHTML;
+  log(/data-evfilter='all'/.test(evHtml) && /data-evfilter='hurt'/.test(evHtml) &&
+    /Находки/.test(evHtml) && /Этажи/.test(evHtml),
+    "у хроники есть фильтр по роду события");
+  log(!!evPlace && /journal-floor/.test(evHtml) && evHtml.indexOf(evPlace) >= 0,
+    "хроника разложена по местам", evPlace || "место не задано");
+  API.setEventsFilter("hurt");
+  const hurtHtml = el("journal-box").innerHTML;
+  log(hurtHtml.indexOf("Проверка ранения в хронике") >= 0 &&
+    hurtHtml.indexOf("Проверка хроники: находка") < 0 &&
+    /journal-filter is-active/.test(hurtHtml),
+    "фильтр «Раны» оставляет только ранения");
+  API.setEventsFilter("all");
   API.closeJournal();
   API.setMsg("Проверка сообщения");
   log(el("toast").textContent === "Проверка сообщения" &&
@@ -7636,7 +7671,9 @@ if (vault) {
   const insideCell = G.map.grid[door.y + dir.y] && G.map.grid[door.y + dir.y][door.x + dir.x];
   log(G.map.grid[door.y][door.x] === 0, "проход к тайнику запечатан стеной",
     "grid[" + door.y + "][" + door.x + "] = " + G.map.grid[door.y][door.x]);
-  log(insideCell === 1, "за стеной есть проходимая комната");
+  log(insideCell === 1, "за стеной есть проходимая комната",
+    "этаж " + (vaultFloor + 1) + ", дверь " + door.x + "," + door.y +
+    ", от " + from.x + "," + from.y + ", клетка за дверью: " + insideCell);
 
   log(API.cellBlocked(door.x, door.y) === true,
     "запечатанный проход не пропускает героя");
@@ -9378,20 +9415,23 @@ globalThis.__PYQUIZ_FEATURES = savedFeatures;
   let hazardSplit = 0;
   const ratios = [];
   const sizes = new Set();
-  // Среда v3 растёт пятном: клетки одной комнаты должны образовывать
-  // одну-две связные области, а не равномерную соль из десятка точек.
+  // Среда v3 растёт пятном: клетки одной комнаты должны держаться одной
+  // крупной областью, а не равномерной солью из десятка точек. Одиночные
+  // клетки в отрыве — это норма: сундук или выход разрывает пятно, поэтому
+  // смотрим не на число кусков, а на долю самого большого.
   const hazardParts = (cells, hazard) => {
     const free = new Set(cells
       .filter((c) => hazard[c.y] && hazard[c.y][c.x])
       .map((c) => c.x + "," + c.y));
-    let parts = 0;
+    const sizes = [];
     while (free.size) {
-      parts += 1;
+      let size = 0;
       const start = free.values().next().value;
       free.delete(start);
       const queue = [start];
       while (queue.length) {
         const [x, y] = queue.pop().split(",").map(Number);
+        size += 1;
         [[1, 0], [-1, 0], [0, 1], [0, -1]].forEach(([dx, dy]) => {
           const key = (x + dx) + "," + (y + dy);
           if (free.has(key)) {
@@ -9400,8 +9440,10 @@ globalThis.__PYQUIZ_FEATURES = savedFeatures;
           }
         });
       }
+      sizes.push(size);
     }
-    return parts;
+    sizes.sort((a, b) => b - a);
+    return { parts: sizes.length, big: sizes[0] || 0 };
   };
   for (let pass = 0; pass < 5; pass += 1) {
     for (const fi of nonboss) {
@@ -9486,7 +9528,11 @@ globalThis.__PYQUIZ_FEATURES = savedFeatures;
             state.hazard[c.y] && state.hazard[c.y][c.x]);
           if (!cells.length) return;
           hazardRooms += 1;
-          if (hazardParts(cells, state.hazard) > 2) hazardSplit += 1;
+          const spread = hazardParts(cells, state.hazard);
+          // Соль — это когда пятно разорвано на три и больше кусков и даже
+          // самый крупный не покрывает половину комнаты. Пятно с парой
+          // оторванных клеток у сундука сюда не попадает.
+          if (spread.parts > 2 && spread.big * 2 < cells.length) hazardSplit += 1;
         });
       }
     }
