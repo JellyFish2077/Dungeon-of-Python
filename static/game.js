@@ -2691,10 +2691,6 @@
     omen: "steady",
     // Сколько привалов ещё осталось в этом походе.
     restsLeft: 0,
-    // Сколько припасов взято со склада амбара в этом походе. Обнуляется
-    // вместе с концом похода, а не при каждом заходе в деревню: иначе
-    // потолок «один обмен на поход» обходился бы повторным входом.
-    barnBought: { small: 0, big: 0, gear: 0 },
     visible: new Set(),
     discovered: new Set(),
     // Опасная среда текущего этажа: матрица ключей ("" — обычная клетка).
@@ -6482,6 +6478,11 @@
   function rewardText(reward) {
     const parts = [];
     if (reward.gold) parts.push(reward.gold + " золота");
+    // Ключ в награде главы (оберег глубины, печать мастера) — не лут и не
+    // материал, payQuest выдаёт его отдельной веткой. Без этой строки окно
+    // старосты обещало главу без главного приза. Уже полученный ключ не
+    // показываем: payQuest второй раз его не выдаёт.
+    if (reward.key && !hasKey(reward.key)) parts.push(keyName(reward.key));
     // Материалы в награде проходят через тот же множитель амбара, что и
     // находки, поэтому окно старосты показывает реальную выдачу, а не
     // базовое число из таблицы.
@@ -6498,8 +6499,12 @@
       "<li><b>Действие</b> — клавиша E или кнопка внизу: двери, сундуки, торговец, лестницы.</li>" +
       "<li><b>Бой</b> — это урок: сначала вопрос по теме, потом задача на ту же тему. " +
       "Верный ответ бьёт врага, ошибка — тебя.</li>" +
-      "<li><b>Смерть</b> — поход кончается, но находки остаются: золото, материалы и ключи " +
-      "доходят до деревни целиком.</li>" +
+      // Доли берём из настроек, а не из текста: админка их меняет, и
+      // обещание наставника не должно с ними разъезжаться.
+      "<li><b>Смерть</b> — поход кончается, но материалы и ключи " +
+      "доходят до деревни целиком. Золото — на " + Math.round(HUB_DEATH_SHARE * 100) +
+      "%, а если вместо него взять разбор ошибок — на " +
+      Math.round(HUB_KNOWLEDGE_SHARE * 100) + "% и три первых боя по слабым темам.</li>" +
       "<li><b>Деревня</b> — колодец, амбар, кузницу и дом мастера восстанавливают за материалы " +
       "из подземелья. Кузница даёт улучшения героя, и без неё глубоко не спуститься.</li>" +
       "<li><b>Амулет возврата</b> — второй шанс: поднимет на месте и сохранит поход. " +
@@ -7465,7 +7470,7 @@
   // Карточка обмена на складе: что даёт, чем платить и сколько раз ещё
   // можно взять в этом походе.
   function barnSupplyCardHtml(offer, prof) {
-    const left = Math.max(0, offer.cap - barnBoughtCount(offer.key));
+    const left = Math.max(0, offer.cap - barnBoughtCount(offer.key, prof));
     const can = left > 0 && canPayBuild(offer.cost);
     let stock = "";
     if (left <= 0) stock = "<span class='hub-stock full'>на этот поход взято</span>";
@@ -7482,7 +7487,7 @@
 
   // Обмен материалов на припасы. Материалы списываются сразу, припас уходит
   // в кошелёк (зелье) или в снаряжение на старте. Потолок — на поход, поэтому
-  // счётчик живёт в G и обнуляется вместе с концом похода.
+  // счётчик живёт в профиле и обнуляется вместе с концом похода.
   function buyBarnSupply(key) {
     const offer = BARN_SUPPLIES.filter((s) => s.key === key)[0];
     const prof = hubProfile();
@@ -7523,8 +7528,8 @@
       toast("Со склада: " + name);
       log("Деревня: со склада взято " + name + ".", "loot");
     }
-    G.barnBought = G.barnBought || {};
-    G.barnBought[key] = barnBoughtCount(key) + 1;
+    prof.barnBought = prof.barnBought || { small: 0, big: 0, gear: 0 };
+    prof.barnBought[key] = barnBoughtCount(key, prof) + 1;
     putProfile(hubName(), prof);
     syncProfile(hubName());
     renderVillageInfo();
@@ -16326,8 +16331,19 @@ function topicName(key) {
     }
   ];
 
-  function barnBoughtCount(key) {
-    return (G.barnBought && G.barnBought[key]) || 0;
+  // Счётчик обмена на склад живёт в профиле, а не в G: иначе перезагрузка
+  // вкладки обнуляла бы его и потолок «на поход» обходился бы новой партией.
+  function barnBoughtCount(key, prof) {
+    const p = prof || hubProfile();
+    return (p && p.barnBought && p.barnBought[key]) || 0;
+  }
+
+  // Новая партия обмена: конец похода или отказ от сохранённого похода.
+  function clearBarnBought() {
+    const prof = hubProfile();
+    if (!prof) return;
+    prof.barnBought = { small: 0, big: 0, gear: 0 };
+    putProfile(hubName(), prof);
   }
 
   // Чего не хватает до цены. Нужен подсказке после сюжета: «не хватает
@@ -17232,10 +17248,11 @@ function topicName(key) {
     guard: "Спуск в подземелье",
     trader: "Лавка и товары",
     elder: "Сюжетные задания",
+    banker: "Банк, рекорд и амулеты",
     mentor: "Обучение",
     teacher: "Курс Python",
-    blacksmith: "Кузница",
-    master: "Улучшения снаряжения",
+    blacksmith: "Кузница и улучшения героя",
+    master: "Потолок улучшений и скидка",
     storekeeper: "Амбар и припасы"
   };
   let codexTab = "controls";
@@ -17309,7 +17326,7 @@ function topicName(key) {
       }
       return "<div class='codex-list'>" + known.map((npc) =>
         codexCard(npc.name, "Деревня", CODEX_NPC_ROLES[npc.key] || "Житель деревни.",
-          iconSvg("npc_" + npc.key))
+          spriteImg("npc_" + npc.key))
       ).join("") + "</div>";
     }
     if (tab === "mobs") {
@@ -17396,6 +17413,27 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.54.2",
+      date: "12 ноября 2026",
+      title: "Жители деревни: тексты и справочник",
+      items: [
+        "Окно старосты показывает ключ в награде главы: оберег глубины и печать мастера больше не теряются из списка.",
+        "Наставник честно называет цену смерти: материалы и ключи остаются целиком, золото — половиной или четвертью с разбором ошибок.",
+        "Кузнец, мастер и кладовщик говорят о восстановленном доме, а не о том, что ещё предстоит построить.",
+        "Справочник жителей показывает портреты вместо слайма, знает казначея и верно называет роль мастера.",
+        "Указатель у входа ведёт к подземелью на запад, а не на восток."
+      ]
+    },
+    {
+      version: "1.54.1",
+      date: "12 ноября 2026",
+      title: "Деревня: два исправления",
+      items: [
+        "Четвёртый амулет из кузницы II больше не пропадает: профиль принимает его сразу после покупки.",
+        "Счётчик обмена на складе амбара живёт в профиле: перезагрузка вкладки больше не даёт новую партию припасов."
+      ]
+    },
     {
       version: "1.54.0",
       date: "12 ноября 2026",
@@ -18744,12 +18782,16 @@ function topicName(key) {
 
   function startRun(name) {
     closeEntrance();
+    // Затираем ли сохранённый поход. Если да, его партия со склада амбара
+    // кончается вместе с ним; иначе счётчик обменов перешёл бы в новый.
+    const abandoned = !!pausedRun();
     const known = knowledgeFor(name);
     G.knowledgeLevel = known && known.level ? known.level : 2;
     G.name = name;
     G.nick = dungeonNick(name);
     setLastName(name);
     clearSave();
+    if (abandoned) clearBarnBought();
     // Разбор ошибок, выбранный при смерти: три первых боя похода идут по
     // темам, где ученик ошибался. План одноразовый и живёт в профиле.
     G.reviewRun = takeReviewPlan(name);
@@ -19000,7 +19042,7 @@ function topicName(key) {
     // Поход закончен: следующее знамение и партия припасов со склада
     // выбираются заново.
     G.omen = "steady";
-    G.barnBought = { small: 0, big: 0, gear: 0 };
+    clearBarnBought();
     G.battle = null;
     G.shopStock = null;
     G.shopTrader = false;
@@ -21228,6 +21270,7 @@ function topicName(key) {
     const prof = hubProfile();
     if (!prof) return;
     Object.keys(VILLAGE_CAPS).forEach((key) => { prof.village[key] = 0; });
+    prof.barnBought = { small: 0, big: 0, gear: 0 };
     putProfile(hubName(), prof);
     syncProfile(hubName());
     G.prog = progressBonus();
