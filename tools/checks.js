@@ -25,6 +25,30 @@ Object.keys(API.TOPICS).forEach((topic) => {
 });
 log(missingBankCells.length === 0, "в банке нет пустых клеток тема × уровень",
   missingBankCells.join(", "));
+// Глубина на средней ступени: адаптив уводит бой на L2–L3, и в клетке с
+// тремя вопросами один и тот же спрашивался бы через бой. Считаем только
+// авторский банк: сгенерированные варианты строятся случайно, и их число
+// в клетке гуляет от запуска к запуску.
+const AUTHORED_MID = { syntax: [2, 3], types: [3], operators: [3],
+  functions: [2, 3], errors: [2, 3], modules: [2, 3] };
+const thinKeyCells = [];
+Object.keys(AUTHORED_MID).forEach((topic) => {
+  AUTHORED_MID[topic].forEach((level) => {
+    const n = API.QUESTIONS.filter((q) => !q.generated && q.topic === topic && q.level === level).length;
+    if (n < 5) thinKeyCells.push(topic + " L" + level + " (" + n + ")");
+  });
+});
+log(thinKeyCells.length === 0, "ключевые темы L2–L3: не меньше пяти авторских вопросов",
+  thinKeyCells.join(", "));
+const thinMidCells = [];
+Object.keys(API.TOPICS).forEach((topic) => {
+  [2, 3].forEach((level) => {
+    const n = API.QUESTIONS.filter((q) => !q.generated && q.topic === topic && q.level === level).length;
+    if (n < 3) thinMidCells.push(topic + " L" + level + " (" + n + ")");
+  });
+});
+log(thinMidCells.length === 0, "на L2–L3 в каждой теме не меньше трёх авторских вопросов",
+  thinMidCells.join(", "));
 log(!!API.TERRAIN_DECOR_NAMES && !!API.TERRAIN_DECOR_NAMES[10], "новые декорации 6..10 загружены",
   API.TERRAIN_DECOR_NAMES ? Object.keys(API.TERRAIN_DECOR_NAMES).length + " видов" : "нет");
 log(API.TRAP_TYPES.length === 6, "TRAP_TYPES = 6 ловушек", API.TRAP_TYPES.length);
@@ -5992,6 +6016,38 @@ log(G.walkTarget === null, "пропуск хода снимает намече�
       });
     });
     log(gaps.length === 0, "у каждой темы боя есть практика на каждом этаже и сложности", gaps.slice(0, 4).join("; "));
+
+    // Пятая партия вопросов подняла ключевые темы до пяти на L2–L3. Практика
+    // тех же клеток не должна отставать: если у темы на L2 или L3 только один
+    // вид задания, «примени» на этом этаже крутит одно и то же.
+    const practiceKinds = (topic, level) => {
+      const kinds = new Set();
+      ["fill", "error", "copy", "code"].forEach((kind) => {
+        API.practiceTasks(kind).forEach((p) => {
+          if (p.topic === topic && p.level === level) kinds.add(kind);
+        });
+      });
+      return kinds;
+    };
+    const singleKind = [];
+    Object.keys(API.TOPICS).forEach((topic) => {
+      [2, 3].forEach((level) => {
+        const kinds = practiceKinds(topic, level);
+        if (kinds.size < 2) singleKind.push(topic + " L" + level + " (" + kinds.size + ")");
+      });
+    });
+    log(singleKind.length === 0, "на L2–L3 у каждой темы хотя бы два вида практики",
+      singleKind.join(", "));
+
+    // Шаблоны пятой партии: без них «Синтаксис» на L3 и «Модули» на L2 опирались
+    // бы только на задания банка и старые шаблоны первого уровня.
+    const newTemplates = [
+      "fill.syntax.f_string", "fill.functions.call_return", "error.functions.no_return",
+      "error.modules.no_import_sqrt", "fill.modules.floor_call", "error.modules.from_but_math"
+    ];
+    const missingTemplates = newTemplates.filter((k) => !gen.list.some((t) => t.key === k));
+    log(missingTemplates.length === 0, "пятая партия шаблонов практики на месте",
+      missingTemplates.join(", "));
 
     // Практика одной темы почти не повторяется. До генератора у «Синтаксиса»
     // на первом этаже было два задания на весь поход.

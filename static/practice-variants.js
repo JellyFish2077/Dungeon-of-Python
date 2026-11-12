@@ -303,6 +303,19 @@
     };
   });
 
+  fill("syntax", 3, "f_string", "Строка с подстановкой", () => {
+    const v = pick(NUMVARS);
+    const n = rnd(10, 99);
+    const want = cap(v) + ": " + n;
+    return {
+      code: L(`${v} = ${n}`, `print(f"${cap(v)}: {___}")` + says(want)),
+      options: [v, cap(v), "print", "type(" + v + ")"],
+      expect: want,
+      explanation: `В f-строке фигурные скобки — подстановка: {${v}} заменяется значением ${n}. ` +
+        "Без скобок имя выведется словом, а с заглавной буквы Python такого имени не знает."
+    };
+  });
+
   // ================= Типы данных =================
 
   fill("types", 1, "to_int", "Строка в число", () => {
@@ -1699,6 +1712,34 @@
     };
   });
 
+  fill("functions", 2, "call_return", "Забери результат", () => {
+    const n = rnd(10, 40);
+    const k = pick([5, 7, 10]);
+    return {
+      code: L("def heal(hp):", `    return hp + ${k}`, "", `print(heal(___))` + says(n + k)),
+      options: [String(n), String(n + k), String(k), "hp"],
+      expect: String(n + k),
+      explanation: `Аргумент попадает в параметр hp, и функция возвращает hp + ${k}: ${n} + ${k} = ${n + k}.`
+    };
+  });
+
+  bug("functions", 2, "no_return", "Забытое return", () => {
+    const n = rnd(2, 9);
+    return {
+      code: L("def double(x):", "    x * 2", "", `print(double(${n}))` + wants(n * 2)),
+      options: [
+        "Функция ничего не возвращает: перед x * 2 нужен return",
+        "Параметр должен называться так же, как аргумент",
+        "Нужно вызвать функцию дважды",
+        "print нельзя писать после def"
+      ],
+      expect: String(n * 2),
+      fix: L("def double(x):", "    return x * 2", "", `print(double(${n}))`),
+      explanation: "Без return функция выполняет x * 2 и всё равно возвращает None — поэтому print показывает None. " +
+        "return отдаёт результат наружу."
+    };
+  });
+
   fill("functions", 3, "def", "Объяви функцию", () => {
     const hero = pick(HEROES);
     return {
@@ -2229,6 +2270,33 @@
     };
   });
 
+  bug("modules", 2, "no_import_sqrt", "Корень без модуля", () => {
+    const n = pick([16, 25, 36, 49, 64]);
+    return {
+      code: L(`print(sqrt(${n}))`),
+      options: [
+        "Имени sqrt нет, пока math не импортирован",
+        "sqrt пишут только с заглавной буквы",
+        "Корень берут только из чётных чисел",
+        "print не умеет печатать дробные числа"
+      ],
+      raises: "NameError",
+      fix: L("import math", `print(math.sqrt(${n}))`),
+      explanation: "Имя sqrt появляется только после import math или from math import sqrt. Без импорта Python его не знает — NameError."
+    };
+  });
+
+  fill("modules", 2, "floor_call", "Округли вниз", () => {
+    const whole = rnd(2, 20);
+    const x = whole + "." + rnd(1, 9);
+    return {
+      code: L("import math", `print(math.___(${x}))` + says(String(whole))),
+      options: ["floor", "ceil", "sqrt", "abs"],
+      expect: String(whole),
+      explanation: `math.floor округляет вниз до целого: ${x} → ${whole}. ceil пошёл бы вверх, sqrt взял корень, abs — модуль.`
+    };
+  });
+
   fill("modules", 3, "alias_short", "Короткое имя модуля", () => {
     const n = pick([25, 36, 49]);
     return {
@@ -2236,6 +2304,23 @@
       options: ["m", "math", "mod", "math as m"],
       expect: Math.sqrt(n).toFixed(1),
       explanation: "import math as m даёт модулю короткое имя m. Дальше пишут m.sqrt, а не math.sqrt."
+    };
+  });
+
+  bug("modules", 3, "from_but_math", "Сокращённый импорт", () => {
+    const n = pick([16, 25, 36, 49]);
+    return {
+      code: L("from math import sqrt", `print(math.sqrt(${n}))`),
+      options: [
+        "from math import sqrt не создаёт имя math",
+        "sqrt работает только после import math as math",
+        "sqrt нельзя вызывать с числом в скобках",
+        "Сначала нужен print, а потом import"
+      ],
+      raises: "NameError",
+      fix: L("from math import sqrt", `print(sqrt(${n}))`),
+      explanation: "from math import sqrt берёт из модуля только имя sqrt. Имени math в программе нет, поэтому math.sqrt — NameError. " +
+        "Либо import math и math.sqrt(...), либо from math import sqrt и sqrt(...)."
     };
   });
 

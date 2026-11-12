@@ -1354,6 +1354,207 @@ const QUESTIONS = [
     answer: 0,
     explanation: "bool — подкласс int: True и False ведут себя как 1 и 0. Поэтому isinstance(True, int) возвращает True."
   },
+
+  // ----- Пятая партия: ключевые темы L2–L3 до пяти вопросов -----
+  {
+    id: 136,
+    topic: "syntax",
+    level: 2,
+    text: "Какой отступ на один уровень вложенности принят по стандарту PEP 8?",
+    options: ["Четыре пробела", "Один символ табуляции", "Два пробела", "Отступа нет"],
+    answer: 0,
+    explanation: "PEP 8 требует четыре пробела на уровень. Python примет и другие отступы, если в блоке они одинаковы, но смешивать пробелы с табуляцией нельзя."
+  },
+  {
+    id: 137,
+    topic: "syntax",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "print(\"Урон:\", 15)",
+    options: ["Урон: 15", "Урон:15", "Урон:,15", "Ошибка: запятая внутри print"],
+    answer: 0,
+    explanation: "print принимает несколько аргументов и по умолчанию разделяет их пробелом (sep=\" \"). Поэтому между двоеточием и числом появится пробел."
+  },
+  {
+    id: 138,
+    topic: "syntax",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "hp = 10\nprint(f\"HP: {hp}\")",
+    options: ["HP: 10", "HP: {hp}", "HP: hp", "Ошибка: буквы f перед строкой не бывает"],
+    answer: 0,
+    explanation: "Буква f перед кавычками делает строку f-строкой: имя в фигурных скобках заменяется его значением."
+  },
+  {
+    id: 139,
+    topic: "syntax",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "a = b = 3\nprint(a + b)",
+    options: ["6", "3", "33", "Ошибка: так присваивать нельзя"],
+    answer: 0,
+    explanation: "Присваивание идёт справа налево: оба имени получают одно и то же значение 3, поэтому 3 + 3 = 6."
+  },
+  {
+    id: 140,
+    topic: "types",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(int(3.9))",
+    options: ["3", "4", "3.9", "Ошибка: float нельзя превратить в int"],
+    answer: 0,
+    explanation: "int() отбрасывает дробную часть, а не округляет: int(3.9) — это 3. Для округления до ближайшего целого есть round()."
+  },
+  {
+    id: 141,
+    topic: "types",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(1 == 1.0)",
+    options: ["True", "False", "1", "Ошибка: сравнивать int и float нельзя"],
+    answer: 0,
+    explanation: "Python сравнивает числа по значению, а не по типу: 1 и 1.0 равны, поэтому получается True."
+  },
+  {
+    id: 142,
+    topic: "operators",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(7 // 2, 7 % 2)",
+    options: ["3 1", "3.5 1", "1 3", "3 3.5"],
+    answer: 0,
+    explanation: "// даёт целую часть деления: 7 // 2 = 3. % даёт остаток: 7 % 2 = 1. print через запятую выводит оба значения через пробел."
+  },
+  {
+    id: 143,
+    topic: "operators",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "print(0.1 + 0.2 == 0.3)",
+    options: ["False", "True", "0.3", "Ошибка"],
+    answer: 0,
+    explanation: "Дробные числа хранятся приближённо: 0.1 + 0.2 даёт 0.30000000000000004, а не ровно 0.3, поэтому сравнение — False. Для таких случаев есть math.isclose()."
+  },
+  {
+    id: 144,
+    topic: "functions",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "def hit():\n    return 7\n\nprint(hit() + hit())",
+    options: ["14", "7", "77", "None"],
+    answer: 0,
+    explanation: "Функция возвращает 7, и вызов можно использовать как число: 7 + 7 = 14."
+  },
+  {
+    id: 145,
+    topic: "functions",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "def heal(hp):\n    return hp + 5\n\nhp = heal(10)\nprint(hp)",
+    options: ["15", "10", "5", "None"],
+    answer: 0,
+    explanation: "Вызов возвращает 15, и это значение записывается в переменную hp. Параметр внутри функции — отдельное имя, оно не меняет внешнюю переменную само по себе."
+  },
+  {
+    id: 146,
+    topic: "functions",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "def diff(a, b):\n    return a - b\n\nprint(diff(b=1, a=5))",
+    options: ["4", "-4", "6", "Ошибка: аргументы переданы не по порядку"],
+    answer: 0,
+    explanation: "Именованные аргументы связываются по имени, а не по порядку: a = 5, b = 1, значит 5 − 1 = 4."
+  },
+  {
+    id: 147,
+    topic: "functions",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "def stats():\n    return 3, 4\n\natk, hp = stats()\nprint(atk)",
+    options: ["3", "4", "(3, 4)", "Ошибка: функция вернула два значения"],
+    answer: 0,
+    explanation: "return 3, 4 возвращает кортеж из двух чисел. Он распаковывается в atk и hp, поэтому atk = 3."
+  },
+  {
+    id: 148,
+    topic: "errors",
+    level: 2,
+    text: "Какая ошибка возникнет?",
+    code: "print(\"меч\" + 5)",
+    options: ["TypeError", "ValueError", "NameError", "Ошибки не будет: получится «меч5»"],
+    answer: 0,
+    explanation: "Складывать строку и число нельзя: Python не догадывается, что 5 нужно превратить в \"5\". Это TypeError; сначала нужен str(5)."
+  },
+  {
+    id: 149,
+    topic: "errors",
+    level: 2,
+    text: "Что произойдёт при запуске?",
+    code: "hp = 10\nprint(hpp)",
+    options: ["NameError: имени hpp нет", "TypeError: hpp — не число", "Напечатает 10", "Напечатает None"],
+    answer: 0,
+    explanation: "В имени опечатка: переменная hpp нигде не определена. Python ищет имена во время выполнения и падает с NameError."
+  },
+  {
+    id: 150,
+    topic: "errors",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "try:\n    print(10 / 0)\nexcept ZeroDivisionError:\n    print(\"спас\")\nfinally:\n    print(\"конец\")",
+    options: ["спас, затем конец — двумя строками", "только спас", "только конец", "Ошибку не поймать, программа упадёт"],
+    answer: 0,
+    explanation: "except ловит ZeroDivisionError и печатает «спас», а finally выполняется всегда — после него печатается «конец»."
+  },
+  {
+    id: 151,
+    topic: "errors",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "try:\n    int(\"abc\")\nexcept ValueError:\n    print(\"не число\")",
+    options: ["не число", "Traceback: ValueError", "0", "abc"],
+    answer: 0,
+    explanation: "int() не может превратить «abc» в число и бросает ValueError. Его ловит except, поэтому на экране «не число»."
+  },
+  {
+    id: 152,
+    topic: "modules",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.floor(-2.5))",
+    options: ["-3", "-2", "-2.5", "Ошибка: floor не берёт отрицательные"],
+    answer: 0,
+    explanation: "math.floor() округляет вниз по числовой оси, а не к нулю: −2.5 → −3. Для округления к нулю есть int(), для ближайшего целого — round()."
+  },
+  {
+    id: 153,
+    topic: "modules",
+    level: 2,
+    text: "Что выведет этот код?",
+    code: "import random\nprint(random.randint(1, 1))",
+    options: ["1", "0", "Ошибка: границы должны различаться", "Случайное число от 0 до 1"],
+    answer: 0,
+    explanation: "randint(a, b) возвращает целое от a до b включительно. Когда a и b равны, выбирать не из чего — всегда 1."
+  },
+  {
+    id: 154,
+    topic: "modules",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "from math import sqrt\nprint(type(sqrt(16)))",
+    options: ["<class 'float'>", "<class 'int'>", "4", "Ошибка: sqrt не импортирован"],
+    answer: 0,
+    explanation: "math.sqrt() всегда возвращает float, даже когда корень целый: sqrt(16) — это 4.0, тип — float."
+  },
+  {
+    id: 155,
+    topic: "modules",
+    level: 3,
+    text: "Что выведет этот код?",
+    code: "import math\nprint(math.ceil(math.sqrt(17)))",
+    options: ["5", "4", "4.123", "17"],
+    answer: 0,
+    explanation: "math.sqrt(17) — примерно 4.123, а math.ceil() округляет вверх до целого: 5. Вложенные вызовы выполняются изнутри наружу."
+  },
 ];
 
 // Понятные названия тем для отчёта
