@@ -7063,6 +7063,7 @@ log(payFor("smith") && API.upgradeCap() === 5,
   "дом мастера поднимает потолок до пяти", "потолок " + API.upgradeCap());
 API.buyHeroUpgrade("hp");
 log(getProfile(G.name).hero.hp === 4, "и четвёртый уровень покупается");
+const priceBeforeSmith2 = API.heroPrice("hp", 4);
 
 // Вторые уровни построек: каждый обязан дать то, что написано в окне.
 log(payFor("barn") && getProfile(G.name).village.barn === 2,
@@ -7075,6 +7076,11 @@ log(payFor("smith") && getProfile(G.name).village.smith === 2,
   "дом мастера II строится", "уровень " + getProfile(G.name).village.smith);
 log(API.abilityCharges() === API.balanceSnapshot()["ability.charges"] + 1,
   "дом мастера II даёт заряд умения", "зарядов " + API.abilityCharges());
+log(API.heroPrice("hp", 4) === Math.max(1, Math.round(priceBeforeSmith2 * 0.85)),
+  "дом мастера II удешевляет улучшения на 15%",
+  priceBeforeSmith2 + " -> " + API.heroPrice("hp", 4));
+log(/15%/.test(API.VILLAGE_BUILDINGS.smith.effects[1]()),
+  "и окно мастера называет скидку", API.VILLAGE_BUILDINGS.smith.effects[1]());
 
 // Колодец: здоровье в каждом походе.
 log(payFor("well") && getProfile(G.name).village.well === 1,
@@ -7118,6 +7124,67 @@ log(lootAfterDeath.ore === lootBeforeDeath.ore && lootAfterDeath.wood === lootBe
   lootAfterDeath.keys.join(",") === lootBeforeDeath.keys.join(","),
   "материалы и ключи переживают смерть",
   "руда " + lootAfterDeath.ore + ", древесина " + lootAfterDeath.wood);
+
+// План деревни: после сюжета полный склад не должен молчать. Раньше банк
+// отправлял в бездну, хотя у построек оставались вторые уровни.
+resetProgress();
+const planReset = getProfile(G.name);
+planReset.quests.story = API.STORY_QUESTS.length;
+putProfile(G.name, planReset);
+give({ ore: 40, wood: 40, shard: 40, keys: ["barn"] });
+API.enterVillage(null);
+const planGoal = API.villagePlanGoal();
+log(!!planGoal && planGoal.ready && planGoal.key === "barn",
+  "после сюжета подсказка ведёт к первой оплаченной постройке",
+  planGoal ? planGoal.title + ": " + planGoal.text : "цели нет");
+log(/План деревни/.test(API.bankDialogHtml()), "банк показывает план деревни");
+log(/data-build="barn"/.test(API.bankDialogHtml()),
+  "и кнопку амбара в нём");
+log(API.buildReadyFor("barn") && API.buildReadyFor("well"),
+  "у оплаченных построек появляется метка «!»");
+
+// Без материалов метки нет, а подсказка объясняет, чего именно не хватает.
+const emptyPlan = getProfile(G.name);
+emptyPlan.loot = { ore: 0, wood: 0, shard: 0, keys: [] };
+putProfile(G.name, emptyPlan);
+API.enterVillage(null);
+const emptyGoal = API.villagePlanGoal();
+log(!API.buildReadyFor("barn") &&
+  !!emptyGoal && !emptyGoal.ready && /не хватает/.test(emptyGoal.text),
+  "без материалов метки нет, а подсказка называет нехватку",
+  emptyGoal ? emptyGoal.text : "цели нет");
+
+// Амбар после постройки работает каждый поход: материалы меняются на
+// припасы, но не без ограничений. Проверяем и обмен, и потолок на поход.
+resetProgress();
+give({ wood: 40, ore: 40, shard: 20, keys: ["barn"] });
+API.restoreBuilding("barn");
+const supplyBefore = getProfile(G.name);
+const smallBefore = supplyBefore.wallet.small_potion || 0;
+const oreBefore = supplyBefore.loot.ore;
+log(/Снаряжение в дорогу/.test(API.barnDialogHtml()),
+  "амбар предлагает припасы за материалы");
+log(API.buyBarnSupply("small") && (getProfile(G.name).wallet.small_potion || 0) === smallBefore + 1,
+  "малое зелье берётся со склада");
+log(getProfile(G.name).loot.ore === oreBefore - 6,
+  "и списывает руду по цене обмена", "руды " + getProfile(G.name).loot.ore);
+log(API.buyBarnSupply("small"), "второе малое зелье за поход взять можно");
+log(API.buyBarnSupply("small") === false,
+  "третье — уже нет: потолок на поход");
+log(API.buyBarnSupply("big") && API.buyBarnSupply("big") === false,
+  "большое зелье тоже ограничено одним на поход");
+const gearBefore = (getProfile(G.name).hub.gear || []).length;
+log(API.buyBarnSupply("gear") &&
+  (getProfile(G.name).hub.gear || []).length === gearBefore + 1,
+  "снаряжение со склада уходит в дорогу");
+log(API.buyBarnSupply("gear") === false,
+  "и второе снаряжение за поход не выдаётся");
+log(G.barnBought.small === 2 && G.barnBought.big === 1 && G.barnBought.gear === 1,
+  "счётчики обмена сходятся",
+  JSON.stringify(G.barnBought));
+API.reset();
+log(G.barnBought.small === 0 && G.barnBought.big === 0 && G.barnBought.gear === 0,
+  "новый поход начинает партию припасов заново");
 
 // Ключи держат стражи: от амбара — с третьего этажа, от мастера — с шестого.
 resetProgress();

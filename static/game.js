@@ -2582,6 +2582,10 @@
   // число, а не правка HUB_AMULET_MAX: база остаётся настройкой админки,
   // а постройка добавляет к ней бонус.
   let VILLAGE_FORGE_AMULET = 1;
+  // Дом мастера II не поднимает потолок выше пятого (его держит формат
+  // профиля и сервер), а удешевляет улучшения: иначе десять обломков
+  // покупали бы один заряд умения и ничего больше.
+  let VILLAGE_SMITH_DISCOUNT = 0.15;
   // Глубинная тяжесть: с шестого этажа враги растут быстрее, чем герой за один
   // поход. Это и есть стена первых попыток: спуститься глубже можно только
   // с постоянными улучшениями и постройками. На десятом этаже здоровье врагов
@@ -2687,6 +2691,10 @@
     omen: "steady",
     // Сколько привалов ещё осталось в этом походе.
     restsLeft: 0,
+    // Сколько припасов взято со склада амбара в этом походе. Обнуляется
+    // вместе с концом похода, а не при каждом заходе в деревню: иначе
+    // потолок «один обмен на поход» обходился бы повторным входом.
+    barnBought: { small: 0, big: 0, gear: 0 },
     visible: new Set(),
     discovered: new Set(),
     // Опасная среда текущего этажа: матрица ключей ("" — обычная клетка).
@@ -6386,9 +6394,19 @@
         " — " + (ready ? "награда ждёт у старосты" :
           (goalProgressText(step.goal) || "поговори со старостой")) + ".</p>";
     } else {
-      html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён — " +
-        "можно спускаться в бездну.</p>";
+      // После дракона сюжет кончается, но деревня — нет: у построек остаются
+      // вторые уровни. Банк ведёт к ближайшей оплаченной постройке, а не
+      // отправляет в бездну сразу.
+      const goal = villagePlanGoal();
+      if (goal) {
+        html += "<p class='lead'><b>Следующий шаг:</b> " + escText(goal.title) +
+          " — " + escText(goal.text) + "</p>";
+      } else {
+        html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён, деревня " +
+          "поднята до конца — можно спускаться в бездну.</p>";
+      }
     }
+    html += villagePlanHtml();
     html += badgesHtml(prof);
     return html;
   }
@@ -7421,7 +7439,11 @@
     }
     html += "<p class='lead'>Улучшения остаются навсегда и действуют в каждом походе. " +
       "Кузница открывает <b>" + cap + "</b> уровня" +
-      (villageLevel("smith") > 0 ? "." : ", дом мастера поднимет потолок до пятого.") + "</p>";
+      (villageLevel("smith") > 0 ? "." :
+        ", дом мастера поднимет потолок до пятого и удешевит работу.") +
+      (villageLevel("smith") >= 2
+        ? " Дом мастера II уступает " + Math.round(VILLAGE_SMITH_DISCOUNT * 100) +
+          "% цены." : "") + "</p>";
     html += "<div class='hub-shop' id='dialog-upgrades'>" +
       HERO_UPGRADE_LIST.map((u) => heroUpgradeCard(u, prof)).join("") + "</div>";
     return html;
@@ -7430,12 +7452,86 @@
   function masterDialogHtml() {
     let html = dialogHead("Мастер", "Мастерская");
     html += "<p class='lead'>«Ключ нашёлся — и верстак снова в деле. " +
-      "Твои улучшения я подниму до пятого уровня».</p>";
+      "Твои улучшения я подниму до пятого уровня, а за работу уступлю в цене».</p>";
     if (villageLevel("smith") > 0) {
-      html += "<p class='lead'><b>Улучшения героя:</b> потолок " + upgradeCap() + " уровней.</p>";
+      html += "<p class='lead'><b>Улучшения героя:</b> потолок " + upgradeCap() +
+        " уровней" + (villageLevel("smith") >= 2
+          ? ", скидка " + Math.round(VILLAGE_SMITH_DISCOUNT * 100) + "%." : ".") + "</p>";
     }
     html += buildBlockHtml("smith");
     return html;
+  }
+
+  // Карточка обмена на складе: что даёт, чем платить и сколько раз ещё
+  // можно взять в этом походе.
+  function barnSupplyCardHtml(offer, prof) {
+    const left = Math.max(0, offer.cap - barnBoughtCount(offer.key));
+    const can = left > 0 && canPayBuild(offer.cost);
+    let stock = "";
+    if (left <= 0) stock = "<span class='hub-stock full'>на этот поход взято</span>";
+    else stock = "<span class='hub-stock'>ещё " + left + " из " + offer.cap + "</span>";
+    return "<div class='hub-card'>" +
+      "<div class='hub-card-head'><b>" + offer.name + "</b><span class='hub-price'>" +
+      costHtml(offer.cost) + "</span></div>" +
+      "<p class='hub-card-note'>" + offer.note + "</p>" +
+      stock +
+      "<button class='btn" + (can ? "" : " ghost") + " barn-buy' type='button' data-supply=\"" +
+      offer.key + "\"" + (can ? "" : " disabled") + ">Взять</button>" +
+      "</div>";
+  }
+
+  // Обмен материалов на припасы. Материалы списываются сразу, припас уходит
+  // в кошелёк (зелье) или в снаряжение на старте. Потолок — на поход, поэтому
+  // счётчик живёт в G и обнуляется вместе с концом похода.
+  function buyBarnSupply(key) {
+    const offer = BARN_SUPPLIES.filter((s) => s.key === key)[0];
+    const prof = hubProfile();
+    if (!prof || !offer) return false;
+    if (villageLevel("barn") <= 0) {
+      toast("Сначала восстанови амбар");
+      return false;
+    }
+    if (barnBoughtCount(key) >= offer.cap) {
+      toast("На этот поход запас уже взят");
+      return false;
+    }
+    if (!canPayBuild(offer.cost)) {
+      toast("Не хватает материалов: нужно " + costHtml(offer.cost));
+      return false;
+    }
+    prof.wallet = prof.wallet || { gold: 0, small_potion: 0, big_potion: 0 };
+    prof.hub = prof.hub || { revive: 0, gear: [] };
+    if (key === "gear") {
+      const pool = hubGearPool().filter((it) => prof.hub.gear.indexOf(it.id) < 0);
+      if (!pool.length) {
+        toast("Склад пуст: всё снаряжение уже в дороге");
+        return false;
+      }
+    }
+    Object.keys(offer.cost).forEach((k) => {
+      prof.loot[k] = Math.max(0, (prof.loot[k] || 0) - offer.cost[k]);
+    });
+    if (key === "gear") {
+      const pool = hubGearPool().filter((it) => prof.hub.gear.indexOf(it.id) < 0);
+      const item = pool[Math.floor(Math.random() * pool.length)];
+      prof.hub.gear.push(item.id);
+      toast("Со склада: " + item.name);
+      log("Деревня: со склада взято снаряжение «" + item.name + "».", "loot");
+    } else {
+      prof.wallet[key + "_potion"] = (prof.wallet[key + "_potion"] || 0) + 1;
+      const name = key === "small" ? "малое зелье" : "большое зелье";
+      toast("Со склада: " + name);
+      log("Деревня: со склада взято " + name + ".", "loot");
+    }
+    G.barnBought = G.barnBought || {};
+    G.barnBought[key] = barnBoughtCount(key) + 1;
+    putProfile(hubName(), prof);
+    syncProfile(hubName());
+    renderVillageInfo();
+    updateWalletLine();
+    updateHud();
+    if (G.dialogNpc) openDialog(G.dialogNpc);
+    return true;
   }
 
   function barnDialogHtml() {
@@ -7445,6 +7541,10 @@
     if (prof) {
       html += "<p class='lead'><b>На складе:</b> " + LOOT_KINDS.map((k) =>
         LOOT_NAMES[k] + " " + (prof.loot[k] || 0)).join(" · ") + "</p>";
+      html += "<h3 class='quest-head'>Снаряжение в дорогу</h3>" +
+        "<p class='lead'>Материалы можно обменять на припасы. Обмен ограничен " +
+        "на один поход: новый поход — новая партия.</p>" +
+        BARN_SUPPLIES.map((offer) => barnSupplyCardHtml(offer, prof)).join("");
     }
     return html;
   }
@@ -7823,8 +7923,14 @@
         (ready ? "награда ждёт у старосты" :
           (goalProgressText(step.goal) || "поговори со старостой")) + ".</p>";
     } else {
-      html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён — можно " +
-        "спускаться в бездну.</p>";
+      const goal = villagePlanGoal();
+      if (goal) {
+        html += "<p class='lead'><b>Следующий шаг:</b> " + escText(goal.title) +
+          " — " + escText(goal.text) + "</p>";
+      } else {
+        html += "<p class='lead'><b>Сюжет пройден.</b> Дракон побеждён, деревня " +
+          "поднята до конца — можно спускаться в бездну.</p>";
+      }
     }
     const courseQuest = prof.course && prof.course.quest;
     if (courseQuest) {
@@ -9337,11 +9443,14 @@
       place("npc-" + n.uid, n.x, n.y, vis, sprite, cls, null, n.name, 4);
     });
 
-    // Двор деревни: деревья, забор, колодец и костёр.
+    // Двор деревни: деревья, забор, колодец и костёр. У колодца — та же
+    // метка «!», что и у дверей: он тоже постройка, которую можно поднять.
     (G.scenery || []).forEach((o) => {
       const vis = G.visible.has(key(o.x, o.y));
+      const ready = o.kind === "well" && buildReadyFor("well");
       place("prop-" + o.x + "-" + o.y, o.x, o.y, vis, PROP_ICONS[o.kind] || o.kind,
-        "ent-prop ent-prop-" + o.kind, null, PROP_NAMES[o.kind] || "", 2);
+        "ent-prop ent-prop-" + o.kind + (ready ? " build-ready" : ""), null,
+        PROP_NAMES[o.kind] || "", 2);
     });
 
     // Тайник: дверь в монолите, жилы, рычаги и таблички.
@@ -9387,11 +9496,14 @@
         c.used ? "Прогоревший костёр" : "Костёр-привал", 2);
     });
 
-    // Двери домов: вход с улицы и выход из комнаты.
+    // Двери домов: вход с улицы и выход из комнаты. Метка «!» значит, что
+    // на следующий уровень постройки уже хватает материалов — иначе игрок
+    // с полным складом не понимал, что дверь давно ждёт.
     (G.doors || []).forEach((d) => {
       const vis = G.visible.has(key(d.x, d.y));
+      const ready = buildReadyFor(villageBuildingAtDoor(d.x, d.y));
       place("door-" + d.x + "-" + d.y, d.x, d.y, vis, doorLocked(d) ? "doorLocked" : "door",
-        "ent-door" + (d.exit ? " ent-door-exit" : ""), null,
+        "ent-door" + (d.exit ? " ent-door-exit" : "") + (ready ? " build-ready" : ""), null,
         doorLocked(d) ? "Дверь заперта" : (d.exit ? "Выйти на улицу" : "Дверь дома"), 2);
     });
 
@@ -16008,7 +16120,11 @@ function topicName(key) {
   // несколько походов, а не покупкой между делом.
   function heroPrice(kind, level) {
     const base = HERO_PRICES[kind] || 60;
-    return Math.round(base * Math.pow(HERO_PRICE_STEP, Math.max(0, level)));
+    // Дом мастера II уступает в цене: последние уровни стоят несколько
+    // походов, и скидка делает их достижимыми, не поднимая потолок.
+    const discount = villageLevel("smith") >= 2 ? VILLAGE_SMITH_DISCOUNT : 0;
+    return Math.max(1, Math.round(base * Math.pow(HERO_PRICE_STEP, Math.max(0, level)) *
+      (1 - discount)));
   }
 
   // Множитель находок материалов от амбара: без амбара — единица.
@@ -16109,7 +16225,8 @@ function topicName(key) {
       name: "Дом мастера",
       effects: [
         () => "потолок улучшений героя — 5",
-        () => "+1 заряд умения за поход"
+        () => "+1 заряд умения и −" + Math.round(VILLAGE_SMITH_DISCOUNT * 100) +
+          "% к цене улучшений"
       ],
       levels: [{ key: "smith", shard: 3 }, { shard: 10 }]
     }
@@ -16180,6 +16297,89 @@ function topicName(key) {
       if (k === "key") return prof.loot.keys.indexOf(cost[k]) >= 0;
       return (prof.loot[k] || 0) >= cost[k];
     });
+  }
+
+  // Порядок, в котором староста ведёт деревню по сюжету. План деревни
+  // показывает постройки в том же порядке, чтобы «следующий шаг» не спорил
+  // с главой кампании.
+  const VILLAGE_ORDER = ["barn", "well", "forge", "smith"];
+
+  // Обмен материалов на припасы: амбар работает каждый поход, а не один раз.
+  // Цены нарочно невыгодные по сравнению с покупкой за золото, иначе
+  // материал стал бы второй валютой и обесценил лавку. Потолок — на поход:
+  // иначе накопленные 50 руды разом превращались бы в отряд зелий.
+  const BARN_SUPPLIES = [
+    {
+      key: "small", name: "Малое зелье", cap: 2,
+      cost: { ore: 6, wood: 6 },
+      note: "Восстанавливает здоровье в бою."
+    },
+    {
+      key: "big", name: "Большое зелье", cap: 1,
+      cost: { shard: 8 },
+      note: "Лечит сильнее малого."
+    },
+    {
+      key: "gear", name: "Снаряжение из склада", cap: 1,
+      cost: { ore: 10, wood: 10 },
+      note: "Случайная крепкая вещь в дорогу."
+    }
+  ];
+
+  function barnBoughtCount(key) {
+    return (G.barnBought && G.barnBought[key]) || 0;
+  }
+
+  // Чего не хватает до цены. Нужен подсказке после сюжета: «не хватает
+  // руды 3» полезнее, чем «посмотри в банк».
+  function missingCostText(cost) {
+    const prof = hubProfile();
+    const parts = [];
+    Object.keys(cost || {}).forEach((k) => {
+      if (k === "key") {
+        if (!prof || prof.loot.keys.indexOf(cost[k]) < 0) parts.push(keyName(cost[k]));
+        return;
+      }
+      const have = (prof && prof.loot[k]) || 0;
+      if (have < cost[k]) parts.push(LOOT_NAMES[k] + " " + (cost[k] - have));
+    });
+    return parts.length ? "не хватает: " + parts.join(", ") : "материалы уже собраны";
+  }
+
+  // Следующая цель деревни, когда сюжет уже пройден. Сначала ищем постройку,
+  // которую материалы позволяют оплатить прямо сейчас: подсказка должна вести
+  // к действию, а не в пустоту. null — все четыре опоры подняты до конца.
+  function villagePlanGoal() {
+    const open = VILLAGE_ORDER.filter((key) => !!buildCost(key));
+    if (!open.length) return null;
+    const ready = open.find((key) => canPayBuild(buildCost(key)));
+    const key = ready || open[0];
+    const def = VILLAGE_BUILDINGS[key];
+    const level = villageLevel(key) + 1;
+    return {
+      key: key,
+      ready: !!ready,
+      title: def.name + " · уровень " + level,
+      effect: def.effects[level - 1] ? def.effects[level - 1]() : "",
+      text: (def.effects[level - 1] ? def.effects[level - 1]() + ". " : "") +
+        missingCostText(buildCost(key)) + "."
+    };
+  }
+
+  // Открыта ли на двери метка «!»: материалы на следующий уровень уже есть.
+  function buildReadyFor(key) {
+    return !!key && canPayBuild(buildCost(key));
+  }
+
+  // План деревни: все четыре опоры в одном окне. Окно нужно после сюжета —
+  // иначе игрок с полным складом материалов не узнаёт, что второй уровень
+  // давно оплачен.
+  function villagePlanHtml() {
+    let html = "<h3 class='quest-head'>План деревни</h3>" +
+      "<p class='lead'>Постройки остаются навсегда. Строка «материалы уже собраны» " +
+      "значит, что уровень можно оплатить прямо здесь.</p>";
+    html += VILLAGE_ORDER.map((key) => buildBlockHtml(key)).join("");
+    return html;
   }
 
   // Потолок улучшений героя: кузница открывает первые три уровня, дом мастера
@@ -17196,6 +17396,17 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.54.0",
+      date: "12 ноября 2026",
+      title: "Деревня после сюжета",
+      items: [
+        "У казначея — «План деревни»: все четыре опоры, следующий уровень и цена в одном окне.",
+        "После дракона подсказка ведёт к доступной постройке, а двери и колодец с готовыми материалами получают метку «!».",
+        "Амбар работает каждый поход: материалы меняются на зелья и снаряжение, с потолком на поход.",
+        "Дом мастера II удешевляет улучшения героя на 15%: потолок остаётся пятым."
+      ]
+    },
     {
       version: "1.53.0",
       date: "12 ноября 2026",
@@ -18786,8 +18997,10 @@ function topicName(key) {
     G.running = false;
     G.campaign = CAMPAIGN_V2 ? 2 : 1;
     setCampaign(G.campaign);
-    // Поход закончен: следующее знамение выбирается заново.
+    // Поход закончен: следующее знамение и партия припасов со склада
+    // выбираются заново.
     G.omen = "steady";
+    G.barnBought = { small: 0, big: 0, gear: 0 };
     G.battle = null;
     G.shopStock = null;
     G.shopTrader = false;
@@ -19905,6 +20118,8 @@ function topicName(key) {
       if (upg && !upg.disabled) { buyHeroUpgrade(upg.dataset.upg); return; }
       const build = t.closest(".build-go");
       if (build && !build.disabled) { restoreBuilding(build.dataset.build); return; }
+      const supply = t.closest(".barn-buy");
+      if (supply && !supply.disabled) { buyBarnSupply(supply.dataset.supply); return; }
       // Диалоговая сцена: «Далее» листает реплики, последняя открывает
       // дело жителя.
       const talkNext = t.closest("#talk-next");

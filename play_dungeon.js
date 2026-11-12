@@ -8,7 +8,7 @@
 //                               [--difficulty easy|normal|hard]
 //                               [--balance '{"enemy.hpMul": 2.5}'] [--no-forge]
 //                               [--omen steady|blood|quiet] [--campaign]
-//                               [--collect 2] [--maxed] [--gen v2|v3|legacy]
+//                               [--village 2] [--collect 2] [--maxed] [--gen v2|v3|legacy]
 //
 // --balance принимает числа в том же виде, что и админ-панель /admin: так
 // настройку можно проверить ботом, прежде чем менять её для класса.
@@ -76,7 +76,7 @@ function flushTimers() {
 function parseArgs(argv) {
   const out = { games: 1, skill: 0.8, seed: null, mode: "dungeon", trace: false, turns: 4000,
     difficulty: "normal", forge: true, amulets: 1, bank: 600, campaign: false,
-    omen: "steady", maxed: false, collect: null, ability: "breath", gen: null };
+    omen: "steady", maxed: false, collect: null, ability: "breath", gen: null, village: 1 };
   for (let i = 2; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--games") out.games = Number(argv[++i]);
@@ -97,6 +97,9 @@ function parseArgs(argv) {
     // покупает улучшения. Так проверяется главное обещание игры: первый поход
     // обречён, победа приходит за несколько заходов.
     else if (a === "--campaign") out.campaign = true;
+    // --village 2: бот выкупает и вторые уровни построек. По умолчанию он
+    // останавливается на первом — так старые замеры остаются сравнимыми.
+    else if (a === "--village") out.village = Number(argv[++i]);
     else if (a === "--collect") out.collect = Number(argv[++i]);
     else if (a === "--ability") out.ability = argv[++i];
     // --maxed: профиль сразу прокачан до предела (все постройки и улучшения).
@@ -111,6 +114,9 @@ function parseArgs(argv) {
   if (!Number.isFinite(out.games) || out.games < 1) throw new Error("--games должен быть >= 1");
   if (!Number.isFinite(out.amulets) || out.amulets < 0) throw new Error("--amulets должен быть >= 0");
   if (!Number.isFinite(out.bank) || out.bank < 0) throw new Error("--bank должен быть >= 0");
+  if (!Number.isFinite(out.village) || out.village < 0 || out.village > 2) {
+    throw new Error("--village должен быть 0..2");
+  }
   if (!(out.skill >= 0 && out.skill <= 1)) throw new Error("--skill должен быть 0..1");
   if (out.mode !== "dungeon" && out.mode !== "endless") throw new Error("--mode: dungeon или endless");
   if (["easy", "normal", "hard"].indexOf(out.difficulty) < 0) {
@@ -1183,7 +1189,7 @@ function playOne(opts, rng, trace) {
       // терял поход и начинал новый — замеры были пессимистичнее игры.
       API.returnToVillage();
       if (opts.campaign) {
-        campaignSpend();
+        campaignSpend(opts);
         if (API.canDescend() && API.loadGame()) {
           lastProgress = { steps, what: "resume", pos: G.playerPos.x + "," + G.playerPos.y,
             hp: G.player.hp, floor: G.floorIndex, enemyHp: Infinity };
@@ -1403,8 +1409,9 @@ function printResult(i, opts, r, elapsed, seed) {
 // Траты между походами в кампании. Порядок жёсткий и объясняет устройство
 // игры: сначала постройки (без кузницы улучшения вообще недоступны), потом
 // улучшения героя — от здоровья и силы к деньгам. Возвращает список покупок.
-function campaignSpend() {
+function campaignSpend(opts) {
   const bought = [];
+  const target = opts && Number.isFinite(opts.village) ? opts.village : 1;
   const prof = getProfile(G.name);
   if (prof && prof.quests) {
     // Кампания стартует с главы «Знакомство». Бот не ходит по домам,
@@ -1419,7 +1426,7 @@ function campaignSpend() {
     console.log("DBG profile", G.name, "gold", p && p.wallet.gold,
       "loot", p && JSON.stringify(p.loot), "story", p && p.quests.story);
   }
-  const want = { forge: 1, barn: 1, well: 1, smith: 1 };
+  const want = { forge: target, barn: target, well: target, smith: target };
   for (let round = 0; round < 40; round++) {
     let did = false;
     Object.keys(want).forEach((key) => {
@@ -1582,7 +1589,7 @@ function main() {
     // В кампании герой тратит найденное между походами: восстановить деревню
     // и поднять себя. Без этого второй поход был бы таким же обречённым.
     if (opts.campaign) {
-      r.spent = campaignSpend();
+      r.spent = campaignSpend(opts);
       if (r.spent.length) console.log("  куплено в деревне: " + r.spent.join(", "));
       r.villageSnapshot = { barn: API.villageLevel("barn"), forge: API.villageLevel("forge"),
         well: API.villageLevel("well"), smith: API.villageLevel("smith") };

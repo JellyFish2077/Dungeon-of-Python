@@ -12056,6 +12056,32 @@ body.game-page .effect-flash {
   background: #ef4444;
 }
 
+/* Метка «!» у двери или колодца: на следующий уровень постройки уже
+   хватает материалов. Это не свечение и не анимация — только знак, что
+   в окне банка есть чем заплатить. */
+.ent.ent-prop.build-ready,
+.ent-door.build-ready {
+  position: relative;
+}
+
+.ent.ent-prop.build-ready::after,
+.ent-door.build-ready::after {
+  content: "!";
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 11px;
+  height: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #05070d;
+  border-radius: 50%;
+  background: #facc15;
+  color: #1a1206;
+  font: 700 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 /* ==========================================================================
    МОБИЛЬНАЯ ВЕРСИЯ: ПОРТРЕТ И ЛАНДШАФТ
    ========================================================================== */
