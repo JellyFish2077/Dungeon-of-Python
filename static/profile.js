@@ -12,7 +12,11 @@ const SAVE_SLOTS_STORAGE_PREFIX = "pyquiz_save_slots_v1";
 // Потолок амулетов возврата. Значение по умолчанию: точное число задаёт
 // админка (hub.amuletMax в game.js), но профиль хранит счётчик сам и должен
 // уметь зажать его и без загруженной игры. Держим эти два числа в согласии.
-const HUB_AMULET_MAX = 3;
+// Амулеты не входят в HERO_CAPS/VILLAGE_CAPS: их потолок динамический —
+// база из админки плюс бонус кузницы II. Здесь только верхняя граница
+// хранения, чтобы мусор в профиле не превращался в бесконечные жизни.
+// Сколько реально можно купить или найти, решает amuletCap() в game.js.
+const HUB_AMULET_CEIL = 21; // 20 — серверный предел базы, +1 даёт кузница II
 
 function profileKey(name) {
   return String(name || "").trim().toLowerCase();
@@ -258,6 +262,23 @@ function pickKnowledge(local, remote) {
   return (r.date || "") >= (l.date || "") ? r : l;
 }
 
+// Сколько припасов со склада амбара взято в текущем походе. Счётчик живёт
+// в профиле, а не в G: иначе перезагрузка вкладки обнуляла бы его и потолок
+// «на поход» обходился бы новой партией. Обнуляет его конец похода.
+function barnBoughtEmpty() {
+  return { small: 0, big: 0, gear: 0 };
+}
+
+function normalizeBarnBought(raw) {
+  const out = barnBoughtEmpty();
+  if (!raw || typeof raw !== "object") return out;
+  Object.keys(out).forEach((k) => {
+    const n = Math.floor(Number(raw[k]) || 0);
+    out[k] = isFinite(n) && n > 0 ? Math.min(99, n) : 0;
+  });
+  return out;
+}
+
 function getProfile(name) {
   const key = profileKey(name);
   if (!key) return null;
@@ -269,8 +290,9 @@ function getProfile(name) {
       quizRuns: [],
       wallet: { gold: 0, small_potion: 0, big_potion: 0 },
       // Деревня — постоянная часть профиля: амулеты возврата (жёсткий потолок
-      // HUB_AMULET_MAX) и купленное стартовое снаряжение. Походное снаряжение
-      // живёт в сейве и гибнет вместе с походом, а это переживает смерть.
+      // хранения HUB_AMULET_CEIL, покупной потолок считает amuletCap()) и
+      // купленное стартовое снаряжение. Походное снаряжение живёт в сейве и
+      // гибнет вместе с походом, а это переживает смерть.
       hub: { revive: 0, gear: [] },
       dungeonBest: null,
       wrongPool: [],
@@ -293,8 +315,9 @@ function getProfile(name) {
   if (!p.study.topics || typeof p.study.topics !== "object") p.study.topics = {};
   if (!p.hub || typeof p.hub !== "object") p.hub = { revive: 0, gear: [] };
   if (typeof p.hub.revive !== "number" || !isFinite(p.hub.revive)) p.hub.revive = 0;
-  p.hub.revive = Math.max(0, Math.min(HUB_AMULET_MAX, Math.floor(p.hub.revive)));
+  p.hub.revive = Math.max(0, Math.min(HUB_AMULET_CEIL, Math.floor(p.hub.revive)));
   if (!Array.isArray(p.hub.gear)) p.hub.gear = [];
+  p.barnBought = normalizeBarnBought(p.barnBought);
   p.knowledge = normalizeKnowledge(p.knowledge);
   normalizeProgress(p);
   return p;
@@ -575,10 +598,14 @@ function applyServerProfile(name, profile) {
   const shub = profile.hub || { revive: 0, gear: [] };
   const revive = Math.max(Number(lhub.revive) || 0, Number(shub.revive) || 0);
   merged.hub = {
-    revive: Math.max(0, Math.min(HUB_AMULET_MAX, Math.floor(revive))),
+    revive: Math.max(0, Math.min(HUB_AMULET_CEIL, Math.floor(revive))),
     gear: Array.isArray(shub.gear) && shub.gear.length ? shub.gear
       : (Array.isArray(lhub.gear) ? lhub.gear : [])
   };
+  // Счётчик склада амбара сервер не знает (его нет в clean_profile),
+  // поэтому локальная копия авторитетна: иначе синхронизация обнуляла бы
+  // счётчик на поход и открывала обход потолка.
+  merged.barnBought = normalizeBarnBought(local.barnBought);
   // Прогрессия героя и деревни складывается только вверх — см. progressMerge.
   merged = Object.assign(merged, progressMerge(local, profile));
   putProfile(name, merged);

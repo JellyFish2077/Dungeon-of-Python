@@ -6378,6 +6378,26 @@ log(API.villageBuildingList().length === 7,
   "в деревне семь зданий", String(API.villageBuildingList().length));
 log(API.VILLAGE_NPCS.length === 9,
   "в деревне девять жителей", String(API.VILLAGE_NPCS.length));
+// Приветствие — сцена первой встречи из двух реплик; ключи VILLAGE_MEET_NPCS
+// должны указывать на настоящих жителей, иначе сцена просто не покажется.
+const greetKeys = API.VILLAGE_NPCS.map((n) => n.key);
+const greetBad = greetKeys.filter((k) => {
+  const scene = API.NPC_GREETINGS[k];
+  return !scene || scene.length < 2 || scene.some((line) => !String(line || "").trim());
+});
+log(greetBad.length === 0,
+  "у каждого жителя есть сцена первой встречи", greetBad.join(", ") || "все с приветствием");
+const meetBad = API.VILLAGE_MEET_NPCS.filter((k) => greetKeys.indexOf(k) < 0);
+log(meetBad.length === 0 && API.VILLAGE_MEET_NPCS.length === 6,
+  "первая встреча срабатывает у шести открытых жителей", meetBad.join(", ") || "6 ключей");
+// Наставник раньше обещал, что золото доходит до деревни целиком. Доля
+// берётся из настроек, поэтому текст и экран смерти не могут разъехаться.
+const mentorNpc = API.VILLAGE_NPCS.find((n) => n.key === "mentor");
+const mentorHtml = API.dialogHtml(mentorNpc);
+const deathPct = Math.round(API.balanceSnapshot()["hub.deathGoldShare"] * 100);
+log(mentorHtml.indexOf("на " + deathPct + "%") >= 0 &&
+  !/золото[^.]*целиком/i.test(mentorHtml),
+  "наставник называет настоящую долю золота после смерти", deathPct + "%");
 const facadeBad = API.villageBuildingList().filter((b) => b.door.y !== b.box.y1);
 log(facadeBad.length === 0,
   "у всех домов фасад снизу — дома не перевёрнуты",
@@ -6567,7 +6587,12 @@ const houseDirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
 Object.keys(API.VILLAGE_HOUSES).forEach((key) => {
   API.enterHouse(key);
   const exit = API.VILLAGE_HOUSES[key].exit;
-  const npc = (G.npcs || []).find((n) => n.place === key);
+  // Жителя берём из самой комнаты: поля place у рантайм-жителя нет, и
+  // прежняя проверка `n.place === key` не срабатывала никогда. В каждом
+  // доме ровно один житель — это тоже проверяем, иначе [0] брал бы чужого.
+  const locals = G.npcs || [];
+  const npc = locals[0];
+  if (locals.length !== 1) houseBad.push(key + ": жителей " + locals.length + ", ожидали 1");
   const w = G.map.w, h = G.map.h;
   if (G.playerPos.x !== exit.x || G.playerPos.y !== exit.y) {
     houseBad.push(key + ": герой вошёл не на дверь");
@@ -7072,6 +7097,21 @@ log(payFor("forge") && getProfile(G.name).village.forge === 2,
   "кузница II строится", "уровень " + getProfile(G.name).village.forge);
 log(API.amuletCap() === API.balanceSnapshot()["hub.amuletMax"] + 1,
   "кузница II поднимает потолок амулетов", "потолок " + API.amuletCap());
+// Потолок — не только подпись в окне: четвёртый амулет должен покупаться и
+// переживать нормализацию профиля. Раньше getProfile срезал его до базы,
+// и золото за кузницу II пропадало впустую.
+const profForgeAmulet = getProfile(G.name);
+profForgeAmulet.hub.revive = API.balanceSnapshot()["hub.amuletMax"];
+profForgeAmulet.wallet.gold = 10000;
+putProfile(G.name, profForgeAmulet);
+const forgeAmuletOffer = API.hubShopOffers().find((o) => o.kind === "amulet");
+API.buyHubItem("amulet");
+const afterForgeAmulet = getProfile(G.name);
+log(!!forgeAmuletOffer && afterForgeAmulet.hub.revive === API.amuletCap(),
+  "четвёртый амулет из кузницы II остаётся в профиле",
+  "амулетов " + afterForgeAmulet.hub.revive + " из " + API.amuletCap());
+log(!!forgeAmuletOffer && afterForgeAmulet.wallet.gold === 10000 - forgeAmuletOffer.price,
+  "и золото за него списано", String(afterForgeAmulet.wallet.gold));
 log(payFor("smith") && getProfile(G.name).village.smith === 2,
   "дом мастера II строится", "уровень " + getProfile(G.name).village.smith);
 log(API.abilityCharges() === API.balanceSnapshot()["ability.charges"] + 1,
@@ -7114,6 +7154,29 @@ log(getProfile(G.name).loot.wood === before + 3,
   before + " -> " + getProfile(G.name).loot.wood);
 log(API.rewardText({ ore: 2 }) === "руда 3",
   "окно старосты показывает награду с прибавкой амбара", API.rewardText({ ore: 2 }));
+
+// Ключ в награде главы — отдельная ветка payQuest, а не лут и не материал.
+// Раньше окно старосты показывало «80 золота и руда 3» и молчало про оберег
+// глубины, который и был главным призом главы.
+const rewardProf = getProfile(G.name);
+const savedRewardKeys = rewardProf.loot.keys.slice();
+rewardProf.loot.keys = savedRewardKeys.filter((k) => k !== "seal" && k !== "seal2");
+putProfile(G.name, rewardProf);
+const keyPreview = API.rewardText({ gold: 80, key: "seal" });
+log(keyPreview.indexOf("оберег глубины") >= 0,
+  "окно старосты показывает ключ в награде главы", keyPreview);
+// Обратный случай — ключ уже в профиле: payQuest его повторно не выдаст,
+// значит и предпросмотр не должен его обещать. Ключ добавляем явно, чтобы
+// проверка не зависела от того, что успели выдать прошлые проверки.
+const withSeal = getProfile(G.name);
+withSeal.loot.keys = savedRewardKeys.filter((k) => k !== "seal").concat(["seal"]);
+putProfile(G.name, withSeal);
+const ownedPreview = API.rewardText({ key: "seal" });
+log(ownedPreview.indexOf("оберег глубины") < 0,
+  "уже полученный ключ второй раз не обещают", ownedPreview);
+const restoreProf = getProfile(G.name);
+restoreProf.loot.keys = savedRewardKeys;
+putProfile(G.name, restoreProf);
 
 // Смерть не отбирает материалы и ключи — они уже в профиле.
 const lootBeforeDeath = JSON.parse(JSON.stringify(getProfile(G.name).loot));
@@ -7179,12 +7242,32 @@ log(API.buyBarnSupply("gear") &&
   "снаряжение со склада уходит в дорогу");
 log(API.buyBarnSupply("gear") === false,
   "и второе снаряжение за поход не выдаётся");
-log(G.barnBought.small === 2 && G.barnBought.big === 1 && G.barnBought.gear === 1,
+const barnBoughtNow = () => getProfile(G.name).barnBought || {};
+log(barnBoughtNow().small === 2 && barnBoughtNow().big === 1 && barnBoughtNow().gear === 1,
   "счётчики обмена сходятся",
-  JSON.stringify(G.barnBought));
+  JSON.stringify(barnBoughtNow()));
+// Счётчик живёт в профиле: перезагрузка вкладки не должна открывать потолок
+// заново. getProfile каждый раз читает хранилище, то есть это и есть проверка
+// на «страницу перезагрузили».
+log(getProfile(G.name).barnBought.small === 2,
+  "счётчик обмена переживает перезагрузку страницы",
+  "малых " + getProfile(G.name).barnBought.small);
 API.reset();
-log(G.barnBought.small === 0 && G.barnBought.big === 0 && G.barnBought.gear === 0,
+log(barnBoughtNow().small === 0 && barnBoughtNow().big === 0 && barnBoughtNow().gear === 0,
   "новый поход начинает партию припасов заново");
+
+// Новый поход поверх сохранённого: партия припасов прошлого похода кончается
+// вместе с ним, иначе новая партия унаследовала бы израсходованные обмены.
+const abandonProf = getProfile(G.name);
+abandonProf.barnBought = { small: 1, big: 0, gear: 0 };
+putProfile(G.name, abandonProf);
+globalThis.localStorage.setItem(API.saveSlot(G.name), JSON.stringify({
+  v: 1, name: G.name, over: false, floorIndex: 0, player: { gold: 0 }
+}));
+API.startRun(G.name);
+log(barnBoughtNow().small === 0,
+  "затирание сохранённого похода сбрасывает партию припасов",
+  JSON.stringify(barnBoughtNow()));
 
 // Ключи держат стражи: от амбара — с третьего этажа, от мастера — с шестого.
 resetProgress();
@@ -7568,6 +7651,7 @@ log(decorMissing.length === 0,
 // Банк возвращаем к исходной сумме: покупки в окнах выше уже тратили золото.
 const profReseed = getProfile(G.name);
 profReseed.wallet.gold = 500;
+profReseed.hub.revive = 0;
 putProfile(G.name, profReseed);
 const hubOffers = API.hubShopOffers();
 const amuletOffer = hubOffers.find((o) => o.kind === "amulet");
@@ -7590,8 +7674,10 @@ if (gearOffer) {
     String(getProfile(G.name).hub.gear.length));
 }
 
-// Потолок: выше hub.amuletMax ни покупка, ни находка не поднимают.
-const amuletMax = API.balanceSnapshot()["hub.amuletMax"];
+// Потолок: выше amuletCap() ни покупка, ни находка не поднимают. Здесь деревня
+// сброшена, поэтому потолок равен базе; с кузницей II он выше, и это
+// проверено отдельно выше.
+const amuletMax = API.amuletCap();
 const profCap = getProfile(G.name);
 profCap.wallet.gold = 100000;
 profCap.hub.revive = amuletMax;
@@ -9134,6 +9220,18 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
   log(/Гоблин-вожак/.test(bossCodex) && /Фазы/.test(bossCodex) &&
     /трофей получен/.test(bossCodex),
     "босс появился в справочнике с фазами и трофеем");
+  // Справочник жителей: карточка каждого встреченного NPC должна нести
+  // настоящий портрет из sprites.js. Раньше iconSvg("npc_" + key) не находил
+  // иконок и все девять показывались слаймом-заглушкой.
+  API.VILLAGE_NPCS.forEach((npc) => { API.codexState().npcs[npc.key] = 1; });
+  const npcCodex = API.codexBodyHtml("npcs");
+  log(/Казначей/.test(npcCodex) && /Банк, рекорд и амулеты/.test(npcCodex) &&
+    !/Житель деревни/.test(npcCodex),
+    "справочник знает всех жителей и роль казначея");
+  log((npcCodex.match(/sprite-img/g) || []).length === API.VILLAGE_NPCS.length &&
+    !/ent-svg/.test(npcCodex),
+    "в справочнике жителей портреты, а не запасная иконка",
+    (npcCodex.match(/sprite-img/g) || []).length + " портретов");
   log(/гоблин-вожак/i.test(API.CAMPAIGN.prologue) &&
     /некромант/i.test(API.CAMPAIGN.prologue) &&
     /дракон/i.test(API.CAMPAIGN.prologue),
