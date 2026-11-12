@@ -2043,6 +2043,24 @@ log(floorCurve[0][3] >= floorCurve[0][0] * 3,
 log(floorCurve[2][3] >= floorCurve[2][0] * 3,
   "урон дракона тоже растёт, а не стоит на месте",
   floorCurve[2][0] + " -> " + floorCurve[2][3]);
+// Мягкий вход: на первом этаже враг бьёт на четверть слабее, к шестому
+// этажу надбавка сходит на нет. Иначе новичок умирал на первом же боссе
+// и не видел ни деревни, ни затвора.
+const easeLow = API.earlyDamageEase(0);
+const easeMid = API.earlyDamageEase(3);
+const easeFull = API.earlyDamageEase(6);
+const easeDeep = API.earlyDamageEase(13);
+log(Math.abs(easeLow - 0.75) < 0.001 && easeMid > easeLow && easeMid < easeFull &&
+  easeFull === 1 && easeDeep === 1,
+  "ранние этажи бьют мягче, с шестого — полный урон",
+  [easeLow, easeMid, easeFull, easeDeep].join(" / "));
+const easedDmg = API.makeEnemy("slime", 0).dmg;
+API.applyBalanceValue("enemy.dmgEase0", 1);
+const fullDmg = API.makeEnemy("slime", 0).dmg;
+API.applyBalanceValue("enemy.dmgEase0", easeLow);
+log(easedDmg < fullDmg && Math.abs(easedDmg / fullDmg - 0.75) < 0.05,
+  "на первом этаже удар слабее ровно на четверть",
+  easedDmg + " против " + fullDmg);
 // Урон должен оставаться целым и положительным на любом этаже.
 let allOk = true;
 for (const t of API.ENEMY_TYPES) {

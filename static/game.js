@@ -3154,6 +3154,13 @@
   let ENEMY_DMG_FLOOR0 = 0.55;
   let ENEMY_DMG_CURVE = 0.09;
   let ENEMY_DMG_MAX_SHARE = 1.30;
+  // Мягкий вход для урона: на первом этаже враг бьёт на четверть слабее,
+  // к шестому этажу надбавка исчезает. Бот при 75% верных ответов умирал
+  // в первом же походе на третьем этаже — до затвора глубины и деревни
+  // он не доходил. Поздние этажи не смягчаются: там у героя есть кузница,
+  // снаряжение и знание, с которыми честно встречать полный удар.
+  let ENEMY_DMG_EASE0 = 0.75;
+  const ENEMY_DMG_EASE_FLOORS = 6;
   let XP_BASE = 50;
   let LEVEL_DMG = 3;
   let LEVEL_HP = 22;
@@ -3224,11 +3231,16 @@
     return Math.min(ENEMY_DMG_MAX_SHARE, ENEMY_DMG_FLOOR0 + at * ENEMY_DMG_CURVE);
   }
 
+  function earlyDamageEase(floorIdx) {
+    const at = Math.max(0, Number(floorIdx) || 0);
+    return ENEMY_DMG_EASE0 + (1 - ENEMY_DMG_EASE0) * Math.min(1, at / ENEMY_DMG_EASE_FLOORS);
+  }
+
   function enemyDamageFor(type, floorIdx, mul) {
     const base = type.dmg + floorIdx * ENEMY_DMG_PER_FLOOR;
     const ramp = type.dmg * ENEMY_DMG_RAMP * floorIdx;
     return Math.max(1, Math.round((base + ramp) * mul * endlessDepthMul(floorIdx) *
-      depthDamageShare(floorIdx) * ENEMY_DMG_MUL));
+      depthDamageShare(floorIdx) * ENEMY_DMG_MUL * earlyDamageEase(floorIdx)));
   }
 
   function makeEnemy(typeKey, floorIdx, elite, squadId, squadIdx, isBoss) {
@@ -17185,6 +17197,16 @@ function topicName(key) {
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
     {
+      version: "1.53.0",
+      date: "12 ноября 2026",
+      title: "Первый поход добрее",
+      items: [
+        "На первых этажах враги бьют на четверть слабее — к шестому этажу прежняя сила.",
+        "Здоровье врагов, длина боя и поздние этажи не менялись.",
+        "Замеры кампании и ручка `enemy.dmgEase0` — в BALANCE_NOTES, §7."
+      ]
+    },
+    {
       version: "1.52.0",
       date: "12 ноября 2026",
       title: "Хроника по местам",
@@ -21397,7 +21419,7 @@ function topicName(key) {
   // бы героя без единого ответа.
   const BALANCE_KEYS = [
     "enemy.hpPerFloor", "enemy.dmgFlat", "enemy.dmgPct",
-    "enemy.dmgFloor0", "enemy.dmgCurve", "enemy.dmgMaxShare",
+    "enemy.dmgFloor0", "enemy.dmgCurve", "enemy.dmgMaxShare", "enemy.dmgEase0",
     "elite.hpMul", "elite.dmgMul", "elite.chanceBase", "elite.chanceStep", "elite.gold",
     "squad.from", "squad.chance", "squad.maxSize",
     "combat.aggro", "combat.view", "combat.darkView", "combat.hazardDmg",
@@ -21437,6 +21459,7 @@ function topicName(key) {
       case "enemy.dmgFloor0": ENEMY_DMG_FLOOR0 = value; return true;
       case "enemy.dmgCurve": ENEMY_DMG_CURVE = value; return true;
       case "enemy.dmgMaxShare": ENEMY_DMG_MAX_SHARE = value; return true;
+      case "enemy.dmgEase0": ENEMY_DMG_EASE0 = value; return true;
       case "elite.hpMul": ELITE.hpMul = value; return true;
       case "elite.dmgMul": ELITE.dmgMul = value; return true;
       case "elite.chanceBase": ELITE.chanceBase = value; return true;
@@ -21541,6 +21564,7 @@ function topicName(key) {
       case "enemy.dmgFloor0": return ENEMY_DMG_FLOOR0;
       case "enemy.dmgCurve": return ENEMY_DMG_CURVE;
       case "enemy.dmgMaxShare": return ENEMY_DMG_MAX_SHARE;
+      case "enemy.dmgEase0": return ENEMY_DMG_EASE0;
       case "elite.hpMul": return ELITE.hpMul;
       case "elite.dmgMul": return ELITE.dmgMul;
       case "elite.chanceBase": return ELITE.chanceBase;
