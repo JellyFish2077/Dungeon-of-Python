@@ -10045,6 +10045,32 @@ body.battling .battle-panel .squad-note {
   min-width: 130px;
 }
 
+/* Резервная копия текстом: нужна там, где скачивание файла блокирует
+   iframe (страница Itch.io), а также для копирования сейва вручную. */
+.backup-box {
+  width: min(720px, 100%);
+}
+
+.backup-text {
+  width: 100%;
+  height: 220px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(7, 12, 20, 0.85);
+  color: #dbe4f0;
+  font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  resize: vertical;
+}
+
+.backup-status {
+  margin: 8px 0 0;
+  min-height: 18px;
+  color: #9fd7a8;
+  font-size: 12px;
+}
+
 .confirm-actions .btn.danger {
   border-color: rgba(248, 113, 113, 0.7);
   background: linear-gradient(180deg, #7f1d1d, #4c1010);

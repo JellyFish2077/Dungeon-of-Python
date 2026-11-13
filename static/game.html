@@ -581,6 +581,7 @@
         <span class="saves-status" id="saves-status"></span>
         <div class="saves-foot-actions">
           <button class="saves-btn ghost" id="saves-export" type="button">Экспорт</button>
+          <button class="saves-btn ghost" id="saves-text" type="button">Показать JSON</button>
           <button class="saves-btn ghost" id="saves-import" type="button">Импорт</button>
           <input type="file" id="saves-import-file" accept="application/json,.json" hidden />
           <button class="saves-btn ghost" id="saves-back" type="button">Закрыть</button>
@@ -598,6 +599,24 @@
       <div class="confirm-actions">
         <button class="btn ghost" id="confirm-cancel" type="button">Отмена</button>
         <button class="btn" id="confirm-ok" type="button">Подтвердить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Резервная копия текстом: внутри iframe (Itch.io) скачивание файла
+       блокируется sandbox, поэтому копию всегда можно выделить и скопировать. -->
+  <div class="confirm-overlay hidden" id="backup-overlay" role="dialog"
+       aria-modal="true" aria-labelledby="backup-title">
+    <div class="confirm-box backup-box">
+      <div class="confirm-kicker">PyDungeon</div>
+      <h2 class="confirm-title" id="backup-title">Резервная копия</h2>
+      <p class="confirm-text">Скопируй текст и сохрани его в файл. Импорт примет его обратно.</p>
+      <textarea class="backup-text" id="backup-text" readonly spellcheck="false"
+                aria-label="Содержимое резервной копии"></textarea>
+      <p class="backup-status" id="backup-status"></p>
+      <div class="confirm-actions">
+        <button class="btn ghost" id="backup-copy" type="button">Копировать</button>
+        <button class="btn" id="backup-close" type="button">Готово</button>
       </div>
     </div>
   </div>

@@ -136,8 +136,8 @@ class QuietServer(socketserver.ThreadingTCPServer):
     request_queue_size = 128
 
 
-def serve():
-    handler = functools.partial(QuietHandler, directory=BUILD)
+def serve(directory=None):
+    handler = functools.partial(QuietHandler, directory=directory or BUILD)
     server = QuietServer(("127.0.0.1", 0), handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()

@@ -409,7 +409,9 @@
     if (!isOpen) return;
     if (e.key === "Escape") {
       e.preventDefault();
-      close();
+      const backup = $("backup-overlay");
+      if (backup && !backup.classList.contains("hidden")) closeBackup();
+      else close();
       return;
     }
     if (e.key === "Tab") {
@@ -477,16 +479,70 @@
       link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       sound("correct");
-      setStatus("Резервная копия: " + filename + ".", "ok");
+      setStatus("Резервная копия: " + filename +
+        ". Если файл не появился, нажми «Показать JSON».", "ok");
     } catch (e) {
+      // Скачивание мог заблокировать iframe: тогда копию показываем текстом.
+      showBackup();
+      setStatus("Файл не скачался — копия открыта текстом.", "ok");
+    }
+  }
+
+  // Текстовая копия сейва. Внутри iframe (страница Itch.io) браузер
+  // молча блокирует скачивание файла, поэтому копию надо уметь показать
+  // и скопировать вручную.
+  function showBackup() {
+    if (!userName()) {
+      setStatus("Сначала войди в профиль.", "error");
+      return;
+    }
+    const overlay = $("backup-overlay");
+    const area = $("backup-text");
+    if (!overlay || !area) return;
+    area.value = JSON.stringify(backupData(), null, 2);
+    const status = $("backup-status");
+    if (status) status.textContent = "";
+    overlay.classList.remove("hidden");
+    try {
+      area.focus();
+      area.select();
+    } catch (e) {}
+  }
+
+  function closeBackup() {
+    const overlay = $("backup-overlay");
+    if (overlay) overlay.classList.add("hidden");
+    const status = $("backup-status");
+    if (status) status.textContent = "";
+  }
+
+  function copyBackup() {
+    const area = $("backup-text");
+    const status = $("backup-status");
+    const text = area ? area.value : "";
+    const say = function (message) {
+      sound("correct");
+      if (status) status.textContent = message;
+    };
+    const byHand = function () {
+      if (!area) return;
       try {
-        navigator.clipboard.writeText(text);
-        sound("correct");
-        setStatus("Файл не скачался — копия сохранена в буфер обмена.", "ok");
-      } catch (err) {
-        sound("wrong");
-        setStatus("Не удалось сохранить резервную копию.", "error");
+        area.focus();
+        area.select();
+        say(document.execCommand("copy")
+          ? "Скопировано. Вставь текст в файл .json."
+          : "Выдели текст и скопируй вручную.");
+      } catch (e) {
+        say("Выдели текст и скопируй вручную.");
       }
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { say("Скопировано. Вставь текст в файл .json."); },
+        byHand
+      );
+    } else {
+      byHand();
     }
   }
 
@@ -574,6 +630,18 @@
     if (back) back.addEventListener("click", close);
     const exportBtn = $("saves-export");
     if (exportBtn) exportBtn.addEventListener("click", exportBackup);
+    const textBtn = $("saves-text");
+    if (textBtn) textBtn.addEventListener("click", showBackup);
+    const copyBtn = $("backup-copy");
+    if (copyBtn) copyBtn.addEventListener("click", copyBackup);
+    const backupDone = $("backup-close");
+    if (backupDone) backupDone.addEventListener("click", closeBackup);
+    const backupOverlay = $("backup-overlay");
+    if (backupOverlay) {
+      backupOverlay.addEventListener("click", (e) => {
+        if (e.target === backupOverlay) closeBackup();
+      });
+    }
     const importBtn = $("saves-import");
     const importFile = $("saves-import-file");
     if (importBtn && importFile) {
