@@ -6176,6 +6176,18 @@ body.game-page .side-panel > .side-card:nth-child(5)::before {
   content: "Сумка";
 }
 
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(3)::before {
+  content: "Hero";
+}
+
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(4)::before {
+  content: "Equipment";
+}
+
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(5)::before {
+  content: "Bag";
+}
+
 body.game-page .side-title {
   margin-bottom: 7px;
   padding-bottom: 6px;
@@ -7657,6 +7669,12 @@ body:has(.stage.village) #place-dungeon {
 #inventory-wallet::before { content: "Кошелёк"; }
 #inventory-equip::before { content: "Снаряжение"; }
 #inventory-bag::before { content: "Сумка"; }
+
+/* Английская версия: подписи секций рисует CSS, поэтому их нельзя
+   перевести через DOM. Английский текст включается атрибутом lang. */
+html[lang="en"] #inventory-wallet::before { content: "Purse"; }
+html[lang="en"] #inventory-equip::before { content: "Equipment"; }
+html[lang="en"] #inventory-bag::before { content: "Bag"; }
 
 #inventory-wallet .hud-num,
 #inventory-wallet .lead {
@@ -10043,6 +10061,32 @@ body.battling .battle-panel .squad-note {
 
 .confirm-actions .btn {
   min-width: 130px;
+}
+
+/* Резервная копия текстом: нужна там, где скачивание файла блокирует
+   iframe (страница Itch.io), а также для копирования сейва вручную. */
+.backup-box {
+  width: min(720px, 100%);
+}
+
+.backup-text {
+  width: 100%;
+  height: 220px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  border-radius: 10px;
+  background: rgba(7, 12, 20, 0.85);
+  color: #dbe4f0;
+  font: 12px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  resize: vertical;
+}
+
+.backup-status {
+  margin: 8px 0 0;
+  min-height: 18px;
+  color: #9fd7a8;
+  font-size: 12px;
 }
 
 .confirm-actions .btn.danger {

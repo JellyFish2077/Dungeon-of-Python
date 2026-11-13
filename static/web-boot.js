@@ -7,7 +7,7 @@
   "use strict";
   if (typeof window === "undefined") return;
   window.__PYQUIZ_WEB = true;
-  window.__PYQUIZ_VERSION = { version: "1.55.0-web", date: "2026-11-12", commit: "" };
+  window.__PYQUIZ_VERSION = { version: "1.55.1-web", date: "2026-11-13", commit: "" };
   window.__PYQUIZ_FEATURES = { code: true, dev: false, generatedCode: false };
 
   const saved = (typeof getLastName === "function" && getLastName()) || "Игрок";
