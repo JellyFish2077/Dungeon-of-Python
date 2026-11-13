@@ -688,8 +688,9 @@ def run_checks(browser, base):
     check("Печати глубины" in journal_text and "Знакомство" in journal_text and
           "стражи глубины" in journal_text.lower(),
           "журнал показывает кампанию, текущую главу и стражей")
-    check(page.locator(".story-path-step").count() == 11,
-          "в журнале виден путь из шести глав и пяти стражей")
+    check(page.locator(".story-path-step").count() == 6 and
+          page.locator(".boss-chip").count() == 5,
+          "в журнале есть путь из шести глав и пяти стражей")
     page.click("#journal-close")
     page.wait_for_timeout(200)
 

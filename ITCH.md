@@ -12,7 +12,7 @@ in `assets/itch/screenshots/`.
 
 - **Title:** PyDungeon
 - **Short description:** A dungeon game where every battle is a Python question. 15 floors, 5 bosses, one dragon. Browser, no server.
-- **Version:** 1.55.1
+- **Version:** 1.55.2
 - **Status:** In development (early access)
 - **Price:** free (voluntary donations optional)
 - **Genre:** RPG / Roguelike / Educational
@@ -125,7 +125,7 @@ and Python code is checked by Pyodide right in the browser.
 
 ## Upload assets
 
-- Archive: `dist/pydungeon-standalone-1.55.1.zip` (contains `LICENSE` and `CREDITS.md`)
+- Archive: `dist/pydungeon-standalone-1.55.2.zip` (contains `LICENSE` and `CREDITS.md`)
 - Cover: `assets/itch/cover-630x500-en.png` — `python tools/make_itch_cover.py --lang en`
   (background and dragon sprite come from the build)
 - Icon: `assets/logo/PyDungeon-icon-512.png` — for the Boosty/social avatar;

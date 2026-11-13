@@ -160,7 +160,11 @@
   function applyList(list, values) {
     if (!list) return;
     list.forEach(function (item, i) {
-      if (values[i] != null) list[i] = values[i];
+      if (values[i] == null) return;
+      // Часть списков — строки (подсказки), часть — объекты (события этажа).
+      // Раньше объект заменялся строкой, и journal/log получал ev.text === undefined.
+      if (item && typeof item === "object") item.text = values[i];
+      else list[i] = values[i];
     });
   }
   if (typeof FLOOR_EVENTS_V1 !== "undefined") applyList(FLOOR_EVENTS_V1, events);
@@ -1352,7 +1356,7 @@
       var box = document.getElementById("updates-box");
       if (!box) return;
       var info = window.__PYQUIZ_VERSION;
-      var version = ((info && info.version) || "1.55.1").replace("-web", "");
+      var version = ((info && info.version) || "1.55.2").replace("-web", "");
       box.innerHTML =
         "<div class='battle-head'><div>" +
         "<div class='enemy-name'>Updates</div>" +
@@ -1360,6 +1364,17 @@
         "</div><button class='exit-btn' id='updates-close' type='button' " +
         "data-tip='Close updates. Escape.'>Close</button></div>" +
         "<div class='battle-mid updates-body'>" +
+        "<article class='update-entry'>" +
+        "<div class='update-entry-head'><h3>Journal: less text, more focus</h3>" +
+        "<span class='update-version'>v1.55.2</span></div>" +
+        "<div class='update-date'>November 13, 2026</div>" +
+        "<ul>" +
+        "<li>Only the current chapter is open; the story, prologue, path and guardians collapse behind pluses.</li>" +
+        "<li>Chapters have pixel icons and bosses have portraits.</li>" +
+        "<li>Archive and quest text now lives under “Details”.</li>" +
+        "<li>The chronicle shows the latest 30 events, with “Show all” for the rest.</li>" +
+        "<li>Chapter texts are shorter, and English event lines are fixed.</li>" +
+        "</ul></article>" +
         "<article class='update-entry'>" +
         "<div class='update-entry-head'><h3>Settings: language first</h3>" +
         "<span class='update-version'>v1.55.1</span></div>" +

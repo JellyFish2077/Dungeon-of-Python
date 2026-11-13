@@ -9232,10 +9232,9 @@ log(missBadge.side === "enemy" && missBadge.icon === "miss" &&
     !/ent-svg/.test(npcCodex),
     "в справочнике жителей портреты, а не запасная иконка",
     (npcCodex.match(/sprite-img/g) || []).length + " портретов");
-  log(/гоблин-вожак/i.test(API.CAMPAIGN.prologue) &&
-    /некромант/i.test(API.CAMPAIGN.prologue) &&
+  log(/четырёх опорах/i.test(API.CAMPAIGN.prologue) &&
     /дракон/i.test(API.CAMPAIGN.prologue),
-    "пролог называет стражей глубины и дракона");
+    "пролог называет опоры деревни и дракона");
   const bossPath = API.bossPathHtml();
   log(/Стражи глубины/.test(bossPath) &&
     Object.keys(API.BOSS_INFO).every((key) => bossPath.indexOf(API.BOSS_INFO[key].name) >= 0),
