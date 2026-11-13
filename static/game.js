@@ -8157,7 +8157,7 @@
     }
     showFloorTitle(index, extra);
     const ev = typeof floorEvent === "function" ? floorEvent(index, campaign) : null;
-    if (ev) log("Событие: " + ev.text);
+    if (ev && ev.text) log("Событие: " + ev.text);
     const tip = typeof floorTip === "function" ? floorTip(index, campaign) : null;
     if (tip) log("Совет: " + tip);
     setMsg("Этаж " + (index + 1) + ": " + floorNameAt(index) + ".");
@@ -16447,13 +16447,11 @@ function topicName(key) {
   // Поля text/doneText — это сюжет для журнала, а не подсказка по механике.
   const CAMPAIGN = {
     title: "Печати глубины",
-    prologue: "Деревня держится на четырёх опорах: амбар, колодец, кузня и дом " +
-      "мастера. Под ними — старый спуск. Когда-то здесь учили первых писцов, " +
-      "а потом заперли то, что не смогли объяснить. Между опорами стоят стражи: " +
-      "гоблин-вожак, некромант, король големов и владыка демонов. За ними — " +
-      "дракон, последний хранитель двери.",
-    epilogue: "Печати на месте. Деревня переживёт ещё одну зиму. За последней " +
-      "дверью — тишина, и теперь только тебе решать, стоит ли её открывать."
+    prologue: "Деревня стоит на четырёх опорах: амбар, колодец, кузня и дом " +
+      "мастера. Под ними — старый спуск, где когда-то учили первых писцов. " +
+      "Теперь там стражи, а за ними — дракон, последний хранитель двери.",
+    epilogue: "Печати на месте. Деревня переживёт зиму. За последней дверью " +
+      "тишина — и только тебе решать, открывать ли её."
   };
 
   const STORY_QUESTS = [
@@ -16461,37 +16459,35 @@ function topicName(key) {
       key: "meet", goal: "meet", title: "Знакомство",
       place: "Деревня · дома и площадь",
       brief: "Обойти деревню и поговорить с жителями.",
-      text: "Прежде чем спускаться в подземелье, староста просит обойти деревню. " +
-        "Страж входа, сам староста, торговец, казначей, наставник и учитель " +
-        "должны знать героя в лицо: без этого деревня не доверит ему свои опоры. " +
-        "Кузнец, мастер и кладовщик ждут за запертыми дверями — с ними герой " +
-        "познакомится, когда деревня откроет их постройки.",
+      text: "Староста просит обойти деревню. Шесть жителей должны узнать героя " +
+        "в лицо — иначе деревня не доверит ему опоры. Кузнец, мастер и " +
+        "кладовщик ждут за запертыми дверями.",
       objective: "Поговорить с шестью жителями, которые сейчас в деревне.",
-      doneText: "Деревня узнала героя. Теперь у каждого жителя найдётся для него " +
-        "слово, товар или совет. Староста кивает: «Пора браться за амбар».",
+      doneText: "Деревня узнала героя. У каждого теперь найдётся слово, товар " +
+        "или совет. Староста кивает: «Пора браться за амбар».",
       reward: { gold: 30 }
     },
     {
       key: "barn", goal: "barn", title: "Крыша для амбара",
       place: "Деревня · амбар",
       brief: "Вернуть деревне склад и найти первую печать.",
-      text: "Амбар заколочен с прошлой зимы, и деревня держится на честном " +
-        "слове. В подполе спрятана первая печать; ключ от двери висит на поясе " +
-        "стража лестницы, а доски разбросаны по сундукам подземелья.",
+      text: "Амбар заколочен с прошлой зимы. В подполе спрятана первая печать, " +
+        "ключ висит на поясе стража лестницы, а доски разбросаны по сундукам " +
+        "подземелья.",
       objective: "Восстановить амбар и вернуться к старосте.",
       doneText: "Амбар снова стоит. Под старым полом нашлась печать — тёплая, " +
-        "будто её только что держали в руках. Староста долго молчит, прежде " +
-        "чем сказать: «Одной опорой больше».",
+        "будто её только что держали в руках. «Одной опорой больше», — " +
+        "говорит староста.",
       reward: { gold: 60, ore: 2 }
     },
     {
       key: "well", goal: "well", title: "Вода для деревни",
       place: "Деревня · колодец",
       brief: "Расчистить колодец и услышать, что говорит глубина.",
-      text: "Колодец засыпан камнем. Беда не в воде: через него деревня слушает " +
-        "глубину и узнаёт, когда просыпаются старые замки. На расчистку нужна руда.",
+      text: "Колодец засыпан камнем. Через него деревня слушает глубину и " +
+        "узнаёт, когда просыпаются старые замки. На расчистку нужна руда.",
       objective: "Восстановить колодец и вернуться к старосте.",
-      doneText: "Вода пошла. В её шуме ясно слышен чужой голос: «Не спускайся " +
+      doneText: "Вода пошла. В её шуме слышен чужой голос: «Не спускайся " +
         "дальше». Староста делает вид, что не слышит.",
       reward: { gold: 60, wood: 2 }
     },
@@ -16499,9 +16495,8 @@ function topicName(key) {
       key: "forge", goal: "forge", title: "Разжечь горн",
       place: "Деревня · кузница",
       brief: "Восстановить кузницу и получить оберег глубины.",
-      text: "Кузница стоит холодной. Пока горн не горит, герой не может укрепить " +
-        "снаряжение, а спуск после шестого этажа закрыт без оберега глубины. " +
-        "Нужны руда и древесина.",
+      text: "Кузница холодна. Без горна не укрепить снаряжение, а спуск после " +
+        "шестого этажа закрыт без оберега глубины. Нужны руда и древесина.",
       objective: "Восстановить кузницу и вернуться к старосте.",
       doneText: "Горн зажжён. Староста вручает оберег глубины: «Это не ключ. " +
         "Это обещание вернуться».",
@@ -16511,25 +16506,22 @@ function topicName(key) {
       key: "smith", goal: "smith", title: "Дверь мастера",
       place: "Деревня · дом мастера",
       brief: "Открыть дом мастера и снять вторую печать.",
-      text: "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая печать. " +
-        "Ключ держит страж в ледяных залах; на ремонт нужны обломки.",
+      text: "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая " +
+        "печать. Ключ держит страж ледяных залов, на ремонт нужны обломки.",
       objective: "Открыть дом мастера и вернуться к старосте.",
-      doneText: "Дверь открыта. Мастер долго смотрит на печать, потом говорит: " +
-        "«Значит, дракон ещё спит». Он отдаёт печать мастера — пропуск к " +
-        "последнему спуску.",
+      doneText: "Дверь открыта. Мастер смотрит на печать: «Значит, дракон ещё " +
+        "спит». Он отдаёт печать мастера — пропуск к последнему спуску.",
       reward: { gold: 120, ore: 2, key: "seal2" }
     },
     {
       key: "dragon", goal: "victory", title: "Дракон",
       place: "Подземелье · последний спуск",
       brief: "Спуститься к дракону и закрыть старый круг.",
-      text: "Опоры стоят, печати собраны. Внизу остался дракон — последний страж " +
-        "старого спуска. Он ждёт не меча, а ответа: достоин ли герой закрыть " +
-        "за собой дверь.",
+      text: "Опоры стоят, печати собраны. Внизу ждёт дракон — последний страж " +
+        "спуска. Он ждёт не меча, а ответа: достоин ли герой закрыть дверь.",
       objective: "Победить дракона и вернуться в деревню.",
-      doneText: "Дракон падает. За его спиной нет сокровищ — только дверь, " +
-        "которую больше некому охранять. Ты возвращаешься в деревню с правом " +
-        "закрыть её или открыть.",
+      doneText: "Дракон падает. За его спиной нет сокровищ — только дверь без " +
+        "стража. Ты возвращаешься в деревню с правом закрыть её или открыть.",
       reward: { gold: 200, shard: 2 }
     }
   ];
@@ -16903,6 +16895,10 @@ function topicName(key) {
   // Фильтр хроники переживает перерисовку журнала и смену вкладки: игрок
   // выбирает его один раз, а не заново при каждом открытии.
   let eventsFilter = "all";
+  // Хроника длинная: по умолчанию показываем последние события, а не весь
+  // поход с первого шага. «Показать все» раскрывает остальное.
+  let eventsExpanded = false;
+  const EVENTS_LIMIT = 30;
 
   const JOURNAL_TABS = {
     story: "Сюжет",
@@ -17015,22 +17011,41 @@ function topicName(key) {
     return out;
   }
 
-  function journalCard(item) {
+  function journalCard(item, compact) {
     const cls = item.failed ? " is-failed" : (item.done || item.kind === "story") ? " is-done" : "";
+    // В архиве текст — историческая справка, а не текущая задача: держим
+    // его под «Подробнее», чтобы список не читался одной простынёй.
+    const body = compact
+      ? "<details class='journal-more'><summary>Подробнее</summary>" +
+        "<p>" + item.text + "</p></details>"
+      : "<p>" + item.text + "</p>";
     return "<article class='journal-card" + cls + "'>" +
       "<div class='journal-card-head'><span class='journal-kind'>" +
       (item.kind === "story" ? "Сюжет" :
         item.kind === "course" ? "Учитель" :
         item.kind === "boss" ? "Трофей" : "Поручение") + "</span>" +
       "<span class='journal-status'>" + item.status + "</span></div>" +
-      "<h3>" + item.title + "</h3>" +
-      "<p>" + item.text + "</p>" +
+      "<h3>" + item.title + "</h3>" + body +
       "<div class='journal-meta'>" + item.meta + "</div>" +
       "</article>";
   }
 
   // Путь кампании: пройденное, текущая глава и то, что ещё впереди. Это не
   // спойлер квестов, а каркас истории — игроку видно, куда ведёт сюжет.
+  // Иконки глав — уже существующие пиксельные спрайты: не рисуем новые
+  // ассеты и не тянем картинки из сети.
+  function storyIcon(key) {
+    const icons = {
+      meet: "npc_elder",
+      barn: "npc_storekeeper",
+      well: "small_potion",
+      forge: "npc_blacksmith",
+      smith: "npc_master",
+      dragon: "dragon"
+    };
+    return icons[key] || "hint_scroll";
+  }
+
   function storyPathHtml() {
     const done = storyDoneCount();
     const rows = STORY_QUESTS.map((step, index) => {
@@ -17039,62 +17054,80 @@ function topicName(key) {
       const ready = isCurrent && goalDone(step.goal);
       const state = isDone ? "is-done" : isCurrent ? "is-current" : "is-locked";
       const label = isDone ? "Пройдено" : isCurrent ? (ready ? "Готово" : "Сейчас") : "Впереди";
+      // Подробности показываем только у текущей главы: остальные строки
+      // остаются короткими, чтобы путь не превращался в простыню.
+      const brief = isCurrent ? "<span>" + step.brief + "</span>" : "";
       return "<li class='story-path-step " + state + (ready ? " is-ready" : "") + "'>" +
         "<span class='story-path-num'>" + storyChapterNumber(index) + "</span>" +
-        "<div class='story-path-text'><b>" + step.title + "</b><span>" + step.brief + "</span></div>" +
+        "<div class='story-path-text'><b>" + step.title + "</b>" + brief + "</div>" +
         "<span class='story-path-state'>" + label + "</span></li>";
     }).join("");
-    return "<div class='story-path-head'>Путь кампании</div><ol class='story-path'>" + rows + "</ol>";
+    return "<details class='story-path-wrap'>" +
+      "<summary class='story-path-head'>Путь кампании" +
+      "<span class='story-path-count'>" + done + " / " + STORY_QUESTS.length + "</span>" +
+      "</summary><ol class='story-path'>" + rows + "</ol></details>";
   }
 
   // Стражи глубины — часть сюжета, а не только «жирные мобы» на этажах.
   // Журнал показывает, кто встречен и у кого уже взят трофей.
   function bossPathHtml() {
-    const numerals = ["I", "II", "III", "IV", "V"];
     const seen = codexState().bosses || {};
+    let metCount = 0;
     const rows = Object.keys(BOSS_INFO).map((key, index) => {
       const info = BOSS_INFO[key];
       const won = bossTrophyEarned(key);
       const met = won || !!seen[key];
-      const floorIndex = FLOORS_V2.findIndex((floor) => floor.boss && floor.bossKey === key);
+      if (met) metCount += 1;
       const state = won ? "is-done" : met ? "is-current" : "is-locked";
       const status = won ? "Побеждён" : met ? "Встречен" : "Впереди";
-      return "<li class='story-path-step " + state + "'>" +
-        "<span class='story-path-num'>" + (numerals[index] || (index + 1)) + "</span>" +
-        "<div class='story-path-text'><b>" + escText(info.name) + "</b><span>" +
-        escText(info.title) + " · " + (floorIndex >= 0 ? "этаж " + (floorIndex + 1) : "арена") +
-        " · " + escText(info.phases.join(" → ")) + "</span></div>" +
-        "<span class='story-path-state'>" + status + "</span></li>";
+      // В свёрнутом блоке хватает имени и статуса: титул, этаж и фазы
+      // остаются в справочнике, а не занимают полжурнала.
+      return "<div class='boss-chip " + state + "'>" +
+        "<span class='boss-chip-icon'>" + spriteImg(key) + "</span>" +
+        "<div class='boss-chip-text'><b>" + escText(info.name) + "</b>" +
+        "<span>" + status + "</span></div></div>";
     }).join("");
-    return "<div class='story-path-head'>Стражи глубины</div><ol class='story-path boss-path'>" +
-      rows + "</ol>";
+    return "<details class='story-path-wrap boss-wrap'>" +
+      "<summary class='story-path-head'>Стражи глубины" +
+      "<span class='story-path-count'>" + metCount + " / " + Object.keys(BOSS_INFO).length +
+      "</span></summary><div class='boss-grid'>" + rows + "</div></details>";
   }
 
   function storyTabHtml() {
     const done = storyDoneCount();
+    const total = STORY_QUESTS.length;
     const step = STORY_QUESTS[done];
+    const pct = total ? Math.round((done / total) * 100) : 0;
     let html = "<div class='story-campaign'>" +
-      "<div class='story-prologue'>" +
-      "<div class='story-kicker'>Кампания «" + CAMPAIGN.title + "»</div>" +
-      "<p>" + CAMPAIGN.prologue + "</p></div>";
+      "<div class='story-topline'>" +
+      "<span class='story-kicker'>Кампания «" + CAMPAIGN.title + "»</span>" +
+      "<span class='story-count'>" + done + " / " + total + "</span></div>" +
+      "<div class='story-meter' role='progressbar' aria-valuemin='0' aria-valuemax='" +
+      total + "' aria-valuenow='" + done + "'><i style='width:" + pct + "%'></i></div>";
     if (!step) {
       html += "<article class='story-current is-done'>" +
-        "<div class='story-kicker'>Финал · " + done + " из " + STORY_QUESTS.length + "</div>" +
+        "<div class='story-kicker'>Финал · " + done + " из " + total + "</div>" +
         "<h3>Печати на месте</h3>" +
         "<p class='story-lead'>" + CAMPAIGN.epilogue + "</p></article>";
     } else {
       const ready = goalDone(step.goal);
       const progress = goalProgressText(step.goal);
       html += "<article class='story-current" + (ready ? " is-ready" : "") + "'>" +
+        "<div class='story-chapter-head'>" +
+        "<span class='story-chapter-icon'>" + spriteImg(storyIcon(step.key)) + "</span>" +
+        "<div class='story-chapter-title'>" +
         "<div class='story-kicker'>Глава " + storyChapterNumber(done) + " из " +
-        STORY_QUESTS.length + " · " + step.place + "</div>" +
-        "<h3>" + step.title + "</h3>" +
-        "<p class='story-lead'>" + step.text + "</p>" +
+        total + "<span class='story-place'>" + step.place + "</span></div>" +
+        "<h3>" + step.title + "</h3></div></div>" +
         "<div class='story-objective'><span>Цель</span><p>" + step.objective + "</p></div>" +
         "<div class='story-progress" + (ready ? " is-ready" : "") + "'>" +
         "<span>" + (ready ? "Цель выполнена — вернись к старосте" : (progress || "Цель в работе")) + "</span>" +
-        "<span>Награда: " + rewardText(step.reward) + "</span></div></article>";
+        "<span>Награда: " + rewardText(step.reward) + "</span></div>" +
+        "<details class='story-more'><summary>Что происходит</summary>" +
+        "<p class='story-lead'>" + step.text + "</p></details></article>";
     }
+    html += "<details class='story-about'><summary>О кампании</summary>" +
+      "<p>" + CAMPAIGN.prologue + "</p></details>";
     html += storyPathHtml() + bossPathHtml() + "</div>";
     return html;
   }
@@ -17109,13 +17142,15 @@ function topicName(key) {
       return "<div class='journal-empty'>Поручений нет. Староста выдаёт их в деревне, " +
         "учитель — домашние задания в школе.</div>";
     }
-    return "<div class='journal-list'>" + entries.map(journalCard).join("") + "</div>";
+    return "<div class='journal-list'>" +
+      entries.map((item) => journalCard(item, true)).join("") + "</div>";
   }
 
   function archiveTabHtml() {
     const items = archiveEntries();
     if (!items.length) return "<div class='journal-empty'>Архив пока пуст.</div>";
-    return "<div class='journal-list'>" + items.map(journalCard).join("") + "</div>";
+    return "<div class='journal-list'>" +
+      items.map((item) => journalCard(item, true)).join("") + "</div>";
   }
 
   // Хроника — это тот же #log, который игра ведёт с первого шага, но
@@ -17138,12 +17173,13 @@ function topicName(key) {
         "' type='button' aria-pressed='" + (key === eventsFilter) +
         "' data-evfilter='" + key + "'>" + EVENT_FILTERS[key] + "</button>"
       ).join("") + "</div>";
-    const shown = lines.filter((line) =>
+    const filtered = lines.filter((line) =>
       eventsFilter === "all" || String(line.className || "").indexOf("kind-" + eventsFilter) >= 0);
-    if (!shown.length) {
+    if (!filtered.length) {
       return filters + "<div class='journal-empty'>Событий такого рода пока нет. " +
         "Выбери другой фильтр или продолжай поход.</div>";
     }
+    const shown = eventsExpanded ? filtered : filtered.slice(-EVENTS_LIMIT);
     // Строки идут по времени, поэтому место меняется только на границе
     // спуска или подъёма — и заголовок ставится там же, без сортировки.
     let lastPlace = null;
@@ -17157,7 +17193,12 @@ function topicName(key) {
       const cls = String(line.className || "").replace(/[^a-z0-9\- ]/gi, "").trim();
       rows += "<div class='" + (cls || "log-line") + "'>" + escText(line.textContent) + "</div>";
     });
-    return filters + "<div class='journal-events'>" + rows + "</div>";
+    const more = filtered.length > EVENTS_LIMIT
+      ? "<button class='journal-more-btn' type='button' data-evmore='1'>" +
+        (eventsExpanded ? "Свернуть" : "Показать все (" + filtered.length + ")") +
+        "</button>"
+      : "";
+    return filters + "<div class='journal-events'>" + rows + "</div>" + more;
   }
 
   function renderJournal() {
@@ -17176,9 +17217,8 @@ function topicName(key) {
     let subtitle;
     if (done >= STORY_QUESTS.length) subtitle = "Кампания завершена · печати на месте";
     else {
-      const step = STORY_QUESTS[done];
       subtitle = "Кампания «" + CAMPAIGN.title + "» · глава " +
-        storyChapterNumber(done) + " из " + STORY_QUESTS.length + " · " + step.title;
+        storyChapterNumber(done) + " из " + STORY_QUESTS.length;
     }
     let html = "<div class='battle-head'><div>" +
       "<div class='enemy-name'>Журнал</div>" +
@@ -17212,6 +17252,12 @@ function topicName(key) {
     });
     box.querySelectorAll("[data-evfilter]").forEach((btn) => {
       btn.addEventListener("click", () => setEventsFilter(btn.dataset.evfilter));
+    });
+    box.querySelectorAll("[data-evmore]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        eventsExpanded = !eventsExpanded;
+        renderJournal();
+      });
     });
   }
 
@@ -17426,6 +17472,18 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.55.2",
+      date: "13 ноября 2026",
+      title: "Журнал стал короче",
+      items: [
+        "На виду только текущая глава: рассказ, пролог, путь и стражи — под «плюсами».",
+        "У глав появились пиксельные иконки, у стражей — портреты.",
+        "В архиве и поручениях текст убран под «Подробнее».",
+        "Хроника показывает последние 30 событий; остальные — по кнопке «Показать все».",
+        "Тексты глав сокращены, английские строки событий исправлены."
+      ]
+    },
     {
       version: "1.55.1",
       date: "13 ноября 2026",

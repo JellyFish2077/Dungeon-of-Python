@@ -619,6 +619,11 @@
     "Побеждён": "Defeated",
     "Встречен": "Encountered",
     "Путь кампании": "Campaign path",
+    "О кампании": "About the campaign",
+    "Что происходит": "What's happening",
+    "Подробнее": "Details",
+    "Свернуть": "Show less",
+    "Показать все": "Show all",
     "Стражи глубины": "Guardians of the Deep",
     "Сюжет, поручения, архив и хроника": "Story, quests, archive and chronicle",
     "Esc — закрыть": "Esc — close",
@@ -646,6 +651,12 @@
       "No events yet. They will appear as soon as the hero takes the first step.",
     "Событий такого рода пока нет. Выбери другой фильтр или продолжай поход.":
       "No events of this kind yet. Pick another filter or keep exploring.",
+    "Монстры двигаются навстречу каждый твой ход.":
+      "Monsters move toward you on every turn.",
+    "Лестницу можно найти и спуститься, даже не убивая всех монстров.":
+      "You can find the stairs and descend without killing every monster.",
+    "Лестница вверх возвращает на прошлый этаж с его монстрами и добычей.":
+      "The stairs up return you to the previous floor with its monsters and loot.",
     "арена": "arena",
 
     /* --- журнал: сюжет --- */
@@ -660,57 +671,57 @@
     "Деревня · кузница": "Village · forge",
     "Деревня · дом мастера": "Village · master's house",
     "Подземелье · последний спуск": "Dungeon · the last descent",
-    "Деревня держится на четырёх опорах: амбар, колодец, кузня и дом мастера. Под ними — старый спуск. Когда-то здесь учили первых писцов, а потом заперли то, что не смогли объяснить. Между опорами стоят стражи: гоблин-вожак, некромант, король големов и владыка демонов. За ними — дракон, последний хранитель двери.":
-      "The village stands on four pillars: the barn, the well, the forge and the master's house. Beneath them lies the old descent. The first scribes were once taught here, and then they locked away what they could not explain. Between the pillars stand the guardians: the goblin chief, the necromancer, the golem king and the demon lord. Beyond them waits the dragon, the last keeper of the door.",
-    "Печати на месте. Деревня переживёт ещё одну зиму. За последней дверью — тишина, и теперь только тебе решать, стоит ли её открывать.":
-      "The seals are in place. The village will survive another winter. Behind the last door there is silence, and now only you can decide whether to open it.",
+    "Деревня стоит на четырёх опорах: амбар, колодец, кузня и дом мастера. Под ними — старый спуск, где когда-то учили первых писцов. Теперь там стражи, а за ними — дракон, последний хранитель двери.":
+      "The village stands on four pillars: the barn, the well, the forge and the master's house. Beneath them lies the old descent. Now guardians hold it, and beyond them waits the dragon, the last keeper of the door.",
+    "Печати на месте. Деревня переживёт зиму. За последней дверью тишина — и только тебе решать, открывать ли её.":
+      "The seals are in place. The village will survive the winter. Behind the last door there is silence — and only you can decide whether to open it.",
     "Обойти деревню и поговорить с жителями.":
       "Walk around the village and talk to the villagers.",
-    "Прежде чем спускаться в подземелье, староста просит обойти деревню. Страж входа, сам староста, торговец, казначей, наставник и учитель должны знать героя в лицо: без этого деревня не доверит ему свои опоры. Кузнец, мастер и кладовщик ждут за запертыми дверями — с ними герой познакомится, когда деревня откроет их постройки.":
-      "Before descending into the dungeon, the elder asks you to walk the village. The gate warden, the elder himself, the trader, the treasurer, the mentor and the teacher must know the hero by sight: without that the village will not entrust him with its pillars. The blacksmith, the master and the storekeeper wait behind locked doors — the hero will meet them when the village opens their buildings.",
+    "Староста просит обойти деревню. Шесть жителей должны узнать героя в лицо — иначе деревня не доверит ему опоры. Кузнец, мастер и кладовщик ждут за запертыми дверями.":
+      "The elder asks you to walk the village. Six villagers must know the hero by sight — otherwise the village will not trust him with its pillars. The blacksmith, the master and the storekeeper wait behind locked doors.",
     "Поговорить с шестью жителями, которые сейчас в деревне.":
       "Talk to the six villagers who are in the village now.",
-    "Деревня узнала героя. Теперь у каждого жителя найдётся для него слово, товар или совет. Староста кивает: «Пора браться за амбар».":
-      "The village has met the hero. Now every villager has a word, a ware or a piece of advice for him. The elder nods: “Time to take on the barn.”",
+    "Деревня узнала героя. У каждого теперь найдётся слово, товар или совет. Староста кивает: «Пора браться за амбар».":
+      "The village has met the hero. Everyone now has a word, a ware or a piece of advice. The elder nods: “Time to take on the barn.”",
     "Вернуть деревне склад и найти первую печать.":
       "Return the storehouse to the village and find the first seal.",
-    "Амбар заколочен с прошлой зимы, и деревня держится на честном слове. В подполе спрятана первая печать; ключ от двери висит на поясе стража лестницы, а доски разбросаны по сундукам подземелья.":
-      "The barn has been boarded up since last winter, and the village runs on its word alone. The first seal is hidden under the floor; the door key hangs on the belt of the stair warden, and the planks are scattered across the dungeon chests.",
+    "Амбар заколочен с прошлой зимы. В подполе спрятана первая печать, ключ висит на поясе стража лестницы, а доски разбросаны по сундукам подземелья.":
+      "The barn has been boarded up since last winter. The first seal is hidden under the floor, the key hangs on the stair warden's belt, and the planks are scattered across the dungeon chests.",
     "Восстановить амбар и вернуться к старосте.":
       "Restore the barn and return to the elder.",
-    "Амбар снова стоит. Под старым полом нашлась печать — тёплая, будто её только что держали в руках. Староста долго молчит, прежде чем сказать: «Одной опорой больше».":
-      "The barn stands again. Beneath the old floor a seal was found — warm, as if someone had just held it. The elder is silent for a long time before saying: “One more pillar.”",
+    "Амбар снова стоит. Под старым полом нашлась печать — тёплая, будто её только что держали в руках. «Одной опорой больше», — говорит староста.":
+      "The barn stands again. Beneath the old floor a seal was found — warm, as if just held. “One more pillar,” the elder says.",
     "Расчистить колодец и услышать, что говорит глубина.":
       "Clear the well and hear what the deep says.",
-    "Колодец засыпан камнем. Беда не в воде: через него деревня слушает глубину и узнаёт, когда просыпаются старые замки. На расчистку нужна руда.":
-      "The well is filled with stone. The trouble is not the water: through it the village listens to the deep and learns when old locks wake. Clearing it takes ore.",
+    "Колодец засыпан камнем. Через него деревня слушает глубину и узнаёт, когда просыпаются старые замки. На расчистку нужна руда.":
+      "The well is filled with stone. Through it the village listens to the deep and learns when old locks wake. Clearing it takes ore.",
     "Восстановить колодец и вернуться к старосте.":
       "Restore the well and return to the elder.",
-    "Вода пошла. В её шуме ясно слышен чужой голос: «Не спускайся дальше». Староста делает вид, что не слышит.":
-      "Water flows again. In its murmur a strange voice is clearly heard: “Do not go deeper.” The elder pretends not to hear.",
+    "Вода пошла. В её шуме слышен чужой голос: «Не спускайся дальше». Староста делает вид, что не слышит.":
+      "Water flows again. In its murmur a strange voice is heard: “Do not go deeper.” The elder pretends not to hear.",
     "Восстановить кузницу и получить оберег глубины.":
       "Restore the forge and receive the depth ward.",
-    "Кузница стоит холодной. Пока горн не горит, герой не может укрепить снаряжение, а спуск после шестого этажа закрыт без оберега глубины. Нужны руда и древесина.":
-      "The forge stands cold. Until the fire burns, the hero cannot strengthen equipment, and the descent past the sixth floor is sealed without the depth ward. Ore and wood are needed.",
+    "Кузница холодна. Без горна не укрепить снаряжение, а спуск после шестого этажа закрыт без оберега глубины. Нужны руда и древесина.":
+      "The forge stands cold. Without fire the hero cannot strengthen equipment, and the descent past the sixth floor is sealed without the depth ward. Ore and wood are needed.",
     "Восстановить кузницу и вернуться к старосте.":
       "Restore the forge and return to the elder.",
     "Горн зажжён. Староста вручает оберег глубины: «Это не ключ. Это обещание вернуться».":
       "The forge is lit. The elder hands over the depth ward: “This is not a key. It is a promise to come back.”",
     "Открыть дом мастера и снять вторую печать.":
       "Open the master's house and take down the second seal.",
-    "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая печать. Ключ держит страж в ледяных залах; на ремонт нужны обломки.":
+    "Дом мастера заперт. Внутри — верстак, старые чертежи и вторая печать. Ключ держит страж ледяных залов, на ремонт нужны обломки.":
       "The master's house is locked. Inside are a workbench, old drawings and the second seal. The key is held by the warden in the ice halls; repairs take shards.",
     "Открыть дом мастера и вернуться к старосте.":
       "Open the master's house and return to the elder.",
-    "Дверь открыта. Мастер долго смотрит на печать, потом говорит: «Значит, дракон ещё спит». Он отдаёт печать мастера — пропуск к последнему спуску.":
-      "The door is open. The master looks at the seal for a long time, then says: “So the dragon still sleeps.” He gives up the master's seal — a pass to the last descent.",
+    "Дверь открыта. Мастер смотрит на печать: «Значит, дракон ещё спит». Он отдаёт печать мастера — пропуск к последнему спуску.":
+      "The door is open. The master looks at the seal: “So the dragon still sleeps.” He gives up the master's seal — a pass to the last descent.",
     "Спуститься к дракону и закрыть старый круг.":
       "Descend to the dragon and close the old circle.",
-    "Опоры стоят, печати собраны. Внизу остался дракон — последний страж старого спуска. Он ждёт не меча, а ответа: достоин ли герой закрыть за собой дверь.":
-      "The pillars stand, the seals are gathered. Below only the dragon remains — the last guardian of the old descent. He waits not for a sword but for an answer: is the hero worthy to close the door behind him?",
+    "Опоры стоят, печати собраны. Внизу ждёт дракон — последний страж спуска. Он ждёт не меча, а ответа: достоин ли герой закрыть дверь.":
+      "The pillars stand, the seals are gathered. Below waits the dragon — the last guardian of the descent. He waits not for a sword but for an answer: is the hero worthy to close the door?",
     "Победить дракона и вернуться в деревню.":
       "Defeat the dragon and return to the village.",
-    "Дракон падает. За его спиной нет сокровищ — только дверь, которую больше некому охранять. Ты возвращаешься в деревню с правом закрыть её или открыть.":
+    "Дракон падает. За его спиной нет сокровищ — только дверь без стража. Ты возвращаешься в деревню с правом закрыть её или открыть.":
       "The dragon falls. Behind him there are no treasures — only a door no one is left to guard. You return to the village with the right to close it or open it.",
 
     /* --- бой и инвентарь --- */
@@ -1414,6 +1425,22 @@
     [/^Найдено:\s*(.+)$/, function (m, rest) {
       return "Found: " + translateString(rest);
     }],
+    [/^Показать все \((\d+)\)$/, function (m, n) {
+      return "Show all (" + n + ")";
+    }],
+    [/^Событие: (.+)$/, function (m, text) {
+      return "Event: " + translateString(text);
+    }],
+    [/^Совет: (.+)$/, function (m, text) {
+      return "Tip: " + translateString(text);
+    }],
+    [/^Сложность: (.+)\.$/, function (m, name) {
+      return "Difficulty: " + translateString(name) + ".";
+    }],
+    [/^В подземелье входит (.+): (.+)\.$/, function (m, name, place) {
+      return translateString(name) + " enters the dungeon: " +
+        translateString(place) + ".";
+    }],
     [/^Фаза\s+(\d+)$/, function (m, n) { return "Phase " + n; }],
     [/^(\d+)\s*этаж$/, function (m, n) { return "floor " + n; }],
     [/^(\d+)\s*уровень$/, function (m, n) { return "level " + n; }],
@@ -1425,9 +1452,18 @@
         return "Campaign “" + translateString(title) + "” · chapter " + num +
           " of " + total + " · " + translateString(step);
       }],
+    [/^Кампания «(.+)» · глава ([IVXLC]+) из (\d+)$/,
+      function (m, title, num, total) {
+        return "Campaign “" + translateString(title) + "” · chapter " + num +
+          " of " + total;
+      }],
     [/^Глава ([IVXLC]+) из (\d+) · (.+)$/,
       function (m, num, total, place) {
         return "Chapter " + num + " of " + total + " · " + translateString(place);
+      }],
+    [/^Глава ([IVXLC]+) из (\d+)$/,
+      function (m, num, total) {
+        return "Chapter " + num + " of " + total;
       }],
     [/^Глава ([IVXLC]+) · знакомство$/,
       function (m, num) { return "Chapter " + num + " · introduction"; }],
@@ -1660,6 +1696,17 @@
     var tail = text.match(/\s*$/)[0];
     var core = text.slice(lead.length, text.length - tail.length);
     if (!core) return text;
+
+    // Строки хроники начинаются со значка («▼ », «• », «⚠ »). Значок
+    // не часть фразы: снимаем его, переводим остаток и возвращаем на место.
+    var icon = /^((?:[▼▲•·✦✧⚠◆◇■□▶►→←↑↓]\s*)+)/.exec(core);
+    if (icon) {
+      var rest = core.slice(icon[0].length);
+      if (rest) {
+        var inner = translateString(rest);
+        if (inner !== rest) return lead + icon[0] + inner + tail;
+      }
+    }
 
     var hit = DICT[core];
     if (hit != null) return lead + hit + tail;
