@@ -143,8 +143,10 @@
 ## Файлы
 
 - `static/game.html` — игра; при сборке она же становится `index.html`.
-- `assets/itch/cover-630x500.png` — обложка дела.
-- `assets/itch/screenshots/` — скриншоты для страницы Itch.
+- `assets/itch/cover-630x500.png` — обложка (русская); английская — `cover-630x500-en.png`.
+- `assets/logo/PyDungeon-icon*.png`, `assets/PyDungeon.ico` — логотип-иконка; `static/favicon.svg` — иконка вкладки.
+- `assets/itch/screenshots/` — скриншоты для страницы Itch; английские — с суффиксом `-en`.
+- `assets/itch/background-*.png` — коллаж для фона страницы Itch.
 - `static/fonts/` — Golos Text и Handjet + OFL.
 - `dist/journal-preview/` — скриншоты макета (локально).
-- `ITCH.md` — текст страницы Itch в том же голосе.
+- `ITCH.md` — текст основной (английской) страницы Itch; русская копия — `ITCH.ru.md`.

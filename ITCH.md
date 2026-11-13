@@ -1,143 +1,187 @@
-# PyDungeon на Itch.io
+# PyDungeon on Itch.io
 
-Материалы и текст для страницы магазина. Игра публикуется как **HTML5**:
-без установки, без сервера и без аккаунта.
+Store-page copy and assets for the **main (English) page**. The game ships as
+**HTML5**: no install, no server, no account.
 
-## Карточка
+The Russian version of this page is kept in `ITCH.ru.md` for a possible
+separate Russian-language project. English cover and screenshots are built
+with `--lang en`: `assets/itch/cover-630x500-en.png` and the `*-en.png` files
+in `assets/itch/screenshots/`.
 
-- **Название:** PyDungeon
-- **Короткое описание:** Полевой журнал спуска: 15 этажей, 5 боссов, один дракон. Каждый бой — вопрос по Python. Браузер, без сервера.
-- **Версия:** 1.55.0
-- **Цена:** бесплатно (можно включить добровольные пожертвования)
-- **Жанр:** RPG / Roguelike / Educational
-- **Платформа:** HTML5, браузер
-- **Язык:** русский
-- **Ссылка на сайт:** https://jellyfish2077.github.io/Dungeon-of-Python/
+## Card
+
+- **Title:** PyDungeon
+- **Short description:** A dungeon game where every battle is a Python question. 15 floors, 5 bosses, one dragon. Browser, no server.
+- **Version:** 1.55.1
+- **Status:** In development (early access)
+- **Price:** free (voluntary donations optional)
+- **Genre:** RPG / Roguelike / Educational
+- **Platform:** HTML5, browser
+- **Language:** English (also Russian)
+- **Website:** https://jellyfish2077.github.io/Dungeon-of-Python/
 - **GitHub:** https://github.com/JellyFish2077/Dungeon-of-Python
 
-## Теги
+## Tags
 
-`python`, `roguelike`, `dungeon crawler`, `quiz`, `pixel art`, `browser game`, `educational`, `procedural generation`, `singleplayer`, `dark fantasy`, `russian`
+`python`, `roguelike`, `dungeon crawler`, `quiz`, `pixel art`, `browser game`, `educational`, `procedural generation`, `singleplayer`, `dark fantasy`, `english`, `russian`
 
-## Описание для страницы
+## Store description
 
-**PyDungeon** — небольшой рогалик-экспедиция, где бой идёт не на кубиках,
-а на вопросах по Python.
+**PyDungeon** is a small dungeon game where you fight with Python knowledge.
+Each battle asks one Python question. Answer correctly and you hit the
+monster. Make a mistake and it hits you.
 
-Ты спускаешься в подземелье с полевым журналом. На каждом этаже — свой
-биом: пещеры, катакомбы, ледяные залы, обитель демонов и логово дракона.
-Монстры задают вопросы: выбрать вариант, пропустить фрагмент, найти ошибку,
-скопировать код, написать функцию. Верный ответ — удар. Ошибка — ответный.
+### Early development
 
-Поход длинный: **15 этажей, 5 боссов, около двух часов** на полный спуск.
-Боёв много, и каждый — вопрос: быстрый ответ ускоряет забег, раздумья
-растягивают. Поход обрывается смертью, так что первые забеги короче.
-После шестого этажа путь запечатан — придётся вернуться в деревню
-и восстановить кузницу. Деревня
-остаётся между забегами: амбар, колодец, кузница и дом мастера дают
-постоянные улучшения. Материалы и ключи не теряются после смерти.
+The full run is playable, but content, balance and interface will keep
+changing.
 
-Сохранения — три слота в браузере, с экспортом в JSON и импортом. Профиль
-и прогресс не уходят на сервер. Python-код проверяется через Pyodide
-локально. Сейвы версии на itch и версии на github.io хранятся отдельно —
-переносить их нужно экспортом и импортом.
+### How a run works
 
-### Что внутри
+You go down **15 floors** with a field journal. Each floor has its own look:
+caves, catacombs, ice halls, demons and a dragon's lair.
 
-- Кампания «Печати глубины»: пять глав, журнал, поручения и финал.
-- 15 этажей, 5 биомов и 5 боссов.
-- Пять типов заданий по Python.
-- Деревня с постройками и постоянными улучшениями.
-- Знамения похода: риск и награда меняются от забега к забегу.
-- Три варианта развилки: сделка, дар или пройти мимо.
-- Снаряжение, редкости, комплекты, зелья и амулеты возврата.
-- Три слота сохранений, экспорт и импорт резервной копии.
-- Пиксель-арт 32×32, нарисованный в Aseprite.
-- Мышь и клавиатура на ПК; на телефоне — касания. Экран ПК удобнее, но игра идёт и в обоих положениях телефона.
+Questions come in five forms:
 
-### Управление
+- choose an answer;
+- fill in the blank;
+- find the error;
+- copy code;
+- write a function.
 
-| Клавиша | Действие |
+A full run takes about **two hours** and ends if you die.
+
+After floor six the road is closed until you return to the village and rebuild
+the forge. The village stays between runs: the barn, the well, the forge and
+the master's house give permanent upgrades. Materials and keys are not lost
+when you die.
+
+### Saves and privacy
+
+Saves are three browser slots. You can export and import them as JSON.
+
+Nothing is sent to a server, and Python code runs locally in your browser
+with Pyodide.
+
+Saves on itch and github.io are separate; move them with export and import.
+
+### Why it exists
+
+It grew out of teaching. I wanted my students to practise Python in a game,
+not a test: short questions, immediate feedback, and a reason to keep going.
+That is still the goal.
+
+I use AI tools for code, text and ideas, but the project is educational
+first. Direction, editing and final decisions are mine.
+
+I am now collecting player feedback — what is clear, what is frustrating,
+where the difficulty spikes — to improve and develop the concept. Comments on
+the itch page or [GitHub issues](https://github.com/JellyFish2077/Dungeon-of-Python/issues)
+are equally welcome.
+
+### What's inside
+
+- The “Seals of the Deep” campaign: five chapters, a journal, quests and a finale.
+- 15 floors, 5 biomes, 5 bosses.
+- Five types of Python tasks.
+- A village with buildings and permanent upgrades.
+- Run omens that change risk and reward.
+- Three crossroads choices: a deal, a gift, or walk past.
+- Equipment, rarities, sets, potions and return amulets.
+- Three save slots with export and import.
+- 32×32 pixel art made in Aseprite.
+- Mouse and keyboard on desktop; touch on phones.
+
+### Controls
+
+| Key | Action |
 |---|---|
-| `WASD` / стрелки | ходьба по карте |
-| `E` | действие: дверь, сундук, лестница, житель |
-| `Пробел` | пропустить ход |
-| `I` | инвентарь |
-| `M` | мини-карта |
-| `Esc` | пауза или закрыть окно |
-| колесо мыши | зум карты |
+| `WASD` / arrow keys | walk around the map |
+| `E` | interact: door, chest, stairs, villager |
+| `Space` | skip a turn |
+| `I` | inventory |
+| `M` | minimap |
+| `Esc` | pause or close a window |
+| mouse wheel | zoom the map |
 
-На телефоне игра идёт в обоих положениях: в портрете панели занимают всю
-ширину, в ландшафте бой открывается правой колонкой поверх карты.
-Управление — касаниями: клетка ведёт героя, кнопка внизу отвечает за действие.
-Карту можно тащить мышью или пальцем, а щипок двумя пальцами меняет масштаб.
-Мини-карта на телефоне открывается кнопкой «Карта» в шапке.
-Интерфейс подстраивается под видимую высоту браузера: нижняя панель и
-системные уведомления не перекрывают HUD и кнопки.
-Варианты ответа выбираются касанием или кликом — клавиши A–D не используются.
+On phones the game runs in both orientations: in portrait the panels take the
+full width, in landscape battle opens in a right-hand column over the map.
+Controls are touch-based: tap a tile to move, and the button at the bottom
+performs an action. Drag the map with a mouse or a finger, and pinch with two
+fingers to zoom. On phones the minimap opens with the “Map” button in the
+header. The interface adapts to the browser's visible height, so the bottom
+bar and system notifications do not cover the HUD and buttons. Answer options
+are chosen by touch or click — the A–D keys are not used.
 
-## Колофон
+## Colophon
 
-**Как сделана игра.** Код, тексты и часть идей созданы при участии ИИ.
-Направление, редактура и финальные решения — автор. Графика — Aseprite
-и открытые тайлы DCSS (CC0), без AI-генерации. Шрифты — Golos Text
-и Handjet.
+**How the game was made.** Code, text and some of the ideas were created with
+the help of AI. Direction, editing and final decisions are the author's.
+Graphics are Aseprite and open DCSS tiles (CC0), with no AI generation.
+Fonts are Golos Text and Handjet.
 
-Никаких аккаунтов и серверов: профиль и сохранения лежат в `localStorage`,
-Python-код проверяется через Pyodide прямо в браузере.
+No accounts and no servers: your profile and saves live in `localStorage`,
+and Python code is checked by Pyodide right in the browser.
 
-## Материалы для загрузки
+## Upload assets
 
-- Архив: `dist/pydungeon-standalone-1.55.0.zip` (внутри `LICENSE` и `CREDITS.md`)
-- Обложка: `assets/itch/cover-630x500.png` — `python tools/make_itch_cover.py`
-  (этажи и версия берутся из сборки, вручную цифры не вписываются)
-- Скриншоты 1280×800, снимаются со сборки: `python tools/shot_itch.py`
-  - `assets/itch/screenshots/menu.png`
-  - `assets/itch/screenshots/village.png`
-  - `assets/itch/screenshots/journal.png`
-  - `assets/itch/screenshots/battle.png`
+- Archive: `dist/pydungeon-standalone-1.55.1.zip` (contains `LICENSE` and `CREDITS.md`)
+- Cover: `assets/itch/cover-630x500-en.png` — `python tools/make_itch_cover.py --lang en`
+  (background and dragon sprite come from the build)
+- Icon: `assets/logo/PyDungeon-icon-512.png` — for the Boosty/social avatar;
+  the browser favicon and desktop `assets/PyDungeon.ico` already use it
+- Page background: `assets/itch/background-1920x1080.png` (or
+  `background-2560x1440.png`) — `python tools/make_itch_background.py`
+- Screenshots, 1280×800, captured from the build:
+  `python tools/shot_itch.py --lang en`
+  - `assets/itch/screenshots/menu-en.png`
+  - `assets/itch/screenshots/village-en.png`
+  - `assets/itch/screenshots/journal-en.png`
+  - `assets/itch/screenshots/battle-en.png`
 
-Архив уже содержит `index.html` в корне и локальный Pyodide.
-Загружать его нужно как **HTML-игру**, не как обычный файл.
+The archive already has `index.html` at its root and a local Pyodide.
+Upload it as an **HTML game**, not as a regular file.
 
-## Настройки страницы Itch
+## Itch page settings
 
 - Kind of project: **HTML**
-- Embed: **click to launch** или встроенный плеер
+- Embed: **click to launch** or the embedded player
 - Viewport: **1280×800**
-- Fullscreen: **включить**
-- Mobile friendly: **включить** — портрет и ландшафт поддержаны, управление касаниями
-- Shared storage / localStorage: **не требует сервера**
-- Network: **не требуется** после загрузки Pyodide
+- Fullscreen: **on**
+- Mobile friendly: **on** — portrait and landscape are supported, controls are touch-based
+- Shared storage / localStorage: **no server required**
+- Network: **not required** after Pyodide loads
 
-Оформление страницы можно подогнать под обложку:
+For the theme, upload `assets/itch/background-1920x1080.png` as the page
+background and turn repeating off. Keep **BG** `#07090c` so any uncovered
+edges match, and set **BG2 Alpha** around 90% so the text column stays readable.
 
-- фон: `#090b0a`
-- текст: `#d9cbb0`
-- ссылки и акцент: `#8a4a32`
-- вторичный текст: `#a99d87`
+The page theme can match the cover:
 
-## Чек-лист перед публикацией
+- background: `#090b0a`
+- text: `#d9cbb0`
+- links and accent: `#8a4a32`
+- secondary text: `#a99d87`
 
-- [ ] Пройти первый поход с корня сайта: страж → бой → затвор → деревня.
-- [ ] Проверить сохранение, загрузку, экспорт и импорт сейва.
-- [ ] Проверить, что Mobile friendly включён, а на странице нет «desktop only».
-- [ ] Убедиться, что в главном меню нет выхода на отдельный лендинг.
-- [ ] Прогнать `python tools/verify_zip.py`: он проверяет сам архив и запуск
-      в iframe с sandbox, как у itch.
-- [ ] Загрузить архив и убедиться, что игра стартует с `index.html`.
-- [ ] Указать в поле License: **MIT**. В архиве лежат `LICENSE` и `CREDITS.md`.
-- [ ] Проверить в embed: скачивание сейва sandbox блокирует, поэтому в меню
-      сохранений есть «Показать JSON» — им и проверять перенос сейва.
-- [ ] Добавить обложку и четыре скриншота.
-- [ ] Проверить страницу в приватном режиме.
-- [ ] После публикации обновить ссылку в README.
+## Pre-publication checklist
 
-## После релиза
+- [ ] Play the opening from the site root: guard → battle → gate → village.
+- [ ] Check saving, loading, export and import of a save.
+- [ ] Confirm Mobile friendly is on and the page has no “desktop only” note.
+- [ ] Make sure the main menu does not link out to a separate landing page.
+- [ ] Run `python tools/verify_zip.py`: it checks the archive itself and launches it in a sandboxed iframe like itch does.
+- [ ] Upload the archive and confirm the game starts from `index.html`.
+- [ ] Set the License field to **MIT**. `LICENSE` and `CREDITS.md` are inside the archive.
+- [ ] In the embed, sandboxing blocks save downloads, so the save menu has “Show JSON” — use that to verify save transfer.
+- [ ] Add the cover and four screenshots.
+- [ ] Check the page in a private window.
+- [ ] After publishing, update the link in the README.
 
-1. Собрать отзывы о первом походе и экономике деревни.
-2. Поправить онбординг и баланс, не меняя формат сохранений.
-3. Добавлять контент: врагов, предметы, события, боссов.
-4. Решить судьбу ветки `classroom` и приватности репозитория.
-5. При каждом релизе пересобирать архив, обложку и скриншоты: иначе на
-   странице останется старая версия, как это было с обложкой 1.9.0.
+## After release
+
+1. Collect feedback on the first run and the village economy.
+2. Fix onboarding and balance without changing the save format.
+3. Add content: enemies, items, events, bosses.
+4. Decide the fate of the `classroom` branch and repository privacy.
+5. Rebuild the archive, cover and screenshots with every release; otherwise
+   the page keeps an old version, as happened with the 1.9.0 cover.

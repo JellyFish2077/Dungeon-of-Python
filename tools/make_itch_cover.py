@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Обложка 630×500 для страницы Itch.io: тёмное подземелье.
 
-    python tools/make_itch_cover.py
+    python tools/make_itch_cover.py [--lang ru|en]
 
 Фон — настоящий кадр из игры: скрипт сам запускает standalone/build,
 начинает поход и берёт центральный кусок карты, затемнённый до текстуры.
-Заголовок — Handjet, текст — Golos Text, служебные подписи — Consolas.
-Разрез подземелья, цифры и версия берутся из игры, поэтому обложка
-не расходится со сборкой.
+На обложке только логотип и дракон — без описаний, цифр и подписей.
+Заголовок набран Handjet; фон и спрайт берутся из сборки, поэтому обложка
+не расходится с игрой.
+
+Основная страница Itch — английская: для неё --lang en, обложка
+сохраняется рядом как cover-630x500-en.png. Русская остаётся без суффикса.
 """
+import argparse
 import base64
 import io
 import re
@@ -29,9 +33,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import verify_web  # noqa: E402
 from shot_itch import new_page, start_dungeon  # noqa: E402
 
-FLOORS = 15
-BIOMES = 5
-PER_BIOME = FLOORS // BIOMES
+LANG = "ru"
 
 
 def sprite(name: str) -> str:
@@ -44,12 +46,6 @@ def sprite(name: str) -> str:
 def font(name: str) -> str:
     data = base64.b64encode((ROOT / "static" / "fonts" / name).read_bytes()).decode("ascii")
     return "data:font/ttf;base64," + data
-
-
-def version() -> str:
-    text = (ROOT / "static" / "web-boot.js").read_text(encoding="utf-8")
-    match = re.search(r'version:\s*"([^"]+)"', text)
-    return match.group(1).replace("-web", "") if match else "0.0.0"
 
 
 def dungeon_background(browser, base) -> str:
@@ -78,31 +74,8 @@ def dungeon_background(browser, base) -> str:
     return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
 
 
-def rows() -> str:
-    """Пять полос разреза: три этажа на биом, босс в конце каждого."""
-    bosses = ("goblin", "necromancer", "golem", "demon", "dragon")
-    names = ("Пещеры", "Катакомбы", "Лёд", "Демоны", "Дракон")
-    classes = ("caves", "catacombs", "ice", "demons", "lair")
-    parts = []
-    for i in range(BIOMES):
-        first = i * PER_BIOME + 1
-        last = first + PER_BIOME - 1
-        player = ('<img class="sprite player" src="%s" alt="">' % sprite("player")
-                  if i == 0 else "")
-        boss = "dragon" if i == BIOMES - 1 else "boss"
-        parts.append(
-            '<div class="stratum %s">'
-            '<div class="stratum-line"></div>'
-            '<div class="stratum-label"><b>%02d–%02d</b><span>%s</span></div>'
-            '%s<img class="sprite %s" src="%s" alt=""><span class="torch"></span>'
-            "</div>"
-            % (classes[i], first, last, names[i], player, boss, sprite(bosses[i]))
-        )
-    return "".join(parts)
-
-
 HTML = """<!doctype html>
-<html lang="ru">
+<html lang="__LANG__">
 <head>
 <meta charset="utf-8">
 <style>
@@ -113,13 +86,11 @@ HTML = """<!doctype html>
 
   :root {
     --void: #07090c;
-    --stone-3: #2a343e;
     --ash: #8e9aa6;
     --bone: #ded7c8;
     --torch: #f2a24a;
-    --ember: #c65a33;
     --python: #6fb7a8;
-    --line: rgba(222,215,200,.14);
+    --line: rgba(222,215,200,.16);
     --display: "Handjet", "Arial Black", sans-serif;
     --sans: "Golos Text", system-ui, sans-serif;
     --mono: Consolas, "Courier New", monospace;
@@ -129,138 +100,48 @@ HTML = """<!doctype html>
   html, body { width: 630px; height: 500px; margin: 0; overflow: hidden; }
   body {
     position: relative; color: var(--bone); background: var(--void);
-    font-family: var(--sans);
-    overflow: hidden;
+    font-family: var(--sans); overflow: hidden;
   }
-  /* Фон — кадр из игры, притемнённый до текстуры камня. */
+
+  /* Фон — настоящий кадр игры, притемнённый под текст. */
   .map {
     position: absolute; inset: 0;
     background: url("__BG__") center / cover no-repeat;
-    opacity: .72; filter: saturate(.75) brightness(.85);
+    opacity: .80; filter: saturate(.72) brightness(.82);
   }
   .veil {
     position: absolute; inset: 0;
     background:
-      radial-gradient(420px 380px at 77% 52%, rgba(198,90,51,.20), transparent 68%),
-      radial-gradient(360px 300px at 9% 8%, rgba(111,183,168,.10), transparent 70%),
-      linear-gradient(180deg, rgba(7,9,12,.6), rgba(7,9,12,.8) 55%, rgba(7,9,12,.92));
+      linear-gradient(90deg, rgba(7,9,12,.97) 0%, rgba(7,9,12,.88) 36%,
+                      rgba(7,9,12,.40) 64%, rgba(7,9,12,.16) 100%),
+      linear-gradient(180deg, rgba(7,9,12,.38), transparent 42%, rgba(7,9,12,.58));
   }
-  .grain {
-    position: absolute; inset: 0; background: var(--noise); pointer-events: none;
-  }
+  .grain { position: absolute; inset: 0; background: var(--noise); pointer-events: none; }
   body::after {
-    content: ""; position: absolute; inset: 10px; border: 1px solid var(--line); pointer-events: none;
+    content: ""; position: absolute; inset: 12px; border: 1px solid var(--line);
+    pointer-events: none;
   }
-  .topline {
-    position: absolute; left: 32px; right: 32px; top: 24px; z-index: 3;
-    display: flex; justify-content: space-between; gap: 12px;
-    padding-bottom: 7px; border-bottom: 1px solid var(--line);
-    font-family: var(--mono); font-size: 7px; letter-spacing: .14em;
-    text-transform: uppercase; color: var(--ash);
-  }
+
+  .brand { position: absolute; left: 40px; top: 172px; z-index: 3; }
   h1 {
-    position: absolute; left: 30px; top: 52px; margin: 0; z-index: 3;
-    font-family: var(--display); font-weight: 900; font-size: 92px;
-    line-height: .82; letter-spacing: -.01em;
-    color: var(--bone); text-shadow: 0 0 26px rgba(242,162,74,.18), 0 3px 0 #040608;
+    margin: 0; font-family: var(--display); font-weight: 900; font-size: 96px;
+    line-height: .80; letter-spacing: -.01em;
+    color: var(--bone);
+    text-shadow: 0 0 30px rgba(242,162,74,.20), 0 3px 0 #040608;
     white-space: nowrap;
   }
   h1 span { color: var(--torch); }
-  .subtitle {
-    position: absolute; left: 33px; top: 143px; z-index: 3;
-    font-family: var(--mono); font-size: 9px; letter-spacing: .22em;
-    text-transform: uppercase; color: var(--ash);
-  }
-  .lead {
-    position: absolute; left: 33px; top: 168px; width: 322px; margin: 0; z-index: 3;
-    color: #b8c1cb; font-size: 13px; line-height: 1.55;
-  }
-  .lead b { color: var(--bone); font-weight: 700; }
-  .facts {
-    position: absolute; left: 33px; top: 254px; z-index: 3;
-    display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
-  }
-  .fact { padding: 7px 13px; border-right: 1px solid var(--line); }
-  .fact:first-child { padding-left: 0; }
-  .fact:last-child { border-right: 0; }
-  .fact b { display: block; font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--torch); }
-  .fact span { display: block; margin-top: 2px; font-family: var(--mono); font-size: 6.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+
   .dragon-glow {
-    position: absolute; left: 18px; bottom: 32px; width: 150px; height: 150px; z-index: 2;
-    background: radial-gradient(circle, rgba(198,90,51,.26), transparent 66%);
+    position: absolute; right: 8px; bottom: 58px; width: 310px; height: 310px;
+    background: radial-gradient(circle, rgba(198,90,51,.24), transparent 66%);
     pointer-events: none;
   }
-  .dragon-art {
-    position: absolute; left: 38px; bottom: 56px; width: 96px; height: 96px; z-index: 3;
+  .dragon {
+    position: absolute; right: 38px; bottom: 100px; width: 202px; height: 202px;
     image-rendering: pixelated;
-    filter: drop-shadow(0 0 18px rgba(198,90,51,.4)) drop-shadow(0 8px 0 rgba(0,0,0,.35));
-  }
-  .dragon-caption {
-    position: absolute; left: 142px; bottom: 74px; z-index: 3;
-    font-family: var(--mono); font-size: 6.5px; line-height: 1.7;
-    letter-spacing: .12em; text-transform: uppercase; color: var(--ash);
-  }
-  .dragon-caption b { display: block; color: var(--torch); font-weight: 500; }
-  .bottom {
-    position: absolute; left: 33px; right: 33px; bottom: 24px; z-index: 3;
-    display: flex; align-items: center; justify-content: space-between; gap: 12px;
-    padding-top: 8px; border-top: 1px solid var(--line);
-    font-family: var(--mono); font-size: 7.5px; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--ash);
-  }
-  .bottom .code { color: var(--python); font-size: 9px; letter-spacing: .02em; text-transform: none; }
-  .bottom .ver { color: var(--torch); }
-
-  .shaft {
-    position: absolute; right: 33px; top: 52px; width: 196px; z-index: 3;
-    border: 2px solid var(--stone-3); background: rgba(10,13,17,.92);
-    box-shadow: 0 18px 34px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.035);
-  }
-  .shaft-head, .shaft-foot {
-    display: flex; justify-content: space-between; align-items: center;
-    height: 25px; padding: 0 8px;
-    font-family: var(--mono); font-size: 6px; letter-spacing: .12em;
-    text-transform: uppercase; color: var(--ash); background: #080b0f;
-  }
-  .shaft-head { border-bottom: 1px solid var(--line); }
-  .shaft-foot { border-top: 1px solid var(--line); }
-  .shaft-foot span:last-child { color: var(--torch); }
-  .stratum {
-    position: relative; height: 66px; overflow: hidden;
-    border-bottom: 1px solid rgba(0,0,0,.65);
-  }
-  .stratum:last-child { border-bottom: 0; }
-  .stratum::before {
-    content: ""; position: absolute; inset: 0;
-    background: var(--noise), repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px, transparent 1px 6px);
-    opacity: .8;
-  }
-  .stratum.caves { background: linear-gradient(180deg,#221b13,#120e0a); }
-  .stratum.catacombs { background: linear-gradient(180deg,#151d25,#0c1116); }
-  .stratum.ice { background: linear-gradient(180deg,#162832,#0d171e); }
-  .stratum.demons { background: linear-gradient(180deg,#261616,#130c0d); }
-  .stratum.lair { background: linear-gradient(180deg,#221512,#0f0a09); }
-  .stratum-label { position: absolute; left: 8px; top: 7px; z-index: 2; }
-  .stratum-label b { display: block; font-family: var(--display); font-size: 15px; font-weight: 700; line-height: 1; color: var(--torch); white-space: nowrap; }
-  .stratum-label span { display: block; margin-top: 2px; font-family: var(--mono); font-size: 6px; letter-spacing: .07em; text-transform: uppercase; color: var(--ash); }
-  .stratum-line {
-    position: absolute; left: 56px; top: 0; bottom: 0; width: 1px;
-    background: repeating-linear-gradient(180deg, rgba(222,215,200,.22) 0 2px, transparent 2px 7px);
-  }
-  .sprite { position: absolute; right: 8px; bottom: 5px; width: 22px; height: 22px; image-rendering: pixelated; z-index: 2; filter: drop-shadow(0 3px 0 rgba(0,0,0,.45)); }
-  .sprite.player { left: 62px; top: 4px; right: auto; bottom: auto; width: 24px; height: 24px; }
-  .sprite.boss { width: 28px; height: 28px; right: 7px; bottom: 4px; }
-  .sprite.dragon { width: 36px; height: 36px; right: 5px; bottom: 2px; filter: drop-shadow(0 0 9px rgba(198,90,51,.3)); }
-  .torch { position: absolute; right: 7px; top: 7px; width: 3px; height: 10px; background: #3a281b; z-index: 4; }
-  .torch::before {
-    content: ""; position: absolute; left: -4px; top: -10px; width: 11px; height: 15px;
-    background: radial-gradient(ellipse at 50% 76%, #fff5c8 0 14%, #ffd07a 27%, #f2a24a 51%, #c65a33 74%, transparent 76%);
-    clip-path: polygon(51% 0, 73% 27%, 87% 52%, 71% 76%, 49% 100%, 27% 86%, 11% 57%, 29% 30%);
-    filter: drop-shadow(0 0 6px rgba(242,162,74,.55));
-  }
-  .torch::after {
-    content: ""; position: absolute; left: -24px; top: -29px; width: 53px; height: 53px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(242,162,74,.18), transparent 68%);
+    filter: drop-shadow(0 0 24px rgba(198,90,51,.32))
+            drop-shadow(0 10px 0 rgba(0,0,0,.32));
   }
 </style>
 </head>
@@ -269,38 +150,25 @@ HTML = """<!doctype html>
   <div class="veil"></div>
   <div class="grain"></div>
 
-  <div class="topline"><span>Печати глубины</span><span>__FLOORS__ этажей · __BIOMES__ боссов</span></div>
-
-  <h1>Py<span>Dungeon</span></h1>
-  <div class="subtitle">Спуск в подземелье Python</div>
-  <p class="lead">Каждый бой — <b>вопрос по Python</b>. Пять боссов, дракон на пятнадцатом этаже и деревня, которая остаётся между забегами.</p>
-
-  <div class="facts">
-    <div class="fact"><b>__FLOORS__</b><span>этажей</span></div>
-    <div class="fact"><b>__BIOMES__</b><span>боссов</span></div>
-    <div class="fact"><b>2 ч</b><span>на поход</span></div>
+  <div class="brand">
+    <h1>Py<span>Dungeon</span></h1>
   </div>
 
   <div class="dragon-glow"></div>
-  <img class="dragon-art" src="__DRAGON__" alt="">
-  <div class="dragon-caption"><b>Финал · этаж __FLOORS__</b><span>Дракон</span></div>
-
-  <aside class="shaft" aria-label="Разрез подземелья">
-    <div class="shaft-head"><span>Разрез</span><span>__FLOORS__ этажей</span></div>
-    __ROWS__
-    <div class="shaft-foot"><span>Вход</span><span>Дракон</span></div>
-  </aside>
-
-  <div class="bottom">
-    <span class="code">&gt;&gt;&gt; descend(__FLOORS__)</span>
-    <span>HTML5 · браузер</span>
-    <span class="ver">v__VERSION__</span>
-  </div>
+  <img class="dragon" src="__DRAGON__" alt="">
 </body></html>
 """
 
 
 def main():
+    global LANG
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--lang", choices=("ru", "en"), default="ru")
+    args = parser.parse_args()
+    LANG = args.lang
+    import shot_itch
+    shot_itch.LANG = LANG
+
     with tempfile.TemporaryDirectory() as tmp:
         server, base = verify_web.serve()
         try:
@@ -320,14 +188,11 @@ def main():
             .replace("__HJ_BLACK__", font("Handjet-Black.ttf"))
             .replace("__GT_REG__", font("GolosText-Regular.ttf"))
             .replace("__GT_BOLD__", font("GolosText-Bold.ttf"))
-            .replace("__ROWS__", rows())
             .replace("__DRAGON__", sprite("dragon"))
-            .replace("__FLOORS__", str(FLOORS))
-            .replace("__BIOMES__", str(BIOMES))
-            .replace("__VERSION__", version())
+            .replace("__LANG__", LANG)
         )
 
-        out = OUT / "cover-630x500.png"
+        out = OUT / ("cover-630x500" + ("" if LANG == "ru" else "-" + LANG) + ".png")
         raw = Path(tmp) / "cover@2x.png"
         with sync_playwright() as pw:
             browser = verify_web.launch(pw, "msedge") or pw.chromium.launch(headless=True)

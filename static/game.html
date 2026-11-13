@@ -12,7 +12,8 @@
   <meta property="og:title" content="PyDungeon — подземелье Python" />
   <meta property="og:description" content="Рогалик-экспедиция: пятнадцать этажей, пять боссов и вопросы по Python вместо кубика." />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232563eb'/%3E%3Ctext x='32' y='43' font-family='Arial,sans-serif' font-size='30' font-weight='bold' text-anchor='middle' fill='white'%3EPy%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png" />
   <link rel="stylesheet" href="/static/style.css" />
   <link rel="stylesheet" href="/static/game.css" />
   <link rel="stylesheet" href="/static/menu.css" />
@@ -495,6 +496,18 @@
         <button class="menu-back" id="menu-back-settings" type="button">← Назад</button>
         <h2 id="menu-settings-title">Настройки</h2>
         <div class="menu-panel" id="menu-settings">
+          <div class="menu-lang" role="group" aria-label="Язык игры"
+               data-tip="Язык интерфейса, вопросов и подсказок.">
+            <div class="menu-lang-text">
+              <span class="menu-lang-label">Язык игры</span>
+              <span class="menu-lang-note">Интерфейс и вопросы</span>
+            </div>
+            <div class="menu-lang-actions">
+              <button class="menu-lang-btn" type="button" data-lang-switch="ru">Русский</button>
+              <button class="menu-lang-btn" type="button" data-lang-switch="en">English</button>
+            </div>
+          </div>
+
           <label class="menu-toggle" for="set-sound">
             <input type="checkbox" id="set-sound" />
             <span class="menu-toggle-box" aria-hidden="true"></span>
@@ -637,8 +650,10 @@
   </aside>
 
 
+  <script src="/static/i18n.js"></script>
   <script src="/api/features.js"></script>
   <script src="/static/questions.js"></script>
+  <script src="/static/i18n-questions.js"></script>
   <script src="/static/variants.js"></script>
   <script src="/static/code-tasks.js"></script>
   <script src="/static/task-meta.js"></script>
@@ -650,6 +665,7 @@
   <script src="/static/dungeon-content.js"></script>
   <script src="/static/village-content.js"></script>
   <script src="/static/python-course.js"></script>
+  <script src="/static/i18n-content.js"></script>
   <script src="/static/profile.js"></script>
   <script src="/static/auth.js"></script>
   <script src="/static/audio.js"></script>

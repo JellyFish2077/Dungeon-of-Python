@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Свежие скриншоты для страницы Itch.io: меню, деревня, журнал, бой.
 
-    python tools/shot_itch.py [--browser msedge]
+    python tools/shot_itch.py [--browser msedge] [--lang ru|en]
 
 Снимается не макет, а настоящая сборка из standalone/build — та самая,
 из которой tools/package_web.py собирает архив. Поэтому кадры не устаревают
 отдельно от игры: перед запуском пересоберите веб-версию.
+
+Основная страница Itch — английская, для неё запускайте с --lang en:
+кадры получат суффикс -en (menu-en.png и т.д.), русские останутся нетронутыми.
 
 Картинки кладутся в assets/itch/screenshots/ в размере 1280×800 — ровно
 тот viewport, что указан в настройках страницы Itch.
@@ -23,6 +26,12 @@ import verify_web
 
 OUT = ROOT / "assets" / "itch" / "screenshots"
 VIEW = {"width": 1280, "height": 800}
+LANG = "ru"
+
+
+def out_path(name):
+    """menu.png для русского, menu-en.png для английского набора."""
+    return OUT / (name + ("" if LANG == "ru" else "-" + LANG) + ".png")
 
 
 def patch_game(route):
@@ -81,8 +90,12 @@ def tidy(page):
     )
 
 
+def lang_query():
+    return "" if LANG == "ru" else "&lang=" + LANG
+
+
 def start_dungeon(page, base, dev=False):
-    page.goto(base + "/game.html?menu=1" + ("&debug=1" if dev else ""),
+    page.goto(base + "/game.html?menu=1" + lang_query() + ("&debug=1" if dev else ""),
               wait_until="domcontentloaded")
     page.wait_for_function("() => window.PyMenu && window.PyMenu.isOpen()", timeout=30000)
     page.click("#menu-new")
@@ -109,11 +122,11 @@ def start_dungeon(page, base, dev=False):
 
 
 def shot_menu(page, base):
-    page.goto(base + "/game.html?menu=1", wait_until="domcontentloaded")
+    page.goto(base + "/game.html?menu=1" + lang_query(), wait_until="domcontentloaded")
     page.wait_for_function("() => window.PyMenu && window.PyMenu.isOpen()", timeout=30000)
     page.wait_for_timeout(1400)
     tidy(page)
-    page.screenshot(path=str(OUT / "menu.png"))
+    page.screenshot(path=str(out_path("menu")))
 
 
 def shot_battle(page, base):
@@ -136,7 +149,7 @@ def shot_battle(page, base):
     )
     page.wait_for_timeout(2200)
     tidy(page)
-    page.screenshot(path=str(OUT / "battle.png"))
+    page.screenshot(path=str(out_path("battle")))
 
 
 def shot_journal(page, base):
@@ -148,7 +161,7 @@ def shot_journal(page, base):
     )
     page.wait_for_timeout(700)
     tidy(page)
-    page.screenshot(path=str(OUT / "journal.png"))
+    page.screenshot(path=str(out_path("journal")))
 
 
 def shot_village(page, base):
@@ -162,13 +175,16 @@ def shot_village(page, base):
     # Ждём, пока уйдёт служебный тост «Поход сохранён».
     page.wait_for_timeout(3400)
     tidy(page)
-    page.screenshot(path=str(OUT / "village.png"))
+    page.screenshot(path=str(out_path("village")))
 
 
 def main():
+    global LANG
     parser = argparse.ArgumentParser()
     parser.add_argument("--browser", default="msedge")
+    parser.add_argument("--lang", choices=("ru", "en"), default="ru")
     args = parser.parse_args()
+    LANG = args.lang
     OUT.mkdir(parents=True, exist_ok=True)
 
     server, base = verify_web.serve()
@@ -188,8 +204,8 @@ def main():
                     page = new_page(browser, dev=(name == "battle"))
                     shot(page, base)
                     page.close()
-                    path = OUT / (name + ".png")
-                    print("%-8s %s  %.0f КБ" % (name, path, path.stat().st_size / 1024))
+                    path = out_path(name)
+                    print("%-8s %s  %.0f КБ" % (path.stem, path, path.stat().st_size / 1024))
             finally:
                 browser.close()
     finally:

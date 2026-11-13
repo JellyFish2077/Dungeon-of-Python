@@ -97,13 +97,15 @@ def main():
     shutil.copy2(PUBLIC / "game.html", PUBLIC / "index.html")
 
     for name in (
-        "questions.js", "variants.js", "code-tasks.js", "code-tasks-tests.json",
+        "i18n.js", "i18n-content.js",
+        "questions.js", "i18n-questions.js", "variants.js", "code-tasks.js", "code-tasks-tests.json",
         "task-meta.js", "practice-variants.js", "items.js", "icons.js",
         "sprites.js", "terrain.js", "dungeon-content.js", "village-content.js",
         "python-course.js",
         "profile.js", "auth.js", "web-boot.js", "pyodide-check.js",
         "pyodide-worker.js", "audio.js", "menu-bg.js", "confirm.js", "menu.js",
         "saves.js", "game.js", "fullscreen.js",
+        "favicon.svg", "apple-touch-icon.png",
     ):
         src = STATIC / name
         if not src.exists():

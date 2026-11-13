@@ -6176,6 +6176,18 @@ body.game-page .side-panel > .side-card:nth-child(5)::before {
   content: "Сумка";
 }
 
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(3)::before {
+  content: "Hero";
+}
+
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(4)::before {
+  content: "Equipment";
+}
+
+html[lang="en"] body.game-page .side-panel > .side-card:nth-child(5)::before {
+  content: "Bag";
+}
+
 body.game-page .side-title {
   margin-bottom: 7px;
   padding-bottom: 6px;
@@ -7657,6 +7669,12 @@ body:has(.stage.village) #place-dungeon {
 #inventory-wallet::before { content: "Кошелёк"; }
 #inventory-equip::before { content: "Снаряжение"; }
 #inventory-bag::before { content: "Сумка"; }
+
+/* Английская версия: подписи секций рисует CSS, поэтому их нельзя
+   перевести через DOM. Английский текст включается атрибутом lang. */
+html[lang="en"] #inventory-wallet::before { content: "Purse"; }
+html[lang="en"] #inventory-equip::before { content: "Equipment"; }
+html[lang="en"] #inventory-bag::before { content: "Bag"; }
 
 #inventory-wallet .hud-num,
 #inventory-wallet .lead {
