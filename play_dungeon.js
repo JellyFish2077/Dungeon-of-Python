@@ -1178,6 +1178,9 @@ function playOne(opts, rng, trace) {
     // Длина боя в заданиях. Обычный враг и босс считаются отдельно: по
     // сводке видно, где на самом деле проходит «вопрос вместо кубика».
     battleQs: 0, battleBoss: false, regularQs: [], bossQs: [], maxBattleQ: 0,
+    // Распределение заданий и боёв по этажам: видно, где именно поход
+    // набирает 200 заданий — на обычных этажах или в конце.
+    qByFloor: new Map(),
     forge: !!opts.forge
   };
   let steps = 0;
@@ -1288,6 +1291,8 @@ function playOne(opts, rng, trace) {
     if (hadBattle && (what === "answer" || what === "copy" || what === "code")) {
       seen.battleQs += 1;
       seen.battleBoss = battleBoss;
+      const fl = G.floorIndex + 1;
+      seen.qByFloor.set(fl, (seen.qByFloor.get(fl) || 0) + 1);
     }
     if (!hadBattle && G.battle) seen.battles += 1;
     if (G.battle && G.battle.enemy) seen.lastEnemy = G.battle.enemy.name;
@@ -1401,8 +1406,13 @@ function playOne(opts, rng, trace) {
       ? seen.regularQs.reduce((a, b) => a + b, 0) / seen.regularQs.length : 0,
     bossAvg: seen.bossQs.length
       ? seen.bossQs.reduce((a, b) => a + b, 0) / seen.bossQs.length : 0,
+    // Число настоящих боёв: по одному записи на каждый доведённый до конца
+    // бой, в отличие от seen.battles, который считает входы в бой.
+    regularFights: seen.regularQs.length,
+    bossFights: seen.bossQs.length,
     maxBattleQ: seen.maxBattleQ,
     tasks: G.stats ? G.stats.correct + G.stats.wrong + (G.stats.copyTried || 0) + (G.stats.codeTried || 0) : 0,
+    qByFloor: [...seen.qByFloor.entries()],
     // Время по видам: вопрос и «вставь/найди» — по 30 с, «перепиши код» —
     // минута, «напиши функцию» — две. Грубо, но честнее, чем всё по 30 с.
     minutes: G.stats ? ((G.stats.correct + G.stats.wrong) * 30 + (G.stats.copyTried || 0) * 60 +
@@ -1514,6 +1524,8 @@ function printCampaign(opts, rows) {
   console.log("кампания: " + ok.length + " походов одним героем, верных ответов " +
     Math.round(opts.skill * 100) + "%");
   console.log("  глубина по походам: " + depths);
+  console.log("  средняя глубина: " +
+    (ok.reduce((n, r) => n + r.deepest, 0) / ok.length).toFixed(1));
   console.log("  первая победа: " + (firstWin ? "поход " + firstWin : "не пришла"));
   console.log("  победы: " + ok.filter((r) => r.victory).length + " из " + ok.length +
     " (" + Math.round((ok.filter((r) => r.victory).length / ok.length) * 100) + "%)");
@@ -1613,12 +1625,31 @@ function printSummary(opts, rows) {
     avg((r) => r.practice).toFixed(0) + "; время ≈ " + Math.round(avg((r) => r.minutes)) +
     " мин (вопрос — 30 с, «перепиши» — 1 мин, «напиши функцию» — 2 мин); уровень героя " +
     avg((r) => r.level).toFixed(1));
+  // Где набегают задания: по этажам. нужно, чтобы сокращать длину похода
+  // там, где она действительно длинная, а не «в среднем».
+  const qFloor = {};
+  ok.forEach((r) => (r.qByFloor || []).forEach(([fl, n]) => { qFloor[fl] = (qFloor[fl] || 0) + n; }));
+  const qKeys = Object.keys(qFloor).map(Number).sort((a, b) => a - b);
+  if (qKeys.length) {
+    const qAll = qKeys.reduce((n, fl) => n + qFloor[fl], 0);
+    const deep = qKeys.filter((fl) => fl >= 10).reduce((n, fl) => n + qFloor[fl], 0);
+    console.log("  задания по этажам (в среднем за партию): " + qKeys
+      .map((fl) => fl + ":" + (qFloor[fl] / ok.length).toFixed(0)).join(", "));
+    console.log("  доля заданий с 10-го этажа и глубже: " + Math.round((deep / qAll) * 100) + "%");
+  }
   // Длина боя: если обычный враг умирает за один ответ, тактика (зелья,
   // защита, способность) не успевает включиться, а босс превращается в
   // единственную стену вопросов. Числа показывают, где именно перекос.
   console.log("  заданий на бой: обычный " + avg((r) => r.regularAvg).toFixed(1) +
     ", босс " + avg((r) => r.bossAvg).toFixed(1) + "; самый длинный бой " +
     avg((r) => r.maxBattleQ).toFixed(1));
+  // Из чего сложились задания: сколько боёв и сколько вопросов на бой.
+  // Доля боев в заданиях должна быть близка к 100%, иначе время уходит не в бой.
+  const fightShare = avg((r) =>
+    (r.regularAvg * r.regularFights + r.bossAvg * r.bossFights) / Math.max(1, r.tasks));
+  console.log("  боёв за партию: обычных " + avg((r) => r.regularFights).toFixed(1) +
+    ", боссов " + avg((r) => r.bossFights).toFixed(1) +
+    "; на бой уходит " + Math.round(fightShare * 100) + "% заданий");
   const applied = avg((r) => r.applied);
   if (applied > 0) {
     console.log("  практика («примени»): " + applied.toFixed(0) + " заданий за партию, разных " +
