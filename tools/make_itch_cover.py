@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Обложка 630×500 для страницы Itch.io: «полевой журнал» с печатью.
+"""Обложка 630×500 для страницы Itch.io: тёмное подземелье.
 
     python tools/make_itch_cover.py
 
-Числа на обложке берутся из самой игры: схема спуска строится по 15 этажам
-и 5 биомам, версия — из static/web-boot.js. Обложка не устаревает отдельно
-от сборки. Типографика — системные Georgia и Consolas: лендинговые Literata
-и IBM Plex Mono из проекта убраны вместе с лендингом.
+Фон — настоящий кадр из игры: скрипт сам запускает standalone/build,
+начинает поход и берёт центральный кусок карты, затемнённый до текстуры.
+Заголовок — Handjet, текст — Golos Text, служебные подписи — Consolas.
+Разрез подземелья, цифры и версия берутся из игры, поэтому обложка
+не расходится со сборкой.
 """
 import base64
+import io
 import re
+import sys
 import tempfile
 from pathlib import Path
 
@@ -21,6 +24,15 @@ OUT = ROOT / "assets" / "itch"
 OUT.mkdir(parents=True, exist_ok=True)
 SRC = (ROOT / "static" / "sprites.js").read_text(encoding="utf-8")
 
+sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "tools"))
+import verify_web  # noqa: E402
+from shot_itch import new_page, start_dungeon  # noqa: E402
+
+FLOORS = 15
+BIOMES = 5
+PER_BIOME = FLOORS // BIOMES
+
 
 def sprite(name: str) -> str:
     match = re.search(rf'{name}:\s*"data:image/png;base64,([^"]+)"', SRC)
@@ -29,312 +41,307 @@ def sprite(name: str) -> str:
     return "data:image/png;base64," + match.group(1)
 
 
-HERO = sprite("player")
-DRAGON = sprite("dragon")
+def font(name: str) -> str:
+    data = base64.b64encode((ROOT / "static" / "fonts" / name).read_bytes()).decode("ascii")
+    return "data:font/ttf;base64," + data
+
+
+def version() -> str:
+    text = (ROOT / "static" / "web-boot.js").read_text(encoding="utf-8")
+    match = re.search(r'version:\s*"([^"]+)"', text)
+    return match.group(1).replace("-web", "") if match else "0.0.0"
+
+
+def dungeon_background(browser, base) -> str:
+    """Центральный кадр подземелья без HUD: только тайлы, пол и стены."""
+    page = new_page(browser)
+    try:
+        start_dungeon(page, base)
+        # Оставляем только карту: HUD и панели в обложке ни к чему.
+        page.evaluate(
+            """() => {
+                const hide = document.createElement("style");
+                hide.textContent = ".site-head,#game-dock,#hero-hud,#minimap-dock,"
+                    + "#log,.action-btn,.toast,.story-hud,.campaign-hud{display:none!important}";
+                document.head.appendChild(hide);
+            }"""
+        )
+        page.wait_for_timeout(500)
+        shot = Image.open(io.BytesIO(page.screenshot()))
+    finally:
+        page.close()
+    left = (shot.width - 630) // 2
+    top = (shot.height - 500) // 2
+    crop = shot.crop((left, top, left + 630, top + 500)).convert("RGB")
+    buffer = io.BytesIO()
+    crop.save(buffer, format="PNG", optimize=True)
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+
+
+def rows() -> str:
+    """Пять полос разреза: три этажа на биом, босс в конце каждого."""
+    bosses = ("goblin", "necromancer", "golem", "demon", "dragon")
+    names = ("Пещеры", "Катакомбы", "Лёд", "Демоны", "Дракон")
+    classes = ("caves", "catacombs", "ice", "demons", "lair")
+    parts = []
+    for i in range(BIOMES):
+        first = i * PER_BIOME + 1
+        last = first + PER_BIOME - 1
+        player = ('<img class="sprite player" src="%s" alt="">' % sprite("player")
+                  if i == 0 else "")
+        boss = "dragon" if i == BIOMES - 1 else "boss"
+        parts.append(
+            '<div class="stratum %s">'
+            '<div class="stratum-line"></div>'
+            '<div class="stratum-label"><b>%02d–%02d</b><span>%s</span></div>'
+            '%s<img class="sprite %s" src="%s" alt=""><span class="torch"></span>'
+            "</div>"
+            % (classes[i], first, last, names[i], player, boss, sprite(bosses[i]))
+        )
+    return "".join(parts)
+
 
 HTML = """<!doctype html>
-<html lang="ru"><head><meta charset="utf-8">
+<html lang="ru">
+<head>
+<meta charset="utf-8">
 <style>
+  @font-face { font-family: "Handjet"; src: url("__HJ_BOLD__") format("truetype"); font-weight: 700; font-display: block; }
+  @font-face { font-family: "Handjet"; src: url("__HJ_BLACK__") format("truetype"); font-weight: 900; font-display: block; }
+  @font-face { font-family: "Golos Text"; src: url("__GT_REG__") format("truetype"); font-weight: 400; font-display: block; }
+  @font-face { font-family: "Golos Text"; src: url("__GT_BOLD__") format("truetype"); font-weight: 700; font-display: block; }
 
+  :root {
+    --void: #07090c;
+    --stone-3: #2a343e;
+    --ash: #8e9aa6;
+    --bone: #ded7c8;
+    --torch: #f2a24a;
+    --ember: #c65a33;
+    --python: #6fb7a8;
+    --line: rgba(222,215,200,.14);
+    --display: "Handjet", "Arial Black", sans-serif;
+    --sans: "Golos Text", system-ui, sans-serif;
+    --mono: Consolas, "Courier New", monospace;
+    --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E");
+  }
   * { box-sizing: border-box; }
   html, body { width: 630px; height: 500px; margin: 0; overflow: hidden; }
   body {
-    position: relative;
-    background-color: #080a09;
-    background-image:
-      radial-gradient(circle at 20% 10%, rgba(79,111,98,.14), transparent 46%),
-      radial-gradient(circle at 86% 92%, rgba(138,74,50,.12), transparent 48%),
-      repeating-linear-gradient(112deg, rgba(216,203,178,.028) 0 1px, transparent 1px 9px);
-    font-family: Georgia, "Times New Roman", serif;
-    color: #1c1a16;
+    position: relative; color: var(--bone); background: var(--void);
+    font-family: var(--sans);
+    overflow: hidden;
   }
-
-  .sheet {
-    position: absolute;
-    inset: 14px;
-    transform: rotate(-.55deg);
-    background-color: #d9cbb0;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='.1'/%3E%3C/svg%3E");
-    border: 1px solid #1c1a16;
-    box-shadow: 0 20px 38px rgba(0,0,0,.66), 0 2px 0 rgba(255,255,255,.1) inset;
+  /* Фон — кадр из игры, притемнённый до текстуры камня. */
+  .map {
+    position: absolute; inset: 0;
+    background: url("__BG__") center / cover no-repeat;
+    opacity: .72; filter: saturate(.75) brightness(.85);
   }
-  .sheet::before {
-    content: "";
-    position: absolute;
-    inset: 9px;
-    border: 1px solid rgba(28,26,22,.2);
-    pointer-events: none;
+  .veil {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(420px 380px at 77% 52%, rgba(198,90,51,.20), transparent 68%),
+      radial-gradient(360px 300px at 9% 8%, rgba(111,183,168,.10), transparent 70%),
+      linear-gradient(180deg, rgba(7,9,12,.6), rgba(7,9,12,.8) 55%, rgba(7,9,12,.92));
   }
   .grain {
-    position: absolute;
-    inset: 0;
-    background-image: repeating-linear-gradient(0deg, rgba(28,26,22,.028) 0 1px, transparent 1px 4px);
-    opacity: .45;
-    pointer-events: none;
+    position: absolute; inset: 0; background: var(--noise); pointer-events: none;
   }
-
+  body::after {
+    content: ""; position: absolute; inset: 10px; border: 1px solid var(--line); pointer-events: none;
+  }
   .topline {
-    position: absolute;
-    top: 25px; left: 33px; right: 33px;
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    padding-bottom: 7px;
-    border-bottom: 1px solid rgba(28,26,22,.3);
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 8px;
-    letter-spacing: .13em;
-    text-transform: uppercase;
-    color: #4a463c;
+    position: absolute; left: 32px; right: 32px; top: 24px; z-index: 3;
+    display: flex; justify-content: space-between; gap: 12px;
+    padding-bottom: 7px; border-bottom: 1px solid var(--line);
+    font-family: var(--mono); font-size: 7px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--ash);
   }
-
-  .title {
-    position: absolute;
-    top: 70px; left: 32px;
-    margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 84px;
-    font-weight: 700;
-    line-height: .93;
-    letter-spacing: -.055em;
-    color: #1c1a16;
+  h1 {
+    position: absolute; left: 30px; top: 52px; margin: 0; z-index: 3;
+    font-family: var(--display); font-weight: 900; font-size: 92px;
+    line-height: .82; letter-spacing: -.01em;
+    color: var(--bone); text-shadow: 0 0 26px rgba(242,162,74,.18), 0 3px 0 #040608;
     white-space: nowrap;
   }
-  .title span { color: #8a4a32; }
-
+  h1 span { color: var(--torch); }
   .subtitle {
-    position: absolute;
-    top: 166px; left: 35px;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 11px;
-    letter-spacing: .19em;
-    text-transform: uppercase;
-    color: #395247;
+    position: absolute; left: 33px; top: 143px; z-index: 3;
+    font-family: var(--mono); font-size: 9px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--ash);
   }
-
   .lead {
-    position: absolute;
-    top: 198px; left: 35px;
-    width: 410px;
-    margin: 0;
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 15.5px;
-    line-height: 1.5;
-    color: #48443a;
+    position: absolute; left: 33px; top: 168px; width: 322px; margin: 0; z-index: 3;
+    color: #b8c1cb; font-size: 13px; line-height: 1.55;
   }
-
-  .chips {
-    position: absolute;
-    top: 257px; left: 34px;
-    display: flex;
-    gap: 7px;
+  .lead b { color: var(--bone); font-weight: 700; }
+  .facts {
+    position: absolute; left: 33px; top: 254px; z-index: 3;
+    display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
   }
-  .chip {
-    padding: 4px 7px;
-    border: 1px solid #8a4a32;
-    color: #713823;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 7.5px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
-    background: rgba(217,203,176,.4);
-    transform: rotate(-.6deg);
+  .fact { padding: 7px 13px; border-right: 1px solid var(--line); }
+  .fact:first-child { padding-left: 0; }
+  .fact:last-child { border-right: 0; }
+  .fact b { display: block; font-family: var(--display); font-size: 22px; font-weight: 700; line-height: 1; color: var(--torch); }
+  .fact span { display: block; margin-top: 2px; font-family: var(--mono); font-size: 6.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+  .dragon-glow {
+    position: absolute; left: 18px; bottom: 32px; width: 150px; height: 150px; z-index: 2;
+    background: radial-gradient(circle, rgba(198,90,51,.26), transparent 66%);
+    pointer-events: none;
   }
-  .chip:nth-child(2) { border-color: #4f6f62; color: #395247; transform: rotate(.4deg); }
-  .chip:nth-child(3) { transform: rotate(-1deg); }
-
-  .seal {
-    position: absolute;
-    top: 2px; right: -4px;
-    width: 110px; height: 110px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    border: 3px double #8a4a32;
-    border-radius: 50%;
-    color: #713823;
-    transform: rotate(10deg);
-    opacity: .93;
-  }
-  .seal::before {
-    content: "";
-    position: absolute;
-    inset: 6px;
-    border: 1px dashed currentColor;
-    border-radius: 50%;
-  }
-  .seal b {
-    font-family: Georgia, "Times New Roman", serif;
-    font-size: 25px;
-    line-height: 1;
-  }
-  .seal span {
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 6px;
-    line-height: 1.35;
-    letter-spacing: .11em;
-    text-align: center;
-    text-transform: uppercase;
-  }
-
-  .route {
-    position: absolute;
-    left: 34px; right: 34px; bottom: 54px;
-  }
-  .route-head {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid rgba(28,26,22,.3);
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 8px;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-    color: #4a463c;
-  }
-  .route-map {
-    position: relative;
-    height: 44px;
-    margin-top: 7px;
-  }
-  .route-map svg {
-    position: absolute;
-    left: 30px; right: 38px; top: 0;
-    width: calc(100% - 68px);
-    height: 34px;
-    overflow: visible;
-  }
-  .mark {
-    position: absolute;
+  .dragon-art {
+    position: absolute; left: 38px; bottom: 56px; width: 96px; height: 96px; z-index: 3;
     image-rendering: pixelated;
-    width: 30px; height: 30px;
+    filter: drop-shadow(0 0 18px rgba(198,90,51,.4)) drop-shadow(0 8px 0 rgba(0,0,0,.35));
   }
-  .mark.hero { left: 0; top: 4px; }
-  .mark.dragon { right: 0; top: 0; width: 36px; height: 36px; }
-  .route-labels {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 4px;
-    color: #4a463c;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 7px;
-    letter-spacing: .07em;
-    text-transform: uppercase;
-    text-align: center;
+  .dragon-caption {
+    position: absolute; left: 142px; bottom: 74px; z-index: 3;
+    font-family: var(--mono); font-size: 6.5px; line-height: 1.7;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--ash);
   }
-
+  .dragon-caption b { display: block; color: var(--torch); font-weight: 500; }
   .bottom {
-    position: absolute;
-    left: 34px; right: 34px; bottom: 22px;
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
-    padding-top: 7px;
-    border-top: 1px solid rgba(28,26,22,.3);
-    color: #4a463c;
-    font-family: Consolas, "Courier New", monospace;
-    font-size: 8px;
-    letter-spacing: .1em;
-    text-transform: uppercase;
+    position: absolute; left: 33px; right: 33px; bottom: 24px; z-index: 3;
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding-top: 8px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 7.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ash);
   }
-  .bottom b { color: #713823; font-weight: 500; }
-</style></head>
+  .bottom .code { color: var(--python); font-size: 9px; letter-spacing: .02em; text-transform: none; }
+  .bottom .ver { color: var(--torch); }
+
+  .shaft {
+    position: absolute; right: 33px; top: 52px; width: 196px; z-index: 3;
+    border: 2px solid var(--stone-3); background: rgba(10,13,17,.92);
+    box-shadow: 0 18px 34px rgba(0,0,0,.6), inset 0 0 0 1px rgba(255,255,255,.035);
+  }
+  .shaft-head, .shaft-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    height: 25px; padding: 0 8px;
+    font-family: var(--mono); font-size: 6px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--ash); background: #080b0f;
+  }
+  .shaft-head { border-bottom: 1px solid var(--line); }
+  .shaft-foot { border-top: 1px solid var(--line); }
+  .shaft-foot span:last-child { color: var(--torch); }
+  .stratum {
+    position: relative; height: 66px; overflow: hidden;
+    border-bottom: 1px solid rgba(0,0,0,.65);
+  }
+  .stratum:last-child { border-bottom: 0; }
+  .stratum::before {
+    content: ""; position: absolute; inset: 0;
+    background: var(--noise), repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px, transparent 1px 6px);
+    opacity: .8;
+  }
+  .stratum.caves { background: linear-gradient(180deg,#221b13,#120e0a); }
+  .stratum.catacombs { background: linear-gradient(180deg,#151d25,#0c1116); }
+  .stratum.ice { background: linear-gradient(180deg,#162832,#0d171e); }
+  .stratum.demons { background: linear-gradient(180deg,#261616,#130c0d); }
+  .stratum.lair { background: linear-gradient(180deg,#221512,#0f0a09); }
+  .stratum-label { position: absolute; left: 8px; top: 7px; z-index: 2; }
+  .stratum-label b { display: block; font-family: var(--display); font-size: 15px; font-weight: 700; line-height: 1; color: var(--torch); white-space: nowrap; }
+  .stratum-label span { display: block; margin-top: 2px; font-family: var(--mono); font-size: 6px; letter-spacing: .07em; text-transform: uppercase; color: var(--ash); }
+  .stratum-line {
+    position: absolute; left: 56px; top: 0; bottom: 0; width: 1px;
+    background: repeating-linear-gradient(180deg, rgba(222,215,200,.22) 0 2px, transparent 2px 7px);
+  }
+  .sprite { position: absolute; right: 8px; bottom: 5px; width: 22px; height: 22px; image-rendering: pixelated; z-index: 2; filter: drop-shadow(0 3px 0 rgba(0,0,0,.45)); }
+  .sprite.player { left: 62px; top: 4px; right: auto; bottom: auto; width: 24px; height: 24px; }
+  .sprite.boss { width: 28px; height: 28px; right: 7px; bottom: 4px; }
+  .sprite.dragon { width: 36px; height: 36px; right: 5px; bottom: 2px; filter: drop-shadow(0 0 9px rgba(198,90,51,.3)); }
+  .torch { position: absolute; right: 7px; top: 7px; width: 3px; height: 10px; background: #3a281b; z-index: 4; }
+  .torch::before {
+    content: ""; position: absolute; left: -4px; top: -10px; width: 11px; height: 15px;
+    background: radial-gradient(ellipse at 50% 76%, #fff5c8 0 14%, #ffd07a 27%, #f2a24a 51%, #c65a33 74%, transparent 76%);
+    clip-path: polygon(51% 0, 73% 27%, 87% 52%, 71% 76%, 49% 100%, 27% 86%, 11% 57%, 29% 30%);
+    filter: drop-shadow(0 0 6px rgba(242,162,74,.55));
+  }
+  .torch::after {
+    content: ""; position: absolute; left: -24px; top: -29px; width: 53px; height: 53px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(242,162,74,.18), transparent 68%);
+  }
+</style>
+</head>
 <body>
-  <div class="sheet">
-    <div class="grain"></div>
-    <div class="topline">
-      <span>Полевой журнал · дело № 1 · лист 01</span>
-    </div>
+  <div class="map"></div>
+  <div class="veil"></div>
+  <div class="grain"></div>
 
-    <div class="seal" aria-hidden="true">
-      <span>Печать</span>
-      <b>Py</b>
-      <span>глубины<br>2026</span>
-    </div>
+  <div class="topline"><span>Печати глубины</span><span>__FLOORS__ этажей · __BIOMES__ боссов</span></div>
 
-    <h1 class="title">Py<span>Dungeon</span></h1>
-    <div class="subtitle">Печати глубины</div>
-    <p class="lead">Спуск в подземелье, где каждый бой — вопрос по Python. Пятнадцать этажей, пять боссов, один дракон.</p>
+  <h1>Py<span>Dungeon</span></h1>
+  <div class="subtitle">Спуск в подземелье Python</div>
+  <p class="lead">Каждый бой — <b>вопрос по Python</b>. Пять боссов, дракон на пятнадцатом этаже и деревня, которая остаётся между забегами.</p>
 
-    <div class="chips">
-      <span class="chip">15 этажей</span>
-      <span class="chip">5 боссов</span>
-      <span class="chip">около 2 часов</span>
-    </div>
-
-    <div class="route">
-      <div class="route-head">
-        <span>Схема спуска</span>
-        <span>Пять биомов</span>
-      </div>
-      <div class="route-map">
-        <svg viewBox="0 0 500 34" preserveAspectRatio="none" aria-hidden="true">
-          <path d="M__X0__ 17H__XLAST__" fill="none" stroke="#1c1a16" stroke-opacity=".32" stroke-width="1" stroke-dasharray="2 5"/>
-          <g stroke="#1c1a16" stroke-width="1">__TICKS__</g>
-          <g fill="#8a4a32" stroke="#673523" stroke-width="1">__BOSSES__</g>
-        </svg>
-        <img class="mark hero" src="__HERO__" alt="">
-        <img class="mark dragon" src="__DRAGON__" alt="">
-      </div>
-      <div class="route-labels">
-        <span>пещеры</span>
-        <span>катакомбы</span>
-        <span>лёд</span>
-        <span>демоны</span>
-        <span>дракон</span>
-      </div>
-    </div>
-
-    <div class="bottom">
-      <span><b>Python</b> · браузер · без сервера</span>
-      <span>v__VERSION__</span>
-    </div>
+  <div class="facts">
+    <div class="fact"><b>__FLOORS__</b><span>этажей</span></div>
+    <div class="fact"><b>__BIOMES__</b><span>боссов</span></div>
+    <div class="fact"><b>2 ч</b><span>на поход</span></div>
   </div>
-</body></html>"""
 
-# 15 этажей: пять биомов по три; ромб — босс на третьем этаже биома.
-FLOORS = 15
-BIOMES = 5
-TRACK_X0, TRACK_W = 2.0, 496.0
-SEG = TRACK_W / BIOMES
+  <div class="dragon-glow"></div>
+  <img class="dragon-art" src="__DRAGON__" alt="">
+  <div class="dragon-caption"><b>Финал · этаж __FLOORS__</b><span>Дракон</span></div>
+
+  <aside class="shaft" aria-label="Разрез подземелья">
+    <div class="shaft-head"><span>Разрез</span><span>__FLOORS__ этажей</span></div>
+    __ROWS__
+    <div class="shaft-foot"><span>Вход</span><span>Дракон</span></div>
+  </aside>
+
+  <div class="bottom">
+    <span class="code">&gt;&gt;&gt; descend(__FLOORS__)</span>
+    <span>HTML5 · браузер</span>
+    <span class="ver">v__VERSION__</span>
+  </div>
+</body></html>
+"""
 
 
-def tick_x(index: int) -> float:
-    group, offset = divmod(index, FLOORS // BIOMES)
-    return TRACK_X0 + SEG * group + SEG * (offset + 0.5) / 3
+def main():
+    with tempfile.TemporaryDirectory() as tmp:
+        server, base = verify_web.serve()
+        try:
+            with sync_playwright() as pw:
+                browser = verify_web.launch(pw, "msedge") or pw.chromium.launch(headless=True)
+                try:
+                    background = dungeon_background(browser, base)
+                finally:
+                    browser.close()
+        finally:
+            server.shutdown()
+            server.server_close()
+
+        html = (
+            HTML.replace("__BG__", background)
+            .replace("__HJ_BOLD__", font("Handjet-Bold.ttf"))
+            .replace("__HJ_BLACK__", font("Handjet-Black.ttf"))
+            .replace("__GT_REG__", font("GolosText-Regular.ttf"))
+            .replace("__GT_BOLD__", font("GolosText-Bold.ttf"))
+            .replace("__ROWS__", rows())
+            .replace("__DRAGON__", sprite("dragon"))
+            .replace("__FLOORS__", str(FLOORS))
+            .replace("__BIOMES__", str(BIOMES))
+            .replace("__VERSION__", version())
+        )
+
+        out = OUT / "cover-630x500.png"
+        raw = Path(tmp) / "cover@2x.png"
+        with sync_playwright() as pw:
+            browser = verify_web.launch(pw, "msedge") or pw.chromium.launch(headless=True)
+            page = browser.new_page(viewport={"width": 630, "height": 500}, device_scale_factor=2)
+            page.set_content(html, wait_until="load")
+            page.wait_for_timeout(700)
+            page.screenshot(path=str(raw))
+            browser.close()
+
+        im = Image.open(raw).convert("RGB")
+        im = im.resize((630, 500), Image.LANCZOS)
+        im.save(out, optimize=True)
+        print(out, out.stat().st_size)
 
 
-TICKS = "".join('<path d="M%.1f 14v6"/>' % tick_x(i) for i in range(FLOORS))
-BOSSES = "".join('<path d="M%.1f 13l4 4-4 4-4-4z"/>' % tick_x(i) for i in range(2, FLOORS, 3))
-VERSION = re.search(
-    r'version:\s*"([^"]+)"', (ROOT / "static" / "web-boot.js").read_text(encoding="utf-8")
-).group(1).replace("-web", "")
-
-html = (
-    HTML.replace("__HERO__", HERO)
-    .replace("__DRAGON__", DRAGON)
-    .replace("__TICKS__", TICKS)
-    .replace("__BOSSES__", BOSSES)
-    .replace("__X0__", "%.1f" % tick_x(0))
-    .replace("__XLAST__", "%.1f" % tick_x(FLOORS - 1))
-    .replace("__VERSION__", VERSION)
-)
-
-out = OUT / "cover-630x500.png"
-# Кадр рендерится в 2× и уменьшается — так текст и печать остаются резкими.
-with tempfile.TemporaryDirectory() as tmp:
-    raw = Path(tmp) / "cover@2x.png"
-    with sync_playwright() as pw:
-        browser = pw.chromium.launch(channel="msedge", headless=True)
-        page = browser.new_page(viewport={"width": 630, "height": 500}, device_scale_factor=2)
-        page.set_content(html, wait_until="load")
-        page.wait_for_timeout(500)
-        page.screenshot(path=str(raw))
-        browser.close()
-
-    im = Image.open(raw).convert("RGB")
-    im = im.resize((630, 500), Image.LANCZOS)
-    im.save(out, optimize=True)
-print(out, out.stat().st_size)
+if __name__ == "__main__":
+    sys.exit(main())
