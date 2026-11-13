@@ -37,6 +37,12 @@ def main():
     if missing:
         print("в public/ нет файлов: %s" % ", ".join(missing), file=sys.stderr)
         return 1
+    # Кредиты и лицензия лежат в корне репозитория и кладутся в архив как есть.
+    extra = ("LICENSE", "CREDITS.md")
+    missing_extra = [name for name in extra if not (ROOT / name).is_file()]
+    if missing_extra:
+        print("в корне нет файлов: %s" % ", ".join(missing_extra), file=sys.stderr)
+        return 1
 
     DIST.mkdir(exist_ok=True)
     target = DIST / ("pydungeon-standalone-%s.zip" % version())
@@ -44,6 +50,8 @@ def main():
         for path in sorted(PUBLIC.rglob("*")):
             if path.is_file():
                 zf.write(path, path.relative_to(PUBLIC).as_posix())
+        for name in extra:
+            zf.write(ROOT / name, name)
 
     data = target.read_bytes()
     digest = hashlib.sha256(data).hexdigest()
