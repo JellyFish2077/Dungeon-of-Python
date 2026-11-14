@@ -25,6 +25,7 @@ python tools/fetch_pyodide.py
 
 ```bash
 python verify_web.py --browser msedge
+python tools/verify_i18n.py --browser msedge
 python run_all_checks.py --quick
 ```
 
