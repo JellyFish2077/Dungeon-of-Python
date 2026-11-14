@@ -99,6 +99,117 @@
     "Об игре": "About",
     "Пауза": "Paused",
     "Поход приостановлен": "Expedition paused",
+    "Поход приостановлен. Продолжить — у стража у входа в подземелье.":
+      "Expedition paused. Continue at the gate warden at the dungeon entrance.",
+    "Поход сохранён": "Expedition saved",
+    "Этот рычаг уже опущен.": "This lever is already down.",
+    "Рычаг не поддаётся.": "The lever won't budge.",
+    "Проход запечатан. Рычаг на этом этаже откроет его.":
+      "The passage is sealed. The lever on this floor will open it.",
+    "Рычаг": "Lever",
+    "Проход к тайнику": "Passage to the vault",
+    "не убьёт": "won't kill you",
+    ": рычаг оставляет герою одно здоровье. Дёргать его не обязательно.":
+      ": the lever leaves the hero with one health. You don't have to pull it.",
+    "Рычаг опущен: в стене открылся проход к тайнику.":
+      "The lever is down: a passage to the vault opened in the wall.",
+    "Проход к тайнику открыт!": "The passage to the vault is open!",
+    "Рычаг опущен, но открывать было нечего.":
+      "The lever is down, but there was nothing to open.",
+    "Ток бьёт, но добить героя рычаг не может. Передохни и попробуй снова.":
+      "The shock hits, but the lever cannot finish the hero. Rest and try again.",
+    "Рычаг не может добить героя": "The lever cannot finish the hero",
+    "Этот костёр уже прогорел.": "This campfire has already burned out.",
+    "Больше отдыхать негде: привалы на поход кончились.":
+      "There is nowhere left to rest: this run's camps are used up.",
+    "Привал": "Camp",
+    "Костёр": "Campfire",
+    "Лава обжигает": "The lava burns",
+    "Подняться выше": "Go up",
+    "Спуститься ниже": "Go down",
+    "Спуск запечатан": "The descent is sealed",
+    "Лестницу охраняет страж": "A warden guards the stairs",
+    "Торговать": "Trade",
+    "Открыть сундук": "Open chest",
+    "Запечатанный проход: рычаг этажа": "Sealed passage: the floor lever",
+    "Тайник открыт": "Vault open",
+    "Алтарь погас": "The altar is cold",
+    "Алтарь: заключить сделку": "Altar: make a bargain",
+    "Рычаг: открыть тайник (ударит током за ошибку)":
+      "Lever: open the vault (a wrong answer shocks you)",
+    "Доска задач: практика": "Task board: practice",
+    "Прочитать табличку": "Read the sign",
+    "Костёр прогорел": "The campfire burned out",
+    "Отдохнуть у костра": "Rest at the campfire",
+    "Привалов больше нет": "No camps left",
+    "Спуститься в подземелье": "Descend into the dungeon",
+    "Владыка демонов сильнее всех внизу. Проверь снаряжение.":
+      "The demon lord is the strongest thing below. Check your gear.",
+    "В логове дракона темно: держись мини-карты и не теряй лестницу.":
+      "The dragon's lair is dark: stick to the minimap and don't lose the stairs.",
+    "Дракон впадает в ярость на 40% здоровья. Прибереги большое зелье.":
+      "The dragon flies into a rage at 40% health. Save the large potion.",
+    "Дракон впадает в ярость, когда у него остаётся 40% здоровья. Держи зелья наготове.":
+      "The dragon flies into a rage at 40% health. Keep potions ready.",
+    "Не гонись за вожаком через шипы: у баррикады есть обход по краю.":
+      "Don't chase the chief through the spikes: there is a way around the barricade along the edge.",
+    "В темноте держись фонарей и мини-карты, а не памяти.":
+      "In the dark, trust the torches and the minimap, not your memory.",
+    "Держись твёрдого пола: лёд отнимает ходы на скольжение.":
+      "Stay on solid floor: ice costs turns to sliding.",
+    "Выбери мост заранее и не жадничай до последнего сундука.":
+      "Choose your bridge in advance and don't get greedy for the last chest.",
+    "Каждая взятая куча золота усиливает дракона в третьей фазе.":
+      "Every pile of gold you take strengthens the dragon in the third phase.",
+    "Прогоревший костёр": "Burned-out campfire",
+    "Костёр-привал": "Campfire",
+    "Ты открыл сундук: в нём лежал амулет возврата.":
+      "You opened the chest: it held a return amulet.",
+    "Проклятая плита: следующий вопрос будет сбивать с толку.":
+      "Cursed tile: the next question will be confusing.",
+    "Проклятая плита: варианты идут по алфавиту — читай внимательнее.":
+      "Cursed tile: the options are alphabetical — read carefully.",
+    "Босс зовёт слугу!": "The boss calls a servant!",
+    "Некромант поднял слугу!": "The necromancer raised a servant!",
+    "Развилка": "Crossroads",
+    "Куда сворачивать": "Which way to turn",
+    "сокровищница": "treasure vault",
+    "логово элиты": "elite lair",
+    "привал": "camp",
+    "жила": "resource vein",
+    "архив": "archive",
+    "засада": "ambush",
+    "скрытая дверь": "hidden door",
+    "тайник": "vault",
+    "Первый шаг": "First Step",
+    "Безупречно": "Flawless",
+    "Опытный следопыт": "Seasoned Pathfinder",
+    "Кодер": "Coder",
+    "Постоянство": "Consistency",
+    "На волне": "On a Roll",
+    "Глубинный странник": "Deep Wanderer",
+    "Выживший": "Survivor",
+    "Убийца драконов": "Dragonslayer",
+    "Завершить первый поход": "Complete your first run",
+    "100% верных ответов в походе": "100% correct answers in a run",
+    "Дойти до 7 этажа": "Reach floor 7",
+    "Решить 10 задач на код": "Solve 10 code tasks",
+    "Играть 3 дня подряд": "Play 3 days in a row",
+    "10 верных ответов подряд": "10 correct answers in a row",
+    "Дойти до 9 этажа": "Reach floor 9",
+    "Дойти до 5 этажа": "Reach floor 5",
+    "Победить дракона": "Defeat the dragon",
+    "Алтарь погас.": "The altar is cold.",
+    "Алтарь молчит.": "The altar is silent.",
+    "Сделка на этом этаже уже заключена.":
+      "A bargain has already been made on this floor.",
+    "Алтарь сделки": "Altar of Bargains",
+    "Ты проходишь мимо сделки: этаж остаётся обычным.":
+      "You walk past the bargain: the floor stays normal.",
+    "Пройти мимо": "Walk past",
+    "Лестницу вниз охраняет страж: победи его, чтобы спуститься.":
+      "A warden guards the stairs down: defeat it to descend.",
+    "Тема этажа": "Floor theme",
     "Здесь стена.": "There's a wall here.",
     "Ящик наугад": "Random crate",
     "Цены этого этажа": "Prices on this floor",
@@ -653,6 +764,43 @@
       "No events of this kind yet. Pick another filter or keep exploring.",
     "Монстры двигаются навстречу каждый твой ход.":
       "Monsters move toward you on every turn.",
+    "Открытый круг": "Open Ring",
+    "Баррикада": "Barricade",
+    "Обвал": "Collapse",
+    "Светлый зал": "Bright Hall",
+    "Тьма": "Darkness",
+    "Алтарь": "Altar",
+    "Твёрдый центр": "Solid Centre",
+    "Трещины": "Cracks",
+    "Колонны": "Columns",
+    "Два моста": "Two Bridges",
+    "Один мост": "One Bridge",
+    "Разлом": "The Rift",
+    "Тёмный зал": "Dark Hall",
+    "Сокровищница": "Treasury",
+    "Последняя тьма": "Final Darkness",
+    "Вожак уходит за баррикаду: бьёт сильнее и прячется за укрытием.":
+      "The chief retreats behind the barricade: he hits harder and hides behind cover.",
+    "Баррикада рушится, у входа открываются ямы.":
+      "The barricade collapses, pits open at the entrance.",
+    "Тьма сгущается: подсказки гаснут, в нишах горят только фонари.":
+      "The darkness thickens: hints fade, only torches burn in the niches.",
+    "Некромант уходит к алтарю и поднимает слуг.":
+      "The necromancer goes to the altar and raises servants.",
+    "Лёд ползёт от стен, две колонны рушатся.":
+      "Ice creeps from the walls, two columns collapse.",
+    "Вокруг центра поднимаются колонны: держись твёрдых островков.":
+      "Columns rise around the centre: stay on the solid islands.",
+    "Один мост рушится: остаётся узкий проход между огнём.":
+      "One bridge collapses: a narrow passage remains between the fires.",
+    "Разлом расширяется, владыка уходит на дальний остров.":
+      "The rift widens, the lord retreats to the far island.",
+    "Дракон уходит к сокровищнице: золото рассыпано, тьма густеет.":
+      "The dragon goes to the treasury: gold is scattered, the darkness thickens.",
+    "Две колонны рушатся, тьма сжимается до трёх шагов.":
+      "Two columns collapse, the darkness closes to three steps.",
+    "Проклятие лича: подсказка не работает":
+      "The lich's curse: hints do not work",
     "Лестницу можно найти и спуститься, даже не убивая всех монстров.":
       "You can find the stairs and descend without killing every monster.",
     "Лестница вверх возвращает на прошлый этаж с его монстрами и добычей.":
@@ -1378,8 +1526,31 @@
     [/^Этаж (\d+) · (.+)$/, function (m, n, name) {
       return "Floor " + n + " · " + translateString(name);
     }],
-    [/^Этаж (\d+): (.+)$/, function (m, n, name) {
-      return "Floor " + n + ": " + translateString(name);
+    [/^Этаж (\d+): (.+?)(\.?)$/, function (m, n, name, dot) {
+      return "Floor " + n + ": " + translateString(name) + dot;
+    }],
+    [/^Выход охраняет (.+)$/, function (m, name) {
+      return "The exit is guarded by the " + translateString(name).toLowerCase();
+    }],
+    [/^Восстановить: (.+)$/, function (m, name) {
+      return "Restore: " + translateString(name);
+    }],
+    [/^(.+) восстановлен$/, function (m, name) {
+      return translateString(name) + " restored";
+    }],
+    [/^Добыть: (.+)$/, function (m, name) {
+      return "Gather: " + translateString(name);
+    }],
+    [/^Ты открыл сундук: (.+)\.$/, function (m, name) {
+      return "You opened the chest: " + translateString(name) + ".";
+    }],
+    [/^Учитель дал домашнее задание: (.+)\.$/, function (m, text) {
+      return "The teacher gave homework: " + translateString(text) + ".";
+    }],
+    [/^Рядом: (.+)\.$/, function (m, list) {
+      return "Nearby: " + list.split(", ").map(function (part) {
+        return translateString(part);
+      }).join(", ") + ".";
     }],
     [/^Этаж (\d+)$/, function (m, n) {
       return "Floor " + n;
@@ -1647,6 +1818,75 @@
     [/^Фаза (\d+) · (.+)$/, function (m, n, name) {
       return "Phase " + n + " · " + translateString(name);
     }],
+    [/^Босс отступает\. Фаза (\d+): (.+)\. (.+)$/, function (m, n, name, text) {
+      return "The boss retreats. Phase " + n + ": " + translateString(name) +
+        ". " + translateString(text);
+    }],
+    [/^Босс отступает\. Начинается фаза (.+)\.$/, function (m, n) {
+      return "The boss retreats. Phase " + n + " begins.";
+    }],
+    [/^Ты поднялся на поверхность\. Поход сохранён: этаж (.+) ждёт у стража\.$/,
+      function (m, n) {
+        return "You returned to the surface. Expedition saved: floor " + n +
+          " waits at the gate warden.";
+      }],
+    [/^За рычагом — запечатанная комната с добычей\. Другой дороги внутрь нет\. Верный ответ вырубит проход в стене; ошибка ударит током на (\d+) здоровья, но$/,
+      function (m, n) {
+        return "Behind the lever is a sealed room with loot. There is no other " +
+          "way in. A correct answer cuts a passage in the wall; a mistake " +
+          "shocks you for " + n + " health, but";
+      }],
+    [/^Рычаг бьёт током: −(\d+) здоровья\. Не смертельно — попробуй ещё раз\.$/,
+      function (m, n) {
+        return "The lever shocks you: −" + n + " health. Not fatal — try again.";
+      }],
+    [/^Ток ударил \(−(\d+) HP\), но не насмерть$/,
+      function (m, n) {
+        return "The shock hit (−" + n + " HP), but not fatally";
+      }],
+    [/^Привал: \+(\d+) здоровья, заряды умения пополнены \((.+) → (.+)\), яд и цепь сняты\. Осталось привалов: (\d+)\.$/,
+      function (m, hp, before, after, left) {
+        return "Camp: +" + hp + " health, ability charges restored (" + before +
+          " → " + after + "), poison and snare removed. Camps left: " + left + ".";
+      }],
+    [/^Привал: \+(\d+) HP$/, function (m, n) {
+      return "Camp: +" + n + " HP";
+    }],
+    [/^Лава обжигает: −(\d+) здоровья\.$/, function (m, n) {
+      return "The lava burns: −" + n + " health.";
+    }],
+    [/^Лавовый разлом обжёг тебя на (\d+)\.$/, function (m, n) {
+      return "The lava rift burned you for " + n + ".";
+    }],
+    [/^(.+): алтарь предлагает сделку\. Можно уйти без выбора и вернуться позже\.$/,
+      function (m, place) {
+        return translateString(place) + ": the altar offers a bargain. " +
+          "You can leave without choosing and return later.";
+      }],
+    [/^Тёмная сделка: монстры этого этажа бьют на 35% сильнее, но золото с них удваивается\. Получено (\d+) золота\.$/,
+      function (m, n) {
+        return "Dark bargain: monsters on this floor hit 35% harder, but " +
+          "their gold is doubled. Received " + n + " gold.";
+      }],
+    [/^Тёмная сделка · \+(\d+) золота$/, function (m, n) {
+      return "Dark bargain · +" + n + " gold";
+    }],
+    [/^Каменный дар: \+(\d+) к максимуму здоровья на этом этаже, здоровье восстановлено полностью\. Монстры этажа стали живучее\.$/,
+      function (m, n) {
+        return "Stone gift: +" + n + " maximum health on this floor, health " +
+          "fully restored. Monsters on the floor became tougher.";
+      }],
+    [/^Каменный дар · \+(\d+) HP$/, function (m, n) {
+      return "Stone gift · +" + n + " HP";
+    }],
+    [/^Тема этажа: (.+)$/, function (m, topic) {
+      return "Floor theme: " + translateString(topic);
+    }],
+    [/^✦ Дракон помнит дань: (\d+) из 5\. В третьей фазе он будет крепче\.$/,
+      function (m, n) {
+        return "✦ The dragon remembers tribute: " + n + " of 5. " +
+          "In the third phase it will be tougher.";
+      }],
     [/^Тебя тошнит от яда\. Осталось (\d+) ходов\.$/, function (m, n) {
       return "You are sick with poison. " + n + " turns left.";
     }],

@@ -3794,6 +3794,7 @@
         dmgMul *= 1 + tribute.dmgPct;
       }
     }
+    if (typeof window.tr === "function" && phaseText) phaseText = window.tr(phaseText);
     const lore = BOSS_INFO[key];
     const phaseQuip = lore && lore.phaseQuips && lore.phaseQuips[phase];
     if (phaseQuip) phaseText += " " + phaseQuip;
@@ -17472,6 +17473,17 @@ function topicName(key) {
   // ---------- Обновления ----------
   // Короткая лента новостей для главного меню. Новые записи — сверху.
   const UPDATES = [
+    {
+      version: "1.55.3",
+      date: "14 ноября 2026",
+      title: "Английская версия: перевод завершён",
+      items: [
+        "Переведены фазы боссов, подписи действий, рычаг, алтарь, привал и хроника.",
+        "Английские подсказки этажей, правила арен и указатели развилок.",
+        "Достижения и редкие боевые сообщения получили английские названия.",
+        "Добавлена проверка tools/verify_i18n.py: видимой кириллицы на ключевых экранах нет."
+      ]
+    },
     {
       version: "1.55.2",
       date: "13 ноября 2026",

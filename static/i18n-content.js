@@ -1356,7 +1356,7 @@
       var box = document.getElementById("updates-box");
       if (!box) return;
       var info = window.__PYQUIZ_VERSION;
-      var version = ((info && info.version) || "1.55.2").replace("-web", "");
+      var version = ((info && info.version) || "1.55.3").replace("-web", "");
       box.innerHTML =
         "<div class='battle-head'><div>" +
         "<div class='enemy-name'>Updates</div>" +
@@ -1364,6 +1364,16 @@
         "</div><button class='exit-btn' id='updates-close' type='button' " +
         "data-tip='Close updates. Escape.'>Close</button></div>" +
         "<div class='battle-mid updates-body'>" +
+        "<article class='update-entry'>" +
+        "<div class='update-entry-head'><h3>English version: translation complete</h3>" +
+        "<span class='update-version'>v1.55.3</span></div>" +
+        "<div class='update-date'>November 14, 2026</div>" +
+        "<ul>" +
+        "<li>Boss phases, action labels, levers, altars, camps and the chronicle are translated.</li>" +
+        "<li>Floor tips, arena rules and crossroads signs are in English.</li>" +
+        "<li>Achievements and rare battle messages now have English names.</li>" +
+        "<li>Added tools/verify_i18n.py: no visible Cyrillic on key screens.</li>" +
+        "</ul></article>" +
         "<article class='update-entry'>" +
         "<div class='update-entry-head'><h3>Journal: less text, more focus</h3>" +
         "<span class='update-version'>v1.55.2</span></div>" +
